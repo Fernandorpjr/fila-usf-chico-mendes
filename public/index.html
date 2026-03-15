@@ -87,6 +87,25 @@
     gap: 20px;
   }
 
+  .btn-reset {
+    background: transparent;
+    color: var(--gray-300);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-reset:hover {
+    background: rgba(229,57,53,0.15);
+    color: var(--red);
+    border-color: rgba(229,57,53,0.3);
+  }
+
   .clock {
     font-family: 'Nunito', sans-serif;
     font-size: 24px;
@@ -626,7 +645,7 @@
   /* ============ STATS ROW ============ */
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 16px;
     margin-bottom: 28px;
   }
@@ -769,6 +788,9 @@
     </div>
   </div>
   <div class="header-right">
+    <button class="btn-reset" onclick="resetData()" title="Zerar todas as filas e histórico">
+      🗑️ Resetar Diário
+    </button>
     <div>
       <div class="date-display" id="dateDisplay"></div>
       <div class="clock" id="clockDisplay">00:00:00</div>
@@ -806,6 +828,13 @@
     </div>
 
     <div class="stats-row">
+      <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.3);">
+        <div class="stat-icon" style="background:var(--green); color:white;">✅</div>
+        <div>
+          <div class="stat-value" id="stat-atendidos" style="color:var(--green);">0</div>
+          <div class="stat-label">Total Atendidos</div>
+        </div>
+      </div>
       <div class="stat-card">
         <div class="stat-icon" style="background:rgba(255,255,255,0.1);">👥</div>
         <div>

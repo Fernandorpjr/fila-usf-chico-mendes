@@ -179,7 +179,11 @@ app.get('/api/current-calling', async (req, res) => {
       if (result.rows.length > 0) current[setor] = result.rows[0];
     }
 
-    res.json(current);
+    // Calcular o total de atendidos hoje (assumindo que o histórico é limpo diariamente)
+    const countResult = await pool.query("SELECT COUNT(*) FROM call_history");
+    const totalAtendidos = parseInt(countResult.rows[0].count, 10);
+
+    res.json({ current, totalAtendidos });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -188,8 +192,8 @@ app.get('/api/current-calling', async (req, res) => {
 // Reset database (optional utility)
 app.post('/api/reset', async (req, res) => {
   try {
-    await pool.query('DELETE FROM patients');
-    await pool.query('DELETE FROM call_history');
+    // Truncate limpa as tabelas e RESTART IDENTITY zera os IDs (voltando a 1)
+    await pool.query('TRUNCATE TABLE patients, call_history RESTART IDENTITY CASCADE');
     res.json({ message: 'Banco de dados resetado com sucesso' });
   } catch (error) {
     res.status(500).json({ error: error.message });

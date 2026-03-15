@@ -18,6 +18,7 @@ let currentCalling = {
 
 let callHistory = [];
 let recentAdded = [];
+let totalAtendidos = 0;
 
 // ====== CLOCK ======
 function updateClock() {
@@ -196,9 +197,12 @@ async function loadQueues() {
 async function loadCurrentCalling() {
   try {
     const response = await fetch(`${API_URL}/current-calling`);
-    currentCalling = await response.json();
+    const data = await response.json();
+    currentCalling = data.current;
+    totalAtendidos = data.totalAtendidos || 0;
     updateBanners();
     updatePainel();
+    updateStats(); // Atualizar o contador global
   } catch (error) {
     console.error('Error loading current calling:', error);
   }
@@ -231,6 +235,11 @@ function updateStats() {
   document.getElementById('stat-farm').textContent = f;
   document.getElementById('stat-reg').textContent = r;
   document.getElementById('stat-cons').textContent = c;
+  
+  const elTotalAtendidos = document.getElementById('stat-atendidos');
+  if (elTotalAtendidos) {
+    elTotalAtendidos.textContent = totalAtendidos;
+  }
 }
 
 function updateBadges() {
@@ -369,6 +378,21 @@ function showToast(msg, error = false) {
   toast.classList.toggle('error', error);
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ====== RESET DATA ======
+async function resetData() {
+  if (confirm("⚠️ TEM CERTEZA QUE DESEJA APAGAR TODA A FILA E HISTÓRICO?\n\nIsso limpará os dados de hoje e reiniciará as senhas. Esta ação não pode ser desfeita.")) {
+    try {
+      const response = await fetch(`${API_URL}/reset`, { method: 'POST' });
+      if (!response.ok) throw new Error('Erro ao resetar dados');
+      showToast('✅ Fila zerada com sucesso!');
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('❌ Erro ao resetar a fila!', true);
+    }
+  }
 }
 
 // ====== INIT ======
