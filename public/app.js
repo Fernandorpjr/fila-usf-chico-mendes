@@ -5,15 +5,19 @@ const API_URL = window.location.hostname === 'localhost'
 
 // ====== STATE ======
 let queues = {
+  'Acolhimento': [],
   'Farmácia': [],
   'Regulação': [],
-  'Consulta': []
+  'Consulta': [],
+  'Renovação de Receita': []
 };
 
 let currentCalling = {
+  'Acolhimento': null,
   'Farmácia': null,
   'Regulação': null,
-  'Consulta': null
+  'Consulta': null,
+  'Renovação de Receita': null
 };
 
 let callHistory = [];
@@ -228,13 +232,20 @@ function updateAll() {
 }
 
 function updateStats() {
+  const a = queues['Acolhimento'].filter(p => p.status === 'aguardando').length;
   const f = queues['Farmácia'].filter(p => p.status === 'aguardando').length;
   const r = queues['Regulação'].filter(p => p.status === 'aguardando').length;
   const c = queues['Consulta'].filter(p => p.status === 'aguardando').length;
-  document.getElementById('stat-total').textContent = f + r + c;
-  document.getElementById('stat-farm').textContent = f;
-  document.getElementById('stat-reg').textContent = r;
-  document.getElementById('stat-cons').textContent = c;
+  const rev = queues['Renovação de Receita'].filter(p => p.status === 'aguardando').length;
+  
+  document.getElementById('stat-total').textContent = a + f + r + c + rev;
+  
+  const elFarm = document.getElementById('stat-farm');
+  if (elFarm) elFarm.textContent = f;
+  const elReg = document.getElementById('stat-reg');
+  if (elReg) elReg.textContent = r;
+  const elCons = document.getElementById('stat-cons');
+  if (elCons) elCons.textContent = c;
   
   const elTotalAtendidos = document.getElementById('stat-atendidos');
   if (elTotalAtendidos) {
@@ -243,15 +254,36 @@ function updateStats() {
 }
 
 function updateBadges() {
-  const sectorMap = { 'Farmácia': 'farm', 'Regulação': 'reg', 'Consulta': 'cons' };
+  const sectorMap = { 
+    'Acolhimento': 'acolhimento',
+    'Farmácia': 'farm', 
+    'Regulação': 'reg', 
+    'Consulta': 'cons',
+    'Renovação de Receita': 'renovacao'
+  };
+  
   Object.entries(sectorMap).forEach(([setor, key]) => {
-    const count = queues[setor].filter(p => p.status === 'aguardando').length;
-    document.getElementById('badge-' + (setor === 'Farmácia' ? 'farmacia' : setor === 'Regulação' ? 'regulacao' : 'consulta')).textContent = count;
-    if (document.getElementById('cnt-' + key)) {
-      document.getElementById('cnt-' + key).textContent = count + ' na fila';
+    const count = queues[setor]?.filter(p => p.status === 'aguardando').length || 0;
+    
+    // Update tab badges
+    const badgeId = 'badge-' + (setor === 'Farmácia' ? 'farmacia' : 
+                                setor === 'Regulação' ? 'regulacao' : 
+                                setor === 'Acolhimento' ? 'acolhimento' :
+                                setor === 'Renovação de Receita' ? 'renovacao' : 'consulta');
+                                
+    const badgeEl = document.getElementById(badgeId);
+    if (badgeEl) badgeEl.textContent = count;
+    
+    // Update overview counts (Recepcao)
+    const cntId = 'cnt-' + (setor === 'Acolhimento' ? 'acolh' : key === 'renovacao' ? 'renov' : key);
+    if (document.getElementById(cntId)) {
+      document.getElementById(cntId).textContent = count + ' na fila';
     }
-    if (document.getElementById('cnt2-' + key)) {
-      document.getElementById('cnt2-' + key).textContent = count;
+    
+    // Update sector screen counts
+    const cnt2Id = 'cnt2-' + (setor === 'Acolhimento' ? 'acolh' : key === 'renovacao' ? 'renov' : key);
+    if (document.getElementById(cnt2Id)) {
+      document.getElementById(cnt2Id).textContent = count;
     }
   });
 }
@@ -276,57 +308,78 @@ function renderQueueItems(container, setor, mini = false) {
 }
 
 function getColor(setor) {
+  if (setor === 'Acolhimento') return 'var(--purple)';
   if (setor === 'Farmácia') return 'var(--green)';
   if (setor === 'Regulação') return 'var(--blue)';
+  if (setor === 'Renovação de Receita') return 'var(--teal)';
   return 'var(--orange)';
 }
 
 function updateQueues() {
+  renderQueueItems('queue-acolhimento', 'Acolhimento');
   renderQueueItems('queue-farmacia', 'Farmácia');
   renderQueueItems('queue-regulacao', 'Regulação');
   renderQueueItems('queue-consulta', 'Consulta');
+  renderQueueItems('queue-renovacao', 'Renovação de Receita');
 }
 
 function updateMiniQueues() {
+  renderQueueItems('mini-queue-acolhimento', 'Acolhimento', true);
   renderQueueItems('mini-queue-farmacia', 'Farmácia', true);
   renderQueueItems('mini-queue-regulacao', 'Regulação', true);
   renderQueueItems('mini-queue-consulta', 'Consulta', true);
+  renderQueueItems('mini-queue-renovacao', 'Renovação de Receita', true);
 }
 
 function updateRecent() {
   const el = document.getElementById('recent-list');
-  if (queues['Farmácia'].length + queues['Regulação'].length + queues['Consulta'].length === 0) {
+  const allPatients = [
+    ...(queues['Acolhimento'] || []),
+    ...(queues['Farmácia'] || []),
+    ...(queues['Regulação'] || []),
+    ...(queues['Consulta'] || []),
+    ...(queues['Renovação de Receita'] || [])
+  ];
+  
+  if (allPatients.length === 0) {
     el.innerHTML = `<div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>`;
     return;
   }
   
-  const allPatients = [
-    ...queues['Farmácia'],
-    ...queues['Regulação'],
-    ...queues['Consulta']
-  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+  const sorted = allPatients.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
 
-  el.innerHTML = allPatients.map(p => `
+  el.innerHTML = sorted.map(p => {
+    const icon = p.setor === 'Acolhimento' ? '💜' : 
+                 p.setor === 'Farmácia' ? '💊' : 
+                 p.setor === 'Regulação' ? '📋' : 
+                 p.setor === 'Renovação de Receita' ? '📄' : '🩺';
+                 
+    return `
     <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:8px;border:1px solid var(--gray-200);">
-      <div style="font-size:18px;">${p.setor==='Farmácia'?'💊':p.setor==='Regulação'?'📋':'🩺'}</div>
+      <div style="font-size:18px;">${icon}</div>
       <div style="flex:1;">
         <div style="font-weight:700;font-size:14px;color:var(--gray-700);">${p.nome}</div>
         <div style="font-size:12px;color:var(--gray-600);">${p.setor} · ${p.horario}</div>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function updateBanners() {
-  ['Farmácia', 'Regulação', 'Consulta'].forEach(setor => {
-    const key = setor === 'Farmácia' ? 'farmacia' : setor === 'Regulação' ? 'regulacao' : 'consulta';
+  ['Acolhimento', 'Farmácia', 'Regulação', 'Consulta', 'Renovação de Receita'].forEach(setor => {
+    const key = setor === 'Acolhimento' ? 'acolhimento' :
+                setor === 'Farmácia' ? 'farmacia' : 
+                setor === 'Regulação' ? 'regulacao' : 
+                setor === 'Renovação de Receita' ? 'renovacao' : 'consulta';
     const banner = document.getElementById('banner-' + key);
     const nameEl = document.getElementById('banner-name-' + key);
-    if (currentCalling[setor]) {
-      banner.classList.add('visible');
-      nameEl.textContent = currentCalling[setor].nome;
-    } else {
-      banner.classList.remove('visible');
+    if (banner && nameEl) {
+      if (currentCalling[setor]) {
+        banner.classList.add('visible');
+        nameEl.textContent = currentCalling[setor].nome;
+      } else {
+        banner.classList.remove('visible');
+      }
     }
   });
 }
@@ -340,7 +393,10 @@ function updatePainel() {
 
   if (allCalling.length > 0) {
     const latest = allCalling[allCalling.length - 1];
-    const icon = latest.setor === 'Farmácia' ? '💊' : latest.setor === 'Regulação' ? '📋' : '🩺';
+    const icon = latest.setor === 'Acolhimento' ? '💜' : 
+                 latest.setor === 'Farmácia' ? '💊' : 
+                 latest.setor === 'Regulação' ? '📋' : 
+                 latest.setor === 'Renovação de Receita' ? '📄' : '🩺';
     main.innerHTML = `
       <div class="painel-call-label">🔔 Chamando agora</div>
       <div class="painel-call-name">${latest.nome}</div>
@@ -356,7 +412,10 @@ function updatePainel() {
     return;
   }
   histEl.innerHTML = callHistory.map((p, i) => {
-    const icon = p.setor === 'Farmácia' ? '💊' : p.setor === 'Regulação' ? '📋' : '🩺';
+    const icon = p.setor === 'Acolhimento' ? '💜' : 
+                 p.setor === 'Farmácia' ? '💊' : 
+                 p.setor === 'Regulação' ? '📋' : 
+                 p.setor === 'Renovação de Receita' ? '📄' : '🩺';
     return `
       <div class="painel-history-item">
         <div class="ph-number">${i + 1}</div>

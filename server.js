@@ -57,9 +57,11 @@ initDB();
 app.get('/api/queues', async (req, res) => {
   try {
     const queues = {
+      'Acolhimento': [],
       'Farmácia': [],
       'Regulação': [],
-      'Consulta': []
+      'Consulta': [],
+      'Renovação de Receita': []
     };
 
     const result = await pool.query(
@@ -166,9 +168,11 @@ app.get('/api/history', async (req, res) => {
 app.get('/api/current-calling', async (req, res) => {
   try {
     const current = {
+      'Acolhimento': null,
       'Farmácia': null,
       'Regulação': null,
-      'Consulta': null
+      'Consulta': null,
+      'Renovação de Receita': null
     };
 
     for (const setor of Object.keys(current)) {
@@ -192,8 +196,11 @@ app.get('/api/current-calling', async (req, res) => {
 // Reset database (optional utility)
 app.post('/api/reset', async (req, res) => {
   try {
-    // Truncate limpa as tabelas e RESTART IDENTITY zera os IDs (voltando a 1)
-    await pool.query('TRUNCATE TABLE patients, call_history RESTART IDENTITY CASCADE');
+    // Delete data securely and restart sequences to reset IDs to 1
+    await pool.query('DELETE FROM call_history');
+    await pool.query('DELETE FROM patients');
+    await pool.query('ALTER SEQUENCE patients_id_seq RESTART WITH 1');
+    await pool.query('ALTER SEQUENCE call_history_id_seq RESTART WITH 1');
     res.json({ message: 'Banco de dados resetado com sucesso' });
   } catch (error) {
     res.status(500).json({ error: error.message });

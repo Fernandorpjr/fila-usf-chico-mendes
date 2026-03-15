@@ -23,6 +23,10 @@
     --gray-700: #3a4a6a;
     --red: #e53935;
     --yellow: #f9c823;
+    --purple: #8e24aa;
+    --purple-dark: #6a1b9a;
+    --teal: #00897b;
+    --teal-dark: #00695c;
     --shadow-sm: 0 2px 8px rgba(15,52,145,0.12);
     --shadow-md: 0 6px 24px rgba(15,52,145,0.18);
     --shadow-lg: 0 12px 40px rgba(15,52,145,0.25);
@@ -458,6 +462,27 @@
   .status-waiting { background: rgba(26,79,196,0.1); color: var(--blue); }
   .status-calling { background: rgba(249,200,35,0.2); color: #b8860b; }
   .status-done { background: rgba(74,171,60,0.1); color: var(--green-dark); }
+  
+  /* Buttons extra colors */
+  .btn-purple {
+    background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%);
+    color: var(--white);
+    box-shadow: 0 4px 14px rgba(142,36,170,0.4);
+    width: 100%;
+    padding: 16px;
+    font-size: 15px;
+  }
+  .btn-purple:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(142,36,170,0.5); }
+
+  .btn-teal {
+    background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+    color: var(--white);
+    box-shadow: 0 4px 14px rgba(0,137,123,0.4);
+    width: 100%;
+    padding: 16px;
+    font-size: 15px;
+  }
+  .btn-teal:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,137,123,0.5); }
 
   /* ============ CALLING BANNER ============ */
   .calling-banner {
@@ -641,13 +666,21 @@
   .tag-farmacia { background: rgba(74,171,60,0.15); color: #2d7a22; border: 1px solid rgba(74,171,60,0.3); }
   .tag-regulacao { background: rgba(26,79,196,0.12); color: var(--blue); border: 1px solid rgba(26,79,196,0.2); }
   .tag-consulta { background: rgba(244,130,30,0.12); color: var(--orange-dark); border: 1px solid rgba(244,130,30,0.25); }
+  .tag-acolhimento { background: rgba(142,36,170,0.12); color: var(--purple-dark); border: 1px solid rgba(142,36,170,0.25); }
+  .tag-renovacao { background: rgba(0,137,123,0.12); color: var(--teal-dark); border: 1px solid rgba(0,137,123,0.25); }
 
   /* ============ STATS ROW ============ */
   .stats-row {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-bottom: 28px;
+  }
+  
+  .stats-row .stat-card {
+    flex: 1;
+    min-width: 140px;
+    padding: 16px;
   }
 
   .stat-card {
@@ -803,6 +836,9 @@
   <button class="nav-tab active" onclick="showScreen('recepcao')" id="tab-recepcao">
     🏥 Recepção
   </button>
+  <button class="nav-tab" onclick="showScreen('acolhimento')" id="tab-acolhimento">
+    💜 Acolhimento <span class="tab-badge" style="background:var(--purple);" id="badge-acolhimento">0</span>
+  </button>
   <button class="nav-tab" onclick="showScreen('farmacia')" id="tab-farmacia">
     💊 Farmácia <span class="tab-badge green" id="badge-farmacia">0</span>
   </button>
@@ -811,6 +847,9 @@
   </button>
   <button class="nav-tab" onclick="showScreen('consulta')" id="tab-consulta">
     🩺 Consulta <span class="tab-badge" id="badge-consulta">0</span>
+  </button>
+  <button class="nav-tab" onclick="showScreen('renovacao')" id="tab-renovacao">
+    📄 Renovar Receita <span class="tab-badge" style="background:var(--teal);" id="badge-renovacao">0</span>
   </button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">
     📺 Painel Público
@@ -879,9 +918,11 @@
           <label>Setor de Atendimento</label>
           <select id="input-setor">
             <option value="">— Selecione o setor —</option>
+            <option value="Acolhimento">💜 Acolhimento</option>
             <option value="Farmácia">💊 Farmácia</option>
             <option value="Regulação">📋 Regulação</option>
             <option value="Consulta">🩺 Consulta</option>
+            <option value="Renovação de Receita">📄 Renovação de Receita</option>
           </select>
         </div>
         <button class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;" onclick="addPatient()">
@@ -901,6 +942,16 @@
 
       <!-- Visão geral das filas -->
       <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card-white" id="overview-acolhimento">
+          <div class="sector-header">
+            <div class="sector-name">
+              <div class="sector-dot" style="background:var(--purple)"></div>
+              💜 Acolhimento
+            </div>
+            <span class="sector-count" style="background:var(--purple);" id="cnt-acolh">0 na fila</span>
+          </div>
+          <div class="queue-list" id="mini-queue-acolhimento"></div>
+        </div>
         <div class="card-white" id="overview-farmacia">
           <div class="sector-header">
             <div class="sector-name">
@@ -931,7 +982,48 @@
           </div>
           <div class="queue-list" id="mini-queue-consulta"></div>
         </div>
+        <div class="card-white" id="overview-renovacao">
+          <div class="sector-header">
+            <div class="sector-name">
+              <div class="sector-dot" style="background:var(--teal)"></div>
+              📄 Renovação de Receita
+            </div>
+            <span class="sector-count" style="background:var(--teal);" id="cnt-renov">0 na fila</span>
+          </div>
+          <div class="queue-list" id="mini-queue-renovacao"></div>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ ACOLHIMENTO ============ -->
+  <div class="screen" id="screen-acolhimento">
+    <div class="sector-page-header">
+      <div class="sector-icon-big" style="background:rgba(142,36,170,0.2);">💜</div>
+      <div>
+        <div class="sector-page-title">Acolhimento</div>
+        <div class="sector-page-sub">Chamada de pacientes para o acolhimento inicial</div>
+      </div>
+    </div>
+    <div class="calling-banner" id="banner-acolhimento">
+      <div class="cb-icon">🔔</div>
+      <div class="cb-text">
+        <div class="cb-label">Chamando agora</div>
+        <div class="cb-name" id="banner-name-acolhimento">—</div>
+        <div class="cb-sector">💜 Acolhimento</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="speakAgain('Acolhimento')">🔊 Repetir</button>
+    </div>
+    <div class="card-white">
+      <div class="btn-group" style="margin-bottom:20px;">
+        <button class="btn btn-purple" onclick="callNext('Acolhimento')" style="flex:1;">📢 Chamar Próximo</button>
+        <button class="btn btn-orange" onclick="speakAgain('Acolhimento')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
+      </div>
+      <div class="sector-header">
+        <div class="sector-name"><div class="sector-dot" style="background:var(--purple)"></div>Aguardando</div>
+        <span class="sector-count" style="background:var(--purple);" id="cnt2-acolh">0</span>
+      </div>
+      <div class="queue-list" id="queue-acolhimento"></div>
     </div>
   </div>
 
@@ -986,7 +1078,7 @@
     </div>
     <div class="card-white">
       <div class="btn-group" style="margin-bottom:20px;">
-        <button class="btn btn-green" onclick="callNext('Regulação')" style="flex:1;">📢 Chamar Próximo</button>
+        <button class="btn btn-primary" onclick="callNext('Regulação')" style="flex:1;padding:16px;font-size:16px;">📢 Chamar Próximo</button>
         <button class="btn btn-orange" onclick="speakAgain('Regulação')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
       </div>
       <div class="sector-header">
@@ -1017,14 +1109,45 @@
     </div>
     <div class="card-white">
       <div class="btn-group" style="margin-bottom:20px;">
-        <button class="btn btn-green" onclick="callNext('Consulta')" style="flex:1;">📢 Chamar Próximo</button>
-        <button class="btn btn-orange" onclick="speakAgain('Consulta')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
+        <button class="btn btn-orange" onclick="callNext('Consulta')" style="flex:1;">📢 Chamar Próximo</button>
+        <button class="btn btn-orange" style="background:rgba(244,130,30,0.2);color:var(--orange-dark);box-shadow:none;border:1px solid rgba(244,130,30,0.5);" onclick="speakAgain('Consulta')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
       </div>
       <div class="sector-header">
         <div class="sector-name"><div class="sector-dot" style="background:var(--orange)"></div>Aguardando</div>
         <span class="sector-count" style="background:var(--orange);" id="cnt2-cons">0</span>
       </div>
       <div class="queue-list" id="queue-consulta"></div>
+    </div>
+  </div>
+
+  <!-- ============ RENOVAÇÃO DE RECEITA ============ -->
+  <div class="screen" id="screen-renovacao">
+    <div class="sector-page-header">
+      <div class="sector-icon-big" style="background:rgba(0,137,123,0.2);">📄</div>
+      <div>
+        <div class="sector-page-title">Renovação de Receita</div>
+        <div class="sector-page-sub">Chamada de pacientes para renovação e retirada da receita</div>
+      </div>
+    </div>
+    <div class="calling-banner" id="banner-renovacao">
+      <div class="cb-icon">🔔</div>
+      <div class="cb-text">
+        <div class="cb-label">Chamando agora</div>
+        <div class="cb-name" id="banner-name-renovacao">—</div>
+        <div class="cb-sector">📄 Renovação de Receita</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="speakAgain('Renovação de Receita')">🔊 Repetir</button>
+    </div>
+    <div class="card-white">
+      <div class="btn-group" style="margin-bottom:20px;">
+        <button class="btn btn-teal" onclick="callNext('Renovação de Receita')" style="flex:1;">📢 Chamar Próximo</button>
+        <button class="btn btn-orange" onclick="speakAgain('Renovação de Receita')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
+      </div>
+      <div class="sector-header">
+        <div class="sector-name"><div class="sector-dot" style="background:var(--teal)"></div>Aguardando</div>
+        <span class="sector-count" style="background:var(--teal);" id="cnt2-renov">0</span>
+      </div>
+      <div class="queue-list" id="queue-renovacao"></div>
     </div>
   </div>
 
