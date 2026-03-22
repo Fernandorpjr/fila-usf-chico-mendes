@@ -97,6 +97,9 @@ async function callNext(setor) {
       throw new Error(data.error || 'Erro ao chamar próximo');
     }
 
+    loadQueues();
+    loadCurrentCalling();
+
     // O backend agora emite evento via WebSocket para atualizar todos os clientes simultaneamente.
     // O áudio TTS e a atualização visual serão feitos pelo listener do Socket.io.
   } catch (error) {

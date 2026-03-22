@@ -163,6 +163,9 @@ app.post('/api/call-next/:setor', async (req, res) => {
     const updatedResult = await pool.query('SELECT * FROM patients WHERE id = $1', [next.id]);
     const nextPatient = updatedResult.rows[0];
 
+    // Emite atualização imediata para alterar as filas visualmente para todos os operadores
+    io.emit('queueUpdate');
+
     // Libera a requisição do médico IMEDIATAMENTE (Zera o delay na interface)
     res.json(nextPatient);
 
