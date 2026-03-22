@@ -45,12 +45,16 @@ function showScreen(name) {
 }
 
 // ====== ADD PATIENT ======
-async function addPatient() {
-  const nome = document.getElementById('input-nome').value.trim();
+async function addPatient(btn) {
+  const nomeInput = document.getElementById('input-nome');
+  const nome = nomeInput.value.trim();
   const setor = document.getElementById('input-setor').value;
 
   if (!nome) { showToast('Digite o nome do paciente!', true); return; }
   if (!setor) { showToast('Selecione o setor!', true); return; }
+
+  // Disable button to prevent double clicks
+  if (btn) btn.disabled = true;
 
   try {
     const response = await fetch(`${API_URL}/patients`, {
@@ -71,6 +75,8 @@ async function addPatient() {
   } catch (error) {
     console.error('Error:', error);
     showToast('Erro ao adicionar paciente!', true);
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -156,10 +162,8 @@ function speakViaSynthesis(nome, setor, medico) {
     return;
   }
   window.speechSynthesis.cancel(); // cancel any ongoing speech
-  
-  // Saudação Dinâmica
-  const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false });
-  const currHour = parseInt(formatter.format(new Date()), 10);
+  // Saudação Dinâmica mais segura para navegadores antigos/TVs
+  const currHour = new Date().getHours();
   const saudacao = currHour < 12 ? 'Bom dia' : currHour < 18 ? 'Boa tarde' : 'Boa noite';
 
   const destinoTexto = medico ? `ao ${medico}` : `à ${setor}`;
@@ -327,7 +331,10 @@ function updateBadges() {
   };
   
   Object.entries(sectorMap).forEach(([setor, key]) => {
-    const count = queues[setor]?.filter(p => p.status === 'aguardando').length || 0;
+    let count = 0;
+    if (queues[setor]) {
+      count = queues[setor].filter(p => p.status === 'aguardando').length;
+    }
     
     // Update tab badges
     const badgeId = 'badge-' + (setor === 'Farmácia' ? 'farmacia' : 
