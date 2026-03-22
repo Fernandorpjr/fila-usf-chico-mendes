@@ -25,6 +25,8 @@ let attendedPatients = [];
 let recentAdded = [];
 let totalAtendidos = 0;
 let lastSpokenCallId = null;
+let chatMessages = [];
+let unreadChatCount = 0;
 
 // ====== CONFIGURAÇÕES DE LOTAÇÃO ======
 const CAPACITY_LIMITS = {
@@ -53,6 +55,15 @@ function showScreen(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
+  
+  if (name === 'chat') {
+    unreadChatCount = 0;
+    updateChatBadge();
+    setTimeout(() => {
+      const container = document.getElementById('chat-messages');
+      if (container) container.scrollTop = container.scrollHeight;
+    }, 50);
+  }
 }
 
 // ====== ADD PATIENT ======
@@ -558,6 +569,86 @@ function updatePainel() {
   }).join('');
 }
 
+// ====== CHAT INTERNO ======
+async function loadChat() {
+  try {
+    const response = await fetch(`${API_URL}/chat`);
+    chatMessages = await response.json();
+    renderChat();
+  } catch (error) {
+    console.error('Error loading chat:', error);
+  }
+}
+
+function renderChat() {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+  
+  const meuSetor = document.getElementById('chat-remetente').value;
+  
+  if (chatMessages.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Diga algo para os outros setores!</p></div>`;
+    return;
+  }
+  
+  container.innerHTML = chatMessages.map(msg => {
+    const timeStr = new Date(msg.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+    const isMe = msg.remetente === meuSetor || (msg.remetente.includes(meuSetor));
+    const bubbleClass = isMe ? 'bubble-sent' : 'bubble-received';
+    
+    return `
+      <div class="chat-bubble ${bubbleClass}">
+        <div class="chat-meta">
+          <span>${msg.remetente}</span>
+        </div>
+        <div>${msg.mensagem}</div>
+        <div class="chat-time">${timeStr}</div>
+      </div>
+    `;
+  }).join('');
+  
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendChatMessage() {
+  const remetente = document.getElementById('chat-remetente').value;
+  const input = document.getElementById('chat-input');
+  const mensagem = input.value.trim();
+  
+  if (!mensagem) return;
+  
+  try {
+    input.disabled = true;
+    const response = await fetch(`${API_URL}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ remetente, mensagem })
+    });
+    
+    if (response.ok) {
+      input.value = '';
+    }
+  } catch (error) {
+    showToast('Erro ao enviar mensagem!', true);
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+function updateChatBadge() {
+  const badge = document.getElementById('badge-chat');
+  if (badge) {
+    if (unreadChatCount > 0) {
+      badge.textContent = unreadChatCount;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+      badge.textContent = '0';
+    }
+  }
+}
+
 // ====== GENERATE PDF ======
 function generatePDF() {
   if (attendedPatients.length === 0) {
@@ -634,6 +725,7 @@ loadQueues();
 loadCurrentCalling();
 loadHistory();
 loadAttended();
+loadChat();
 
 // ====== SOCKET.IO ======
 // Forçar WebSockets para eliminar o delay do "Long Polling" inicial.
@@ -649,6 +741,13 @@ setInterval(() => {
   loadCurrentCalling();
   loadHistory();
   loadAttended();
+  
+  fetch(`${API_URL}/chat`).then(r => r.json()).then(data => {
+    if (data.length > chatMessages.length) {
+      chatMessages = data;
+      renderChat();
+    }
+  }).catch(()=>{});
 }, 3000);
 
 socket.on('queueUpdate', () => {
@@ -666,6 +765,26 @@ socket.on('callPatient', (data) => {
   loadCurrentCalling();
   loadHistory();
   loadAttended();
+});
+
+socket.on('chatMessage', (msg) => {
+  chatMessages.push(msg);
+  renderChat();
+  
+  const activeTab = document.querySelector('.nav-tab.active');
+  if (activeTab && activeTab.id !== 'tab-chat') {
+    unreadChatCount++;
+    updateChatBadge();
+    showToast(`💬 Nova mensagem de ${msg.remetente}`);
+  } else {
+    const container = document.getElementById('chat-messages');
+    if (container) container.scrollTop = container.scrollHeight;
+  }
+});
+
+socket.on('chatReset', () => {
+  chatMessages = [];
+  renderChat();
 });
 
 setTimeout(() => {

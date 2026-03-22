@@ -830,6 +830,56 @@
     .nav-tabs { padding: 0 16px; overflow-x: auto; }
     .painel-call-name { font-size: 36px; }
   }
+
+  /* ============ CHAT PREMIUM STYLES ============ */
+  .chat-bubble {
+    padding: 12px 16px;
+    border-radius: 18px;
+    max-width: 85%;
+    margin-bottom: 8px;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+    animation: messageIn 0.3s ease-out;
+  }
+  
+  @keyframes messageIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .bubble-received {
+    align-self: flex-start;
+    background: var(--white);
+    color: var(--gray-700);
+    border-bottom-left-radius: 4px;
+    border: 1px solid var(--gray-200);
+  }
+
+  .bubble-sent {
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+    color: var(--white);
+    border-bottom-right-radius: 4px;
+  }
+
+  .chat-meta {
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .bubble-sent .chat-meta { color: rgba(255,255,255,0.8); }
+  .bubble-received .chat-meta { color: var(--blue); }
+
+  .chat-time {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-top: 4px;
+    text-align: right;
+  }
 </style>
 </head>
 <body>
@@ -874,6 +924,9 @@
   </button>
   <button class="nav-tab" onclick="showScreen('renovacao')" id="tab-renovacao">
     📄 Renovar Receita <span class="tab-badge" style="background:var(--teal);" id="badge-renovacao">0</span>
+  </button>
+  <button class="nav-tab" onclick="showScreen('chat')" id="tab-chat">
+    💬 Chat Interno <span class="tab-badge" style="background:var(--red);display:none;" id="badge-chat">0</span>
   </button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">
     📺 Painel Público
@@ -1229,6 +1282,53 @@
         <div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;font-size:14px;font-weight:600;">
           Nenhuma chamada registrada
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CHAT INTERNO ============ -->
+  <div class="screen" id="screen-chat">
+    <div class="sector-page-header">
+      <div class="sector-icon-big" style="background:rgba(26,79,196,0.2);">💬</div>
+      <div>
+        <div class="sector-page-title">Chat Interno</div>
+        <div class="sector-page-sub">Comunicação instantânea entre os setores da unidade</div>
+      </div>
+    </div>
+    
+    <div class="card-white" style="display:flex; flex-direction:column; height:650px; padding:0; overflow:hidden; border:none; box-shadow:var(--shadow-lg);">
+      <div style="background:linear-gradient(135deg, var(--blue-dark), var(--blue)); padding:16px 24px; color:white; display:flex; align-items:center; gap:12px;">
+        <div style="font-size:24px;">💬</div>
+        <div>
+          <div style="font-weight:800; font-size:16px;">Mural de Comunicação USF</div>
+          <div style="font-size:12px; opacity:0.8;">Mensagens instantâneas entre setores</div>
+        </div>
+      </div>
+
+      <div id="chat-messages" style="flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; background:#f8faff; scrollbar-width:thin;">
+        <div class="empty-state" style="margin:auto;">
+          <div class="es-icon">💬</div>
+          <p>Diga algo para os outros setores!</p>
+        </div>
+      </div>
+      
+      <div style="padding:20px; background:white; border-top:1px solid var(--gray-200); display:flex; gap:12px; align-items:flex-end;">
+        <div class="form-group" style="width:180px; margin:0;">
+          <label style="font-size:11px;">Seu Setor:</label>
+          <select id="chat-remetente" style="padding:10px; font-size:14px; background:var(--gray-100);">
+            <option value="Recepção">🏢 Recepção</option>
+            <option value="Acolhimento">💜 Acolhimento</option>
+            <option value="Farmácia">💊 Farmácia</option>
+            <option value="Regulação">📋 Regulação</option>
+            <option value="Consulta">🩺 Consulta</option>
+            <option value="Renovação">📄 Renovação</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1; margin:0;">
+          <label style="font-size:11px;">Sua Mensagem:</label>
+          <input type="text" id="chat-input" placeholder="Digite aqui..." style="padding:10px; font-size:15px;" onkeypress="if(event.key==='Enter') sendChatMessage()">
+        </div>
+        <button class="btn btn-primary" onclick="sendChatMessage()" style="height:45px; width:45px; padding:0; border-radius:50%; min-width:45px;">🚀</button>
       </div>
     </div>
   </div>

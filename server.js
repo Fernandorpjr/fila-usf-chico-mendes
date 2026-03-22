@@ -54,6 +54,15 @@ async function initDB() {
       )
     `);
     
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        remetente TEXT NOT NULL,
+        mensagem TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
     // Add medico column to existing tables (safe schema update)
     await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS medico TEXT`);
     await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS medico TEXT`);
@@ -244,12 +253,44 @@ app.post('/api/reset', async (req, res) => {
     // Delete data securely and restart sequences to reset IDs to 1
     await pool.query('DELETE FROM call_history');
     await pool.query('DELETE FROM patients');
+    await pool.query('DELETE FROM chat_messages');
     await pool.query('ALTER SEQUENCE patients_id_seq RESTART WITH 1');
     await pool.query('ALTER SEQUENCE call_history_id_seq RESTART WITH 1');
+    await pool.query('ALTER SEQUENCE chat_messages_id_seq RESTART WITH 1');
     
     io.emit('queueUpdate');
+    io.emit('chatReset');
     
     res.json({ message: 'Banco de dados resetado com sucesso' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== CHAT INTERNO ======
+app.get('/api/chat', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM chat_messages ORDER BY created_at ASC LIMIT 100'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { remetente, mensagem } = req.body;
+    if (!remetente || !mensagem) {
+      return res.status(400).json({ error: 'Remetente e mensagem são obrigatórios' });
+    }
+    const result = await pool.query(
+      'INSERT INTO chat_messages (remetente, mensagem) VALUES ($1, $2) RETURNING *',
+      [remetente, mensagem]
+    );
+    io.emit('chatMessage', result.rows[0]);
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
