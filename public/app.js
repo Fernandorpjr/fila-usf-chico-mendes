@@ -266,7 +266,7 @@ function renderAttended() {
         <div class="queue-position" style="background:var(--green);">${attendedPatients.length - i}</div>
         <div class="queue-name">${p.nome}</div>
         <span class="sector-tag ${tagClass}">${icon} ${p.setor}</span>
-        <div class="queue-time">${p.horario}</div>
+        <div class="queue-time">${p.horario_chamada || p.horario}</div>
         <span class="queue-status status-done">✅ Atendido</span>
       </div>
     `;
@@ -530,7 +530,7 @@ function generatePDF() {
     attendedPatients.length - index,
     p.nome,
     p.setor + (p.medico ? ` (${p.medico})` : ''),
-    p.horario
+    p.horario_chamada || p.horario
   ]);
   
   doc.autoTable({

@@ -163,34 +163,39 @@ app.post('/api/call-next/:setor', async (req, res) => {
     const updatedResult = await pool.query('SELECT * FROM patients WHERE id = $1', [next.id]);
     const nextPatient = updatedResult.rows[0];
 
-    // Saudação Dinâmica
-    const formatter = new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      hour: 'numeric',
-      hour12: false
-    });
-    const currHour = parseInt(formatter.format(new Date()), 10);
-    const saudacao = currHour < 12 ? 'Bom dia' : currHour < 18 ? 'Boa tarde' : 'Boa noite';
-
-    // Gerar URL de áudio com o Google TTS
-    const destinoTexto = medico ? `ao ${medico}` : `à ${setor}`;
-    const texto = `${saudacao}. usuário ${nextPatient.nome}... dirigir-se ${destinoTexto}.`;
-    
-    let audioUrl = '';
-    try {
-      const audioBase64 = await googleTTS.getAudioBase64(texto, {
-        lang: 'pt-BR',
-        slow: false,
-        host: 'https://translate.google.com',
-      });
-      audioUrl = `data:audio/mp3;base64,${audioBase64}`;
-    } catch (err) {
-      console.error('Erro ao gerar TTS:', err);
-    }
-
-    io.emit('callPatient', { patient: nextPatient, setor, audioUrl });
-
+    // Libera a requisição do médico IMEDIATAMENTE (Zera o delay na interface)
     res.json(nextPatient);
+
+    // Geração de áudio e emissão do painel rodam em background
+    (async () => {
+      // Saudação Dinâmica
+      const formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: 'numeric',
+        hour12: false
+      });
+      const currHour = parseInt(formatter.format(new Date()), 10);
+      const saudacao = currHour < 12 ? 'Bom dia' : currHour < 18 ? 'Boa tarde' : 'Boa noite';
+
+      const destinoTexto = medico ? `ao ${medico}` : `à ${setor}`;
+      const texto = `${saudacao}. usuário ${nextPatient.nome}... dirigir-se ${destinoTexto}.`;
+      
+      let audioUrl = '';
+      try {
+        const audioBase64 = await googleTTS.getAudioBase64(texto, {
+          lang: 'pt-BR',
+          slow: false,
+          host: 'https://translate.google.com',
+        });
+        audioUrl = `data:audio/mp3;base64,${audioBase64}`;
+      } catch (err) {
+        console.error('Erro ao gerar TTS:', err);
+      }
+
+      // Emite evento para todos os painéis e atualiza as filas globalmente
+      io.emit('callPatient', { patient: nextPatient, setor, audioUrl });
+    })();
+
   } catch (error) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: error.message });
@@ -214,8 +219,9 @@ app.get('/api/history', async (req, res) => {
 // Get attended patients list
 app.get('/api/attended', async (req, res) => {
   try {
+    // Busca do call_history garante que TODOS os pacientes já chamados apareçam (mesmo os que ainda estão na mesa do médico)
     const result = await pool.query(
-      "SELECT * FROM patients WHERE status = 'atendido' ORDER BY created_at DESC"
+      "SELECT * FROM call_history ORDER BY created_at DESC"
     );
     res.json(result.rows);
   } catch (error) {
