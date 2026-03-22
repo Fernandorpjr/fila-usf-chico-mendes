@@ -133,13 +133,45 @@ function speak(nome, setor, audioUrl) {
     globalAudio.currentTime = 0;
     globalAudio.src = audioUrl;
     globalAudio.play().catch(e => {
-      console.warn('Autoplay bloqueado pelo navegador. Tentando avisar usuário...', e);
-      showToast('Áudio bloqueado! Clique em "Ativar Som Agora".', true);
-      document.getElementById('sound-modal').style.display = 'flex'; // Força modal a reabrir se bloqueado
+      console.warn('Autoplay bloqueado ou falhou. Usando Web Speech API...', e);
+      // Fallback: use browser TTS if audio element fails
+      speakViaSynthesis(nome, setor);
     });
   } else {
-    console.error('Nenhuma URL de áudio recebida do servidor ou elemento de áudio ausente.');
+    // No audioUrl from Google TTS — use browser's Web Speech API directly
+    console.warn('Sem URL de áudio do servidor. Usando Web Speech API...');
+    speakViaSynthesis(nome, setor);
   }
+}
+
+// ====== WEB SPEECH API FALLBACK ======
+function speakViaSynthesis(nome, setor) {
+  if (!('speechSynthesis' in window)) {
+    console.error('Web Speech API não disponível neste navegador.');
+    return;
+  }
+  window.speechSynthesis.cancel(); // cancel any ongoing speech
+  const texto = `Atenção. Usuário ${nome}, dirija-se à ${setor}.`;
+  const utter = new SpeechSynthesisUtterance(texto);
+  utter.lang = 'pt-BR';
+  utter.rate = 0.9;
+  utter.pitch = 1;
+  // Try to find a Portuguese voice
+  const voices = window.speechSynthesis.getVoices();
+  const ptVoice = voices.find(v => v.lang.startsWith('pt'));
+  if (ptVoice) utter.voice = ptVoice;
+  window.speechSynthesis.speak(utter);
+}
+
+// ====== SPEAK PATIENT NAME (for public panel button) ======
+function speakPatientName() {
+  if (!callHistory || callHistory.length === 0) {
+    showToast('Nenhuma chamada registrada!', true);
+    return;
+  }
+  const last = callHistory[0];
+  speakViaSynthesis(last.nome, last.setor);
+  showToast(`🔊 Chamando: ${last.nome}`);
 }
 
 // ====== LOAD DATA FROM API ======
@@ -227,24 +259,15 @@ function renderAttended() {
 function repeatLastCall() {
   if (callHistory && callHistory.length > 0) {
     const last = callHistory[0];
-    // Find the audioUrl from the last socket event or re-trigger TTS via speak
-    // Since we don't cache audioUrl, we call speakAgain with the sector
+    // Try Google TTS via currentCalling first, then fall back to Web Speech
     const setor = last.setor;
-    if (currentCalling[setor]) {
+    if (currentCalling[setor] && currentCalling[setor].nome === last.nome) {
       speakAgain(setor);
     } else {
-      // No current calling for that sector, use Web Speech API as fallback
-      if ('speechSynthesis' in window) {
-        const icon = last.setor === 'Acolhimento' ? '' :
-                     last.setor === 'Farmácia' ? '' :
-                     last.setor === 'Renovação de Receita' ? '' : '';
-        const utter = new SpeechSynthesisUtterance(`Atenção. Usuário ${last.nome}, dirigir-se à ${last.setor}.`);
-        utter.lang = 'pt-BR';
-        window.speechSynthesis.speak(utter);
-      } else {
-        showToast('Nenhum paciente sendo chamado no momento!', true);
-      }
+      // Use synthesis directly — most reliable for repeat
+      speakViaSynthesis(last.nome, last.setor);
     }
+    showToast(`🔊 Repetindo: ${last.nome}`);
   } else {
     showToast('Nenhuma chamada no histórico!', true);
   }
