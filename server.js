@@ -170,34 +170,11 @@ app.post('/api/call-next/:setor', async (req, res) => {
     res.json(nextPatient);
 
     // Geração de áudio e emissão do painel rodam em background
-    (async () => {
-      // Saudação Dinâmica
-      const formatter = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
-        hour: 'numeric',
-        hour12: false
-      });
-      const currHour = parseInt(formatter.format(new Date()), 10);
-      const saudacao = currHour < 12 ? 'Bom dia' : currHour < 18 ? 'Boa tarde' : 'Boa noite';
-
-      const destinoTexto = medico ? `ao ${medico}` : `à ${setor}`;
-      const texto = `${saudacao}. usuário ${nextPatient.nome}... dirigir-se ${destinoTexto}.`;
-      
-      let audioUrl = '';
-      try {
-        const audioBase64 = await googleTTS.getAudioBase64(texto, {
-          lang: 'pt-BR',
-          slow: false,
-          host: 'https://translate.google.com',
-        });
-        audioUrl = `data:audio/mp3;base64,${audioBase64}`;
-      } catch (err) {
-        console.error('Erro ao gerar TTS:', err);
-      }
-
+    setTimeout(() => {
       // Emite evento para todos os painéis e atualiza as filas globalmente
-      io.emit('callPatient', { patient: nextPatient, setor, audioUrl });
-    })();
+      // (audioUrl removido — o frontend utilizará vozes nativas Neural do SO)
+      io.emit('callPatient', { patient: nextPatient, setor, audioUrl: null });
+    }, 100);
 
   } catch (error) {
     await client.query('ROLLBACK');

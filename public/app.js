@@ -140,22 +140,8 @@ function unlockAudio() {
 }
 
 function speak(nome, setor, audioUrl, medico) {
-  const globalAudio = document.getElementById('global-audio');
-
-  if (globalAudio && audioUrl) {
-    globalAudio.pause();
-    globalAudio.currentTime = 0;
-    globalAudio.src = audioUrl;
-    globalAudio.play().catch(e => {
-      console.warn('Autoplay bloqueado ou falhou. Usando Web Speech API...', e);
-      // Fallback: use browser TTS if audio element fails
-      speakViaSynthesis(nome, setor, medico);
-    });
-  } else {
-    // No audioUrl from Google TTS — use browser's Web Speech API directly
-    console.warn('Sem URL de áudio do servidor. Usando Web Speech API...');
-    speakViaSynthesis(nome, setor, medico);
-  }
+  // Ignoramos a URL do Google TTS robótico antigo e forçamos o uso da engine nativa de alta qualidade
+  speakViaSynthesis(nome, setor, medico);
 }
 
 // ====== WEB SPEECH API FALLBACK ======
@@ -174,12 +160,30 @@ function speakViaSynthesis(nome, setor, medico) {
   
   const utter = new SpeechSynthesisUtterance(texto);
   utter.lang = 'pt-BR';
-  utter.rate = 0.9;
+  utter.rate = 0.95; // Levemente mais rápido para soar mais natural
   utter.pitch = 1;
-  // Try to find a Portuguese voice
+
+  // Busca vozes de alta qualidade (Neural) disponíveis no sistema do usuário
   const voices = window.speechSynthesis.getVoices();
-  const ptVoice = voices.find(v => v.lang.startsWith('pt'));
-  if (ptVoice) utter.voice = ptVoice;
+  
+  // Nomes conhecidos de vozes naturais em PT-BR (Microsoft, Google, Apple)
+  const premiumVoice = voices.find(v => 
+    v.name.includes('Francisca') || 
+    v.name.includes('Antonio') || 
+    v.name.includes('Google português do Brasil') ||
+    v.name.includes('Luciana') ||
+    v.name.includes('Raquel') ||
+    v.name.includes('Daniel')
+  );
+  
+  const fallbackVoice = voices.find(v => v.lang.startsWith('pt'));
+  
+  if (premiumVoice) {
+    utter.voice = premiumVoice;
+  } else if (fallbackVoice) {
+    utter.voice = fallbackVoice;
+  }
+  
   window.speechSynthesis.speak(utter);
 }
 
