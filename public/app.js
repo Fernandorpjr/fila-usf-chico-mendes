@@ -26,6 +26,16 @@ let recentAdded = [];
 let totalAtendidos = 0;
 let lastSpokenCallId = null;
 
+// ====== CONFIGURAÇÕES DE LOTAÇÃO ======
+const CAPACITY_LIMITS = {
+  'Total': 30, // Total geral de pessoas sentadas na recepção
+  'Regulação': 10,
+  'Farmácia': 999, // Defina para o valor desejado quando necessário
+  'Consulta': 999,
+  'Acolhimento': 999,
+  'Renovação de Receita': 999
+};
+
 // ====== CLOCK ======
 function updateClock() {
   const now = new Date();
@@ -338,6 +348,26 @@ function updateStats() {
   if (elTotalAtendidos) {
     elTotalAtendidos.textContent = totalAtendidos;
   }
+  
+  // VERIFICAÇÃO DE LOTAÇÃO (Alertas Visuais)
+  const total = a + f + r + c + rev;
+  
+  const toggleAlert = (id, count, limit) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count >= limit) {
+      el.classList.add('capacity-alert');
+    } else {
+      el.classList.remove('capacity-alert');
+    }
+  };
+
+  // Alerta Geral (Recepção)
+  toggleAlert('stat-card-total', total, CAPACITY_LIMITS['Total']);
+  // Alertas Individuais
+  toggleAlert('stat-card-reg', r, CAPACITY_LIMITS['Regulação']);
+  toggleAlert('stat-card-farm', f, CAPACITY_LIMITS['Farmácia']);
+  toggleAlert('stat-card-cons', c, CAPACITY_LIMITS['Consulta']);
 }
 
 function updateBadges() {

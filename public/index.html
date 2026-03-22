@@ -43,6 +43,30 @@
     color: var(--white);
   }
 
+  /* ============ ALERTAS DE LOTAÇÃO ============ */
+  @keyframes pulseAlert {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7); border-color: var(--red); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(229, 57, 53, 0); border-color: var(--red); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); border-color: var(--red); }
+  }
+
+  .capacity-alert {
+    animation: pulseAlert 1.5s infinite;
+    background-color: rgba(229, 57, 53, 0.15) !important;
+    border-color: var(--red) !important;
+  }
+  
+  .capacity-alert .stat-value,
+  .capacity-alert .stat-label {
+    color: var(--red) !important;
+    font-weight: 800;
+  }
+  
+  .capacity-alert .stat-icon {
+    background-color: var(--red) !important;
+    color: var(--white) !important;
+  }
+
   /* ============ HEADER ============ */
   .header {
     background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%);
@@ -877,28 +901,28 @@
           <div class="stat-label">Total Atendidos</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" id="stat-card-total">
         <div class="stat-icon" style="background:rgba(255,255,255,0.1);">👥</div>
         <div>
           <div class="stat-value" id="stat-total">0</div>
           <div class="stat-label">Total Aguardando</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" id="stat-card-farm">
         <div class="stat-icon" style="background:rgba(74,171,60,0.2);">💊</div>
         <div>
           <div class="stat-value" id="stat-farm">0</div>
           <div class="stat-label">Na Farmácia</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" id="stat-card-reg">
         <div class="stat-icon" style="background:rgba(26,79,196,0.2);">📋</div>
         <div>
           <div class="stat-value" id="stat-reg">0</div>
           <div class="stat-label">Na Regulação</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" id="stat-card-cons">
         <div class="stat-icon" style="background:rgba(244,130,30,0.2);">🩺</div>
         <div>
           <div class="stat-value" id="stat-cons">0</div>
