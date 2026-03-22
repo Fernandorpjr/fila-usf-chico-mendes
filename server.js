@@ -5,8 +5,18 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
+const googleTTS = require('google-tts-api');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+io.on('connection', (socket) => {
+  console.log('Device connected to WebSocket');
+});
+
 const PORT = process.env.PORT || 3000;
 
 // Middleware
@@ -97,6 +107,8 @@ app.post('/api/patients', async (req, res) => {
       [nome, setor, horario, 'aguardando']
     );
 
+    io.emit('queueUpdate');
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -143,7 +155,25 @@ app.post('/api/call-next/:setor', async (req, res) => {
     await client.query('COMMIT');
 
     const updatedResult = await pool.query('SELECT * FROM patients WHERE id = $1', [next.id]);
-    res.json(updatedResult.rows[0]);
+    const nextPatient = updatedResult.rows[0];
+
+    // Gerar URL de áudio com o Google TTS
+    const texto = `Atenção. usuário ${nextPatient.nome}... dirigir-se à ${setor}.`;
+    let audioUrl = '';
+    try {
+      const audioBase64 = await googleTTS.getAudioBase64(texto, {
+        lang: 'pt-BR',
+        slow: false,
+        host: 'https://translate.google.com',
+      });
+      audioUrl = `data:audio/mp3;base64,${audioBase64}`;
+    } catch (err) {
+      console.error('Erro ao gerar TTS:', err);
+    }
+
+    io.emit('callPatient', { patient: nextPatient, setor, audioUrl });
+
+    res.json(nextPatient);
   } catch (error) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: error.message });
@@ -152,11 +182,23 @@ app.post('/api/call-next/:setor', async (req, res) => {
   }
 });
 
-// Get call history
+// Get call history (full, no limit)
 app.get('/api/history', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM call_history ORDER BY created_at DESC LIMIT 10'
+      'SELECT * FROM call_history ORDER BY created_at DESC'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get attended patients list
+app.get('/api/attended', async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM patients WHERE status = 'atendido' ORDER BY created_at DESC"
     );
     res.json(result.rows);
   } catch (error) {
@@ -201,6 +243,9 @@ app.post('/api/reset', async (req, res) => {
     await pool.query('DELETE FROM patients');
     await pool.query('ALTER SEQUENCE patients_id_seq RESTART WITH 1');
     await pool.query('ALTER SEQUENCE call_history_id_seq RESTART WITH 1');
+    
+    io.emit('queueUpdate');
+    
     res.json({ message: 'Banco de dados resetado com sucesso' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -213,7 +258,7 @@ app.get('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Database: PostgreSQL (Neon)`);
 });

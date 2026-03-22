@@ -21,6 +21,7 @@ let currentCalling = {
 };
 
 let callHistory = [];
+let attendedPatients = [];
 let recentAdded = [];
 let totalAtendidos = 0;
 
@@ -85,19 +86,8 @@ async function callNext(setor) {
       throw new Error(data.error || 'Erro ao chamar próximo');
     }
 
-    const patient = await response.json();
-    
-    // Add to history
-    callHistory.unshift({ 
-      ...patient, 
-      horarioChamada: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
-    });
-    if (callHistory.length > 10) callHistory.pop();
-
-    // Announce
-    speak(patient.nome, setor);
-    await loadQueues();
-    await loadCurrentCalling();
+    // O backend agora emite evento via WebSocket para atualizar todos os clientes simultaneamente.
+    // O áudio TTS e a atualização visual serão feitos pelo listener do Socket.io.
   } catch (error) {
     console.error('Error:', error);
     showToast(error.message || `Fila de ${setor} está vazia!`, true);
@@ -117,6 +107,8 @@ function speakAgain(setor) {
 let audioUnlocked = false;
 
 function unlockAudio() {
+  const globalAudio = document.getElementById('global-audio');
+  
   if (!audioUnlocked && 'speechSynthesis' in window) {
     const dummy = new SpeechSynthesisUtterance(' ');
     dummy.volume = 0;
@@ -124,67 +116,30 @@ function unlockAudio() {
     window.speechSynthesis.speak(dummy);
     audioUnlocked = true;
   }
+  
+  if (globalAudio) {
+    globalAudio.play().catch(() => {}); // Força o desbloqueio do elemento HTML
+  }
+
   document.getElementById('sound-modal').style.display = 'none';
   showToast('🔊 Som ativado com sucesso!');
 }
 
-function speak(nome, setor) {
-  if (!('speechSynthesis' in window)) {
-    showToast('Navegador não suporta síntese de voz!', true);
-    return;
-  }
+function speak(nome, setor, audioUrl) {
+  const globalAudio = document.getElementById('global-audio');
 
-  window.speechSynthesis.cancel();
-
-  const saudacao = getGreeting();
-  const texto = `${saudacao} ${nome}... comparecer à ${setor}... por favor.`;
-
-  function doSpeak() {
-    const msg = new SpeechSynthesisUtterance(texto);
-    msg.lang = 'pt-BR';
-    msg.rate = 0.82;
-    msg.pitch = 1.0;
-    msg.volume = 1.0;
-
-    const voices = window.speechSynthesis.getVoices();
-    const ptVoice =
-      voices.find(v => v.lang === 'pt-BR') ||
-      voices.find(v => v.lang === 'pt-PT') ||
-      voices.find(v => v.lang.startsWith('pt')) ||
-      null;
-
-    if (ptVoice) {
-      msg.voice = ptVoice;
-    }
-
-    msg.onerror = (e) => {
-      console.warn('TTS error:', e.error);
-      const retry = new SpeechSynthesisUtterance(texto);
-      retry.lang = 'pt-BR';
-      retry.rate = 0.82;
-      retry.volume = 1.0;
-      window.speechSynthesis.speak(retry);
-    };
-
-    window.speechSynthesis.speak(msg);
-  }
-
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.onvoiceschanged = null;
-      doSpeak();
-    };
+  if (globalAudio && audioUrl) {
+    globalAudio.pause();
+    globalAudio.currentTime = 0;
+    globalAudio.src = audioUrl;
+    globalAudio.play().catch(e => {
+      console.warn('Autoplay bloqueado pelo navegador. Tentando avisar usuário...', e);
+      showToast('Áudio bloqueado! Clique em "Ativar Som Agora".', true);
+      document.getElementById('sound-modal').style.display = 'flex'; // Força modal a reabrir se bloqueado
+    });
   } else {
-    doSpeak();
+    console.error('Nenhuma URL de áudio recebida do servidor ou elemento de áudio ausente.');
   }
-}
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Bom dia,';
-  if (h < 18) return 'Boa tarde,';
-  return 'Boa noite,';
 }
 
 // ====== LOAD DATA FROM API ======
@@ -219,6 +174,79 @@ async function loadHistory() {
     updatePainel();
   } catch (error) {
     console.error('Error loading history:', error);
+  }
+}
+
+async function loadAttended() {
+  try {
+    const response = await fetch(`${API_URL}/attended`);
+    attendedPatients = await response.json();
+    renderAttended();
+  } catch (error) {
+    console.error('Error loading attended:', error);
+  }
+}
+
+function renderAttended() {
+  const el = document.getElementById('attended-list');
+  if (!el) return;
+  
+  // Update the nav badge
+  const countEl = document.getElementById('attended-count');
+  if (countEl) countEl.textContent = attendedPatients.length;
+  // Update the big stat in the atendidos screen
+  const countBigEl = document.getElementById('attended-count-big');
+  if (countBigEl) countBigEl.textContent = attendedPatients.length;
+
+  if (attendedPatients.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="es-icon">✅</div><p>Nenhum paciente atendido ainda</p></div>`;
+    return;
+  }
+
+  el.innerHTML = attendedPatients.map((p, i) => {
+    const icon = p.setor === 'Acolhimento' ? '💜' :
+                 p.setor === 'Farmácia' ? '💊' :
+                 p.setor === 'Regulação' ? '📋' :
+                 p.setor === 'Renovação de Receita' ? '📄' : '🩺';
+    const tagClass = p.setor === 'Farmácia' ? 'tag-farmacia' :
+                     p.setor === 'Regulação' ? 'tag-regulacao' :
+                     p.setor === 'Consulta' ? 'tag-consulta' :
+                     p.setor === 'Acolhimento' ? 'tag-acolhimento' : 'tag-renovacao';
+    return `
+      <div class="queue-item" style="border-left: 4px solid var(--green);">
+        <div class="queue-position" style="background:var(--green);">${attendedPatients.length - i}</div>
+        <div class="queue-name">${p.nome}</div>
+        <span class="sector-tag ${tagClass}">${icon} ${p.setor}</span>
+        <div class="queue-time">${p.horario}</div>
+        <span class="queue-status status-done">✅ Atendido</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function repeatLastCall() {
+  if (callHistory && callHistory.length > 0) {
+    const last = callHistory[0];
+    // Find the audioUrl from the last socket event or re-trigger TTS via speak
+    // Since we don't cache audioUrl, we call speakAgain with the sector
+    const setor = last.setor;
+    if (currentCalling[setor]) {
+      speakAgain(setor);
+    } else {
+      // No current calling for that sector, use Web Speech API as fallback
+      if ('speechSynthesis' in window) {
+        const icon = last.setor === 'Acolhimento' ? '' :
+                     last.setor === 'Farmácia' ? '' :
+                     last.setor === 'Renovação de Receita' ? '' : '';
+        const utter = new SpeechSynthesisUtterance(`Atenção. Usuário ${last.nome}, dirigir-se à ${last.setor}.`);
+        utter.lang = 'pt-BR';
+        window.speechSynthesis.speak(utter);
+      } else {
+        showToast('Nenhum paciente sendo chamado no momento!', true);
+      }
+    }
+  } else {
+    showToast('Nenhuma chamada no histórico!', true);
   }
 }
 
@@ -387,12 +415,8 @@ function updateBanners() {
 function updatePainel() {
   const main = document.getElementById('painel-main');
 
-  const allCalling = Object.entries(currentCalling)
-    .filter(([_, p]) => p !== null)
-    .map(([setor, p]) => ({ setor, ...p }));
-
-  if (allCalling.length > 0) {
-    const latest = allCalling[allCalling.length - 1];
+  if (callHistory && callHistory.length > 0) {
+    const latest = callHistory[0];
     const icon = latest.setor === 'Acolhimento' ? '💜' : 
                  latest.setor === 'Farmácia' ? '💊' : 
                  latest.setor === 'Regulação' ? '📋' : 
@@ -423,7 +447,7 @@ function updatePainel() {
           <div class="ph-name">${p.nome}</div>
           <div class="ph-sector">${icon} ${p.setor}</div>
         </div>
-        <div class="ph-time">${p.horarioChamada}</div>
+        <div class="ph-time">${p.horario_chamada}</div>
       </div>
     `;
   }).join('');
@@ -455,21 +479,43 @@ async function resetData() {
 }
 
 // ====== INIT ======
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-}
 
 // Load initial data
 loadQueues();
 loadCurrentCalling();
 loadHistory();
+loadAttended();
 
-// Auto-refresh every 5 seconds
+// ====== SOCKET.IO ======
+// Forçar WebSockets para eliminar o delay do "Long Polling" inicial.
+const socket = io({
+  transports: ['websocket'],
+  upgrade: false
+});
+
+// Fallback de segurança: caso a internet caia por microsegundos e perca o evento do socket,
+// a tela ainda se corrige suavemente a cada 10 segundos sem o usuário perceber.
 setInterval(() => {
   loadQueues();
   loadCurrentCalling();
-}, 5000);
+}, 10000);
+
+socket.on('queueUpdate', () => {
+  loadQueues();
+  loadCurrentCalling();
+  loadHistory();
+  loadAttended();
+});
+
+socket.on('callPatient', (data) => {
+  const { patient, setor, audioUrl } = data;
+  speak(patient.nome, setor, audioUrl);
+  
+  loadQueues();
+  loadCurrentCalling();
+  loadHistory();
+  loadAttended();
+});
 
 setTimeout(() => {
   document.getElementById('sound-modal').style.display = 'flex';

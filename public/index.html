@@ -854,6 +854,9 @@
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">
     📺 Painel Público
   </button>
+  <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">
+    ✅ Atendidos <span class="tab-badge green" id="attended-count">0</span>
+  </button>
 </nav>
 
 <!-- MAIN CONTENT -->
@@ -1170,10 +1173,46 @@
         <div class="painel-empty">Aguardando chamadas...</div>
       </div>
 
+      <div style="text-align:center;margin-bottom:24px;">
+        <button onclick="repeatLastCall()" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:12px 32px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.2s;letter-spacing:0.5px;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+          🔊 Repetir Última Chamada
+        </button>
+      </div>
+
       <div class="painel-history-title">🕐 Histórico de Chamadas</div>
-      <div class="painel-history-grid" id="painel-history">
+      <div class="painel-history-grid" id="painel-history" style="max-height:420px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.2) transparent;">
         <div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;font-size:14px;font-weight:600;">
           Nenhuma chamada registrada
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ATENDIDOS ============ -->
+  <div class="screen" id="screen-atendidos">
+    <div class="page-title">
+      <div class="icon" style="background:rgba(74,171,60,0.2);">✅</div>
+      Pacientes Atendidos
+    </div>
+
+    <div class="stats-row" style="margin-bottom:20px;">
+      <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.3);">
+        <div class="stat-icon" style="background:var(--green); color:white;">✅</div>
+        <div>
+          <div class="stat-value" id="attended-count-big" style="color:var(--green);">0</div>
+          <div class="stat-label">Total Atendidos Hoje</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-white">
+      <div class="card-title">
+        <span>📋</span> Lista de Atendidos
+      </div>
+      <div id="attended-list" style="display:flex;flex-direction:column;gap:8px;max-height:600px;overflow-y:auto;">
+        <div class="empty-state">
+          <div class="es-icon">✅</div>
+          <p>Nenhum paciente atendido ainda</p>
         </div>
       </div>
     </div>
@@ -1201,6 +1240,9 @@
 <!-- TOAST -->
 <div id="toast">✅ <span id="toast-msg">Mensagem</span></div>
 
+<audio id="global-audio" src="data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" preload="auto"></audio>
+
+<script src="/socket.io/socket.io.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
