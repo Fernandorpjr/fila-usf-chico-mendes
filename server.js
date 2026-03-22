@@ -53,6 +53,11 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // Add medico column to existing tables (safe schema update)
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS medico TEXT`);
+    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS medico TEXT`);
+
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao inicializar banco de dados:', error.message);
@@ -120,6 +125,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
   const client = await pool.connect();
   try {
     const { setor } = req.params;
+    const { medico } = req.body || {}; // Optional doctor/room name
 
     await client.query('BEGIN');
 
@@ -136,8 +142,8 @@ app.post('/api/call-next/:setor', async (req, res) => {
 
     const next = nextResult.rows[0];
 
-    // Update patient status
-    await client.query("UPDATE patients SET status = 'chamado' WHERE id = $1", [next.id]);
+    // Update patient status and assign medico
+    await client.query("UPDATE patients SET status = 'chamado', medico = $2 WHERE id = $1", [next.id, medico || null]);
 
     // Mark previous called as atendido
     await client.query(
@@ -146,10 +152,10 @@ app.post('/api/call-next/:setor', async (req, res) => {
     );
 
     // Add to history
-    const horarioChamada = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     await client.query(
-      'INSERT INTO call_history (patient_id, nome, setor, horario_chamada) VALUES ($1, $2, $3, $4)',
-      [next.id, next.nome, setor, horarioChamada]
+      'INSERT INTO call_history (patient_id, nome, setor, horario_chamada, medico) VALUES ($1, $2, $3, $4, $5)',
+      [next.id, next.nome, setor, horarioChamada, medico || null]
     );
 
     await client.query('COMMIT');
@@ -157,8 +163,19 @@ app.post('/api/call-next/:setor', async (req, res) => {
     const updatedResult = await pool.query('SELECT * FROM patients WHERE id = $1', [next.id]);
     const nextPatient = updatedResult.rows[0];
 
+    // Saudação Dinâmica
+    const formatter = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour: 'numeric',
+      hour12: false
+    });
+    const currHour = parseInt(formatter.format(new Date()), 10);
+    const saudacao = currHour < 12 ? 'Bom dia' : currHour < 18 ? 'Boa tarde' : 'Boa noite';
+
     // Gerar URL de áudio com o Google TTS
-    const texto = `Atenção. usuário ${nextPatient.nome}... dirigir-se à ${setor}.`;
+    const destinoTexto = medico ? `ao ${medico}` : `à ${setor}`;
+    const texto = `${saudacao}. usuário ${nextPatient.nome}... dirigir-se ${destinoTexto}.`;
+    
     let audioUrl = '';
     try {
       const audioBase64 = await googleTTS.getAudioBase64(texto, {

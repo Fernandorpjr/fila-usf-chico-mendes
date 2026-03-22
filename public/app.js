@@ -77,8 +77,13 @@ async function addPatient() {
 // ====== CALL NEXT ======
 async function callNext(setor) {
   try {
+    const medicoSelect = document.getElementById('medico-' + setor);
+    const medico = medicoSelect ? medicoSelect.value : null;
+
     const response = await fetch(`${API_URL}/call-next/${setor}`, {
-      method: 'POST'
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ medico })
     });
 
     if (!response.ok) {
@@ -125,7 +130,7 @@ function unlockAudio() {
   showToast('🔊 Som ativado com sucesso!');
 }
 
-function speak(nome, setor, audioUrl) {
+function speak(nome, setor, audioUrl, medico) {
   const globalAudio = document.getElementById('global-audio');
 
   if (globalAudio && audioUrl) {
@@ -135,23 +140,31 @@ function speak(nome, setor, audioUrl) {
     globalAudio.play().catch(e => {
       console.warn('Autoplay bloqueado ou falhou. Usando Web Speech API...', e);
       // Fallback: use browser TTS if audio element fails
-      speakViaSynthesis(nome, setor);
+      speakViaSynthesis(nome, setor, medico);
     });
   } else {
     // No audioUrl from Google TTS — use browser's Web Speech API directly
     console.warn('Sem URL de áudio do servidor. Usando Web Speech API...');
-    speakViaSynthesis(nome, setor);
+    speakViaSynthesis(nome, setor, medico);
   }
 }
 
 // ====== WEB SPEECH API FALLBACK ======
-function speakViaSynthesis(nome, setor) {
+function speakViaSynthesis(nome, setor, medico) {
   if (!('speechSynthesis' in window)) {
     console.error('Web Speech API não disponível neste navegador.');
     return;
   }
   window.speechSynthesis.cancel(); // cancel any ongoing speech
-  const texto = `Atenção. Usuário ${nome}, dirija-se à ${setor}.`;
+  
+  // Saudação Dinâmica
+  const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false });
+  const currHour = parseInt(formatter.format(new Date()), 10);
+  const saudacao = currHour < 12 ? 'Bom dia' : currHour < 18 ? 'Boa tarde' : 'Boa noite';
+
+  const destinoTexto = medico ? `ao ${medico}` : `à ${setor}`;
+  const texto = `${saudacao}. Usuário ${nome}, dirija-se ${destinoTexto}.`;
+  
   const utter = new SpeechSynthesisUtterance(texto);
   utter.lang = 'pt-BR';
   utter.rate = 0.9;
@@ -170,7 +183,7 @@ function speakPatientName() {
     return;
   }
   const last = callHistory[0];
-  speakViaSynthesis(last.nome, last.setor);
+  speakViaSynthesis(last.nome, last.setor, last.medico);
   showToast(`🔊 Chamando: ${last.nome}`);
 }
 
@@ -265,7 +278,7 @@ function repeatLastCall() {
       speakAgain(setor);
     } else {
       // Use synthesis directly — most reliable for repeat
-      speakViaSynthesis(last.nome, last.setor);
+      speakViaSynthesis(last.nome, last.setor, last.medico);
     }
     showToast(`🔊 Repetindo: ${last.nome}`);
   } else {
@@ -444,10 +457,17 @@ function updatePainel() {
                  latest.setor === 'Farmácia' ? '💊' : 
                  latest.setor === 'Regulação' ? '📋' : 
                  latest.setor === 'Renovação de Receita' ? '📄' : '🩺';
+    
+    // Check if there is a doctor to display
+    let medicoHTML = '';
+    if (latest.medico) {
+      medicoHTML = `<div style="font-size:16px;opacity:0.8;margin-top:6px;font-weight:600;">👨‍⚕️ ${latest.medico}</div>`;
+    }
+
     main.innerHTML = `
       <div class="painel-call-label">🔔 Chamando agora</div>
       <div class="painel-call-name">${latest.nome}</div>
-      <div class="painel-call-sector">${icon} ${latest.setor}</div>
+      <div class="painel-call-sector">${icon} ${latest.setor}${medicoHTML}</div>
     `;
   } else {
     main.innerHTML = `<div class="painel-empty">⏳ Aguardando chamadas...</div>`;
@@ -463,17 +483,62 @@ function updatePainel() {
                  p.setor === 'Farmácia' ? '💊' : 
                  p.setor === 'Regulação' ? '📋' : 
                  p.setor === 'Renovação de Receita' ? '📄' : '🩺';
+    const medicoDisplay = p.medico ? ` - <b>${p.medico}</b>` : '';
     return `
       <div class="painel-history-item">
         <div class="ph-number">${i + 1}</div>
         <div class="ph-info">
           <div class="ph-name">${p.nome}</div>
-          <div class="ph-sector">${icon} ${p.setor}</div>
+          <div class="ph-sector">${icon} ${p.setor}${medicoDisplay}</div>
         </div>
         <div class="ph-time">${p.horario_chamada}</div>
       </div>
     `;
   }).join('');
+}
+
+// ====== GENERATE PDF ======
+function generatePDF() {
+  if (attendedPatients.length === 0) {
+    showToast('Não há pacientes para exportar.', true);
+    return;
+  }
+  
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('Carregando biblioteca PDF, tente novamente em alguns segundos.', true);
+    return; // Can happen if CDN hasn't fully loaded
+  }
+  
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('Relatório de Atendimentos', 105, 20, { align: 'center' });
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`USF Chico Mendes | Data: ${new Date().toLocaleDateString('pt-BR')}`, 105, 28, { align: 'center' });
+  
+  const tableData = attendedPatients.map((p, index) => [
+    attendedPatients.length - index,
+    p.nome,
+    p.setor + (p.medico ? ` (${p.medico})` : ''),
+    p.horario
+  ]);
+  
+  doc.autoTable({
+    startY: 40,
+    head: [['Nº', 'Nome do Paciente', 'Setor / Médico', 'Horário']],
+    body: tableData,
+    theme: 'grid',
+    headStyles: { fillColor: [26, 79, 196] },
+    alternateRowStyles: { fillColor: [240, 244, 255] }
+  });
+  
+  const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const dateStr = formatter.format(new Date()).replace(/\//g, '-');
+  doc.save(`atendimentos_${dateStr}.pdf`);
+  showToast('✅ PDF gerado com sucesso!');
 }
 
 // ====== TOAST ======
@@ -532,7 +597,7 @@ socket.on('queueUpdate', () => {
 
 socket.on('callPatient', (data) => {
   const { patient, setor, audioUrl } = data;
-  speak(patient.nome, setor, audioUrl);
+  speak(patient.nome, setor, audioUrl, patient.medico);
   
   loadQueues();
   loadCurrentCalling();

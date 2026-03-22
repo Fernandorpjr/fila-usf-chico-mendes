@@ -1111,6 +1111,15 @@
       <button class="btn btn-ghost btn-sm" onclick="speakAgain('Consulta')">🔊 Repetir</button>
     </div>
     <div class="card-white">
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Consultório / Médico (Opcional)</label>
+        <select id="medico-Consulta" style="width:100%; padding:12px; border-radius:8px; border:2px solid var(--gray-200); font-family:'Nunito Sans',sans-serif; font-weight:700;">
+          <option value="">— Sem consultório específico —</option>
+          <option value="Consultório 1 - Anahy Duarte">Consultório 1 – Anahy Duarte</option>
+          <option value="Consultório 2 - Joene Halan">Consultório 2 – Joene Halan</option>
+          <option value="Consultório 3 - Mirela Mota">Consultório 3 – Mirela Mota</option>
+        </select>
+      </div>
       <div class="btn-group" style="margin-bottom:20px;">
         <button class="btn btn-orange" onclick="callNext('Consulta')" style="flex:1;">📢 Chamar Próximo</button>
         <button class="btn btn-orange" style="background:rgba(244,130,30,0.2);color:var(--orange-dark);box-shadow:none;border:1px solid rgba(244,130,30,0.5);" onclick="speakAgain('Consulta')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
@@ -1142,6 +1151,15 @@
       <button class="btn btn-ghost btn-sm" onclick="speakAgain('Renovação de Receita')">🔊 Repetir</button>
     </div>
     <div class="card-white">
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Consultório / Médico (Opcional)</label>
+        <select id="medico-Renovação de Receita" style="width:100%; padding:12px; border-radius:8px; border:2px solid var(--gray-200); font-family:'Nunito Sans',sans-serif; font-weight:700;">
+          <option value="">— Sem consultório específico —</option>
+          <option value="Consultório 1 - Anahy Duarte">Consultório 1 – Anahy Duarte</option>
+          <option value="Consultório 2 - Joene Halan">Consultório 2 – Joene Halan</option>
+          <option value="Consultório 3 - Mirela Mota">Consultório 3 – Mirela Mota</option>
+        </select>
+      </div>
       <div class="btn-group" style="margin-bottom:20px;">
         <button class="btn btn-teal" onclick="callNext('Renovação de Receita')" style="flex:1;">📢 Chamar Próximo</button>
         <button class="btn btn-orange" onclick="speakAgain('Renovação de Receita')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
@@ -1209,8 +1227,11 @@
     </div>
 
     <div class="card-white">
-      <div class="card-title">
-        <span>📋</span> Lista de Atendidos
+      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <div><span>📋</span> Lista de Atendidos</div>
+        <button onclick="generatePDF()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:10px;padding:8px 16px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(74,171,60,0.3);display:flex;align-items:center;gap:6px;">
+          📄 Exportar PDF
+        </button>
       </div>
       <div id="attended-list" style="display:flex;flex-direction:column;gap:8px;max-height:600px;overflow-y:auto;">
         <div class="empty-state">
@@ -1245,6 +1266,8 @@
 
 <audio id="global-audio" src="data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" preload="auto"></audio>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="app.js"></script>
 </body>
