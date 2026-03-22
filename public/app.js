@@ -24,6 +24,7 @@ let callHistory = [];
 let attendedPatients = [];
 let recentAdded = [];
 let totalAtendidos = 0;
+let lastSpokenCallId = null;
 
 // ====== CLOCK ======
 function updateClock() {
@@ -227,6 +228,17 @@ async function loadHistory() {
   try {
     const response = await fetch(`${API_URL}/history`);
     callHistory = await response.json();
+    
+    if (callHistory && callHistory.length > 0) {
+      const topId = callHistory[0].id;
+      // Se não for o primeiro carregamento da tela e houver um ID novo
+      if (lastSpokenCallId !== null && topId !== lastSpokenCallId) {
+        const p = callHistory[0];
+        speakViaSynthesis(p.nome, p.setor, p.medico);
+      }
+      lastSpokenCallId = topId;
+    }
+    
     updatePainel();
   } catch (error) {
     console.error('Error loading history:', error);
@@ -499,13 +511,18 @@ function updatePainel() {
                  p.setor === 'Renovação de Receita' ? '📄' : '🩺';
     const medicoDisplay = p.medico ? ` - <b>${p.medico}</b>` : '';
     return `
-      <div class="painel-history-item">
-        <div class="ph-number">${i + 1}</div>
-        <div class="ph-info">
-          <div class="ph-name">${p.nome}</div>
-          <div class="ph-sector">${icon} ${p.setor}${medicoDisplay}</div>
+      <div class="painel-history-item" style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div class="ph-number">${i + 1}</div>
+          <div class="ph-info">
+            <div class="ph-name">${p.nome}</div>
+            <div class="ph-sector">${icon} ${p.setor}${medicoDisplay}</div>
+          </div>
         </div>
-        <div class="ph-time">${p.horario_chamada}</div>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div class="ph-time">${p.horario_chamada}</div>
+          <button class="btn btn-ghost" onclick="speakViaSynthesis('${p.nome}', '${p.setor}', '${p.medico || ''}')" style="padding: 6px 12px; font-size: 13px; margin: 0; min-width: 90px;">🔊 Chamar</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -595,12 +612,14 @@ const socket = io({
   upgrade: false
 });
 
-// Fallback de segurança: caso a internet caia por microsegundos e perca o evento do socket,
-// a tela ainda se corrige suavemente a cada 10 segundos sem o usuário perceber.
+// Polling de 3 segundos para substituir o Socket.IO (que se desconecta na nuvem Serverless)
+// Isso garante que o painel público sempre fale instantaneamente o novo paciente chamado
 setInterval(() => {
   loadQueues();
   loadCurrentCalling();
-}, 10000);
+  loadHistory();
+  loadAttended();
+}, 3000);
 
 socket.on('queueUpdate', () => {
   loadQueues();
