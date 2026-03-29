@@ -176,6 +176,9 @@
 
   .filter-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
   .filter-row .form-group { margin: 0; min-width: 140px; }
+  .btn-filter { padding: 8px 16px; border: 2px solid var(--gray-200); border-radius: 20px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: var(--gray-100); color: var(--gray-600); }
+  .btn-filter:hover { border-color: var(--blue); color: var(--blue); background: rgba(26,79,196,0.05); }
+  .btn-filter.active { background: var(--blue); color: var(--white); border-color: var(--blue); box-shadow: 0 2px 8px rgba(26,79,196,0.3); }
 </style>
 </head>
 <body>
@@ -267,6 +270,12 @@
             <option value="Saúde da Mulher">🩷 Saúde da Mulher</option>
             <option value="Prevenção">🛡️ Prevenção</option>
             <option value="Pré-Natal">🤰 Pré-Natal</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;display:none;" id="profissional-grupo">
+          <label>Profissional Responsável</label>
+          <select id="input-profissional">
+            <option value="">— Selecione o profissional —</option>
           </select>
         </div>
         <button class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;" onclick="addPatient(this)">➕ Adicionar à Fila</button>

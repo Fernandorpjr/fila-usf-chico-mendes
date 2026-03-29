@@ -22,6 +22,7 @@ let currentCalling = {}; SETORES.forEach(s => currentCalling[s] = null);
 let callHistory = [], attendedPatients = [], totalAtendidos = 0, totalDesistencias = 0;
 let lastSpokenCallId = null, chatMessages = [], unreadChatCount = 0;
 let isAdmin = false, alertedPatients = new Set();
+let sectorFilters = { medico: null, enfermagem: null };
 
 const CAPACITY_LIMITS = { 'Total': 30, 'Regulação': 10, 'Farmácia': 999, 'Médico': 999, 'Acolhimento': 999, 'Enfermagem': 999, 'Odontologia': 999 };
 
@@ -32,9 +33,27 @@ function initSectorScreens() {
     const screenEl = document.getElementById('screen-' + cfg.key);
     if (!screenEl) return;
 
+    // Filter buttons for Médico and Enfermagem only (Odontologia already done)
+    let filterHTML = '';
+    if (cfg.profissionais && setor !== 'Odontologia') {
+      const btns = cfg.profissionais.map(p =>
+        `<button class="btn-filter" data-prof="${p}" onclick="filterSector('${cfg.key}','${p}')">${p}</button>`
+      ).join('');
+      filterHTML = `
+        <div style="margin-bottom:20px;">
+          <label style="font-size:13px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:block;">Filtrar por Profissional</label>
+          <div class="filter-bar" id="filter-bar-${cfg.key}" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-filter active" data-prof="" onclick="filterSector('${cfg.key}','')">👥 Todos</button>
+            ${btns}
+          </div>
+        </div>`;
+    }
+
     let profHTML = '';
     if (cfg.profissionais) {
-      const consultOpts = ['1','2','3','4','5','6','Odontológico'].map(c => `<option value="${c}" ${cfg.defaultConsultorios.includes(c)?'':''}>${c === 'Odontológico' ? 'Cons. Odontológico' : 'Consultório ' + c}</option>`).join('');
+      const consultOpts = ['1','2','3','4','5','6','Odontológico'].map(c =>
+        `<option value="${c}">${c === 'Odontológico' ? 'Cons. Odontológico' : 'Consultório ' + c}</option>`
+      ).join('');
       const profOpts = cfg.profissionais.map(p => `<option value="${p}">${p}</option>`).join('');
       profHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
@@ -54,6 +73,7 @@ function initSectorScreens() {
         <button class="btn btn-ghost btn-sm" onclick="speakAgain('${setor}')">🔊 Repetir</button>
       </div>
       <div class="card-white">
+        ${filterHTML}
         ${profHTML}
         <div class="btn-group" style="margin-bottom:20px;">
           <button class="btn ${cfg.btnClass}" onclick="callNext('${setor}')" style="flex:1;">📢 Chamar Próximo</button>
@@ -64,6 +84,13 @@ function initSectorScreens() {
           <span class="sector-count" style="background:${cfg.color};" id="cnt2-${cfg.key}">0</span>
         </div>
         <div class="queue-list" id="queue-${cfg.key}"></div>
+        <div style="margin-top:24px;padding-top:20px;border-top:2px solid var(--gray-200);">
+          <div class="sector-header">
+            <div class="sector-name"><div class="sector-dot" style="background:var(--green);"></div>✅ Atendidos Hoje</div>
+            <span class="sector-count" style="background:var(--green);" id="cnt-attended-${cfg.key}">0</span>
+          </div>
+          <div class="queue-list" id="attended-${cfg.key}"></div>
+        </div>
       </div>`;
   });
 }
@@ -81,6 +108,25 @@ function initOverview() {
       <div class="queue-list" id="mini-queue-${cfg.key}"></div>
     </div>`;
   }).join('');
+}
+
+// ====== FILTER SECTOR ======
+function filterSector(key, profissional) {
+  sectorFilters[key] = profissional || null;
+  const bar = document.getElementById('filter-bar-' + key);
+  if (bar) {
+    bar.querySelectorAll('.btn-filter').forEach(btn => {
+      btn.classList.toggle('active', (btn.dataset.prof || '') === (profissional || ''));
+    });
+  }
+  // Auto-set dropdown
+  if (profissional) {
+    const pEl = document.getElementById('profissional-' + key);
+    if (pEl) pEl.value = profissional;
+  }
+  updateQueues();
+  updateBadges();
+  renderAllSectorAttended();
 }
 
 // ====== CLOCK ======
@@ -125,6 +171,18 @@ function togglePrioridadeDetalhes() {
 function toggleTipoAtendimento() {
   const setor = document.getElementById('input-setor').value;
   document.getElementById('tipo-atendimento-grupo').style.display = ['Médico','Enfermagem','Odontologia'].includes(setor) ? 'flex' : 'none';
+
+  const profGrupo = document.getElementById('profissional-grupo');
+  if (profGrupo) {
+    const showProf = ['Médico','Enfermagem'].includes(setor);
+    profGrupo.style.display = showProf ? 'flex' : 'none';
+    if (showProf) {
+      const cfg = SECTOR_CONFIG[setor];
+      const select = document.getElementById('input-profissional');
+      select.innerHTML = '<option value="">— Selecione o profissional —</option>' +
+        (cfg.profissionais || []).map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+  }
 }
 
 // ====== ADD PATIENT ======
@@ -134,19 +192,24 @@ async function addPatient(btn) {
   const prioridade = document.getElementById('input-prioridade').value;
   const tipo_prioridade = prioridade === 'prioritario' ? document.getElementById('input-tipo-prioridade').value : null;
   const tipo_atendimento = ['Médico','Enfermagem','Odontologia'].includes(setor) ? document.getElementById('input-tipo-atendimento').value : null;
+  const profissionalEl = document.getElementById('input-profissional');
+  const profissional = ['Médico','Enfermagem'].includes(setor) && profissionalEl ? profissionalEl.value || null : null;
 
   if (!nome) { showToast('Digite o nome do paciente!', true); return; }
   if (!setor) { showToast('Selecione o setor!', true); return; }
+  if (['Médico','Enfermagem'].includes(setor) && !profissional) { showToast('Selecione o profissional responsável!', true); return; }
+
   if (btn) btn.disabled = true;
   try {
-    const r = await fetch(`${API_URL}/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento }) });
+    const r = await fetch(`${API_URL}/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional }) });
     if (!r.ok) throw new Error();
     document.getElementById('input-nome').value = '';
     document.getElementById('input-setor').value = '';
     document.getElementById('input-prioridade').value = 'geral';
     togglePrioridadeDetalhes(); toggleTipoAtendimento();
     const prioLabel = prioridade === 'prioritario' ? ' ⭐ PRIORITÁRIO' : '';
-    showToast(`${nome} adicionado à fila de ${setor}!${prioLabel}`);
+    const profLabel = profissional ? ` (${profissional})` : '';
+    showToast(`${nome} adicionado à fila de ${setor}${profLabel}!${prioLabel}`);
     await loadQueues();
   } catch { showToast('Erro ao adicionar paciente!', true); }
   finally { if (btn) btn.disabled = false; }
@@ -157,6 +220,8 @@ async function callNext(setor) {
   try {
     const cfg = SECTOR_CONFIG[setor];
     let consultorio = null, profissional = null, medico = null;
+    const filtro_profissional = sectorFilters[cfg.key] || null;
+
     if (cfg.profissionais) {
       const cEl = document.getElementById('consultorio-' + cfg.key);
       const pEl = document.getElementById('profissional-' + cfg.key);
@@ -165,7 +230,7 @@ async function callNext(setor) {
       const consLabel = consultorio === 'Odontológico' ? 'Cons. Odontológico' : 'Consultório ' + consultorio;
       medico = `${consLabel} - ${profissional}`;
     }
-    const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional }) });
+    const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional, filtro_profissional }) });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     loadQueues(); loadCurrentCalling();
   } catch (e) { showToast(e.message || `Fila de ${setor} está vazia!`, true); }
@@ -173,13 +238,13 @@ async function callNext(setor) {
 
 // ====== REMOVE PATIENT ======
 async function removePatient(id, nome) {
-  const senha = prompt(`🚶 Remover "${nome}" por desistência?\n\nDigite a senha administrativa:`);
+  const senha = prompt(`🗑️ Excluir "${nome}" da fila?\n\nDigite a senha administrativa:`);
   if (!senha) return;
   try {
     const r = await fetch(`${API_URL}/remove-patient`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, senha }) });
     if (r.status === 403) { showToast('❌ Senha incorreta!', true); return; }
     if (!r.ok) throw new Error();
-    showToast(`🚶 ${nome} removido (desistência)`);
+    showToast(`🗑️ ${nome} removido da fila`);
     loadQueues();
   } catch { showToast('Erro ao remover paciente!', true); }
 }
@@ -225,14 +290,52 @@ function repeatLastCall() {
   else showToast('Nenhuma chamada no histórico!', true);
 }
 
+// ====== CHAT SOUND ======
+function playChatSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880; osc.type = 'sine'; gain.gain.value = 0.3;
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.stop(ctx.currentTime + 0.4);
+    setTimeout(() => {
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2); gain2.connect(ctx.destination);
+      osc2.frequency.value = 1100; osc2.type = 'sine'; gain2.gain.value = 0.3;
+      osc2.start();
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc2.stop(ctx.currentTime + 0.4);
+    }, 200);
+  } catch(e) { /* ignore audio errors */ }
+}
+
 // ====== LOAD DATA ======
 async function loadQueues() { try { const r = await fetch(`${API_URL}/queues`); queues = await r.json(); SETORES.forEach(s => { if (!queues[s]) queues[s] = []; }); updateAll(); } catch (e) { console.error(e); } }
 async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); const d = await r.json(); currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { console.error(e); } }
-async function loadHistory() { try { const r = await fetch(`${API_URL}/history`); callHistory = await r.json(); if (callHistory && callHistory.length) { const topId = callHistory[0].id; if (lastSpokenCallId !== null && topId !== lastSpokenCallId) { const p = callHistory[0]; speakViaSynthesis(p.nome, p.setor, p.medico); } lastSpokenCallId = topId; } updatePainel(); } catch (e) { console.error(e); } }
+async function loadHistory() {
+  try {
+    const r = await fetch(`${API_URL}/history`);
+    callHistory = await r.json();
+    if (callHistory && callHistory.length) {
+      const topId = callHistory[0].id;
+      if (lastSpokenCallId !== null && topId !== lastSpokenCallId) {
+        const p = callHistory[0];
+        speakViaSynthesis(p.nome, p.setor, p.medico);
+      }
+      lastSpokenCallId = topId;
+    }
+    updatePainel();
+    renderAllSectorAttended();
+  } catch (e) { console.error(e); }
+}
 async function loadAttended() { try { const r = await fetch(`${API_URL}/attended`); attendedPatients = await r.json(); renderAttended(); } catch (e) { console.error(e); } }
 
 // ====== UPDATE UI ======
-function updateAll() { updateStats(); updateBadges(); updateQueues(); updateMiniQueues(); updateRecent(); }
+function updateAll() { updateStats(); updateBadges(); updateQueues(); updateMiniQueues(); updateRecent(); renderAllSectorAttended(); }
 
 function updateStats() {
   let total = 0;
@@ -246,26 +349,36 @@ function updateStats() {
 
 function updateBadges() {
   SETORES.forEach(setor => {
-    const cfg = SECTOR_CONFIG[setor]; const count = (queues[setor] || []).filter(p => p.status === 'aguardando').length;
+    const cfg = SECTOR_CONFIG[setor];
+    const allItems = (queues[setor] || []).filter(p => p.status === 'aguardando');
+    const count = allItems.length;
+    // Tab badge always shows total
     const badge = document.getElementById('badge-' + cfg.key); if (badge) badge.textContent = count;
     const cnt = document.getElementById('cnt-' + cfg.key); if (cnt) cnt.textContent = count + ' na fila';
-    const cnt2 = document.getElementById('cnt2-' + cfg.key); if (cnt2) cnt2.textContent = count;
+    // Sector screen count shows filtered count
+    const filter = sectorFilters[cfg.key] || null;
+    const filteredCount = filter ? allItems.filter(p => p.profissional === filter).length : count;
+    const cnt2 = document.getElementById('cnt2-' + cfg.key); if (cnt2) cnt2.textContent = filteredCount;
   });
 }
 
 function getColor(setor) { return SECTOR_CONFIG[setor]?.color || 'var(--blue)'; }
 
-function renderQueueItems(containerId, setor) {
+function renderQueueItems(containerId, setor, filterProfissional) {
   const el = document.getElementById(containerId); if (!el) return;
-  const items = (queues[setor] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
+  let items = (queues[setor] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
+  if (filterProfissional) {
+    items = items.filter(p => p.profissional === filterProfissional);
+  }
   if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
   el.innerHTML = items.map((p, i) => {
     const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
     const tipoLabel = p.tipo_atendimento ? `<span style="font-size:11px;color:var(--gray-600);margin-left:4px;">(${p.tipo_atendimento})</span>` : '';
-    const removeBtn = `<button class="btn-danger admin-only" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🚶</button>`;
+    const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${p.profissional}</span>` : '';
+    const removeBtn = `<button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir da fila">🗑️</button>`;
     return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
-      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}</div>
+      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}</div>
       <div class="queue-time">${p.horario}</div>
       <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>
       ${removeBtn}
@@ -273,7 +386,14 @@ function renderQueueItems(containerId, setor) {
   }).join('');
 }
 
-function updateQueues() { SETORES.forEach(s => renderQueueItems('queue-' + SECTOR_CONFIG[s].key, s)); }
+function updateQueues() {
+  SETORES.forEach(s => {
+    const cfg = SECTOR_CONFIG[s];
+    const filter = sectorFilters[cfg.key] || null;
+    renderQueueItems('queue-' + cfg.key, s, filter);
+  });
+}
+
 function updateMiniQueues() { SETORES.forEach(s => renderQueueItems('mini-queue-' + SECTOR_CONFIG[s].key, s)); }
 
 function updateRecent() {
@@ -283,9 +403,10 @@ function updateRecent() {
   const sorted = all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
   el.innerHTML = sorted.map(p => {
     const cfg = SECTOR_CONFIG[p.setor] || {}; const prioBadge = p.prioridade === 'prioritario' ? ' ⭐' : '';
+    const profLabel = p.profissional ? ` · ${p.profissional}` : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:8px;border:1px solid var(--gray-200);">
       <div style="font-size:18px;">${cfg.icon||'📋'}</div>
-      <div style="flex:1;"><div style="font-weight:700;font-size:14px;color:var(--gray-700);">${p.nome}${prioBadge}</div><div style="font-size:12px;color:var(--gray-600);">${p.setor} · ${p.horario}</div></div>
+      <div style="flex:1;"><div style="font-weight:700;font-size:14px;color:var(--gray-700);">${p.nome}${prioBadge}</div><div style="font-size:12px;color:var(--gray-600);">${p.setor}${profLabel} · ${p.horario}</div></div>
     </div>`;
   }).join('');
 }
@@ -328,10 +449,45 @@ function updatePainel() {
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="ph-time">${p.horario_chamada}</div>
-        <button class="btn btn-ghost" onclick="speakViaSynthesis('${p.nome.replace(/'/g,"\\'")}','${p.setor}','${(p.medico||'').replace(/'/g,"\\'")}')" style="padding:6px 12px;font-size:13px;">🔊</button>
+        <button class="btn btn-ghost" onclick="speakViaSynthesis('${p.nome.replace(/'/g,"\\\\'")}','${p.setor}','${(p.medico||'').replace(/'/g,"\\\\'")}')}" style="padding:6px 12px;font-size:13px;">🔊</button>
       </div>
     </div>`;
   }).join('');
+}
+
+// ====== SECTOR ATTENDED HISTORY ======
+function renderAllSectorAttended() {
+  SETORES.forEach(setor => {
+    const cfg = SECTOR_CONFIG[setor];
+    const el = document.getElementById('attended-' + cfg.key);
+    const cntEl = document.getElementById('cnt-attended-' + cfg.key);
+    if (!el) return;
+
+    const filter = sectorFilters[cfg.key] || null;
+    let items = (callHistory || []).filter(p => p.setor === setor);
+    if (filter) {
+      items = items.filter(p => p.profissional === filter);
+    }
+
+    if (cntEl) cntEl.textContent = items.length;
+
+    if (!items.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="es-icon">✅</div><p>Nenhum atendido ainda</p></div>';
+      return;
+    }
+
+    el.innerHTML = items.map((p, i) => {
+      const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐</span>` : '';
+      const prof = p.profissional || '';
+      const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${prof}</span>` : '';
+      return `<div class="queue-item" style="border-left:4px solid var(--green);">
+        <div class="queue-position" style="background:var(--green);">${items.length - i}</div>
+        <div class="queue-name">${p.nome}${prioBadge}${profLabel}</div>
+        <div class="queue-time">${p.horario_chamada || ''}</div>
+        <span class="queue-status status-done">✅ Atendido</span>
+      </div>`;
+    }).join('');
+  });
 }
 
 // ====== ATTENDED ======
@@ -441,9 +597,9 @@ async function resetData() {
 }
 
 // ====== TOAST ======
-function showToast(msg, error = false) {
+function showToast(msg, error = false, duration = 3000) {
   const t = document.getElementById('toast'); document.getElementById('toast-msg').textContent = msg;
-  t.classList.toggle('error', error); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+  t.classList.toggle('error', error); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), duration);
 }
 
 // ====== INIT ======
@@ -453,17 +609,41 @@ loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadChat();
 
 // ====== SOCKET.IO ======
 const socket = io({ transports: ['websocket'], upgrade: false });
-setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended();
-  fetch(`${API_URL}/chat`).then(r => r.json()).then(d => { if (d.length > chatMessages.length) { chatMessages = d; renderChat(); } }).catch(()=>{});
+let lastChatCount = 0;
+
+setInterval(() => {
+  loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended();
+  fetch(`${API_URL}/chat`).then(r => r.json()).then(d => {
+    if (d.length > chatMessages.length) {
+      const newCount = d.length - chatMessages.length;
+      chatMessages = d; renderChat();
+      const at = document.querySelector('.nav-tab.active');
+      if (at && at.id !== 'tab-chat') {
+        unreadChatCount += newCount;
+        updateChatBadge();
+        playChatSound();
+        const last = d[d.length - 1];
+        showToast(`💬 ${last.remetente}: ${last.mensagem.substring(0, 60)}`, false, 5000);
+      }
+    }
+  }).catch(()=>{});
 }, 3000);
 
 socket.on('queueUpdate', () => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); });
 socket.on('callPatient', (d) => { speak(d.patient.nome, d.setor, d.audioUrl, d.patient.medico); loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); });
 socket.on('chatMessage', (msg) => {
+  // Avoid duplicates
+  if (chatMessages.some(m => m.id === msg.id)) return;
   chatMessages.push(msg); renderChat();
   const at = document.querySelector('.nav-tab.active');
-  if (at && at.id !== 'tab-chat') { unreadChatCount++; updateChatBadge(); showToast(`💬 Nova mensagem de ${msg.remetente}`); }
-  else { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }
+  if (at && at.id !== 'tab-chat') {
+    unreadChatCount++;
+    updateChatBadge();
+    playChatSound();
+    showToast(`💬 ${msg.remetente}: ${msg.mensagem.substring(0, 60)}`, false, 5000);
+  } else {
+    const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight;
+  }
 });
 socket.on('chatReset', () => { chatMessages = []; renderChat(); });
 setTimeout(() => { document.getElementById('sound-modal').style.display = 'flex'; }, 600);

@@ -134,7 +134,7 @@ app.get('/api/queues', async (req, res) => {
 // Add patient
 app.post('/api/patients', async (req, res) => {
   try {
-    const { nome, setor, prioridade, tipo_prioridade, tipo_atendimento } = req.body;
+    const { nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional } = req.body;
 
     if (!nome || !setor) {
       return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
@@ -143,9 +143,9 @@ app.post('/api/patients', async (req, res) => {
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
     const result = await pool.query(
-      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [nome, setor, horario, 'aguardando', prioridade || 'geral', tipo_prioridade || null, tipo_atendimento || null]
+      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento, profissional)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [nome, setor, horario, 'aguardando', prioridade || 'geral', tipo_prioridade || null, tipo_atendimento || null, profissional || null]
     );
 
     io.emit('queueUpdate');
@@ -161,19 +161,20 @@ app.post('/api/call-next/:setor', async (req, res) => {
   const client = await pool.connect();
   try {
     const { setor } = req.params;
-    const { medico, consultorio, profissional } = req.body || {};
+    const { medico, consultorio, profissional, filtro_profissional } = req.body || {};
 
     await client.query('BEGIN');
 
     // Get next waiting patient (priority first, then arrival order)
-    const nextResult = await client.query(
-      `SELECT * FROM patients WHERE setor = $1 AND status = 'aguardando'
-       ORDER BY
-         CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
-         created_at ASC
-       LIMIT 1`,
-      [setor]
-    );
+    // If filtro_profissional is set, only get patients assigned to that professional
+    let nextQuery = `SELECT * FROM patients WHERE setor = $1 AND status = 'aguardando'`;
+    const nextParams = [setor];
+    if (filtro_profissional) {
+      nextQuery += ` AND profissional = $2`;
+      nextParams.push(filtro_profissional);
+    }
+    nextQuery += ` ORDER BY CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC, created_at ASC LIMIT 1`;
+    const nextResult = await client.query(nextQuery, nextParams);
 
     if (nextResult.rows.length === 0) {
       await client.query('ROLLBACK');
