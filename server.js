@@ -478,7 +478,7 @@ app.get('/api/dashboard/hourly', async (req, res) => {
   }
 });
 
-// Reset database (requires admin password) – preserves call_history
+// Reset database (requires admin password) – full daily reset
 app.post('/api/reset', async (req, res) => {
   try {
     const { senha } = req.body;
@@ -487,8 +487,12 @@ app.post('/api/reset', async (req, res) => {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     
-    // Only clear active queue and chat. History preserved for reports.
+    // Full daily reset: clear active queue, today's call history, and chat
     await pool.query('DELETE FROM patients');
+    await pool.query(
+      `DELETE FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
+    );
     await pool.query('DELETE FROM chat_messages');
     await pool.query('ALTER SEQUENCE patients_id_seq RESTART WITH 1');
     await pool.query('ALTER SEQUENCE chat_messages_id_seq RESTART WITH 1');
@@ -496,7 +500,7 @@ app.post('/api/reset', async (req, res) => {
     io.emit('queueUpdate');
     io.emit('chatReset');
     
-    res.json({ message: 'Fila diária resetada com sucesso (histórico preservado)' });
+    res.json({ message: 'Fila diária resetada com sucesso! Tudo zerado.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
