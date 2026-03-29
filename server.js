@@ -7,7 +7,6 @@ const { Pool } = require('pg');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
-const googleTTS = require('google-tts-api');
 
 const app = express();
 const server = http.createServer(app);
@@ -18,6 +17,7 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = '0177';
 
 // Middleware
 app.use(cors());
@@ -29,6 +29,9 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+// Setores válidos
+const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia'];
 
 // Create tables on startup
 async function initDB() {
@@ -63,9 +66,25 @@ async function initDB() {
       )
     `);
     
-    // Add medico column to existing tables (safe schema update)
-    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS medico TEXT`);
-    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS medico TEXT`);
+    // Safe schema updates – ADD COLUMN IF NOT EXISTS for all new/existing columns
+    const columns = [
+      { table: 'patients', column: 'medico', type: 'TEXT' },
+      { table: 'patients', column: 'prioridade', type: "TEXT DEFAULT 'geral'" },
+      { table: 'patients', column: 'tipo_prioridade', type: 'TEXT' },
+      { table: 'patients', column: 'tipo_atendimento', type: 'TEXT' },
+      { table: 'patients', column: 'consultorio', type: 'TEXT' },
+      { table: 'patients', column: 'profissional', type: 'TEXT' },
+      { table: 'call_history', column: 'medico', type: 'TEXT' },
+      { table: 'call_history', column: 'prioridade', type: 'TEXT' },
+      { table: 'call_history', column: 'tipo_prioridade', type: 'TEXT' },
+      { table: 'call_history', column: 'tipo_atendimento', type: 'TEXT' },
+      { table: 'call_history', column: 'consultorio', type: 'TEXT' },
+      { table: 'call_history', column: 'profissional', type: 'TEXT' },
+    ];
+    
+    for (const col of columns) {
+      await pool.query(`ALTER TABLE ${col.table} ADD COLUMN IF NOT EXISTS ${col.column} ${col.type}`);
+    }
 
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
@@ -75,22 +94,29 @@ async function initDB() {
 
 initDB();
 
-// API Routes
+// ====== API Routes ======
 
-// Get all queues
+// Verify admin password
+app.post('/api/verify-admin', (req, res) => {
+  const { senha } = req.body;
+  if (senha === ADMIN_PASSWORD) {
+    res.json({ valid: true });
+  } else {
+    res.status(403).json({ valid: false, error: 'Senha incorreta' });
+  }
+});
+
+// Get all queues (sorted: priority first, then arrival order)
 app.get('/api/queues', async (req, res) => {
   try {
-    const queues = {
-      'Acolhimento': [],
-      'Farmácia': [],
-      'Regulação': [],
-      'Consulta': [],
-      'Renovação de Receita': []
-    };
+    const queues = {};
+    SETORES.forEach(s => queues[s] = []);
 
     const result = await pool.query(
-      "SELECT * FROM patients WHERE status != $1 ORDER BY created_at ASC",
-      ['atendido']
+      `SELECT * FROM patients WHERE status NOT IN ('atendido', 'desistencia')
+       ORDER BY
+         CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
+         created_at ASC`
     );
 
     result.rows.forEach(patient => {
@@ -108,17 +134,18 @@ app.get('/api/queues', async (req, res) => {
 // Add patient
 app.post('/api/patients', async (req, res) => {
   try {
-    const { nome, setor } = req.body;
+    const { nome, setor, prioridade, tipo_prioridade, tipo_atendimento } = req.body;
 
     if (!nome || !setor) {
       return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
     }
 
-    const horario = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
     const result = await pool.query(
-      'INSERT INTO patients (nome, setor, horario, status) VALUES ($1, $2, $3, $4) RETURNING *',
-      [nome, setor, horario, 'aguardando']
+      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [nome, setor, horario, 'aguardando', prioridade || 'geral', tipo_prioridade || null, tipo_atendimento || null]
     );
 
     io.emit('queueUpdate');
@@ -134,13 +161,17 @@ app.post('/api/call-next/:setor', async (req, res) => {
   const client = await pool.connect();
   try {
     const { setor } = req.params;
-    const { medico } = req.body || {}; // Optional doctor/room name
+    const { medico, consultorio, profissional } = req.body || {};
 
     await client.query('BEGIN');
 
-    // Get next waiting patient
+    // Get next waiting patient (priority first, then arrival order)
     const nextResult = await client.query(
-      "SELECT * FROM patients WHERE setor = $1 AND status = 'aguardando' ORDER BY created_at ASC LIMIT 1",
+      `SELECT * FROM patients WHERE setor = $1 AND status = 'aguardando'
+       ORDER BY
+         CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
+         created_at ASC
+       LIMIT 1`,
       [setor]
     );
 
@@ -151,8 +182,15 @@ app.post('/api/call-next/:setor', async (req, res) => {
 
     const next = nextResult.rows[0];
 
-    // Update patient status and assign medico
-    await client.query("UPDATE patients SET status = 'chamado', medico = $2 WHERE id = $1", [next.id, medico || null]);
+    const medicoFinal = medico || null;
+    const consultorioFinal = consultorio || null;
+    const profissionalFinal = profissional || null;
+
+    // Update patient status and assign medico/consultorio/profissional
+    await client.query(
+      "UPDATE patients SET status = 'chamado', medico = $2, consultorio = $3, profissional = $4 WHERE id = $1",
+      [next.id, medicoFinal, consultorioFinal, profissionalFinal]
+    );
 
     // Mark previous called as atendido
     await client.query(
@@ -163,8 +201,9 @@ app.post('/api/call-next/:setor', async (req, res) => {
     // Add to history
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     await client.query(
-      'INSERT INTO call_history (patient_id, nome, setor, horario_chamada, medico) VALUES ($1, $2, $3, $4, $5)',
-      [next.id, next.nome, setor, horarioChamada, medico || null]
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, medico, prioridade, tipo_prioridade, tipo_atendimento, consultorio, profissional)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [next.id, next.nome, setor, horarioChamada, medicoFinal, next.prioridade, next.tipo_prioridade, next.tipo_atendimento, consultorioFinal, profissionalFinal]
     );
 
     await client.query('COMMIT');
@@ -172,16 +211,14 @@ app.post('/api/call-next/:setor', async (req, res) => {
     const updatedResult = await pool.query('SELECT * FROM patients WHERE id = $1', [next.id]);
     const nextPatient = updatedResult.rows[0];
 
-    // Emite atualização imediata para alterar as filas visualmente para todos os operadores
+    // Emite atualização imediata
     io.emit('queueUpdate');
 
-    // Libera a requisição do médico IMEDIATAMENTE (Zera o delay na interface)
+    // Libera a requisição IMEDIATAMENTE
     res.json(nextPatient);
 
-    // Geração de áudio e emissão do painel rodam em background
+    // Emissão de evento para painéis em background
     setTimeout(() => {
-      // Emite evento para todos os painéis e atualiza as filas globalmente
-      // (audioUrl removido — o frontend utilizará vozes nativas Neural do SO)
       io.emit('callPatient', { patient: nextPatient, setor, audioUrl: null });
     }, 100);
 
@@ -193,11 +230,42 @@ app.post('/api/call-next/:setor', async (req, res) => {
   }
 });
 
-// Get call history (full, no limit)
+// Remove patient (desistência) – requires admin password
+app.post('/api/remove-patient', async (req, res) => {
+  try {
+    const { id, senha } = req.body;
+    
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    
+    if (!id) {
+      return res.status(400).json({ error: 'ID do paciente é obrigatório' });
+    }
+    
+    const result = await pool.query(
+      "UPDATE patients SET status = 'desistencia' WHERE id = $1 RETURNING *",
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    
+    io.emit('queueUpdate');
+    res.json({ message: 'Paciente removido com sucesso', patient: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get call history (today only)
 app.get('/api/history', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM call_history ORDER BY created_at DESC'
+      `SELECT * FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       ORDER BY created_at DESC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -205,12 +273,82 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
-// Get attended patients list
+// Get filtered history (for reports)
+app.get('/api/history/filtered', async (req, res) => {
+  try {
+    const { data, setor, profissional } = req.query;
+    let query = 'SELECT * FROM call_history WHERE 1=1';
+    const params = [];
+    let idx = 1;
+    
+    if (data) {
+      query += ` AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $${idx}`;
+      params.push(data);
+      idx++;
+    }
+    
+    if (setor) {
+      query += ` AND setor = $${idx}`;
+      params.push(setor);
+      idx++;
+    }
+    
+    if (profissional) {
+      query += ` AND (profissional = $${idx} OR medico = $${idx})`;
+      params.push(profissional);
+      idx++;
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get monthly report
+app.get('/api/history/monthly', async (req, res) => {
+  try {
+    const { mes, ano } = req.query;
+    const month = parseInt(mes) || new Date().getMonth() + 1;
+    const year = parseInt(ano) || new Date().getFullYear();
+    
+    const result = await pool.query(
+      `SELECT * FROM call_history
+       WHERE EXTRACT(MONTH FROM created_at AT TIME ZONE 'America/Sao_Paulo') = $1
+       AND EXTRACT(YEAR FROM created_at AT TIME ZONE 'America/Sao_Paulo') = $2
+       ORDER BY created_at DESC`,
+      [month, year]
+    );
+    
+    const records = result.rows;
+    const bySetor = {};
+    const byProfissional = {};
+    const byDay = {};
+    
+    records.forEach(r => {
+      bySetor[r.setor] = (bySetor[r.setor] || 0) + 1;
+      const prof = r.profissional || r.medico || 'Não especificado';
+      byProfissional[prof] = (byProfissional[prof] || 0) + 1;
+      const day = new Date(r.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      byDay[day] = (byDay[day] || 0) + 1;
+    });
+    
+    res.json({ total: records.length, bySetor, byProfissional, byDay, records });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get attended patients list (today only)
 app.get('/api/attended', async (req, res) => {
   try {
-    // Busca do call_history garante que TODOS os pacientes já chamados apareçam (mesmo os que ainda estão na mesa do médico)
     const result = await pool.query(
-      "SELECT * FROM call_history ORDER BY created_at DESC"
+      `SELECT * FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       ORDER BY created_at DESC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -221,15 +359,10 @@ app.get('/api/attended', async (req, res) => {
 // Get current calling
 app.get('/api/current-calling', async (req, res) => {
   try {
-    const current = {
-      'Acolhimento': null,
-      'Farmácia': null,
-      'Regulação': null,
-      'Consulta': null,
-      'Renovação de Receita': null
-    };
+    const current = {};
+    SETORES.forEach(s => current[s] = null);
 
-    for (const setor of Object.keys(current)) {
+    for (const setor of SETORES) {
       const result = await pool.query(
         "SELECT * FROM patients WHERE setor = $1 AND status = 'chamado'",
         [setor]
@@ -237,31 +370,132 @@ app.get('/api/current-calling', async (req, res) => {
       if (result.rows.length > 0) current[setor] = result.rows[0];
     }
 
-    // Calcular o total de atendidos hoje (assumindo que o histórico é limpo diariamente)
-    const countResult = await pool.query("SELECT COUNT(*) FROM call_history");
+    // Contar atendidos HOJE
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
+    );
     const totalAtendidos = parseInt(countResult.rows[0].count, 10);
 
-    res.json({ current, totalAtendidos });
+    // Contar desistências HOJE
+    const desistResult = await pool.query(
+      `SELECT COUNT(*) FROM patients
+       WHERE status = 'desistencia'
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
+    );
+    const totalDesistencias = parseInt(desistResult.rows[0].count, 10);
+
+    res.json({ current, totalAtendidos, totalDesistencias });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Reset database (optional utility)
+// ====== DASHBOARD METRICS ======
+app.get('/api/dashboard/metrics', async (req, res) => {
+  try {
+    const todayFilter = `DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
+    
+    // Attended today by sector
+    const attendedResult = await pool.query(
+      `SELECT COUNT(*) as total, setor FROM call_history WHERE ${todayFilter} GROUP BY setor`
+    );
+    
+    // Desistencias today
+    const desistResult = await pool.query(
+      `SELECT COUNT(*) as total FROM patients WHERE status = 'desistencia' AND ${todayFilter}`
+    );
+    
+    // Currently waiting
+    const waitingResult = await pool.query(
+      `SELECT COUNT(*) as total, setor FROM patients WHERE status = 'aguardando' GROUP BY setor`
+    );
+    
+    // Average wait time by sector
+    const avgWaitResult = await pool.query(
+      `SELECT ch.setor,
+              AVG(EXTRACT(EPOCH FROM (ch.created_at - p.created_at)) / 60) as avg_minutes
+       FROM call_history ch
+       JOIN patients p ON ch.patient_id = p.id
+       WHERE DATE(ch.created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       GROUP BY ch.setor`
+    );
+    
+    // Bottleneck (waiting > 30 min)
+    const bottleneckResult = await pool.query(
+      `SELECT COUNT(*) as total, setor FROM patients
+       WHERE status = 'aguardando'
+       AND created_at < NOW() - INTERVAL '30 minutes'
+       GROUP BY setor`
+    );
+    
+    const totalAttended = attendedResult.rows.reduce((sum, r) => sum + parseInt(r.total), 0);
+    const totalDesist = parseInt(desistResult.rows[0]?.total || 0);
+    const dropoutRate = totalAttended + totalDesist > 0
+      ? ((totalDesist / (totalAttended + totalDesist)) * 100).toFixed(1)
+      : '0.0';
+    
+    res.json({
+      attendedBySetor: attendedResult.rows,
+      totalAttended,
+      totalDesist,
+      dropoutRate,
+      waitingBySetor: waitingResult.rows,
+      avgWaitBySetor: avgWaitResult.rows,
+      bottleneckBySetor: bottleneckResult.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Dashboard hourly data
+app.get('/api/dashboard/hourly', async (req, res) => {
+  try {
+    const todayFilter = `DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
+    
+    const entriesResult = await pool.query(
+      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
+       FROM patients WHERE ${todayFilter}
+       GROUP BY EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo')
+       ORDER BY hour`
+    );
+    
+    const callsResult = await pool.query(
+      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
+       FROM call_history WHERE ${todayFilter}
+       GROUP BY EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo')
+       ORDER BY hour`
+    );
+    
+    res.json({
+      entries: entriesResult.rows,
+      calls: callsResult.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset database (requires admin password) – preserves call_history
 app.post('/api/reset', async (req, res) => {
   try {
-    // Delete data securely and restart sequences to reset IDs to 1
-    await pool.query('DELETE FROM call_history');
+    const { senha } = req.body;
+    
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    
+    // Only clear active queue and chat. History preserved for reports.
     await pool.query('DELETE FROM patients');
     await pool.query('DELETE FROM chat_messages');
     await pool.query('ALTER SEQUENCE patients_id_seq RESTART WITH 1');
-    await pool.query('ALTER SEQUENCE call_history_id_seq RESTART WITH 1');
     await pool.query('ALTER SEQUENCE chat_messages_id_seq RESTART WITH 1');
     
     io.emit('queueUpdate');
     io.emit('chatReset');
     
-    res.json({ message: 'Banco de dados resetado com sucesso' });
+    res.json({ message: 'Fila diária resetada com sucesso (histórico preservado)' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -271,7 +505,7 @@ app.post('/api/reset', async (req, res) => {
 app.get('/api/chat', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM chat_messages ORDER BY created_at ASC LIMIT 100'
+      'SELECT * FROM chat_messages ORDER BY created_at ASC LIMIT 200'
     );
     res.json(result.rows);
   } catch (error) {
@@ -294,6 +528,11 @@ app.post('/api/chat', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Serve dashboard page
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 // Serve frontend

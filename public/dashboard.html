@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard – USF Chico Mendes</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root { --blue:#1a4fc4; --blue-dark:#0f3491; --blue-bg:#0a1e5c; --green:#4aab3c; --orange:#f4821e; --red:#e53935; --yellow:#f9c823; --white:#fff; --gray-100:#f0f4ff; --gray-300:#b8c8f0; --gray-600:#5a6a8c; --radius:16px; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Nunito Sans',sans-serif; background:var(--blue-bg); min-height:100vh; color:var(--white); }
+  .header { background:linear-gradient(135deg,var(--blue-dark),var(--blue)); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:64px; border-bottom:3px solid var(--orange); }
+  .logo { font-family:'Nunito',sans-serif; font-size:22px; font-weight:900; }
+  .header a { color:var(--gray-300); text-decoration:none; font-weight:700; font-size:14px; }
+  .header a:hover { color:var(--white); }
+  .main { max-width:1300px; margin:0 auto; padding:28px 32px; }
+  .title { font-family:'Nunito',sans-serif; font-size:24px; font-weight:900; margin-bottom:24px; display:flex; align-items:center; gap:12px; }
+  .metrics { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; margin-bottom:32px; }
+  .metric-card { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:24px; }
+  .metric-card.alert { border-color:var(--red); background:rgba(229,57,53,0.1); animation:pulseCard 1.5s infinite; }
+  @keyframes pulseCard { 0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.4);} 50%{box-shadow:0 0 0 8px rgba(229,57,53,0);} }
+  .metric-value { font-family:'Nunito',sans-serif; font-size:36px; font-weight:900; line-height:1; }
+  .metric-label { font-size:13px; color:var(--gray-300); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; }
+  .metric-icon { font-size:28px; margin-bottom:8px; }
+  .charts { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:32px; }
+  .chart-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:24px; }
+  .chart-title { font-family:'Nunito',sans-serif; font-size:16px; font-weight:800; margin-bottom:16px; }
+  .table-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:24px; margin-bottom:32px; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { padding:12px 16px; text-align:left; font-size:14px; border-bottom:1px solid rgba(255,255,255,0.1); }
+  th { font-weight:800; color:var(--orange); text-transform:uppercase; font-size:12px; letter-spacing:0.5px; }
+  .btn-export { background:linear-gradient(135deg,var(--green),#3a8a2e); color:white; border:none; border-radius:12px; padding:12px 24px; font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }
+  .btn-export:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(74,171,60,0.4); }
+  .lock-overlay { position:fixed; inset:0; background:rgba(5,18,60,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
+  .lock-box { background:var(--white); border-radius:24px; padding:40px 48px; text-align:center; max-width:400px; width:90%; color:var(--blue-dark); }
+  .lock-box input { padding:14px 16px; border:2px solid #dde5f8; border-radius:10px; font-size:18px; width:100%; text-align:center; font-weight:700; font-family:'Nunito',sans-serif; margin:16px 0; outline:none; letter-spacing:4px; }
+  .lock-box input:focus { border-color:var(--blue); }
+  .lock-box button { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:white; border:none; border-radius:12px; padding:14px; width:100%; font-family:'Nunito',sans-serif; font-size:16px; font-weight:900; cursor:pointer; }
+  @media(max-width:800px){ .charts{grid-template-columns:1fr;} .metrics{grid-template-columns:1fr 1fr;} .main{padding:16px;} }
+</style>
+</head>
+<body>
+
+<div class="lock-overlay" id="lockOverlay">
+  <div class="lock-box">
+    <div style="font-size:48px;margin-bottom:12px;">📊</div>
+    <div style="font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;margin-bottom:6px;">Dashboard Privado</div>
+    <div style="font-size:14px;color:var(--gray-600);margin-bottom:8px;">Digite a senha administrativa para acessar</div>
+    <input type="password" id="lockPassword" placeholder="••••" maxlength="10" onkeypress="if(event.key==='Enter')verifyDashboardAccess()">
+    <button onclick="verifyDashboardAccess()">🔓 Acessar Dashboard</button>
+    <div style="margin-top:12px;"><a href="/" style="color:var(--blue);font-size:13px;font-weight:700;">← Voltar ao sistema</a></div>
+  </div>
+</div>
+
+<header class="header">
+  <div class="logo">📊 Dashboard – <span style="color:var(--orange);">USF</span> Chico Mendes</div>
+  <div style="display:flex;gap:16px;align-items:center;">
+    <span id="dashClock" style="font-family:'Nunito',sans-serif;font-weight:800;color:var(--yellow);font-size:18px;"></span>
+    <a href="/">← Voltar ao sistema</a>
+  </div>
+</header>
+
+<div class="main" id="dashContent" style="display:none;">
+  <div class="title">📊 Métricas em Tempo Real <span style="font-size:14px;color:var(--gray-300);font-weight:600;margin-left:12px;" id="dashDate"></span></div>
+
+  <div class="metrics" id="metricsGrid"></div>
+
+  <div class="charts">
+    <div class="chart-card"><div class="chart-title">📈 Atendimentos por Hora</div><canvas id="chartHourly"></canvas></div>
+    <div class="chart-card"><div class="chart-title">🔄 Entradas vs Atendimentos</div><canvas id="chartFlow"></canvas></div>
+  </div>
+
+  <div class="table-card">
+    <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>⏱️ Tempo Médio de Espera por Setor</span>
+      <button class="btn-export" onclick="exportDailyReport()">📄 Exportar Relatório do Dia</button>
+    </div>
+    <table><thead><tr><th>Setor</th><th>Tempo Médio</th><th>Aguardando</th><th>Atendidos</th><th>Gargalo</th></tr></thead><tbody id="waitTable"></tbody></table>
+  </div>
+</div>
+
+<script>
+const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+let hourlyChart = null, flowChart = null, metricsData = null, hourlyData = null;
+
+function verifyDashboardAccess() {
+  const pwd = document.getElementById('lockPassword').value;
+  fetch(`${API_URL}/verify-admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: pwd }) })
+    .then(r => { if (r.ok) { document.getElementById('lockOverlay').style.display = 'none'; document.getElementById('dashContent').style.display = 'block'; loadDashboard(); setInterval(loadDashboard, 10000); } else { alert('Senha incorreta!'); } })
+    .catch(() => alert('Erro de conexão'));
+}
+
+function updateDashClock() {
+  const now = new Date();
+  document.getElementById('dashClock').textContent = now.toLocaleTimeString('pt-BR');
+  document.getElementById('dashDate').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+}
+setInterval(updateDashClock, 1000); updateDashClock();
+
+async function loadDashboard() {
+  try {
+    const [mRes, hRes] = await Promise.all([fetch(`${API_URL}/dashboard/metrics`), fetch(`${API_URL}/dashboard/hourly`)]);
+    metricsData = await mRes.json();
+    hourlyData = await hRes.json();
+    renderMetrics();
+    renderCharts();
+    renderWaitTable();
+  } catch (e) { console.error('Dashboard error:', e); }
+}
+
+function renderMetrics() {
+  const d = metricsData;
+  const totalWaiting = d.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
+  const hasBottleneck = d.bottleneckBySetor.length > 0;
+  const avgWaitAll = d.avgWaitBySetor.length ? (d.avgWaitBySetor.reduce((s, r) => s + parseFloat(r.avg_minutes || 0), 0) / d.avgWaitBySetor.length).toFixed(0) : '0';
+
+  document.getElementById('metricsGrid').innerHTML = `
+    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${d.totalAttended}</div><div class="metric-label">Atendidos Hoje</div></div>
+    <div class="metric-card"><div class="metric-icon">👥</div><div class="metric-value">${totalWaiting}</div><div class="metric-label">Aguardando Agora</div></div>
+    <div class="metric-card"><div class="metric-icon">⏱️</div><div class="metric-value" style="color:var(--yellow);">${avgWaitAll} min</div><div class="metric-label">Tempo Médio Espera</div></div>
+    <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" style="color:var(--red);">${d.dropoutRate}%</div><div class="metric-label">Taxa Desistência</div></div>
+    <div class="metric-card ${hasBottleneck ? 'alert' : ''}"><div class="metric-icon">${hasBottleneck ? '🔴' : '🟢'}</div><div class="metric-value" style="color:${hasBottleneck ? 'var(--red)' : 'var(--green)'};">${hasBottleneck ? 'ALERTA' : 'OK'}</div><div class="metric-label">Gargalo (>30min)</div></div>
+  `;
+}
+
+function renderCharts() {
+  const hours = Array.from({length:14}, (_, i) => i + 6);
+  const labels = hours.map(h => h + ':00');
+
+  const callsByHour = hours.map(h => { const r = hourlyData.calls.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
+  const entriesByHour = hours.map(h => { const r = hourlyData.entries.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
+
+  if (hourlyChart) hourlyChart.destroy();
+  hourlyChart = new Chart(document.getElementById('chartHourly'), {
+    type: 'bar', data: { labels, datasets: [{ label: 'Atendimentos', data: callsByHour, backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 6 }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
+  });
+
+  if (flowChart) flowChart.destroy();
+  flowChart = new Chart(document.getElementById('chartFlow'), {
+    type: 'line', data: { labels, datasets: [
+      { label: 'Entradas', data: entriesByHour, borderColor: '#f4821e', backgroundColor: 'rgba(244,130,30,0.1)', fill: true, tension: 0.3 },
+      { label: 'Atendimentos', data: callsByHour, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3 }
+    ] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
+  });
+}
+
+function renderWaitTable() {
+  const d = metricsData;
+  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia'];
+  const tbody = document.getElementById('waitTable');
+  tbody.innerHTML = setores.map(s => {
+    const wait = d.avgWaitBySetor.find(r => r.setor === s);
+    const waiting = d.waitingBySetor.find(r => r.setor === s);
+    const attended = d.attendedBySetor.find(r => r.setor === s);
+    const bottleneck = d.bottleneckBySetor.find(r => r.setor === s);
+    const avgMin = wait ? parseFloat(wait.avg_minutes).toFixed(0) : '-';
+    const isBottleneck = bottleneck && parseInt(bottleneck.total) > 0;
+    return `<tr style="${isBottleneck ? 'color:var(--red);font-weight:800;' : ''}">
+      <td>${s}</td><td>${avgMin === '-' ? '-' : avgMin + ' min'}</td><td>${waiting ? waiting.total : 0}</td><td>${attended ? attended.total : 0}</td>
+      <td>${isBottleneck ? '🔴 ' + bottleneck.total + ' pacientes' : '🟢 Normal'}</td></tr>`;
+  }).join('');
+}
+
+function exportDailyReport() {
+  if (!window.jspdf) { alert('Carregando...'); return; }
+  const { jsPDF } = window.jspdf; const doc = new jsPDF();
+  doc.setFont('helvetica','bold'); doc.setFontSize(18);
+  doc.text('Dashboard Diário – USF Chico Mendes', 105, 20, { align: 'center' });
+  doc.setFontSize(12); doc.setFont('helvetica','normal');
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')} | Gerado: ${new Date().toLocaleTimeString('pt-BR')}`, 105, 28, { align: 'center' });
+
+  const d = metricsData;
+  const totalWaiting = d.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
+  doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.text('Resumo', 14, 45);
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text(`Total Atendidos: ${d.totalAttended}`, 14, 55);
+  doc.text(`Aguardando: ${totalWaiting}`, 14, 62);
+  doc.text(`Desistências: ${d.totalDesist} (${d.dropoutRate}%)`, 14, 69);
+
+  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia'];
+  const rows = setores.map(s => {
+    const w = d.avgWaitBySetor.find(r => r.setor === s);
+    const wt = d.waitingBySetor.find(r => r.setor === s);
+    const at = d.attendedBySetor.find(r => r.setor === s);
+    return [s, w ? parseFloat(w.avg_minutes).toFixed(0)+' min' : '-', wt ? wt.total : '0', at ? at.total : '0'];
+  });
+
+  doc.autoTable({ startY: 80, head: [['Setor','Tempo Médio','Aguardando','Atendidos']], body: rows, theme: 'grid', headStyles: { fillColor: [26,79,196] } });
+  doc.save(`dashboard_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+}
+</script>
+</body>
+</html>

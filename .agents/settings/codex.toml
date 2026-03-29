@@ -1,0 +1,8 @@
+# https://developers.openai.com/codex/config-sample
+
+model = "gpt-5.2-codex"
+model_reasoning_effort = "high"
+
+[features]
+shell_snapshot = true           # Speed up repeated commands
+web_search_request = true       # Allow the model to request web searches

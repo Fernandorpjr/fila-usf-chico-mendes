@@ -1,0 +1,70 @@
+{
+  "AGENTS.md": {
+    "template": "7e0e1b2bdf0c54e7c2c3ed9a903136c4",
+    "installed": "7e0e1b2bdf0c54e7c2c3ed9a903136c4"
+  },
+  "commands\\brief.md": {
+    "template": "e559629e3bdfd8a528f5973e10606997",
+    "installed": "e559629e3bdfd8a528f5973e10606997"
+  },
+  "commands\\respond.md": {
+    "template": "6ecf02ce2d3cf6625a483bec0c822668",
+    "installed": "6ecf02ce2d3cf6625a483bec0c822668"
+  },
+  "commands\\review-contract.md": {
+    "template": "24084573fdd6c900f1691e7815e07aa8",
+    "installed": "24084573fdd6c900f1691e7815e07aa8"
+  },
+  "commands\\triage-nda.md": {
+    "template": "85aedc9db6eb9f805eefde8e1d6e4060",
+    "installed": "85aedc9db6eb9f805eefde8e1d6e4060"
+  },
+  "commands\\vendor-check.md": {
+    "template": "ff403bdaa52b7ae9e1d1b77f549635fd",
+    "installed": "ff403bdaa52b7ae9e1d1b77f549635fd"
+  },
+  "commands\\verify.md": {
+    "template": "c5f0327ce4aacd0a750e3dd3dce106ce",
+    "installed": "c5f0327ce4aacd0a750e3dd3dce106ce"
+  },
+  "hooks\\block-dangerous-commands.py": {
+    "template": "fa1d54c8368b3c016eed51e0b6b429b0",
+    "installed": "fa1d54c8368b3c016eed51e0b6b429b0"
+  },
+  "hooks\\enforce-bun-install.sh": {
+    "template": "5f52ac636cc9060ac9ca1ef63ec0b0b3",
+    "installed": "5f52ac636cc9060ac9ca1ef63ec0b0b3"
+  },
+  "hooks\\enforce-bun-run.py": {
+    "template": "b557c76d6746a4a493e5663fd3c05206",
+    "installed": "b557c76d6746a4a493e5663fd3c05206"
+  },
+  "hooks\\enforce-skill-use.py": {
+    "template": "3e914e6faf25c06b0a7e45d51c9c291c",
+    "installed": "3e914e6faf25c06b0a7e45d51c9c291c"
+  },
+  "hooks\\enforce-uv-install.sh": {
+    "template": "a715c215e94e8f245a53390070d0504b",
+    "installed": "a715c215e94e8f245a53390070d0504b"
+  },
+  "hooks\\enforce-uv-run.py": {
+    "template": "f2137eef2558efa07ad786518fa9cbdf",
+    "installed": "f2137eef2558efa07ad786518fa9cbdf"
+  },
+  "settings\\claude.json": {
+    "template": "bd57aeac70cc50782697c78512a08e68",
+    "installed": "bd57aeac70cc50782697c78512a08e68"
+  },
+  "settings\\codex.toml": {
+    "template": "deae9b78e5a839f10499df8763e0711c",
+    "installed": "deae9b78e5a839f10499df8763e0711c"
+  },
+  "settings\\gemini.json": {
+    "template": "c2f4605dea192b336ece440f4648fe9e",
+    "installed": "c2f4605dea192b336ece440f4648fe9e"
+  },
+  "settings/claude.json": {
+    "template": "2eb9743c677ef42349fa4ad36f0a72bd",
+    "installed": "c84f82fd405ddc8eb10db36d851003ff"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "experimental": {
+    "skills": true,
+    "plan": true
+  },
+  "tools": {
+    "enableHooks": true
+  },
+  "hooks": {
+    "enabled": true,
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "name": "enforce-uv-install",
+            "type": "command",
+            "command": "$GEMINI_PROJECT_DIR/.agents/hooks/enforce-uv-install.sh"
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          {
+            "name": "enforce-uv-run",
+            "type": "command",
+            "command": "uv run $GEMINI_PROJECT_DIR/.agents/hooks/enforce-uv-run.py"
+          },
+          {
+            "name": "block-dangerous-commands",
+            "type": "command",
+            "command": "uv run $GEMINI_PROJECT_DIR/.agents/hooks/block-dangerous-commands.py"
+          }
+        ]
+      }
+    ],
+    "BeforePrompt": [
+      {
+        "hooks": [
+          {
+            "name": "enforce-skill-use",
+            "type": "command",
+            "command": "uv run $GEMINI_PROJECT_DIR/.agents/hooks/enforce-skill-use.py"
+          }
+        ]
+      }
+    ]
+  }
+}

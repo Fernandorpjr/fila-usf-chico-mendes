@@ -7,897 +7,189 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --blue: #1a4fc4;
-    --blue-dark: #0f3491;
-    --blue-light: #2a5fd4;
-    --blue-bg: #0d2a7a;
-    --green: #4aab3c;
-    --green-dark: #3a8a2e;
-    --orange: #f4821e;
-    --orange-dark: #d46b10;
-    --white: #ffffff;
-    --gray-100: #f0f4ff;
-    --gray-200: #dde5f8;
-    --gray-300: #b8c8f0;
-    --gray-600: #5a6a8c;
-    --gray-700: #3a4a6a;
-    --red: #e53935;
-    --yellow: #f9c823;
-    --purple: #8e24aa;
-    --purple-dark: #6a1b9a;
-    --teal: #00897b;
-    --teal-dark: #00695c;
-    --shadow-sm: 0 2px 8px rgba(15,52,145,0.12);
-    --shadow-md: 0 6px 24px rgba(15,52,145,0.18);
-    --shadow-lg: 0 12px 40px rgba(15,52,145,0.25);
-    --radius: 16px;
-    --radius-sm: 10px;
+    --blue: #1a4fc4; --blue-dark: #0f3491; --blue-light: #2a5fd4; --blue-bg: #0d2a7a;
+    --green: #4aab3c; --green-dark: #3a8a2e; --orange: #f4821e; --orange-dark: #d46b10;
+    --white: #ffffff; --gray-100: #f0f4ff; --gray-200: #dde5f8; --gray-300: #b8c8f0;
+    --gray-600: #5a6a8c; --gray-700: #3a4a6a; --red: #e53935; --yellow: #f9c823;
+    --purple: #8e24aa; --purple-dark: #6a1b9a; --teal: #00897b; --teal-dark: #00695c;
+    --pink: #e91e63; --pink-dark: #c2185b;
+    --shadow-sm: 0 2px 8px rgba(15,52,145,0.12); --shadow-md: 0 6px 24px rgba(15,52,145,0.18);
+    --shadow-lg: 0 12px 40px rgba(15,52,145,0.25); --radius: 16px; --radius-sm: 10px;
   }
-
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito Sans', sans-serif; background: var(--blue-bg); min-height: 100vh; color: var(--white); }
 
-  body {
-    font-family: 'Nunito Sans', sans-serif;
-    background: var(--blue-bg);
-    min-height: 100vh;
-    color: var(--white);
-  }
+  @keyframes pulseAlert { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229,57,53,0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(229,57,53,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229,57,53,0); } }
+  .capacity-alert { animation: pulseAlert 1.5s infinite; background-color: rgba(229,57,53,0.15) !important; border-color: var(--red) !important; }
+  .capacity-alert .stat-value, .capacity-alert .stat-label { color: var(--red) !important; font-weight: 800; }
+  .capacity-alert .stat-icon { background-color: var(--red) !important; color: var(--white) !important; }
 
-  /* ============ ALERTAS DE LOTAÇÃO ============ */
-  @keyframes pulseAlert {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7); border-color: var(--red); }
-    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(229, 57, 53, 0); border-color: var(--red); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); border-color: var(--red); }
-  }
-
-  .capacity-alert {
-    animation: pulseAlert 1.5s infinite;
-    background-color: rgba(229, 57, 53, 0.15) !important;
-    border-color: var(--red) !important;
-  }
-  
-  .capacity-alert .stat-value,
-  .capacity-alert .stat-label {
-    color: var(--red) !important;
-    font-weight: 800;
-  }
-  
-  .capacity-alert .stat-icon {
-    background-color: var(--red) !important;
-    color: var(--white) !important;
-  }
-
-  /* ============ HEADER ============ */
-  .header {
-    background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%);
-    padding: 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 72px;
-    border-bottom: 3px solid var(--orange);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .logo-area {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .logo-text {
-    font-family: 'Nunito', sans-serif;
-    font-size: 28px;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .logo-text .u { color: var(--white); }
-  .logo-text .s { color: var(--green); }
-  .logo-text .f { color: var(--orange); }
+  .header { background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 72px; border-bottom: 3px solid var(--orange); box-shadow: 0 4px 20px rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 100; }
+  .logo-area { display: flex; align-items: center; gap: 16px; }
+  .logo-text { font-family: 'Nunito', sans-serif; font-size: 28px; font-weight: 900; line-height: 1; }
+  .logo-text .u { color: var(--white); } .logo-text .s { color: var(--green); } .logo-text .f { color: var(--orange); }
   .logo-text .nome { color: var(--white); font-size: 22px; margin-left: 6px; }
+  .header-subtitle { font-size: 11px; color: var(--gray-300); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
 
-  .header-subtitle {
-    font-size: 11px;
-    color: var(--gray-300);
-    font-weight: 600;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-top: 2px;
-  }
+  .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn-admin-lock:hover { background: rgba(255,255,255,0.1); }
+  .btn-admin-lock.unlocked { color: var(--green); border-color: rgba(74,171,60,0.5); background: rgba(74,171,60,0.1); }
+  .btn-reset { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s; letter-spacing: 0.5px; }
+  .btn-reset:hover { background: rgba(229,57,53,0.15); color: var(--red); border-color: rgba(229,57,53,0.3); }
+  .clock { font-family: 'Nunito', sans-serif; font-size: 24px; font-weight: 800; color: var(--yellow); letter-spacing: 2px; }
+  .date-display { font-size: 12px; color: var(--gray-300); text-align: right; }
+  .admin-only { display: none !important; }
+  .admin-active .admin-only { display: flex !important; }
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-
-  .btn-reset {
-    background: transparent;
-    color: var(--gray-300);
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.2s;
-    letter-spacing: 0.5px;
-  }
-  .btn-reset:hover {
-    background: rgba(229,57,53,0.15);
-    color: var(--red);
-    border-color: rgba(229,57,53,0.3);
-  }
-
-  .clock {
-    font-family: 'Nunito', sans-serif;
-    font-size: 24px;
-    font-weight: 800;
-    color: var(--yellow);
-    letter-spacing: 2px;
-  }
-
-  .date-display {
-    font-size: 12px;
-    color: var(--gray-300);
-    text-align: right;
-  }
-
-  /* ============ NAV TABS ============ */
-  .nav-tabs {
-    background: var(--blue-dark);
-    display: flex;
-    padding: 0 32px;
-    gap: 4px;
-    border-bottom: 2px solid rgba(255,255,255,0.1);
-  }
-
-  .nav-tab {
-    padding: 14px 24px;
-    font-family: 'Nunito', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--gray-300);
-    cursor: pointer;
-    border: none;
-    background: transparent;
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    letter-spacing: 0.3px;
-    margin-bottom: -2px;
-  }
-
+  .nav-tabs { background: var(--blue-dark); display: flex; padding: 0 16px; gap: 2px; border-bottom: 2px solid rgba(255,255,255,0.1); overflow-x: auto; scrollbar-width: none; }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab { padding: 12px 16px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; color: var(--gray-300); cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px; margin-bottom: -2px; white-space: nowrap; }
   .nav-tab:hover { color: var(--white); }
+  .nav-tab.active { color: var(--white); border-bottom-color: var(--orange); }
+  .nav-tab .tab-badge { background: var(--orange); color: var(--white); font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 20px; min-width: 20px; text-align: center; }
+  .nav-tab .tab-badge.green { background: var(--green); } .nav-tab .tab-badge.blue { background: var(--blue-light); }
 
-  .nav-tab.active {
-    color: var(--white);
-    border-bottom-color: var(--orange);
-  }
+  @keyframes pulseBadge { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.8; } }
+  .badge-pulse { animation: pulseBadge 1s infinite; }
 
-  .nav-tab .tab-badge {
-    background: var(--orange);
-    color: var(--white);
-    font-size: 11px;
-    font-weight: 800;
-    padding: 2px 7px;
-    border-radius: 20px;
-    min-width: 20px;
-    text-align: center;
-  }
+  .main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+  .screen { display: none; } .screen.active { display: block; }
+  .page-title { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+  .page-title .icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
 
-  .nav-tab .tab-badge.green { background: var(--green); }
-  .nav-tab .tab-badge.blue { background: var(--blue-light); }
+  .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius); padding: 24px; backdrop-filter: blur(10px); }
+  .card-white { background: var(--white); border-radius: var(--radius); padding: 28px; color: var(--gray-700); box-shadow: var(--shadow-md); }
+  .card-title { font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 800; margin-bottom: 20px; color: var(--blue-dark); display: flex; align-items: center; gap: 8px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; } .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 13px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type="text"], select { padding: 14px 16px; border: 2px solid var(--gray-200); border-radius: var(--radius-sm); font-family: 'Nunito Sans', sans-serif; font-size: 15px; font-weight: 600; color: var(--gray-700); background: var(--gray-100); outline: none; transition: all 0.2s; }
+  input[type="text"]:focus, select:focus { border-color: var(--blue); background: var(--white); box-shadow: 0 0 0 3px rgba(26,79,196,0.12); }
+  input[type="date"] { padding: 10px 14px; border: 2px solid var(--gray-200); border-radius: var(--radius-sm); font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--gray-700); background: var(--gray-100); outline: none; }
 
-  /* ============ MAIN CONTENT ============ */
-  .main {
-    padding: 28px 32px;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-
-  .screen { display: none; }
-  .screen.active { display: block; }
-
-  /* ============ PAGE TITLE ============ */
-  .page-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 22px;
-    font-weight: 900;
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .page-title .icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-  }
-
-  /* ============ CARDS ============ */
-  .card {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: var(--radius);
-    padding: 24px;
-    backdrop-filter: blur(10px);
-  }
-
-  .card-white {
-    background: var(--white);
-    border-radius: var(--radius);
-    padding: 28px;
-    color: var(--gray-700);
-    box-shadow: var(--shadow-md);
-  }
-
-  .card-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 16px;
-    font-weight: 800;
-    margin-bottom: 20px;
-    color: var(--blue-dark);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  /* ============ FORM ============ */
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .form-group.full { grid-column: 1 / -1; }
-
-  label {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--gray-600);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  input[type="text"], select {
-    padding: 14px 16px;
-    border: 2px solid var(--gray-200);
-    border-radius: var(--radius-sm);
-    font-family: 'Nunito Sans', sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--gray-700);
-    background: var(--gray-100);
-    outline: none;
-    transition: all 0.2s;
-  }
-
-  input[type="text"]:focus, select:focus {
-    border-color: var(--blue);
-    background: var(--white);
-    box-shadow: 0 0 0 3px rgba(26,79,196,0.12);
-  }
-
-  /* ============ BUTTONS ============ */
-  .btn {
-    padding: 14px 24px;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-family: 'Nunito', sans-serif;
-    font-size: 15px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    letter-spacing: 0.3px;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
-    color: var(--white);
-    box-shadow: 0 4px 14px rgba(26,79,196,0.4);
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(26,79,196,0.5);
-  }
-
-  .btn-primary:active { transform: translateY(0); }
-
-  .btn-green {
-    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
-    color: var(--white);
-    box-shadow: 0 4px 14px rgba(74,171,60,0.4);
-    width: 100%;
-    padding: 16px;
-    font-size: 16px;
-  }
-
-  .btn-green:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74,171,60,0.5); }
-
-  .btn-orange {
-    background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
-    color: var(--white);
-    box-shadow: 0 4px 14px rgba(244,130,30,0.4);
-    width: 100%;
-    padding: 16px;
-    font-size: 15px;
-  }
-
+  .btn { padding: 14px 24px; border: none; border-radius: var(--radius-sm); font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 800; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: 0.3px; }
+  .btn-primary { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%); color: var(--white); box-shadow: 0 4px 14px rgba(26,79,196,0.4); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,79,196,0.5); }
+  .btn-green { background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%); color: var(--white); box-shadow: 0 4px 14px rgba(74,171,60,0.4); width: 100%; padding: 16px; font-size: 16px; }
+  .btn-green:hover { transform: translateY(-2px); }
+  .btn-orange { background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%); color: var(--white); box-shadow: 0 4px 14px rgba(244,130,30,0.4); width: 100%; padding: 16px; font-size: 15px; }
   .btn-orange:hover { transform: translateY(-2px); }
-
-  .btn-ghost {
-    background: rgba(255,255,255,0.1);
-    color: var(--white);
-    border: 1px solid rgba(255,255,255,0.2);
-  }
-
+  .btn-purple { background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%); color: var(--white); box-shadow: 0 4px 14px rgba(142,36,170,0.4); width: 100%; padding: 16px; font-size: 15px; }
+  .btn-purple:hover { transform: translateY(-2px); }
+  .btn-teal { background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%); color: var(--white); box-shadow: 0 4px 14px rgba(0,137,123,0.4); width: 100%; padding: 16px; font-size: 15px; }
+  .btn-teal:hover { transform: translateY(-2px); }
+  .btn-pink { background: linear-gradient(135deg, var(--pink) 0%, var(--pink-dark) 100%); color: var(--white); box-shadow: 0 4px 14px rgba(233,30,99,0.4); width: 100%; padding: 16px; font-size: 15px; }
+  .btn-pink:hover { transform: translateY(-2px); }
+  .btn-ghost { background: rgba(255,255,255,0.1); color: var(--white); border: 1px solid rgba(255,255,255,0.2); }
   .btn-ghost:hover { background: rgba(255,255,255,0.2); }
-
   .btn-sm { padding: 8px 16px; font-size: 13px; }
-
-  .btn-danger {
-    background: rgba(229,57,53,0.15);
-    color: var(--red);
-    border: 1px solid rgba(229,57,53,0.3);
-  }
-
+  .btn-danger { background: rgba(229,57,53,0.15); color: var(--red); border: 1px solid rgba(229,57,53,0.3); padding: 6px 10px; font-size: 12px; border-radius: 8px; cursor: pointer; font-weight: 700; font-family: 'Nunito', sans-serif; }
   .btn-danger:hover { background: rgba(229,57,53,0.25); }
 
-  /* ============ LAYOUT GRIDS ============ */
-  .two-col { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
-  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .two-col { display: grid; grid-template-columns: 400px 1fr; gap: 24px; align-items: start; }
+  .sector-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--gray-200); }
+  .sector-name { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 900; color: var(--blue-dark); display: flex; align-items: center; gap: 10px; }
+  .sector-dot { width: 14px; height: 14px; border-radius: 50%; }
+  .sector-count { background: var(--blue); color: var(--white); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 4px 12px; border-radius: 20px; }
 
-  /* ============ SECTOR CARD ============ */
-  .sector-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid var(--gray-200);
-  }
-
-  .sector-name {
-    font-family: 'Nunito', sans-serif;
-    font-size: 18px;
-    font-weight: 900;
-    color: var(--blue-dark);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .sector-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-  }
-
-  .sector-count {
-    background: var(--blue);
-    color: var(--white);
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 13px;
-    padding: 4px 12px;
-    border-radius: 20px;
-  }
-
-  /* ============ QUEUE LIST ============ */
-  .queue-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 320px;
-    overflow-y: auto;
-    margin-bottom: 16px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--gray-200) transparent;
-  }
-
-  .queue-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: var(--gray-100);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--gray-200);
-    transition: all 0.2s;
-    animation: slideIn 0.3s ease;
-  }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
+  .queue-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; margin-bottom: 16px; scrollbar-width: thin; scrollbar-color: var(--gray-200) transparent; }
+  .queue-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--gray-100); border-radius: var(--radius-sm); border: 1px solid var(--gray-200); transition: all 0.2s; animation: slideIn 0.3s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
   .queue-item:hover { border-color: var(--blue); background: #e8eeff; }
-
-  .queue-item.calling {
-    background: linear-gradient(135deg, #fff8e1, #fff3cd);
-    border-color: var(--yellow);
-    border-width: 2px;
-    box-shadow: 0 0 0 3px rgba(249,200,35,0.2);
-  }
-
-  .queue-position {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    background: var(--blue);
-    color: var(--white);
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .queue-name {
-    flex: 1;
-    font-weight: 700;
-    font-size: 15px;
-    color: var(--gray-700);
-  }
-
-  .queue-time {
-    font-size: 12px;
-    color: var(--gray-600);
-    font-weight: 600;
-  }
-
-  .queue-status {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 10px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
-
+  .queue-item.calling { background: linear-gradient(135deg, #fff8e1, #fff3cd); border-color: var(--yellow); border-width: 2px; box-shadow: 0 0 0 3px rgba(249,200,35,0.2); }
+  .queue-position { width: 30px; height: 30px; border-radius: 8px; background: var(--blue); color: var(--white); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .queue-name { flex: 1; font-weight: 700; font-size: 15px; color: var(--gray-700); }
+  .queue-time { font-size: 12px; color: var(--gray-600); font-weight: 600; }
+  .queue-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.3px; }
   .status-waiting { background: rgba(26,79,196,0.1); color: var(--blue); }
   .status-calling { background: rgba(249,200,35,0.2); color: #b8860b; }
   .status-done { background: rgba(74,171,60,0.1); color: var(--green-dark); }
-  
-  /* Buttons extra colors */
-  .btn-purple {
-    background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%);
-    color: var(--white);
-    box-shadow: 0 4px 14px rgba(142,36,170,0.4);
-    width: 100%;
-    padding: 16px;
-    font-size: 15px;
-  }
-  .btn-purple:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(142,36,170,0.5); }
 
-  .btn-teal {
-    background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
-    color: var(--white);
-    box-shadow: 0 4px 14px rgba(0,137,123,0.4);
-    width: 100%;
-    padding: 16px;
-    font-size: 15px;
-  }
-  .btn-teal:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,137,123,0.5); }
+  .priority-badge { background: linear-gradient(135deg, #ff6f00, #ff8f00); color: white; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px; white-space: nowrap; }
 
-  /* ============ CALLING BANNER ============ */
-  .calling-banner {
-    background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
-    border-radius: var(--radius);
-    padding: 20px 24px;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    box-shadow: 0 6px 24px rgba(244,130,30,0.4);
-    animation: pulse 2s infinite;
-    display: none;
-  }
-
+  .calling-banner { background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; display: flex; align-items: center; gap: 16px; box-shadow: 0 6px 24px rgba(244,130,30,0.4); animation: pulse 2s infinite; display: none; }
   .calling-banner.visible { display: flex; }
-
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 6px 24px rgba(244,130,30,0.4); }
-    50% { box-shadow: 0 6px 32px rgba(244,130,30,0.7); }
-  }
-
+  @keyframes pulse { 0%, 100% { box-shadow: 0 6px 24px rgba(244,130,30,0.4); } 50% { box-shadow: 0 6px 32px rgba(244,130,30,0.7); } }
   .calling-banner .cb-icon { font-size: 36px; animation: ring 1s infinite; }
-  @keyframes ring {
-    0%, 100% { transform: rotate(0); }
-    25% { transform: rotate(15deg); }
-    75% { transform: rotate(-15deg); }
-  }
-
+  @keyframes ring { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(15deg); } 75% { transform: rotate(-15deg); } }
   .calling-banner .cb-text { flex: 1; }
   .calling-banner .cb-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; opacity: 0.85; }
   .calling-banner .cb-name { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; }
   .calling-banner .cb-sector { font-size: 14px; font-weight: 600; opacity: 0.9; margin-top: 2px; }
 
-  /* ============ PAINEL PÚBLICO ============ */
-  .painel-screen {
-    min-height: calc(100vh - 130px);
-    padding: 32px;
-    background: var(--blue-bg);
-  }
-
-  .painel-header {
-    text-align: center;
-    margin-bottom: 40px;
-  }
-
-  .painel-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 32px;
-    font-weight: 900;
-    color: var(--white);
-    letter-spacing: 1px;
-  }
-
-  .painel-main-call {
-    background: linear-gradient(135deg, var(--orange), var(--orange-dark));
-    border-radius: 24px;
-    padding: 48px;
-    text-align: center;
-    margin-bottom: 32px;
-    box-shadow: var(--shadow-lg);
-    min-height: 200px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .painel-main-call::before {
-    content: '';
-    position: absolute;
-    top: -60px; right: -60px;
-    width: 200px; height: 200px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.08);
-  }
-
-  .painel-main-call::after {
-    content: '';
-    position: absolute;
-    bottom: -40px; left: -40px;
-    width: 150px; height: 150px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.06);
-  }
-
-  .painel-call-label {
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    opacity: 0.85;
-    margin-bottom: 12px;
-  }
-
-  .painel-call-name {
-    font-family: 'Nunito', sans-serif;
-    font-size: 52px;
-    font-weight: 900;
-    line-height: 1.1;
-    margin-bottom: 12px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .painel-call-sector {
-    font-size: 22px;
-    font-weight: 700;
-    opacity: 0.92;
-    position: relative;
-    z-index: 1;
-  }
-
-  .painel-empty {
-    font-family: 'Nunito', sans-serif;
-    font-size: 24px;
-    color: rgba(255,255,255,0.4);
-    font-weight: 700;
-  }
-
-  .painel-history-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--gray-300);
-    margin-bottom: 16px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-
-  .painel-history-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-  }
-
-  .painel-history-item {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: var(--radius-sm);
-    padding: 14px 18px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    animation: fadeIn 0.4s ease;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .ph-number {
-    font-family: 'Nunito', sans-serif;
-    font-size: 22px;
-    font-weight: 900;
-    color: var(--gray-300);
-    min-width: 40px;
-  }
-
-  .ph-info { flex: 1; }
-  .ph-name { font-weight: 700; font-size: 15px; }
-  .ph-sector { font-size: 12px; color: var(--gray-300); margin-top: 2px; }
+  .painel-screen { min-height: calc(100vh - 130px); padding: 32px; background: var(--blue-bg); }
+  .painel-header { text-align: center; margin-bottom: 40px; }
+  .painel-title { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: var(--white); letter-spacing: 1px; }
+  .painel-main-call { background: linear-gradient(135deg, var(--orange), var(--orange-dark)); border-radius: 24px; padding: 48px; text-align: center; margin-bottom: 32px; box-shadow: var(--shadow-lg); min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .painel-main-call::before { content:''; position:absolute; top:-60px; right:-60px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.08); }
+  .painel-call-label { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; opacity: 0.85; margin-bottom: 12px; }
+  .painel-call-name { font-family: 'Nunito', sans-serif; font-size: 52px; font-weight: 900; line-height: 1.1; margin-bottom: 12px; position: relative; z-index: 1; }
+  .painel-call-sector { font-size: 22px; font-weight: 700; opacity: 0.92; position: relative; z-index: 1; }
+  .painel-empty { font-family: 'Nunito', sans-serif; font-size: 24px; color: rgba(255,255,255,0.4); font-weight: 700; }
+  .painel-history-title { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 800; color: var(--gray-300); margin-bottom: 16px; letter-spacing: 1px; text-transform: uppercase; }
+  .painel-history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .painel-history-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); padding: 14px 18px; display: flex; align-items: center; gap: 14px; animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .ph-number { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; color: var(--gray-300); min-width: 40px; }
+  .ph-info { flex: 1; } .ph-name { font-weight: 700; font-size: 15px; } .ph-sector { font-size: 12px; color: var(--gray-300); margin-top: 2px; }
   .ph-time { font-size: 12px; color: var(--gray-300); font-family: 'Nunito', sans-serif; font-weight: 700; }
+  .priority-badge-tv { background: linear-gradient(135deg, #ff6f00, #ff8f00); color: white; font-size: 14px; font-weight: 900; padding: 6px 16px; border-radius: 20px; display: inline-block; margin-top: 8px; letter-spacing: 1px; }
 
-  /* ============ SECTOR TAG ============ */
-  .sector-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
+  .sector-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .tag-farmacia { background: rgba(74,171,60,0.15); color: #2d7a22; border: 1px solid rgba(74,171,60,0.3); }
   .tag-regulacao { background: rgba(26,79,196,0.12); color: var(--blue); border: 1px solid rgba(26,79,196,0.2); }
-  .tag-consulta { background: rgba(244,130,30,0.12); color: var(--orange-dark); border: 1px solid rgba(244,130,30,0.25); }
   .tag-acolhimento { background: rgba(142,36,170,0.12); color: var(--purple-dark); border: 1px solid rgba(142,36,170,0.25); }
-  .tag-renovacao { background: rgba(0,137,123,0.12); color: var(--teal-dark); border: 1px solid rgba(0,137,123,0.25); }
+  .tag-medico { background: rgba(244,130,30,0.12); color: var(--orange-dark); border: 1px solid rgba(244,130,30,0.25); }
+  .tag-enfermagem { background: rgba(0,137,123,0.12); color: var(--teal-dark); border: 1px solid rgba(0,137,123,0.25); }
+  .tag-odontologia { background: rgba(233,30,99,0.12); color: var(--pink-dark); border: 1px solid rgba(233,30,99,0.25); }
 
-  /* ============ STATS ROW ============ */
-  .stats-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 28px;
-  }
-  
-  .stats-row .stat-card {
-    flex: 1;
-    min-width: 140px;
-    padding: 16px;
-  }
+  .stats-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+  .stats-row .stat-card { flex: 1; min-width: 130px; padding: 16px; }
+  .stat-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius); padding: 20px; display: flex; align-items: center; gap: 16px; }
+  .stat-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+  .stat-value { font-family: 'Nunito', sans-serif; font-size: 30px; font-weight: 900; line-height: 1; }
+  .stat-label { font-size: 12px; color: var(--gray-300); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
 
-  .stat-card {
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: var(--radius);
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
+  .empty-state { text-align: center; padding: 32px; color: var(--gray-300); }
+  .empty-state .es-icon { font-size: 40px; margin-bottom: 10px; opacity: 0.5; } .empty-state p { font-size: 14px; font-weight: 600; opacity: 0.7; }
 
-  .stat-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    flex-shrink: 0;
-  }
+  #toast { position: fixed; bottom: 32px; right: 32px; background: var(--green); color: var(--white); padding: 14px 22px; border-radius: var(--radius-sm); font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 15px; box-shadow: var(--shadow-md); transform: translateY(100px); opacity: 0; transition: all 0.3s; z-index: 1000; display: flex; align-items: center; gap: 10px; }
+  #toast.show { transform: translateY(0); opacity: 1; } #toast.error { background: var(--red); }
 
-  .stat-value {
-    font-family: 'Nunito', sans-serif;
-    font-size: 30px;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .stat-label {
-    font-size: 12px;
-    color: var(--gray-300);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-top: 3px;
-  }
-
-  /* ============ EMPTY STATE ============ */
-  .empty-state {
-    text-align: center;
-    padding: 32px;
-    color: var(--gray-300);
-  }
-
-  .empty-state .es-icon { font-size: 40px; margin-bottom: 10px; opacity: 0.5; }
-  .empty-state p { font-size: 14px; font-weight: 600; opacity: 0.7; }
-
-  /* ============ ALERT TOAST ============ */
-  #toast {
-    position: fixed;
-    bottom: 32px;
-    right: 32px;
-    background: var(--green);
-    color: var(--white);
-    padding: 14px 22px;
-    border-radius: var(--radius-sm);
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 15px;
-    box-shadow: var(--shadow-md);
-    transform: translateY(100px);
-    opacity: 0;
-    transition: all 0.3s;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  #toast.show {
-    transform: translateY(0);
-    opacity: 1;
-  }
-
-  #toast.error { background: var(--red); }
-
-  /* ============ SECTOR PAGE ============ */
-  .sector-page-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 28px;
-  }
-
-  .sector-icon-big {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .sector-page-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 26px;
-    font-weight: 900;
-  }
-
-  .sector-page-sub {
-    font-size: 14px;
-    color: var(--gray-300);
-    margin-top: 2px;
-  }
-
+  .sector-page-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+  .sector-icon-big { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+  .sector-page-title { font-family: 'Nunito', sans-serif; font-size: 26px; font-weight: 900; }
+  .sector-page-sub { font-size: 14px; color: var(--gray-300); margin-top: 2px; }
   .btn-group { display: flex; gap: 10px; }
 
-  /* ============ SCROLLBAR ============ */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .main { padding: 20px 16px; } .header { padding: 0 16px; } .nav-tabs { padding: 0 8px; } .painel-call-name { font-size: 36px; } }
 
-  /* ============ RESPONSIVE ============ */
-  @media (max-width: 900px) {
-    .two-col { grid-template-columns: 1fr; }
-    .three-col { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: repeat(2, 1fr); }
-    .main { padding: 20px 16px; }
-    .header { padding: 0 16px; }
-    .nav-tabs { padding: 0 16px; overflow-x: auto; }
-    .painel-call-name { font-size: 36px; }
-  }
+  .chat-bubble { padding: 12px 16px; border-radius: 18px; max-width: 85%; margin-bottom: 8px; position: relative; box-shadow: var(--shadow-sm); animation: messageIn 0.3s ease-out; }
+  @keyframes messageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .bubble-received { align-self: flex-start; background: var(--white); color: var(--gray-700); border-bottom-left-radius: 4px; border: 1px solid var(--gray-200); }
+  .bubble-sent { align-self: flex-end; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: var(--white); border-bottom-right-radius: 4px; }
+  .chat-meta { font-size: 11px; font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; gap: 12px; }
+  .bubble-sent .chat-meta { color: rgba(255,255,255,0.8); } .bubble-received .chat-meta { color: var(--blue); }
+  .chat-time { font-size: 10px; opacity: 0.7; margin-top: 4px; text-align: right; }
 
-  /* ============ CHAT PREMIUM STYLES ============ */
-  .chat-bubble {
-    padding: 12px 16px;
-    border-radius: 18px;
-    max-width: 85%;
-    margin-bottom: 8px;
-    position: relative;
-    box-shadow: var(--shadow-sm);
-    animation: messageIn 0.3s ease-out;
-  }
-  
-  @keyframes messageIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .bubble-received {
-    align-self: flex-start;
-    background: var(--white);
-    color: var(--gray-700);
-    border-bottom-left-radius: 4px;
-    border: 1px solid var(--gray-200);
-  }
-
-  .bubble-sent {
-    align-self: flex-end;
-    background: linear-gradient(135deg, var(--blue), var(--blue-dark));
-    color: var(--white);
-    border-bottom-right-radius: 4px;
-  }
-
-  .chat-meta {
-    font-size: 11px;
-    font-weight: 700;
-    margin-bottom: 4px;
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .bubble-sent .chat-meta { color: rgba(255,255,255,0.8); }
-  .bubble-received .chat-meta { color: var(--blue); }
-
-  .chat-time {
-    font-size: 10px;
-    opacity: 0.7;
-    margin-top: 4px;
-    text-align: right;
-  }
+  .filter-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
+  .filter-row .form-group { margin: 0; min-width: 140px; }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <header class="header">
   <div class="logo-area">
     <div>
-      <div class="logo-text">
-        <span class="u">U</span><span class="s">S</span><span class="f">F</span><span class="nome">Chico Mendes</span>
-      </div>
+      <div class="logo-text"><span class="u">U</span><span class="s">S</span><span class="f">F</span><span class="nome">Chico Mendes</span></div>
       <div class="header-subtitle">Sistema de Gestão de Filas</div>
     </div>
   </div>
   <div class="header-right">
-    <button class="btn-reset" onclick="resetData()" title="Zerar todas as filas e histórico">
-      🗑️ Resetar Diário
-    </button>
+    <button class="btn-admin-lock" id="btn-admin" onclick="toggleAdmin()" title="Modo Administrador">🔒 Modo Público</button>
+    <button class="btn-reset admin-only" onclick="resetData()" title="Zerar fila diária">🗑️ Resetar Diário</button>
     <div>
       <div class="date-display" id="dateDisplay"></div>
       <div class="clock" id="clockDisplay">00:00:00</div>
@@ -905,384 +197,115 @@
   </div>
 </header>
 
-<!-- NAVIGATION -->
 <nav class="nav-tabs">
-  <button class="nav-tab active" onclick="showScreen('recepcao')" id="tab-recepcao">
-    🏥 Recepção
-  </button>
-  <button class="nav-tab" onclick="showScreen('acolhimento')" id="tab-acolhimento">
-    💜 Acolhimento <span class="tab-badge" style="background:var(--purple);" id="badge-acolhimento">0</span>
-  </button>
-  <button class="nav-tab" onclick="showScreen('farmacia')" id="tab-farmacia">
-    💊 Farmácia <span class="tab-badge green" id="badge-farmacia">0</span>
-  </button>
-  <button class="nav-tab" onclick="showScreen('regulacao')" id="tab-regulacao">
-    📋 Regulação <span class="tab-badge blue" id="badge-regulacao">0</span>
-  </button>
-  <button class="nav-tab" onclick="showScreen('consulta')" id="tab-consulta">
-    🩺 Consulta <span class="tab-badge" id="badge-consulta">0</span>
-  </button>
-  <button class="nav-tab" onclick="showScreen('renovacao')" id="tab-renovacao">
-    📄 Renovar Receita <span class="tab-badge" style="background:var(--teal);" id="badge-renovacao">0</span>
-  </button>
-  <button class="nav-tab" onclick="showScreen('chat')" id="tab-chat">
-    💬 Chat Interno <span class="tab-badge" style="background:var(--red);display:none;" id="badge-chat">0</span>
-  </button>
-  <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">
-    📺 Painel Público
-  </button>
-  <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">
-    ✅ Atendidos <span class="tab-badge green" id="attended-count">0</span>
-  </button>
+  <button class="nav-tab active" onclick="showScreen('recepcao')" id="tab-recepcao">🏥 Recepção</button>
+  <button class="nav-tab" onclick="showScreen('acolhimento')" id="tab-acolhimento">💜 Acolhimento <span class="tab-badge" style="background:var(--purple);" id="badge-acolhimento">0</span></button>
+  <button class="nav-tab" onclick="showScreen('farmacia')" id="tab-farmacia">💊 Farmácia <span class="tab-badge green" id="badge-farmacia">0</span></button>
+  <button class="nav-tab" onclick="showScreen('regulacao')" id="tab-regulacao">📋 Regulação <span class="tab-badge blue" id="badge-regulacao">0</span></button>
+  <button class="nav-tab" onclick="showScreen('medico')" id="tab-medico">🩺 Médico <span class="tab-badge" id="badge-medico">0</span></button>
+  <button class="nav-tab" onclick="showScreen('enfermagem')" id="tab-enfermagem">👩‍⚕️ Enfermagem <span class="tab-badge" style="background:var(--teal);" id="badge-enfermagem">0</span></button>
+  <button class="nav-tab" onclick="showScreen('odontologia')" id="tab-odontologia">🦷 Odontologia <span class="tab-badge" style="background:var(--pink);" id="badge-odontologia">0</span></button>
+  <button class="nav-tab" onclick="showScreen('chat')" id="tab-chat">💬 Chat <span class="tab-badge badge-pulse" style="background:var(--red);display:none;" id="badge-chat">0</span></button>
+  <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
+  <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
 
-<!-- MAIN CONTENT -->
 <div class="main">
 
   <!-- ============ RECEPÇÃO ============ -->
   <div class="screen active" id="screen-recepcao">
-    <div class="page-title">
-      <div class="icon" style="background:rgba(255,255,255,0.1);">🏥</div>
-      Recepção – Cadastro na Fila
-    </div>
+    <div class="page-title"><div class="icon" style="background:rgba(255,255,255,0.1);">🏥</div> Recepção – Cadastro na Fila</div>
 
     <div class="stats-row">
-      <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.3);">
-        <div class="stat-icon" style="background:var(--green); color:white;">✅</div>
-        <div>
-          <div class="stat-value" id="stat-atendidos" style="color:var(--green);">0</div>
-          <div class="stat-label">Total Atendidos</div>
-        </div>
-      </div>
-      <div class="stat-card" id="stat-card-total">
-        <div class="stat-icon" style="background:rgba(255,255,255,0.1);">👥</div>
-        <div>
-          <div class="stat-value" id="stat-total">0</div>
-          <div class="stat-label">Total Aguardando</div>
-        </div>
-      </div>
-      <div class="stat-card" id="stat-card-farm">
-        <div class="stat-icon" style="background:rgba(74,171,60,0.2);">💊</div>
-        <div>
-          <div class="stat-value" id="stat-farm">0</div>
-          <div class="stat-label">Na Farmácia</div>
-        </div>
-      </div>
-      <div class="stat-card" id="stat-card-reg">
-        <div class="stat-icon" style="background:rgba(26,79,196,0.2);">📋</div>
-        <div>
-          <div class="stat-value" id="stat-reg">0</div>
-          <div class="stat-label">Na Regulação</div>
-        </div>
-      </div>
-      <div class="stat-card" id="stat-card-cons">
-        <div class="stat-icon" style="background:rgba(244,130,30,0.2);">🩺</div>
-        <div>
-          <div class="stat-value" id="stat-cons">0</div>
-          <div class="stat-label">Na Consulta</div>
-        </div>
-      </div>
+      <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.3);"><div class="stat-icon" style="background:var(--green); color:white;">✅</div><div><div class="stat-value" id="stat-atendidos" style="color:var(--green);">0</div><div class="stat-label">Total Atendidos</div></div></div>
+      <div class="stat-card" id="stat-card-total"><div class="stat-icon" style="background:rgba(255,255,255,0.1);">👥</div><div><div class="stat-value" id="stat-total">0</div><div class="stat-label">Aguardando</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:rgba(229,57,53,0.15);">🚶</div><div><div class="stat-value" id="stat-desist" style="color:var(--red);">0</div><div class="stat-label">Desistências</div></div></div>
     </div>
 
     <div class="two-col">
-      <!-- Formulário -->
       <div class="card-white">
-        <div class="card-title">
-          <span>📝</span> Registrar Paciente
-        </div>
+        <div class="card-title"><span>📝</span> Registrar Paciente</div>
         <div class="form-group" style="margin-bottom:16px;">
           <label>Nome Completo do Paciente</label>
           <input type="text" id="input-nome" placeholder="Ex: Maria da Silva" autocomplete="off">
         </div>
-        <div class="form-group" style="margin-bottom:20px;">
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Prioridade</label>
+          <select id="input-prioridade" onchange="togglePrioridadeDetalhes()">
+            <option value="geral">👤 Geral</option>
+            <option value="prioritario">⭐ Prioritário (Lei 10.048)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;display:none;" id="prioridade-detalhes">
+          <label>Tipo de Prioridade</label>
+          <select id="input-tipo-prioridade">
+            <option value="Idoso 64+">👴 Idoso 64+</option>
+            <option value="Gestante">🤰 Gestante</option>
+            <option value="Autismo/TEA">🧩 Autismo/TEA</option>
+            <option value="PCD">♿ PCD</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
           <label>Setor de Atendimento</label>
-          <select id="input-setor">
+          <select id="input-setor" onchange="toggleTipoAtendimento()">
             <option value="">— Selecione o setor —</option>
             <option value="Acolhimento">💜 Acolhimento</option>
             <option value="Farmácia">💊 Farmácia</option>
             <option value="Regulação">📋 Regulação</option>
-            <option value="Consulta">🩺 Consulta</option>
-            <option value="Renovação de Receita">📄 Renovação de Receita</option>
+            <option value="Médico">🩺 Médico</option>
+            <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
+            <option value="Odontologia">🦷 Odontologia</option>
           </select>
         </div>
-        <button class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;" onclick="addPatient(this)">
-          ➕ Adicionar à Fila
-        </button>
-
+        <div class="form-group" style="margin-bottom:20px;display:none;" id="tipo-atendimento-grupo">
+          <label>Tipo de Atendimento</label>
+          <select id="input-tipo-atendimento">
+            <option value="Consulta">🩺 Consulta</option>
+            <option value="Renovação de Receita">📄 Renovação de Receita</option>
+            <option value="Hiperdia">❤️ Hiperdia</option>
+            <option value="Puericultura">👶 Puericultura</option>
+            <option value="Saúde da Mulher">🩷 Saúde da Mulher</option>
+            <option value="Prevenção">🛡️ Prevenção</option>
+            <option value="Pré-Natal">🤰 Pré-Natal</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;" onclick="addPatient(this)">➕ Adicionar à Fila</button>
         <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--gray-200);">
           <div class="card-title" style="margin-bottom:14px;font-size:14px;">📊 Últimos Cadastrados</div>
           <div id="recent-list" style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;">
-            <div class="empty-state" style="padding:16px;">
-              <div class="es-icon">🗒️</div>
-              <p>Nenhum cadastro ainda</p>
-            </div>
+            <div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>
           </div>
         </div>
       </div>
 
-      <!-- Visão geral das filas -->
-      <div style="display:flex;flex-direction:column;gap:16px;">
-        <div class="card-white" id="overview-acolhimento">
-          <div class="sector-header">
-            <div class="sector-name">
-              <div class="sector-dot" style="background:var(--purple)"></div>
-              💜 Acolhimento
-            </div>
-            <span class="sector-count" style="background:var(--purple);" id="cnt-acolh">0 na fila</span>
-          </div>
-          <div class="queue-list" id="mini-queue-acolhimento"></div>
-        </div>
-        <div class="card-white" id="overview-farmacia">
-          <div class="sector-header">
-            <div class="sector-name">
-              <div class="sector-dot" style="background:var(--green)"></div>
-              💊 Farmácia
-            </div>
-            <span class="sector-count" style="background:var(--green);" id="cnt-farm">0 na fila</span>
-          </div>
-          <div class="queue-list" id="mini-queue-farmacia"></div>
-        </div>
-        <div class="card-white" id="overview-regulacao">
-          <div class="sector-header">
-            <div class="sector-name">
-              <div class="sector-dot" style="background:var(--blue)"></div>
-              📋 Regulação
-            </div>
-            <span class="sector-count" id="cnt-reg">0 na fila</span>
-          </div>
-          <div class="queue-list" id="mini-queue-regulacao"></div>
-        </div>
-        <div class="card-white" id="overview-consulta">
-          <div class="sector-header">
-            <div class="sector-name">
-              <div class="sector-dot" style="background:var(--orange)"></div>
-              🩺 Consulta
-            </div>
-            <span class="sector-count" style="background:var(--orange);" id="cnt-cons">0 na fila</span>
-          </div>
-          <div class="queue-list" id="mini-queue-consulta"></div>
-        </div>
-        <div class="card-white" id="overview-renovacao">
-          <div class="sector-header">
-            <div class="sector-name">
-              <div class="sector-dot" style="background:var(--teal)"></div>
-              📄 Renovação de Receita
-            </div>
-            <span class="sector-count" style="background:var(--teal);" id="cnt-renov">0 na fila</span>
-          </div>
-          <div class="queue-list" id="mini-queue-renovacao"></div>
-        </div>
-      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;" id="overview-container"></div>
     </div>
   </div>
 
-  <!-- ============ ACOLHIMENTO ============ -->
-  <div class="screen" id="screen-acolhimento">
-    <div class="sector-page-header">
-      <div class="sector-icon-big" style="background:rgba(142,36,170,0.2);">💜</div>
-      <div>
-        <div class="sector-page-title">Acolhimento</div>
-        <div class="sector-page-sub">Chamada de pacientes para o acolhimento inicial</div>
-      </div>
-    </div>
-    <div class="calling-banner" id="banner-acolhimento">
-      <div class="cb-icon">🔔</div>
-      <div class="cb-text">
-        <div class="cb-label">Chamando agora</div>
-        <div class="cb-name" id="banner-name-acolhimento">—</div>
-        <div class="cb-sector">💜 Acolhimento</div>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="speakAgain('Acolhimento')">🔊 Repetir</button>
-    </div>
-    <div class="card-white">
-      <div class="btn-group" style="margin-bottom:20px;">
-        <button class="btn btn-purple" onclick="callNext('Acolhimento')" style="flex:1;">📢 Chamar Próximo</button>
-        <button class="btn btn-orange" onclick="speakAgain('Acolhimento')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
-      </div>
-      <div class="sector-header">
-        <div class="sector-name"><div class="sector-dot" style="background:var(--purple)"></div>Aguardando</div>
-        <span class="sector-count" style="background:var(--purple);" id="cnt2-acolh">0</span>
-      </div>
-      <div class="queue-list" id="queue-acolhimento"></div>
-    </div>
-  </div>
-
-  <!-- ============ FARMÁCIA ============ -->
-  <div class="screen" id="screen-farmacia">
-    <div class="sector-page-header">
-      <div class="sector-icon-big" style="background:rgba(74,171,60,0.2);">💊</div>
-      <div>
-        <div class="sector-page-title">Farmácia</div>
-        <div class="sector-page-sub">Chamada de pacientes para a farmácia</div>
-      </div>
-    </div>
-    <div class="calling-banner" id="banner-farmacia">
-      <div class="cb-icon">🔔</div>
-      <div class="cb-text">
-        <div class="cb-label">Chamando agora</div>
-        <div class="cb-name" id="banner-name-farmacia">—</div>
-        <div class="cb-sector">💊 Farmácia</div>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="speakAgain('Farmácia')">🔊 Repetir</button>
-    </div>
-    <div class="card-white">
-      <div class="btn-group" style="margin-bottom:20px;">
-        <button class="btn btn-green" onclick="callNext('Farmácia')" style="flex:1;">📢 Chamar Próximo</button>
-        <button class="btn btn-orange" onclick="speakAgain('Farmácia')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
-      </div>
-      <div class="sector-header">
-        <div class="sector-name"><div class="sector-dot" style="background:var(--green)"></div>Aguardando</div>
-        <span class="sector-count" style="background:var(--green);" id="cnt2-farm">0</span>
-      </div>
-      <div class="queue-list" id="queue-farmacia"></div>
-    </div>
-  </div>
-
-  <!-- ============ REGULAÇÃO ============ -->
-  <div class="screen" id="screen-regulacao">
-    <div class="sector-page-header">
-      <div class="sector-icon-big" style="background:rgba(26,79,196,0.2);">📋</div>
-      <div>
-        <div class="sector-page-title">Regulação</div>
-        <div class="sector-page-sub">Chamada de pacientes para a regulação</div>
-      </div>
-    </div>
-    <div class="calling-banner" id="banner-regulacao">
-      <div class="cb-icon">🔔</div>
-      <div class="cb-text">
-        <div class="cb-label">Chamando agora</div>
-        <div class="cb-name" id="banner-name-regulacao">—</div>
-        <div class="cb-sector">📋 Regulação</div>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="speakAgain('Regulação')">🔊 Repetir</button>
-    </div>
-    <div class="card-white">
-      <div class="btn-group" style="margin-bottom:20px;">
-        <button class="btn btn-primary" onclick="callNext('Regulação')" style="flex:1;padding:16px;font-size:16px;">📢 Chamar Próximo</button>
-        <button class="btn btn-orange" onclick="speakAgain('Regulação')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
-      </div>
-      <div class="sector-header">
-        <div class="sector-name"><div class="sector-dot" style="background:var(--blue)"></div>Aguardando</div>
-        <span class="sector-count" id="cnt2-reg">0</span>
-      </div>
-      <div class="queue-list" id="queue-regulacao"></div>
-    </div>
-  </div>
-
-  <!-- ============ CONSULTA ============ -->
-  <div class="screen" id="screen-consulta">
-    <div class="sector-page-header">
-      <div class="sector-icon-big" style="background:rgba(244,130,30,0.2);">🩺</div>
-      <div>
-        <div class="sector-page-title">Consulta</div>
-        <div class="sector-page-sub">Chamada de pacientes para consulta médica</div>
-      </div>
-    </div>
-    <div class="calling-banner" id="banner-consulta">
-      <div class="cb-icon">🔔</div>
-      <div class="cb-text">
-        <div class="cb-label">Chamando agora</div>
-        <div class="cb-name" id="banner-name-consulta">—</div>
-        <div class="cb-sector">🩺 Consulta</div>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="speakAgain('Consulta')">🔊 Repetir</button>
-    </div>
-    <div class="card-white">
-      <div class="form-group" style="margin-bottom:16px;">
-        <label>Consultório / Médico (Opcional)</label>
-        <select id="medico-Consulta" style="width:100%; padding:12px; border-radius:8px; border:2px solid var(--gray-200); font-family:'Nunito Sans',sans-serif; font-weight:700;">
-          <option value="">— Sem consultório específico —</option>
-          <option value="Consultório 1 - Anahy Duarte">Consultório 1 – Anahy Duarte</option>
-          <option value="Consultório 2 - Joene Halan">Consultório 2 – Joene Halan</option>
-          <option value="Consultório 3 - Mirela Mota">Consultório 3 – Mirela Mota</option>
-        </select>
-      </div>
-      <div class="btn-group" style="margin-bottom:20px;">
-        <button class="btn btn-orange" onclick="callNext('Consulta')" style="flex:1;">📢 Chamar Próximo</button>
-        <button class="btn btn-orange" style="background:rgba(244,130,30,0.2);color:var(--orange-dark);box-shadow:none;border:1px solid rgba(244,130,30,0.5);" onclick="speakAgain('Consulta')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
-      </div>
-      <div class="sector-header">
-        <div class="sector-name"><div class="sector-dot" style="background:var(--orange)"></div>Aguardando</div>
-        <span class="sector-count" style="background:var(--orange);" id="cnt2-cons">0</span>
-      </div>
-      <div class="queue-list" id="queue-consulta"></div>
-    </div>
-  </div>
-
-  <!-- ============ RENOVAÇÃO DE RECEITA ============ -->
-  <div class="screen" id="screen-renovacao">
-    <div class="sector-page-header">
-      <div class="sector-icon-big" style="background:rgba(0,137,123,0.2);">📄</div>
-      <div>
-        <div class="sector-page-title">Renovação de Receita</div>
-        <div class="sector-page-sub">Chamada de pacientes para renovação e retirada da receita</div>
-      </div>
-    </div>
-    <div class="calling-banner" id="banner-renovacao">
-      <div class="cb-icon">🔔</div>
-      <div class="cb-text">
-        <div class="cb-label">Chamando agora</div>
-        <div class="cb-name" id="banner-name-renovacao">—</div>
-        <div class="cb-sector">📄 Renovação de Receita</div>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="speakAgain('Renovação de Receita')">🔊 Repetir</button>
-    </div>
-    <div class="card-white">
-      <div class="form-group" style="margin-bottom:16px;">
-        <label>Consultório / Médico (Opcional)</label>
-        <select id="medico-Renovação de Receita" style="width:100%; padding:12px; border-radius:8px; border:2px solid var(--gray-200); font-family:'Nunito Sans',sans-serif; font-weight:700;">
-          <option value="">— Sem consultório específico —</option>
-          <option value="Consultório 1 - Anahy Duarte">Consultório 1 – Anahy Duarte</option>
-          <option value="Consultório 2 - Joene Halan">Consultório 2 – Joene Halan</option>
-          <option value="Consultório 3 - Mirela Mota">Consultório 3 – Mirela Mota</option>
-        </select>
-      </div>
-      <div class="btn-group" style="margin-bottom:20px;">
-        <button class="btn btn-teal" onclick="callNext('Renovação de Receita')" style="flex:1;">📢 Chamar Próximo</button>
-        <button class="btn btn-orange" onclick="speakAgain('Renovação de Receita')" style="width:auto;padding:16px 20px;">🔊 Repetir Chamada</button>
-      </div>
-      <div class="sector-header">
-        <div class="sector-name"><div class="sector-dot" style="background:var(--teal)"></div>Aguardando</div>
-        <span class="sector-count" style="background:var(--teal);" id="cnt2-renov">0</span>
-      </div>
-      <div class="queue-list" id="queue-renovacao"></div>
-    </div>
-  </div>
+  <!-- ============ SECTOR SCREENS (generated by JS) ============ -->
+  <div class="screen" id="screen-acolhimento"></div>
+  <div class="screen" id="screen-farmacia"></div>
+  <div class="screen" id="screen-regulacao"></div>
+  <div class="screen" id="screen-medico"></div>
+  <div class="screen" id="screen-enfermagem"></div>
+  <div class="screen" id="screen-odontologia"></div>
 
   <!-- ============ PAINEL PÚBLICO ============ -->
   <div class="screen" id="screen-painel">
     <div class="painel-screen">
       <div class="painel-header">
         <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:8px;">
-          <div style="font-family:'Nunito',sans-serif;font-size:40px;font-weight:900;">
-            <span style="color:#fff;">U</span><span style="color:var(--green);">S</span><span style="color:var(--orange);">F</span>
-            <span style="color:#fff;font-size:32px;margin-left:8px;">Chico Mendes</span>
-          </div>
+          <div style="font-family:'Nunito',sans-serif;font-size:40px;font-weight:900;"><span style="color:#fff;">U</span><span style="color:var(--green);">S</span><span style="color:var(--orange);">F</span><span style="color:#fff;font-size:32px;margin-left:8px;">Chico Mendes</span></div>
         </div>
-        <div class="painel-title" style="font-size:18px;color:var(--gray-300);font-weight:600;letter-spacing:2px;text-transform:uppercase;">
-          Painel de Chamadas
-        </div>
+        <div class="painel-title" style="font-size:18px;color:var(--gray-300);font-weight:600;letter-spacing:2px;text-transform:uppercase;">Painel de Chamadas</div>
       </div>
-
-      <div class="painel-main-call" id="painel-main">
-        <div class="painel-empty">Aguardando chamadas...</div>
-      </div>
-
+      <div class="painel-main-call" id="painel-main"><div class="painel-empty">Aguardando chamadas...</div></div>
       <div style="display:flex;gap:12px;justify-content:center;margin-bottom:24px;flex-wrap:wrap;">
-        <button onclick="speakPatientName()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px;box-shadow:0 4px 16px rgba(74,171,60,0.4);display:flex;align-items:center;gap:8px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-          🔊 Chamar pelo Nome
-        </button>
-        <button onclick="repeatLastCall()" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
-          🔁 Repetir Última Chamada
-        </button>
+        <button onclick="speakPatientName()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(74,171,60,0.4);display:flex;align-items:center;gap:8px;">🔊 Chamar pelo Nome</button>
+        <button onclick="repeatLastCall()" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">🔁 Repetir Última</button>
       </div>
-
       <div class="painel-history-title">🕐 Histórico de Chamadas</div>
-      <div class="painel-history-grid" id="painel-history" style="max-height:420px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.2) transparent;">
-        <div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;font-size:14px;font-weight:600;">
-          Nenhuma chamada registrada
-        </div>
-      </div>
+      <div class="painel-history-grid" id="painel-history" style="max-height:420px;overflow-y:auto;scrollbar-width:thin;"><div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;font-size:14px;font-weight:600;">Nenhuma chamada registrada</div></div>
     </div>
   </div>
 
@@ -1290,28 +313,16 @@
   <div class="screen" id="screen-chat">
     <div class="sector-page-header">
       <div class="sector-icon-big" style="background:rgba(26,79,196,0.2);">💬</div>
-      <div>
-        <div class="sector-page-title">Chat Interno</div>
-        <div class="sector-page-sub">Comunicação instantânea entre os setores da unidade</div>
-      </div>
+      <div><div class="sector-page-title">Chat Interno</div><div class="sector-page-sub">Comunicação instantânea entre os setores da unidade</div></div>
     </div>
-    
     <div class="card-white" style="display:flex; flex-direction:column; height:650px; padding:0; overflow:hidden; border:none; box-shadow:var(--shadow-lg);">
       <div style="background:linear-gradient(135deg, var(--blue-dark), var(--blue)); padding:16px 24px; color:white; display:flex; align-items:center; gap:12px;">
         <div style="font-size:24px;">💬</div>
-        <div>
-          <div style="font-weight:800; font-size:16px;">Mural de Comunicação USF</div>
-          <div style="font-size:12px; opacity:0.8;">Mensagens instantâneas entre setores</div>
-        </div>
+        <div><div style="font-weight:800; font-size:16px;">Mural de Comunicação USF</div><div style="font-size:12px; opacity:0.8;">Mensagens instantâneas entre setores</div></div>
       </div>
-
       <div id="chat-messages" style="flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; background:#f8faff; scrollbar-width:thin;">
-        <div class="empty-state" style="margin:auto;">
-          <div class="es-icon">💬</div>
-          <p>Diga algo para os outros setores!</p>
-        </div>
+        <div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Diga algo para os outros setores!</p></div>
       </div>
-      
       <div style="padding:20px; background:white; border-top:1px solid var(--gray-200); display:flex; gap:12px; align-items:flex-end;">
         <div class="form-group" style="width:180px; margin:0;">
           <label style="font-size:11px;">Seu Setor:</label>
@@ -1320,8 +331,9 @@
             <option value="Acolhimento">💜 Acolhimento</option>
             <option value="Farmácia">💊 Farmácia</option>
             <option value="Regulação">📋 Regulação</option>
-            <option value="Consulta">🩺 Consulta</option>
-            <option value="Renovação">📄 Renovação</option>
+            <option value="Médico">🩺 Médico</option>
+            <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
+            <option value="Odontologia">🦷 Odontologia</option>
           </select>
         </div>
         <div class="form-group" style="flex:1; margin:0;">
@@ -1335,61 +347,41 @@
 
   <!-- ============ ATENDIDOS ============ -->
   <div class="screen" id="screen-atendidos">
-    <div class="page-title">
-      <div class="icon" style="background:rgba(74,171,60,0.2);">✅</div>
-      Pacientes Atendidos
-    </div>
-
+    <div class="page-title"><div class="icon" style="background:rgba(74,171,60,0.2);">✅</div> Pacientes Atendidos</div>
     <div class="stats-row" style="margin-bottom:20px;">
-      <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.3);">
-        <div class="stat-icon" style="background:var(--green); color:white;">✅</div>
-        <div>
-          <div class="stat-value" id="attended-count-big" style="color:var(--green);">0</div>
-          <div class="stat-label">Total Atendidos Hoje</div>
-        </div>
-      </div>
+      <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.3);"><div class="stat-icon" style="background:var(--green); color:white;">✅</div><div><div class="stat-value" id="attended-count-big" style="color:var(--green);">0</div><div class="stat-label">Total Atendidos Hoje</div></div></div>
     </div>
-
     <div class="card-white">
       <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
         <div><span>📋</span> Lista de Atendidos</div>
-        <button onclick="generatePDF()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:10px;padding:8px 16px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(74,171,60,0.3);display:flex;align-items:center;gap:6px;">
-          📄 Exportar PDF
-        </button>
-      </div>
-      <div id="attended-list" style="display:flex;flex-direction:column;gap:8px;max-height:600px;overflow-y:auto;">
-        <div class="empty-state">
-          <div class="es-icon">✅</div>
-          <p>Nenhum paciente atendido ainda</p>
+        <div style="display:flex;gap:8px;">
+          <button onclick="generatePDF()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:10px;padding:8px 16px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(74,171,60,0.3);display:flex;align-items:center;gap:6px;">📄 Exportar PDF</button>
         </div>
       </div>
-    </div>
-  </div>
-
-</div><!-- end main -->
-
-<!-- MODAL SOM -->
-<div id="sound-modal" style="display:none;position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
-  <div style="background:var(--white);border-radius:24px;padding:40px 48px;text-align:center;max-width:440px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.4);">
-    <div style="font-size:56px;margin-bottom:16px;">🔊</div>
-    <div style="font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;color:var(--blue-dark);margin-bottom:10px;">Ativar Sistema de Voz</div>
-    <div style="font-size:15px;color:var(--gray-600);margin-bottom:28px;line-height:1.6;">
-      Para que os chamados sejam <strong>anunciados em voz alta</strong>, clique no botão abaixo para ativar o áudio do sistema.
-    </div>
-    <button onclick="unlockAudio()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;border:none;border-radius:12px;padding:18px 40px;font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;cursor:pointer;width:100%;box-shadow:0 6px 20px rgba(74,171,60,0.4);">
-      🔊 Ativar Som Agora
-    </button>
-    <div style="margin-top:14px;font-size:12px;color:var(--gray-300);">
-      Necessário para funcionamento correto em todos os navegadores
+      <div class="filter-row">
+        <div class="form-group"><label>Data</label><input type="date" id="filter-data"></div>
+        <div class="form-group"><label>Setor</label><select id="filter-setor" style="padding:10px;font-size:14px;"><option value="">Todos</option><option value="Acolhimento">Acolhimento</option><option value="Farmácia">Farmácia</option><option value="Regulação">Regulação</option><option value="Médico">Médico</option><option value="Enfermagem">Enfermagem</option><option value="Odontologia">Odontologia</option></select></div>
+        <div class="form-group"><label>Profissional</label><select id="filter-profissional" style="padding:10px;font-size:14px;"><option value="">Todos</option><option>Dra. Anahy Duarte</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option><option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Gisele Monteiro</option></select></div>
+        <button class="btn btn-primary btn-sm" onclick="applyFilters()">🔍 Filtrar</button>
+      </div>
+      <div id="attended-list" style="display:flex;flex-direction:column;gap:8px;max-height:600px;overflow-y:auto;">
+        <div class="empty-state"><div class="es-icon">✅</div><p>Nenhum paciente atendido ainda</p></div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- TOAST -->
+<div id="sound-modal" style="display:none;position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:var(--white);border-radius:24px;padding:40px 48px;text-align:center;max-width:440px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.4);">
+    <div style="font-size:56px;margin-bottom:16px;">🔊</div>
+    <div style="font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;color:var(--blue-dark);margin-bottom:10px;">Ativar Sistema de Voz</div>
+    <div style="font-size:15px;color:var(--gray-600);margin-bottom:28px;line-height:1.6;">Para que os chamados sejam <strong>anunciados em voz alta</strong>, clique no botão abaixo.</div>
+    <button onclick="unlockAudio()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;border:none;border-radius:12px;padding:18px 40px;font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;cursor:pointer;width:100%;box-shadow:0 6px 20px rgba(74,171,60,0.4);">🔊 Ativar Som Agora</button>
+  </div>
+</div>
+
 <div id="toast">✅ <span id="toast-msg">Mensagem</span></div>
-
 <audio id="global-audio" src="data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" preload="auto"></audio>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
