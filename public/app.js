@@ -36,17 +36,21 @@ function initSectorScreens() {
     // Filter buttons for Médico and Enfermagem only (Odontologia already done)
     let filterHTML = '';
     if (cfg.profissionais && setor !== 'Odontologia') {
-      const btns = cfg.profissionais.map(p =>
-        `<button class="btn-filter" data-prof="${p}" onclick="filterSector('${cfg.key}','${p}')">${p}</button>`
+      const firstProf = cfg.profissionais[0];
+      const btns = cfg.profissionais.map((p, idx) =>
+        `<button class="btn-filter${idx === 0 ? ' active' : ''}" data-prof="${p}" onclick="filterSector('${cfg.key}','${p}')">${p}</button>`
       ).join('');
       filterHTML = `
         <div style="margin-bottom:20px;">
-          <label style="font-size:13px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:block;">Filtrar por Profissional</label>
+          <label style="font-size:13px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:block;">Selecione seu Profissional</label>
           <div class="filter-bar" id="filter-bar-${cfg.key}" style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn-filter active" data-prof="" onclick="filterSector('${cfg.key}','')">👥 Todos</button>
             ${btns}
           </div>
         </div>`;
+      // Auto-set the first professional as default filter
+      if (!sectorFilters[cfg.key]) {
+        sectorFilters[cfg.key] = firstProf;
+      }
     }
 
     let profHTML = '';
@@ -112,7 +116,8 @@ function initOverview() {
 
 // ====== FILTER SECTOR ======
 function filterSector(key, profissional) {
-  sectorFilters[key] = profissional || null;
+  if (!profissional) return; // Must select a specific professional
+  sectorFilters[key] = profissional;
   const bar = document.getElementById('filter-bar-' + key);
   if (bar) {
     bar.querySelectorAll('.btn-filter').forEach(btn => {
