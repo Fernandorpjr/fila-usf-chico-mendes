@@ -43,7 +43,7 @@ async function initDB() {
         setor TEXT NOT NULL,
         horario TEXT NOT NULL,
         status TEXT DEFAULT 'aguardando',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
     await pool.query(`
@@ -53,7 +53,7 @@ async function initDB() {
         nome TEXT NOT NULL,
         setor TEXT NOT NULL,
         horario_chamada TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
     
@@ -62,7 +62,7 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         remetente TEXT NOT NULL,
         mensagem TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
     
@@ -84,6 +84,21 @@ async function initDB() {
     
     for (const col of columns) {
       await pool.query(`ALTER TABLE ${col.table} ADD COLUMN IF NOT EXISTS ${col.column} ${col.type}`);
+    }
+
+    // Convert existing TIMESTAMP columns to TIMESTAMPTZ (assuming current data is UTC)
+    const tablesToMigrate = ['patients', 'call_history', 'chat_messages'];
+    for (const table of tablesToMigrate) {
+      // Check column type before altering
+      const typeResult = await pool.query(`
+        SELECT data_type FROM information_schema.columns 
+        WHERE table_name = $1 AND column_name = 'created_at'
+      `, [table]);
+      
+      if (typeResult.rows.length > 0 && typeResult.rows[0].data_type !== 'timestamp with time zone') {
+        console.log(`🌀 Migrando ${table}.created_at para TIMESTAMPTZ...`);
+        await pool.query(`ALTER TABLE ${table} ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC'`);
+      }
     }
 
     console.log('✅ Banco de dados inicializado com sucesso!');
@@ -116,7 +131,7 @@ app.get('/api/queues', async (req, res) => {
       `SELECT * FROM patients WHERE status NOT IN ('atendido', 'desistencia')
        ORDER BY
          CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
-         created_at ASC`
+         created_at AT TIME ZONE 'America/Sao_Paulo' ASC`
     );
 
     result.rows.forEach(patient => {
@@ -173,7 +188,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
       nextQuery += ` AND profissional = $2`;
       nextParams.push(filtro_profissional);
     }
-    nextQuery += ` ORDER BY CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC, created_at ASC LIMIT 1`;
+    nextQuery += ` ORDER BY CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC, created_at AT TIME ZONE 'America/Sao_Paulo' ASC LIMIT 1`;
     const nextResult = await client.query(nextQuery, nextParams);
 
     if (nextResult.rows.length === 0) {
@@ -266,7 +281,7 @@ app.get('/api/history', async (req, res) => {
     const result = await pool.query(
       `SELECT * FROM call_history
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       ORDER BY created_at DESC`
+       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -300,7 +315,7 @@ app.get('/api/history/filtered', async (req, res) => {
       idx++;
     }
     
-    query += ' ORDER BY created_at DESC';
+    query += " ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC";
     
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -320,7 +335,7 @@ app.get('/api/history/monthly', async (req, res) => {
       `SELECT * FROM call_history
        WHERE EXTRACT(MONTH FROM created_at AT TIME ZONE 'America/Sao_Paulo') = $1
        AND EXTRACT(YEAR FROM created_at AT TIME ZONE 'America/Sao_Paulo') = $2
-       ORDER BY created_at DESC`,
+       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`,
       [month, year]
     );
     
@@ -349,7 +364,7 @@ app.get('/api/attended', async (req, res) => {
     const result = await pool.query(
       `SELECT * FROM call_history
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       ORDER BY created_at DESC`
+       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -422,11 +437,11 @@ app.get('/api/dashboard/metrics', async (req, res) => {
        GROUP BY ch.setor`
     );
     
-    // Bottleneck (waiting > 30 min)
+    // Bottleneck (waiting > 30 min) – ensure comparisons use same domain
     const bottleneckResult = await pool.query(
       `SELECT COUNT(*) as total, setor FROM patients
        WHERE status = 'aguardando'
-       AND created_at < NOW() - INTERVAL '30 minutes'
+       AND created_at < NOW() AT TIME ZONE 'America/Sao_Paulo' - INTERVAL '30 minutes'
        GROUP BY setor`
     );
     
@@ -458,14 +473,14 @@ app.get('/api/dashboard/hourly', async (req, res) => {
     const entriesResult = await pool.query(
       `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
        FROM patients WHERE ${todayFilter}
-       GROUP BY EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo')
+       GROUP BY hour
        ORDER BY hour`
     );
     
     const callsResult = await pool.query(
       `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
        FROM call_history WHERE ${todayFilter}
-       GROUP BY EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo')
+       GROUP BY hour
        ORDER BY hour`
     );
     

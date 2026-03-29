@@ -28,6 +28,10 @@
   .charts { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:32px; }
   .chart-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:24px; }
   .chart-title { font-family:'Nunito',sans-serif; font-size:16px; font-weight:800; margin-bottom:16px; }
+  .occupancy-bar-container { width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; margin-top:10px; overflow:hidden; }
+  .occupancy-bar { height:100%; width:0%; transition:width 0.5s ease, background-color 0.5s ease; }
+  .occupancy-alert { animation: pulseAlert 2s infinite; border: 2px solid var(--red) !important; background: rgba(229,57,53,0.15) !important; }
+  @keyframes pulseAlert { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
   .table-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:24px; margin-bottom:32px; }
   table { width:100%; border-collapse:collapse; }
   th,td { padding:12px 16px; text-align:left; font-size:14px; border-bottom:1px solid rgba(255,255,255,0.1); }
@@ -69,6 +73,7 @@
   <div class="metrics" id="metricsGrid"></div>
 
   <div class="charts">
+    <div class="chart-card" style="grid-column: span 2;"><div class="chart-title">🛋️ Ocupação da Recepção (Pacientes no Local)</div><canvas id="chartOccupancy" style="max-height:300px;"></canvas></div>
     <div class="chart-card"><div class="chart-title">📈 Atendimentos por Hora</div><canvas id="chartHourly"></canvas></div>
     <div class="chart-card"><div class="chart-title">🔄 Entradas vs Atendimentos</div><canvas id="chartFlow"></canvas></div>
   </div>
@@ -84,7 +89,7 @@
 
 <script>
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-let hourlyChart = null, flowChart = null, metricsData = null, hourlyData = null;
+let hourlyChart = null, flowChart = null, occupancyChart = null, metricsData = null, hourlyData = null;
 
 function verifyDashboardAccess() {
   const pwd = document.getElementById('lockPassword').value;
@@ -117,9 +122,19 @@ function renderMetrics() {
   const hasBottleneck = d.bottleneckBySetor.length > 0;
   const avgWaitAll = d.avgWaitBySetor.length ? (d.avgWaitBySetor.reduce((s, r) => s + parseFloat(r.avg_minutes || 0), 0) / d.avgWaitBySetor.length).toFixed(0) : '0';
 
+  const occupancyPercent = Math.min((totalWaiting / 40) * 100, 100);
+  let occupancyColor = 'var(--green)';
+  if (totalWaiting >= 40) occupancyColor = 'var(--red)';
+  else if (totalWaiting >= 30) occupancyColor = 'var(--orange)';
+
   document.getElementById('metricsGrid').innerHTML = `
     <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${d.totalAttended}</div><div class="metric-label">Atendidos Hoje</div></div>
-    <div class="metric-card"><div class="metric-icon">👥</div><div class="metric-value">${totalWaiting}</div><div class="metric-label">Aguardando Agora</div></div>
+    <div class="metric-card ${totalWaiting >= 40 ? 'occupancy-alert' : ''}">
+      <div class="metric-icon">🛋️</div>
+      <div class="metric-value" style="color:${occupancyColor};">${totalWaiting} / 40</div>
+      <div class="metric-label">Ocupação Recepção</div>
+      <div class="occupancy-bar-container"><div class="occupancy-bar" style="width:${occupancyPercent}%; background-color:${occupancyColor};"></div></div>
+    </div>
     <div class="metric-card"><div class="metric-icon">⏱️</div><div class="metric-value" style="color:var(--yellow);">${avgWaitAll} min</div><div class="metric-label">Tempo Médio Espera</div></div>
     <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" style="color:var(--red);">${d.dropoutRate}%</div><div class="metric-label">Taxa Desistência</div></div>
     <div class="metric-card ${hasBottleneck ? 'alert' : ''}"><div class="metric-icon">${hasBottleneck ? '🔴' : '🟢'}</div><div class="metric-value" style="color:${hasBottleneck ? 'var(--red)' : 'var(--green)'};">${hasBottleneck ? 'ALERTA' : 'OK'}</div><div class="metric-label">Gargalo (>30min)</div></div>
@@ -146,6 +161,29 @@ function renderCharts() {
       { label: 'Atendimentos', data: callsByHour, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3 }
     ] },
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
+  });
+
+  // Calculate Waiting over time
+  let currentWaiting = 0;
+  const waitingOverTime = hours.map(h => {
+    const entries = entriesByHour[hours.indexOf(h)] || 0;
+    const calls = callsByHour[hours.indexOf(h)] || 0;
+    currentWaiting += (entries - calls);
+    return Math.max(0, currentWaiting);
+  });
+
+  if (occupancyChart) occupancyChart.destroy();
+  occupancyChart = new Chart(document.getElementById('chartOccupancy'), {
+    type: 'line', data: { labels, datasets: [
+      { label: 'Ocupação (Total Aguardando)', data: waitingOverTime, borderColor: '#f9c823', backgroundColor: 'rgba(249,200,35,0.1)', fill: true, tension: 0.4 },
+      { label: 'Capacidade Sentada (30)', data: Array(14).fill(30), borderColor: 'rgba(244,130,30,0.5)', borderDash: [5, 5], pointRadius: 0, fill: false },
+      { label: 'Lotação Máxima (40)', data: Array(14).fill(40), borderColor: 'rgba(229,57,53,0.8)', borderDash: [2, 2], pointRadius: 0, fill: false }
+    ] },
+    options: { 
+      responsive: true, 
+      plugins: { legend: { labels: { color: '#b8c8f0' } } }, 
+      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } } 
+    }
   });
 }
 
