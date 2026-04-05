@@ -736,7 +736,7 @@ setInterval(checkInactivity, 60000);
 // ====== AGENDAMENTOS ======
 const WA_TEMPLATES = {
   lembrete: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nLembrete de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
-  confirmacao: `Olá [NOME]! ✅\n\nSua consulta na *USF Chico Mendes* está *CONFIRMADA*:\n\n📅 [DATA] às [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\nDocumentos necessários:\n✓ Cartão SUS\n✓ Carteira de vacinação\n\n[OBS]\n\n*USF Chico Mendes* 🏥`,
+  confirmacao: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nConfirmação de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
   reagendamento: `Olá [NOME]! 🔄\n\nInformamos que sua consulta na *USF Chico Mendes* foi *REAGENDADA*:\n\n📅 Nova data: [DATA]\n⏰ Novo horário: [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\n[OBS]\n\nPedimos desculpas pelo inconveniente.\n*USF Chico Mendes* 🏥`,
   preparo_exames: `Lembrete de Coleta – USF Chico Mendes\n\nOlá, [NOME]!\n📅 Data da coleta: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Responsável: [PROFISSIONAL]\n\n📋 Checklist dos seus exames:\n[EXAMES]\n\n📍 Local: Unidade de Saúde da Família Chico Mendes\n💬 Em caso de dúvidas, fale com seu agente de saúde. 💙`
 };
@@ -814,7 +814,8 @@ function renderAgendamentos(list) {
   const tbody = document.getElementById('agend-tbody'); if (!tbody) return;
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr>'; return; }
   tbody.innerHTML = list.map(a => {
-    const dataFmt = new Date(a.data_agendamento+'T12:00:00').toLocaleDateString('pt-BR');
+    const dataIsoDate = (a.data_agendamento || '').split('T')[0];
+    const dataFmt = dataIsoDate ? new Date(dataIsoDate + 'T12:00:00').toLocaleDateString('pt-BR') : '';
     const statusCls = a.status.replace(/\s+/g,'_');
     return `<tr>
       <td><b>${a.nome}</b><br><span style="font-size:11px;color:var(--gray-600);">${a.telefone}</span></td>
@@ -825,6 +826,7 @@ function renderAgendamentos(list) {
         <button onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar lembrete">📨</button>
         <button onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmado">✅</button>
         <button onclick="updateAgendStatus(${a.id},'cancelado')" title="Cancelar">❌</button>
+        <button onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" style="color:var(--red);">🗑️</button>
       </div></td></tr>`;
   }).join('');
 }
@@ -834,6 +836,17 @@ async function updateAgendStatus(id, status) {
     await fetch(`${API_URL}/agendamentos/${id}/status`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
     showToast('Status atualizado!'); loadAgendamentos();
   } catch { showToast('Erro!', true); }
+}
+
+async function deleteAgendamento(id) {
+  const senha = prompt('🗑️ Excluir Agendamento Permanentemente?\n\nDigite a senha administrativa:');
+  if (!senha) return;
+  try {
+    const r = await fetch(`${API_URL}/agendamentos/${id}`, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({senha}) });
+    if (!r.ok) { showToast('Senha incorreta ou agendamento não encontrado!', true); return; }
+    showToast('Agendamento apagado com sucesso!');
+    loadAgendamentos();
+  } catch { showToast('Erro de conexão ao tentar apagar!', true); }
 }
 
 async function openWaPreview(id) {
