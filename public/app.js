@@ -278,15 +278,28 @@ async function callNext(setor) {
 
 // ====== REMOVE PATIENT ======
 async function removePatient(id, nome) {
-  const senha = prompt(`🗑️ Excluir "${nome}" da fila?\n\nDigite a senha administrativa:`);
+  const senha = prompt(`🗑️ Marcar "${nome}" como DESISTÊNCIA?\n\nDigite a senha administrativa:`);
   if (!senha) return;
   try {
     const r = await fetch(`${API_URL}/remove-patient`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, senha }) });
     if (r.status === 403) { showToast('❌ Senha incorreta!', true); return; }
     if (!r.ok) throw new Error();
-    showToast(`🗑️ ${nome} removido da fila`);
+    showToast(`🗑️ ${nome} marcado como desistência`);
     loadQueues();
   } catch { showToast('Erro ao remover paciente!', true); }
+}
+
+async function deletePatientPermanently(id, nome) {
+  if (!confirm(`🚨 CUIDADO! Excluir "${nome}" PERMANENTEMENTE do banco de dados?\nEsta ação não pode ser desfeita.`)) return;
+  const senha = prompt('Digite a senha administrativa para confirmar a EXCLUSÃO PERMANENTE:');
+  if (!senha) return;
+  try {
+    const r = await fetch(`${API_URL}/patients/${id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha }) });
+    if (r.status === 403) { showToast('❌ Senha incorreta!', true); return; }
+    if (!r.ok) throw new Error();
+    showToast(`🔥 ${nome} excluído permanentemente!`);
+    loadQueues();
+  } catch { showToast('Erro ao excluir!', true); }
 }
 
 // ====== SPEAK ======
@@ -415,13 +428,20 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
     const tipoLabel = p.tipo_atendimento ? `<span style="font-size:11px;color:var(--gray-600);margin-left:4px;">(${p.tipo_atendimento})</span>` : '';
     const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${p.profissional}</span>` : '';
-    const removeBtn = `<button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir da fila">🗑️</button>`;
+    const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
+    const removeBtn = isAdmin ? `<div style="display:flex;gap:4px;">
+      <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Marcar como Desistência">🚶</button>
+      <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir Permanentemente">🔥</button>
+    </div>` : '';
     return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
       <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}</div>
       <div class="queue-time">${p.horario}</div>
-      <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>
-      ${removeBtn}
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${qrBtn}
+        <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>
+        ${removeBtn}
+      </div>
     </div>`;
   }).join('');
 }
@@ -520,11 +540,18 @@ function renderAllSectorAttended() {
       const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐</span>` : '';
       const prof = p.profissional || '';
       const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${prof}</span>` : '';
+      const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.patient_id})" title="Ver QR Code">📱</button>`;
+      const delBtn = isAdmin ? `<button class="btn-danger-sm" onclick="event.stopPropagation();deleteHistoryItem(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir do Histórico">🗑️</button>` : '';
+      
       return `<div class="queue-item" style="border-left:4px solid var(--green);">
         <div class="queue-position" style="background:var(--green);">${items.length - i}</div>
         <div class="queue-name">${p.nome}${prioBadge}${profLabel}</div>
         <div class="queue-time">${p.horario_chamada || ''}</div>
-        <span class="queue-status status-done">✅ Atendido</span>
+        <div style="display:flex;gap:4px;align-items:center;">
+          ${qrBtn}
+          <span class="queue-status status-done">✅ Atendido</span>
+          ${delBtn}
+        </div>
       </div>`;
     }).join('');
   });
@@ -541,14 +568,42 @@ function renderAttended() {
     const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐</span>` : '';
     const prof = p.profissional || p.medico || '';
     const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${prof}</span>` : '';
+    const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.patient_id})" title="Ver QR Code">📱</button>`;
+    const delBtn = isAdmin ? `<button class="btn-danger-sm" onclick="event.stopPropagation();deleteHistoryItem(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir do Histórico">🗑️</button>` : '';
+
     return `<div class="queue-item" style="border-left:4px solid var(--green);">
       <div class="queue-position" style="background:var(--green);">${attendedPatients.length - i}</div>
       <div class="queue-name">${p.nome}${prioBadge}${profLabel}</div>
       <span class="sector-tag ${cfg.tagClass||''}">${cfg.icon||''} ${p.setor}</span>
-      <div class="queue-time">${p.horario_chamada || p.horario}</div>
-      <span class="queue-status status-done">✅ Atendido</span>
+      <div class="queue-time" style="margin-left:auto;">${p.horario_chamada || p.horario}</div>
+      <div style="display:flex;gap:4px;align-items:center;">
+          ${qrBtn}
+          <span class="queue-status status-done">✅ Atendido</span>
+          ${delBtn}
+      </div>
     </div>`;
   }).join('');
+}
+
+async function showQrModalById(patientId) {
+  try {
+    const r = await fetch(`${API_URL}/patients/${patientId}/status`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    showQrModal(data.patient);
+  } catch { showToast('Erro ao carregar QR Code!', true); }
+}
+
+async function deleteHistoryItem(id, nome) {
+  const senha = prompt(`🗑️ Excluir "${nome}" do histórico permanentemente?\n\nDigite a senha administrativa:`);
+  if (!senha) return;
+  try {
+    const r = await fetch(`${API_URL}/history/${id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha }) });
+    if (r.status === 403) { showToast('❌ Senha incorreta!', true); return; }
+    if (!r.ok) throw new Error();
+    showToast(`🗑️ Registro de ${nome} excluído`);
+    loadHistory(); loadAttended();
+  } catch { showToast('Erro ao excluir registro!', true); }
 }
 
 async function applyFilters() {
@@ -588,7 +643,8 @@ if (savedSetor) { setTimeout(() => { const sel = document.getElementById('chat-r
 function onChatSetorChange() {
   const v = document.getElementById('chat-remetente').value;
   localStorage.setItem('chatSetor', v);
-  renderCanalList();
+  // Auto-switch to general on sector change to ensure a valid canal is active
+  switchCanal('geral');
 }
 
 function getVisibleCanais() {
@@ -655,11 +711,19 @@ async function sendChatChannelMessage() {
   const inp = document.getElementById('chat-input');
   const texto = inp.value.trim();
   if (!texto) return;
+  if (!activeCanal) { showToast('Selecione um canal!', true); return; }
   try {
     inp.disabled = true;
     const r = await fetch(`${API_URL}/chat/canais/${activeCanal}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({autor,texto,urgente:chatUrgent}) });
     if (r.ok) { inp.value = ''; chatUrgent = false; document.getElementById('chat-urgent-btn').classList.remove('active'); }
-  } catch { showToast('Erro ao enviar!', true); }
+    else {
+      const err = await r.json();
+      showToast(`Erro: ${err.error || 'Falha ao enviar'}`, true);
+    }
+  } catch (e) { 
+    console.error('Chat send error:', e);
+    showToast('Erro de conexão com o chat!', true); 
+  }
   finally { inp.disabled = false; inp.focus(); }
 }
 
@@ -848,8 +912,9 @@ async function deleteAgendamento(id) {
   const senha = prompt('🗑️ Excluir Agendamento Permanentemente?\n\nDigite a senha administrativa:');
   if (!senha) return;
   try {
-    const r = await fetch(`${API_URL}/agendamentos/${id}`, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({senha}) });
-    if (!r.ok) { showToast('Senha incorreta ou agendamento não encontrado!', true); return; }
+    const r = await fetch(`${API_URL}/agendamentos/${id}/delete`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({senha}) });
+    if (r.status === 403) { showToast('❌ Senha incorreta!', true); return; }
+    if (!r.ok) { showToast('Erro ou agendamento não encontrado!', true); return; }
     showToast('Agendamento apagado com sucesso!');
     loadAgendamentos();
   } catch { showToast('Erro de conexão ao tentar apagar!', true); }

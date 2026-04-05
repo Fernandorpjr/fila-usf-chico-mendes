@@ -486,16 +486,22 @@ app.get('/api/current-calling', async (req, res) => {
 // ====== DASHBOARD METRICS ======
 app.get('/api/dashboard/metrics', async (req, res) => {
   try {
-    const todayFilter = `DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
+    const { data } = req.query;
+    const filterDate = data ? data : "(NOW() AT TIME ZONE 'America/Sao_Paulo')::date";
+    const dateQuery = data ? `$1` : `${filterDate}`;
+    const params = data ? [data] : [];
+    const todayFilter = `DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}`;
     
     // Attended today by sector
     const attendedResult = await pool.query(
-      `SELECT COUNT(*) as total, setor FROM call_history WHERE ${todayFilter} GROUP BY setor`
+      `SELECT COUNT(*) as total, setor FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery} GROUP BY setor`,
+      params
     );
     
     // Desistencias today
     const desistResult = await pool.query(
-      `SELECT COUNT(*) as total FROM patients WHERE status = 'desistencia' AND ${todayFilter}`
+      `SELECT COUNT(*) as total FROM patients WHERE status = 'desistencia' AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}`,
+      params
     );
     
     // Currently waiting
@@ -509,16 +515,18 @@ app.get('/api/dashboard/metrics', async (req, res) => {
               AVG(EXTRACT(EPOCH FROM (ch.created_at - p.created_at)) / 60) as avg_minutes
        FROM call_history ch
        JOIN patients p ON ch.patient_id = p.id
-       WHERE DATE(ch.created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       GROUP BY ch.setor`
+       WHERE DATE(ch.created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+       GROUP BY ch.setor`,
+      params
     );
     
     // Bottleneck (waiting > 30 min) – ensure comparisons use same domain
     const bottleneckResult = await pool.query(
       `SELECT COUNT(*) as total, setor FROM patients
        WHERE status = 'aguardando'
-       AND created_at < NOW() AT TIME ZONE 'America/Sao_Paulo' - INTERVAL '30 minutes'
-       GROUP BY setor`
+       AND created_at < (CASE WHEN $1::date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date THEN NOW() AT TIME ZONE 'America/Sao_Paulo' ELSE ($1::date + INTERVAL '23 hours 59 minutes') END) - INTERVAL '30 minutes'
+       GROUP BY setor`,
+      [data || new Date().toISOString().split('T')[0]]
     );
     
     const totalAttended = attendedResult.rows.reduce((sum, r) => sum + parseInt(r.total), 0);
@@ -544,27 +552,32 @@ app.get('/api/dashboard/metrics', async (req, res) => {
 // Dashboard hourly data
 app.get('/api/dashboard/hourly', async (req, res) => {
   try {
-    const todayFilter = `DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
+    const { data } = req.query;
+    const dateQuery = data ? `$1` : `(NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
+    const params = data ? [data] : [];
     
     const entriesResult = await pool.query(
       `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
-       FROM patients WHERE ${todayFilter}
+       FROM patients WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
        GROUP BY hour
-       ORDER BY hour`
+       ORDER BY hour`,
+      params
     );
     
     const callsResult = await pool.query(
       `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
-       FROM call_history WHERE ${todayFilter}
+       FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
        GROUP BY hour
-       ORDER BY hour`
+       ORDER BY hour`,
+      params
     );
     
     const desistResult = await pool.query(
       `SELECT EXTRACT(HOUR FROM updated_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
-       FROM patients WHERE status = 'desistencia' AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       FROM patients WHERE status = 'desistencia' AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
        GROUP BY hour
-       ORDER BY hour`
+       ORDER BY hour`,
+      params
     );
     
     res.json({
@@ -660,6 +673,7 @@ app.post('/api/chat/canais/:canal', async (req, res) => {
     const { canal } = req.params;
     const { autor, texto, urgente } = req.body;
     if (!autor || !texto) {
+      console.error(`❌ Chat error [${canal}]: Autor or texto missing`);
       return res.status(400).json({ error: 'Autor e texto são obrigatórios' });
     }
     const result = await pool.query(
@@ -670,6 +684,7 @@ app.post('/api/chat/canais/:canal', async (req, res) => {
     io.emit('chatChannelMessage', { canal, mensagem: msg });
     res.status(201).json(msg);
   } catch (error) {
+    console.error(`❌ Chat DB Error [${canal}]:`, error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -820,7 +835,7 @@ app.put('/api/agendamentos/:id/status', async (req, res) => {
 });
 
 // DELETE – excluir agendamento (admin)
-app.delete('/api/agendamentos/:id', async (req, res) => {
+app.post('/api/agendamentos/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const { senha } = req.body;
@@ -837,6 +852,44 @@ app.delete('/api/agendamentos/:id', async (req, res) => {
   }
 });
 
+// DELETE – excluir paciente permanentemente (admin)
+app.post('/api/patients/:id/delete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { senha } = req.body;
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    const result = await pool.query('DELETE FROM patients WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    io.emit('queueUpdate');
+    res.json({ message: 'Paciente excluído do banco', patient: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE – excluir do histórico de chamadas (admin)
+app.post('/api/history/:id/delete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { senha } = req.body;
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    const result = await pool.query('DELETE FROM call_history WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Registro não encontrado' });
+    }
+    io.emit('queueUpdate');
+    res.json({ message: 'Registro excluído do histórico', record: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Serve dashboard page
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
@@ -848,7 +901,13 @@ app.get('*', (req, res) => {
 });
 
 // Start server
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Database: PostgreSQL (Neon)`);
+  try {
+    await initDB();
+    console.log(`✅ Base de dados pronta!`);
+  } catch (e) {
+    console.error(`❌ Falha ao inicializar o banco de dados:`, e.message);
+  }
 });

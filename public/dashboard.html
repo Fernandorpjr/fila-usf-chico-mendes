@@ -61,7 +61,11 @@
 
 <header class="header">
   <div class="logo">📊 Dashboard – <span style="color:var(--orange);">USF</span> Chico Mendes</div>
-  <div style="display:flex;gap:16px;align-items:center;">
+  <div style="display:flex;gap:20px;align-items:center;">
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);padding:6px 12px;border-radius:10px;">
+      <label for="dashDateFilter" style="font-size:12px;font-weight:800;color:var(--gray-300);text-transform:uppercase;">Filtrar Data:</label>
+      <input type="date" id="dashDateFilter" onchange="loadDashboard()" style="background:transparent;border:none;color:white;font-family:'Nunito',sans-serif;font-weight:700;outline:none;cursor:pointer;">
+    </div>
     <span id="dashClock" style="font-family:'Nunito',sans-serif;font-weight:800;color:var(--yellow);font-size:18px;"></span>
     <a href="/">← Voltar ao sistema</a>
   </div>
@@ -102,13 +106,26 @@ function verifyDashboardAccess() {
 function updateDashClock() {
   const now = new Date();
   document.getElementById('dashClock').textContent = now.toLocaleTimeString('pt-BR');
-  document.getElementById('dashDate').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  if (!document.getElementById('dashDateFilter').value) {
+    document.getElementById('dashDate').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
 }
 setInterval(updateDashClock, 1000); updateDashClock();
 
+// Initialize date filter to today
+document.getElementById('dashDateFilter').value = new Date().toISOString().split('T')[0];
+
 async function loadDashboard() {
   try {
-    const [mRes, hRes] = await Promise.all([fetch(`${API_URL}/dashboard/metrics`), fetch(`${API_URL}/dashboard/hourly`)]);
+    const data = document.getElementById('dashDateFilter').value;
+    if (data) {
+        const dateObj = new Date(data + 'T12:00:00');
+        document.getElementById('dashDate').textContent = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    const [mRes, hRes] = await Promise.all([
+        fetch(`${API_URL}/dashboard/metrics?data=${data}`),
+        fetch(`${API_URL}/dashboard/hourly?data=${data}`)
+    ]);
     metricsData = await mRes.json();
     hourlyData = await hRes.json();
     renderMetrics();
@@ -160,7 +177,8 @@ function renderCharts() {
   flowChart = new Chart(document.getElementById('chartFlow'), {
     type: 'line', data: { labels, datasets: [
       { label: 'Entradas', data: entriesByHour, borderColor: '#f4821e', backgroundColor: 'rgba(244,130,30,0.1)', fill: true, tension: 0.3 },
-      { label: 'Atendimentos', data: callsByHour, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3 }
+      { label: 'Atendimentos', data: callsByHour, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3 },
+      { label: 'Desistências', data: desistByHour, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,0.1)', fill: true, tension: 0.3 }
     ] },
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });

@@ -84,8 +84,12 @@
   .btn-ghost { background: rgba(255,255,255,0.1); color: var(--white); border: 1px solid rgba(255,255,255,0.2); }
   .btn-ghost:hover { background: rgba(255,255,255,0.2); }
   .btn-sm { padding: 8px 16px; font-size: 13px; }
-  .btn-danger { background: rgba(229,57,53,0.15); color: var(--red); border: 1px solid rgba(229,57,53,0.3); padding: 6px 10px; font-size: 12px; border-radius: 8px; cursor: pointer; font-weight: 700; font-family: 'Nunito', sans-serif; }
-  .btn-danger:hover { background: rgba(229,57,53,0.25); }
+  .btn-danger { background: rgba(229,57,53,0.15); color: var(--red); border: 1px solid rgba(229,57,53,0.3); padding: 6px 10px; font-size: 12px; border-radius: 8px; cursor: pointer; font-weight: 700; font-family: 'Nunito', sans-serif; transition: 0.2s; }
+  .btn-danger:hover { background: rgba(229,57,53,0.25); transform: scale(1.05); }
+  .btn-danger-sm { background: transparent; color: var(--red); border: 1px solid var(--red); border-radius: 6px; padding: 2px 6px; font-size: 10px; cursor: pointer; transition: 0.2s; font-weight: 800; font-family: 'Nunito', sans-serif; }
+  .btn-danger-sm:hover { background: var(--red); color: white; }
+  .btn-qr { background: #e8eeff; color: var(--blue); border: 1px solid var(--blue); border-radius: 6px; padding: 4px 8px; font-size: 14px; cursor: pointer; transition: 0.2s; font-weight: 800; }
+  .btn-qr:hover { background: var(--blue); color: white; transform: scale(1.1); }
 
   .two-col { display: grid; grid-template-columns: 400px 1fr; gap: 24px; align-items: start; }
   .sector-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--gray-200); }
