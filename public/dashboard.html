@@ -148,6 +148,7 @@ function renderCharts() {
 
   const callsByHour = hours.map(h => { const r = hourlyData.calls.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
   const entriesByHour = hours.map(h => { const r = hourlyData.entries.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
+  const desistByHour = hours.map(h => { const r = hourlyData.desistencias.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
 
   if (hourlyChart) hourlyChart.destroy();
   hourlyChart = new Chart(document.getElementById('chartHourly'), {
@@ -169,7 +170,8 @@ function renderCharts() {
   const waitingOverTime = hours.map(h => {
     const entries = entriesByHour[hours.indexOf(h)] || 0;
     const calls = callsByHour[hours.indexOf(h)] || 0;
-    currentWaiting += (entries - calls);
+    const desist = desistByHour[hours.indexOf(h)] || 0;
+    currentWaiting += (entries - (calls + desist));
     return Math.max(0, currentWaiting);
   });
 

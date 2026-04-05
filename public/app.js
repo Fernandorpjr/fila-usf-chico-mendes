@@ -25,6 +25,12 @@ let lastSpokenCallId = null, chatMessages = [], unreadChatCount = 0;
 let isAdmin = false, alertedPatients = new Set();
 let sectorFilters = { medico: null, enfermagem: null };
 
+function safeDate(d) {
+  if (!d) return new Date();
+  const date = new Date(d);
+  return isNaN(date.getTime()) ? new Date() : date;
+}
+
 const CAPACITY_LIMITS = { 'Total': 30, 'Regulação': 10, 'Farmácia': 999, 'Médico': 999, 'Acolhimento': 999, 'Enfermagem': 999, 'Odontologia': 999 };
 
 // ====== INIT: Generate sector screens ======
@@ -434,7 +440,7 @@ function updateRecent() {
   const el = document.getElementById('recent-list');
   const all = []; SETORES.forEach(s => all.push(...(queues[s] || [])));
   if (!all.length) { el.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>'; return; }
-  const sorted = all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+  const sorted = all.sort((a, b) => safeDate(b.created_at) - safeDate(a.created_at)).slice(0, 5);
   el.innerHTML = sorted.map(p => {
     const cfg = SECTOR_CONFIG[p.setor] || {}; const prioBadge = p.prioridade === 'prioritario' ? ' ⭐' : '';
     const profLabel = p.profissional ? ` · ${p.profissional}` : '';
@@ -635,7 +641,7 @@ function renderChannelChat() {
   const meu = document.getElementById('chat-remetente')?.value || '';
   if (!msgs.length) { c.innerHTML = '<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Nenhuma mensagem neste canal</p></div>'; return; }
   c.innerHTML = msgs.map(m => {
-    const t = new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const t = safeDate(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     const isMe = m.autor === meu;
     const urgClass = m.urgente ? ' bubble-urgent bubble-urgent-anim' : '';
     const urgTag = m.urgente ? '<span style="color:var(--red);font-weight:800;">🚨 URGENTE</span> ' : '';
@@ -721,7 +727,7 @@ function checkInactivity() {
   SETORES.forEach(setor => {
     (queues[setor] || []).forEach(p => {
       if (p.status !== 'aguardando' || alertedPatients.has(p.id)) return;
-      const diff = (now - new Date(p.created_at)) / 60000;
+      const diff = (now - safeDate(p.created_at)) / 60000;
       if (diff >= 20) {
         alertedPatients.add(p.id);
         fetch(`${API_URL}/chat/canais/geral`, { method:'POST', headers:{'Content-Type':'application/json'},

@@ -145,6 +145,9 @@ async function initDB() {
       }
     }
 
+    // Add updated_at column to patients
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`);
+    
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao inicializar banco de dados:', error.message);
@@ -202,8 +205,8 @@ app.post('/api/patients', async (req, res) => {
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
     const result = await pool.query(
-      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento, profissional)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento, profissional, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP) RETURNING *`,
       [nome, setor, horario, 'aguardando', prioridade || 'geral', tipo_prioridade || null, tipo_atendimento || null, profissional || null]
     );
 
@@ -277,13 +280,13 @@ app.post('/api/call-next/:setor', async (req, res) => {
 
     // Update patient status and assign medico/consultorio/profissional
     await client.query(
-      "UPDATE patients SET status = 'chamado', medico = $2, consultorio = $3, profissional = $4 WHERE id = $1",
+      "UPDATE patients SET status = 'chamado', medico = $2, consultorio = $3, profissional = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
       [next.id, medicoFinal, consultorioFinal, profissionalFinal]
     );
 
     // Mark previous called as atendido
     await client.query(
-      "UPDATE patients SET status = 'atendido' WHERE setor = $1 AND status = 'chamado' AND id != $2",
+      "UPDATE patients SET status = 'atendido', updated_at = CURRENT_TIMESTAMP WHERE setor = $1 AND status = 'chamado' AND id != $2",
       [setor, next.id]
     );
 
@@ -333,7 +336,7 @@ app.post('/api/remove-patient', async (req, res) => {
     }
     
     const result = await pool.query(
-      "UPDATE patients SET status = 'desistencia' WHERE id = $1 RETURNING *",
+      "UPDATE patients SET status = 'desistencia', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
       [id]
     );
     
@@ -557,9 +560,17 @@ app.get('/api/dashboard/hourly', async (req, res) => {
        ORDER BY hour`
     );
     
+    const desistResult = await pool.query(
+      `SELECT EXTRACT(HOUR FROM updated_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
+       FROM patients WHERE status = 'desistencia' AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       GROUP BY hour
+       ORDER BY hour`
+    );
+    
     res.json({
       entries: entriesResult.rows,
-      calls: callsResult.rows
+      calls: callsResult.rows,
+      desistencias: desistResult.rows
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
