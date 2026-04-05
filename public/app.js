@@ -736,7 +736,7 @@ setInterval(checkInactivity, 60000);
 // ====== AGENDAMENTOS ======
 const WA_TEMPLATES = {
   lembrete: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nLembrete de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
-  confirmacao: `Olá [NOME]! ✅\n\nSua consulta na *USF Chico Mendes* está *CONFIRMADA*:\n\n📅 [DATA] às [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\nDocumentos necessários:\n✓ RG e CPF\n✓ Cartão SUS\n✓ Carteira de vacinação\n\n[OBS]\n\n*USF Chico Mendes* 🏥`,
+  confirmacao: `Olá [NOME]! ✅\n\nSua consulta na *USF Chico Mendes* está *CONFIRMADA*:\n\n📅 [DATA] às [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\nDocumentos necessários:\n✓ Cartão SUS\n✓ Carteira de vacinação\n\n[OBS]\n\n*USF Chico Mendes* 🏥`,
   reagendamento: `Olá [NOME]! 🔄\n\nInformamos que sua consulta na *USF Chico Mendes* foi *REAGENDADA*:\n\n📅 Nova data: [DATA]\n⏰ Novo horário: [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\n[OBS]\n\nPedimos desculpas pelo inconveniente.\n*USF Chico Mendes* 🏥`,
   preparo_exames: `Olá [NOME]! 🔬\n\nVocê tem exames agendados na *USF Chico Mendes*:\n\n📅 [DATA] às [HORARIO]\n\n*Preparos necessários:*\n[EXAMES]\n\n[OBS]\n\n*USF Chico Mendes* 🏥`
 };
@@ -936,3 +936,28 @@ setInterval(() => {
     initAgendamentoDefaults();
   }
 }, 5000);
+
+async function copyWaImageToClipboard() {
+  try {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = async function() {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(async (blob) => {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": blob })
+          ]);
+          showToast("🖼️ Imagem copiada! Cole (Ctrl+V) no WhatsApp.");
+        } catch(e) { showToast("Erro ao copiar imagem: " + e.message, true); }
+      }, "image/png");
+    };
+    img.src = "/img/confirmacao.jpg";
+  } catch (err) {
+    showToast("Erro: " + err.message, true);
+  }
+}

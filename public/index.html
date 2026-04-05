@@ -484,6 +484,9 @@
     <div class="wa-modal">
       <h3>📱 Preview da Mensagem WhatsApp</h3>
       <div class="wa-preview" id="wa-preview-text"></div>
+      <div style="display:flex;gap:12px;margin-bottom:12px;">
+        <button class="btn btn-outline" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;" onclick="copyWaImageToClipboard()">🖼️ Copiar Imagem</button>
+      </div>
       <a id="wa-send-link" href="#" target="_blank" style="text-decoration:none;"><button class="wa-btn-send">📲 Abrir WhatsApp e Enviar</button></a>
       <button onclick="closeWaModal()" style="margin-top:12px;width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;background:transparent;font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;cursor:pointer;color:var(--gray-600);">Cancelar</button>
     </div>
