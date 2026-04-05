@@ -738,10 +738,15 @@ const WA_TEMPLATES = {
   lembrete: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nLembrete de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
   confirmacao: `Olá [NOME]! ✅\n\nSua consulta na *USF Chico Mendes* está *CONFIRMADA*:\n\n📅 [DATA] às [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\nDocumentos necessários:\n✓ Cartão SUS\n✓ Carteira de vacinação\n\n[OBS]\n\n*USF Chico Mendes* 🏥`,
   reagendamento: `Olá [NOME]! 🔄\n\nInformamos que sua consulta na *USF Chico Mendes* foi *REAGENDADA*:\n\n📅 Nova data: [DATA]\n⏰ Novo horário: [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\n[OBS]\n\nPedimos desculpas pelo inconveniente.\n*USF Chico Mendes* 🏥`,
-  preparo_exames: `Olá [NOME]! 🔬\n\nVocê tem exames agendados na *USF Chico Mendes*:\n\n📅 [DATA] às [HORARIO]\n\n*Preparos necessários:*\n[EXAMES]\n\n[OBS]\n\n*USF Chico Mendes* 🏥`
+  preparo_exames: `Lembrete de Coleta – USF Chico Mendes\n\nOlá, [NOME]!\n📅 Data da coleta: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Responsável: [PROFISSIONAL]\n\n📋 Checklist dos seus exames:\n[EXAMES]\n\n📍 Local: Unidade de Saúde da Família Chico Mendes\n💬 Em caso de dúvidas, fale com seu agente de saúde. 💙`
 };
 
-const EXAMES_CHECKLIST = ['Hemograma','Glicemia Jejum','Colesterol Total','Triglicerídeos','TSH','Urina EAS','Parasitológico','Ultrassom','ECG','PSA'];
+const EXAMES_CHECKLIST = [
+  '🩸 Sangue — Jejum de 8 horas obrigatório',
+  '🧪 Urina — 1º jato da manhã, frasco estéril',
+  '💩 Fezes — Frasco estéril,',
+  '🔬 CUC'
+];
 
 function toggleChecklistExames() {
   const tpl = document.getElementById('agend-template').value;
@@ -761,7 +766,7 @@ function buildWaMessage(agend) {
   const dataFmt = dataIsoDate ? new Date(dataIsoDate + 'T12:00:00').toLocaleDateString('pt-BR') : '';
   let exames = '';
   if (agend.checklist_exames) {
-    try { const arr = JSON.parse(agend.checklist_exames); exames = arr.map(e => `• ${e}: Jejum de 8h`).join('\n'); } catch(e) { exames = agend.checklist_exames; }
+    try { const arr = JSON.parse(agend.checklist_exames); exames = arr.map(e => `* ${e}`).join('\n'); } catch(e) { exames = agend.checklist_exames; }
   }
   return tpl.replace(/\[NOME\]/g, agend.nome).replace(/\[DATA\]/g, dataFmt).replace(/\[HORARIO\]/g, agend.horario)
     .replace(/\[PROFISSIONAL\]/g, agend.profissional||'A definir').replace(/\[TIPO\]/g, agend.tipo_atendimento||'Consulta')
