@@ -179,6 +179,64 @@
   .btn-filter { padding: 8px 16px; border: 2px solid var(--gray-200); border-radius: 20px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: var(--gray-100); color: var(--gray-600); }
   .btn-filter:hover { border-color: var(--blue); color: var(--blue); background: rgba(26,79,196,0.05); }
   .btn-filter.active { background: var(--blue); color: var(--white); border-color: var(--blue); box-shadow: 0 2px 8px rgba(26,79,196,0.3); }
+
+   .chat-layout{display:grid;grid-template-columns:220px 1fr;height:650px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-lg);}
+   .chat-sidebar{background:linear-gradient(180deg,#0a1f5c,#0d2a7a);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.08);}
+   .chat-sidebar-header{padding:16px;border-bottom:1px solid rgba(255,255,255,0.1);}
+   .chat-sidebar-header h3{font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:#fff;margin:0;}
+   .chat-canal-list{flex:1;overflow-y:auto;padding:8px;}
+   .chat-canal-btn{width:100%;text-align:left;background:transparent;border:none;color:var(--gray-300);padding:10px 12px;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:2px;transition:all .2s;position:relative;}
+   .chat-canal-btn:hover{background:rgba(255,255,255,0.08);color:#fff;}
+   .chat-canal-btn.active{background:rgba(26,79,196,0.4);color:#fff;font-weight:800;}
+   .chat-canal-badge{background:var(--red);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;min-width:18px;text-align:center;margin-left:auto;}
+   .chat-setor-select{padding:12px;border-top:1px solid rgba(255,255,255,0.1);}
+   .chat-setor-select select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:600;}
+   .chat-setor-select select option{background:#1a2a5c;color:#fff;}
+   .chat-main{display:flex;flex-direction:column;background:#f8faff;}
+   .chat-main-header{background:linear-gradient(135deg,var(--blue-dark),var(--blue));padding:14px 20px;color:white;display:flex;align-items:center;gap:10px;}
+   .chat-main-header .ch-title{font-weight:800;font-size:15px;}
+   .chat-main-header .ch-sub{font-size:11px;opacity:.75;}
+   .chat-main-header .ch-actions{margin-left:auto;display:flex;gap:8px;}
+   .chat-messages-area{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;scrollbar-width:thin;}
+   .chat-typing-indicator{padding:4px 20px;font-size:12px;color:var(--gray-600);font-style:italic;min-height:20px;}
+   .chat-input-area{padding:14px 20px;background:white;border-top:1px solid var(--gray-200);display:flex;gap:10px;align-items:flex-end;position:relative;}
+   .chat-input-area textarea{flex:1;resize:none;border:2px solid var(--gray-200);border-radius:12px;padding:10px 14px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);outline:none;min-height:42px;max-height:120px;transition:border-color .2s;}
+   .chat-input-area textarea:focus{border-color:var(--blue);}
+   .chat-urgent-toggle{background:transparent;border:2px solid var(--gray-200);border-radius:10px;width:42px;height:42px;font-size:18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+   .chat-urgent-toggle.active{border-color:var(--red);background:rgba(229,57,53,0.1);}
+   .chat-send-btn{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;border:none;border-radius:50%;width:42px;height:42px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(26,79,196,0.3);transition:transform .2s;}
+   .chat-send-btn:hover{transform:scale(1.1);}
+   .bubble-urgent{border:2px solid var(--red)!important;background:rgba(229,57,53,0.06)!important;}
+   @keyframes urgentPulse{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.4);}50%{box-shadow:0 0 0 8px rgba(229,57,53,0);}}
+   .bubble-urgent-anim{animation:urgentPulse 1.5s infinite;}
+   .emoji-picker{position:absolute;bottom:60px;left:16px;background:white;border-radius:12px;box-shadow:var(--shadow-md);padding:10px;display:none;z-index:10;border:1px solid var(--gray-200);}
+   .emoji-picker.show{display:flex;flex-wrap:wrap;gap:4px;max-width:240px;}
+   .emoji-picker button{background:transparent;border:none;font-size:22px;cursor:pointer;padding:4px;border-radius:6px;transition:background .15s;}
+   .emoji-picker button:hover{background:var(--gray-100);}
+   @media(max-width:768px){.chat-layout{grid-template-columns:1fr;height:auto;}.chat-sidebar{max-height:160px;}}
+
+   .agend-grid{display:grid;grid-template-columns:400px 1fr;gap:24px;align-items:start;}
+   .agend-table{width:100%;border-collapse:collapse;}
+   .agend-table th{background:var(--blue);color:white;padding:10px 14px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;text-align:left;}
+   .agend-table th:first-child{border-radius:10px 0 0 0;}.agend-table th:last-child{border-radius:0 10px 0 0;}
+   .agend-table td{padding:10px 14px;font-size:13px;font-weight:600;border-bottom:1px solid var(--gray-200);color:var(--gray-700);}
+   .agend-table tr:hover td{background:rgba(26,79,196,0.04);}
+   .agend-status{font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;}
+   .agend-status.pendente{background:rgba(249,200,35,0.15);color:#b8860b;}
+   .agend-status.lembrete_enviado{background:rgba(26,79,196,0.12);color:var(--blue);}
+   .agend-status.confirmado{background:rgba(74,171,60,0.12);color:var(--green-dark);}
+   .agend-status.cancelado{background:rgba(229,57,53,0.12);color:var(--red);}
+   .agend-actions{display:flex;gap:4px;}
+   .agend-actions button{padding:4px 8px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:all .15s;background:transparent;}
+   .agend-actions button:hover{background:var(--gray-100);}
+   .wa-modal-overlay{position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;display:none;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
+   .wa-modal-overlay.show{display:flex;}
+   .wa-modal{background:white;border-radius:20px;padding:32px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;color:var(--gray-700);box-shadow:0 24px 60px rgba(0,0,0,0.4);}
+   .wa-modal h3{font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:var(--blue-dark);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+   .wa-preview{background:#e5ddd5;border-radius:12px;padding:16px;margin-bottom:20px;font-size:14px;line-height:1.6;white-space:pre-wrap;}
+   .wa-btn-send{background:#25D366;color:white;border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(37,211,102,0.4);}
+   .wa-btn-send:hover{background:#1fb855;}
+   @media(max-width:900px){.agend-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -210,6 +268,7 @@
   <button class="nav-tab" onclick="showScreen('enfermagem')" id="tab-enfermagem">👩‍⚕️ Enfermagem <span class="tab-badge" style="background:var(--teal);" id="badge-enfermagem">0</span></button>
   <button class="nav-tab" onclick="showScreen('odontologia')" id="tab-odontologia">🦷 Odontologia <span class="tab-badge" style="background:var(--pink);" id="badge-odontologia">0</span></button>
   <button class="nav-tab" onclick="showScreen('chat')" id="tab-chat">💬 Chat <span class="tab-badge badge-pulse" style="background:var(--red);display:none;" id="badge-chat">0</span></button>
+  <button class="nav-tab admin-only" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
   <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
@@ -319,24 +378,19 @@
     </div>
   </div>
 
-  <!-- ============ CHAT INTERNO ============ -->
+  <!-- ============ CHAT INTERNO AVANÇADO ============ -->
   <div class="screen" id="screen-chat">
     <div class="sector-page-header">
       <div class="sector-icon-big" style="background:rgba(26,79,196,0.2);">💬</div>
-      <div><div class="sector-page-title">Chat Interno</div><div class="sector-page-sub">Comunicação instantânea entre os setores da unidade</div></div>
+      <div><div class="sector-page-title">Chat Interno USF</div><div class="sector-page-sub">Comunicação por canais entre os setores da unidade</div></div>
     </div>
-    <div class="card-white" style="display:flex; flex-direction:column; height:650px; padding:0; overflow:hidden; border:none; box-shadow:var(--shadow-lg);">
-      <div style="background:linear-gradient(135deg, var(--blue-dark), var(--blue)); padding:16px 24px; color:white; display:flex; align-items:center; gap:12px;">
-        <div style="font-size:24px;">💬</div>
-        <div><div style="font-weight:800; font-size:16px;">Mural de Comunicação USF</div><div style="font-size:12px; opacity:0.8;">Mensagens instantâneas entre setores</div></div>
-      </div>
-      <div id="chat-messages" style="flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; background:#f8faff; scrollbar-width:thin;">
-        <div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Diga algo para os outros setores!</p></div>
-      </div>
-      <div style="padding:20px; background:white; border-top:1px solid var(--gray-200); display:flex; gap:12px; align-items:flex-end;">
-        <div class="form-group" style="width:180px; margin:0;">
-          <label style="font-size:11px;">Seu Setor:</label>
-          <select id="chat-remetente" style="padding:10px; font-size:14px; background:var(--gray-100);">
+    <div class="chat-layout">
+      <div class="chat-sidebar">
+        <div class="chat-sidebar-header"><h3>💬 Canais</h3></div>
+        <div class="chat-canal-list" id="chat-canal-list"></div>
+        <div class="chat-setor-select">
+          <label style="font-size:11px;color:var(--gray-300);font-weight:700;">Seu Setor:</label>
+          <select id="chat-remetente" title="Selecione seu setor" onchange="onChatSetorChange()">
             <option value="Recepção">🏢 Recepção</option>
             <option value="Acolhimento">💜 Acolhimento</option>
             <option value="Farmácia">💊 Farmácia</option>
@@ -344,14 +398,94 @@
             <option value="Médico">🩺 Médico</option>
             <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
             <option value="Odontologia">🦷 Odontologia</option>
+            <option value="Gerência">🏛️ Gerência</option>
           </select>
         </div>
-        <div class="form-group" style="flex:1; margin:0;">
-          <label style="font-size:11px;">Sua Mensagem:</label>
-          <input type="text" id="chat-input" placeholder="Digite aqui..." style="padding:10px; font-size:15px;" onkeypress="if(event.key==='Enter') sendChatMessage()">
-        </div>
-        <button class="btn btn-primary" onclick="sendChatMessage()" style="height:45px; width:45px; padding:0; border-radius:50%; min-width:45px;">🚀</button>
       </div>
+      <div class="chat-main">
+        <div class="chat-main-header">
+          <div style="font-size:22px;" id="chat-canal-icon">📢</div>
+          <div><div class="ch-title" id="chat-canal-title">Geral</div><div class="ch-sub" id="chat-canal-sub">Todos os setores</div></div>
+          <div class="ch-actions">
+            <button class="btn btn-ghost btn-sm admin-only" onclick="clearChatCanal()" title="Limpar canal">🗑️</button>
+          </div>
+        </div>
+        <div class="chat-messages-area" id="chat-messages"></div>
+        <div class="chat-typing-indicator" id="chat-typing"></div>
+        <div class="chat-input-area">
+          <div class="emoji-picker" id="emoji-picker"></div>
+          <button onclick="toggleEmojiPicker()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Emojis">😊</button>
+          <textarea id="chat-input" placeholder="Digite sua mensagem..." rows="1" onkeydown="handleChatKeydown(event)" oninput="handleChatTyping()"></textarea>
+          <button class="chat-urgent-toggle" id="chat-urgent-btn" onclick="toggleUrgent()" title="Marcar como urgente">🔴</button>
+          <button class="chat-send-btn" onclick="sendChatChannelMessage()" title="Enviar">🚀</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ AGENDAMENTOS ============ -->
+  <div class="screen" id="screen-agendamentos">
+    <div class="sector-page-header">
+      <div class="sector-icon-big" style="background:rgba(74,171,60,0.2);">📅</div>
+      <div><div class="sector-page-title">Agendamentos</div><div class="sector-page-sub">Gerenciar consultas e enviar confirmações via WhatsApp</div></div>
+    </div>
+    <div class="agend-grid">
+      <div class="card-white">
+        <div class="card-title"><span>📝</span> Novo Agendamento</div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Nome do Paciente</label><input type="text" id="agend-nome" placeholder="Nome completo"></div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Telefone (com DDD)</label><input type="text" id="agend-telefone" placeholder="55119XXXXXXXX"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div class="form-group"><label>Data</label><input type="date" id="agend-data" style="width:100%;"></div>
+          <div class="form-group"><label>Horário</label><input type="text" id="agend-horario" placeholder="08:00"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Profissional</label>
+          <select id="agend-profissional" title="Profissional">
+            <option value="">— Opcional —</option>
+            <option>Dra. Anahy Duarte</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
+            <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Gisele Monteiro</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Tipo de Atendimento</label>
+          <select id="agend-tipo" title="Tipo atendimento"><option value="">— Opcional —</option><option>Consulta</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Hiperdia</option></select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Template de Mensagem</label>
+          <select id="agend-template" title="Template" onchange="toggleChecklistExames()">
+            <option value="lembrete">📋 Lembrete de Consulta</option>
+            <option value="confirmacao">✅ Confirmação de Agendamento</option>
+            <option value="reagendamento">🔄 Reagendamento</option>
+            <option value="preparo_exames">🔬 Preparo para Exames</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;display:none;" id="checklist-exames-grupo">
+          <label>Exames (selecione):</label>
+          <div id="checklist-exames" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;"><label>Observações</label><input type="text" id="agend-obs" placeholder="Opcional"></div>
+        <button class="btn btn-green" onclick="criarAgendamento()">📅 Agendar</button>
+      </div>
+      <div class="card-white" style="padding:20px;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <div><span>📋</span> Agendamentos</div>
+        </div>
+        <div class="filter-row" style="margin-bottom:16px;">
+          <div class="form-group"><label>Data</label><input type="date" id="agend-filter-data"></div>
+          <div class="form-group"><label>Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="cancelado">Cancelado</option></select></div>
+          <button class="btn btn-primary btn-sm" onclick="loadAgendamentos()">🔍 Filtrar</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="agend-table" id="agend-table"><thead><tr><th>Paciente</th><th>Data</th><th>Hora</th><th>Profissional</th><th>Status</th><th>Ações</th></tr></thead><tbody id="agend-tbody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WhatsApp Preview Modal -->
+  <div class="wa-modal-overlay" id="wa-modal">
+    <div class="wa-modal">
+      <h3>📱 Preview da Mensagem WhatsApp</h3>
+      <div class="wa-preview" id="wa-preview-text"></div>
+      <a id="wa-send-link" href="#" target="_blank" style="text-decoration:none;"><button class="wa-btn-send">📲 Abrir WhatsApp e Enviar</button></a>
+      <button onclick="closeWaModal()" style="margin-top:12px;width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;background:transparent;font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;cursor:pointer;color:var(--gray-600);">Cancelar</button>
     </div>
   </div>
 
@@ -392,8 +526,36 @@
 
 <div id="toast">✅ <span id="toast-msg">Mensagem</span></div>
 <audio id="global-audio" src="data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" preload="auto"></audio>
+<div id="qr-modal" style="display:none;position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:3000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+  <div class="qr-content" style="background:#fff;border-radius:24px;padding:32px;text-align:center;max-width:320px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.4);" id="ticketPrintArea">
+    <div style="font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:var(--blue-dark);margin-bottom:8px;">TICKET DE ATENDIMENTO</div>
+    <div style="font-size:13px;color:var(--gray-600);margin-bottom:20px;text-transform:uppercase;font-weight:800;">USF Chico Mendes</div>
+    <div id="qr-patient-name" style="font-size:24px;font-weight:900;color:#000;line-height:1.2;margin-bottom:4px;text-transform:uppercase;">-</div>
+    <div id="qr-patient-sector" style="font-size:16px;font-weight:800;color:#444;margin-bottom:24px;">-</div>
+    <div style="background:#f8f9fa;padding:16px;border-radius:16px;display:inline-block;margin-bottom:20px;">
+        <div id="qrcode-container" style="width:160px;height:160px;margin:0 auto;"></div>
+    </div>
+    <div style="font-size:12px;color:#666;font-weight:700;margin-bottom:24px;">Aponte a câmera para acompanhar a fila pelo celular.</div>
+    <div class="no-print" style="display:flex;gap:12px;flex-direction:column;">
+      <button onclick="window.print()" class="btn btn-primary" style="width:100%;">🖨️ Imprimir Ticket</button>
+      <button onclick="document.getElementById('qr-modal').style.display='none'" class="btn btn-ghost" style="width:100%;color:var(--gray-700);border-color:var(--gray-300);">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media print {
+    body * { visibility: hidden; }
+    #ticketPrintArea, #ticketPrintArea * { visibility: visible; }
+    #ticketPrintArea { position: absolute; left: 0; top: 0; width: 100%; padding: 0; box-shadow: none; border-radius: 0; }
+    .no-print { display: none !important; }
+    @page { margin: 0; size: 58mm auto; }
+  }
+</style>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="app.js"></script>
 </body>

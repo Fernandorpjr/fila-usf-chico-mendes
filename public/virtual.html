@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fila Virtual – USF Chico Mendes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --blue: #1a4fc4; --blue-dark: #0f3491; --blue-bg: #f8fafc;
+            --green: #4aab3c; --orange: #f4821e; --red: #e53935;
+            --yellow: #f9c823; --white: #fff; --gray-100: #f1f5f9;
+            --gray-300: #cbd5e1; --gray-600: #475569; --radius: 20px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Nunito Sans', sans-serif;
+            background: var(--blue-bg);
+            color: var(--blue-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header {
+            width: 100%;
+            background: linear-gradient(135deg, var(--blue-dark), var(--blue));
+            padding: 24px 20px;
+            text-align: center;
+            border-bottom: 4px solid var(--orange);
+            color: var(--white);
+            border-radius: 0 0 24px 24px;
+            box-shadow: 0 8px 24px rgba(15,52,145,0.15);
+            margin-bottom: 32px;
+        }
+        .logo { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+        .logo span { color: var(--yellow); }
+        .subtitle { font-size: 14px; font-weight: 600; opacity: 0.9; margin-top: 4px; }
+        
+        .main {
+            width: 100%;
+            max-width: 400px;
+            padding: 0 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            text-align: center;
+            border: 1px solid rgba(0,0,0,0.03);
+            transition: transform 0.3s ease;
+        }
+        
+        .card-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--gray-600);
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        
+        .patient-name { font-family: 'Nunito', sans-serif; font-size: 24px; font-weight: 900; color: var(--blue-dark); margin-bottom: 4px; line-height: 1.2; text-transform: uppercase; }
+        .sector { display: inline-block; background: #e0e7ff; color: var(--blue); font-weight: 800; padding: 6px 14px; border-radius: 12px; font-size: 14px; margin-top: 12px; }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 120px;
+            width: 120px;
+            border-radius: 50%;
+            background: var(--gray-100);
+            margin: 16px 0;
+            position: relative;
+        }
+        .status-badge::before {
+            content: ''; position: absolute; inset: -8px; border-radius: 50%;
+            border: 2px dashed var(--gray-300); animation: rotate 10s linear infinite;
+        }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        
+        .status-number { font-family: 'Nunito', sans-serif; font-size: 48px; font-weight: 900; line-height: 1; color: var(--blue); }
+        .status-label { position: absolute; bottom: 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--gray-600); letter-spacing: 0.5px; }
+        
+        .estimativa { margin-top: 16px; font-size: 15px; font-weight: 700; color: var(--gray-600); }
+        .estimativa span { color: var(--blue-dark); font-weight: 900; }
+        
+        .alert-box {
+            background: rgba(229,57,53,0.1);
+            border: 2px solid var(--red);
+            border-radius: var(--radius);
+            padding: 24px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            animation: pulseAlert 1.5s infinite;
+        }
+        @keyframes pulseAlert { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(229,57,53,0.4);} 50%{transform:scale(1.02);box-shadow:0 0 0 10px rgba(229,57,53,0);} }
+        
+        .alert-title { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; color: var(--red); }
+        .alert-desc { font-size: 16px; font-weight: 700; color: var(--blue-dark); text-align: center; }
+        
+        .footer { width: 100%; text-align: center; padding: 24px; font-size: 13px; color: var(--gray-600); font-weight: 600; margin-top: auto; }
+        
+        /* Loading & Errors */
+        .loading { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 40px; color: var(--gray-600); font-weight: 700; }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--gray-300); border-top-color: var(--blue); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        #content { display: none; }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="logo">Fila Virtual <span>USF</span></div>
+    <div class="subtitle">Chico Mendes</div>
+</header>
+
+<div class="main">
+    <div class="loading" id="loader">
+        <div class="spinner"></div>
+        Localizando sua senha...
+    </div>
+
+    <div id="content">
+        <div class="card" id="waitingCard">
+            <div class="card-title">Sua Posição na Fila</div>
+            <div class="patient-name" id="nome">...</div>
+            <div class="sector" id="setor">...</div>
+            
+            <div style="display:flex;justify-content:center;margin-top:16px;">
+                <div class="status-badge" id="badgeWait">
+                    <div class="status-number" id="posicao">0</div>
+                    <div class="status-label">Na Frente</div>
+                </div>
+            </div>
+            
+            <div class="estimativa" id="estimativaBlock">Estimativa de Atendimento: <br><span id="tempo">-- min</span></div>
+        </div>
+        
+        <div class="alert-box" id="calledCard">
+            <div style="font-size: 48px; line-height: 1;">🔔</div>
+            <div class="alert-title">É a SUA VEZ!</div>
+            <div class="alert-desc">Por favor, dirija-se ao setor:<br><strong id="calledSetor" style="font-size:20px;color:var(--red);">...</strong></div>
+            <div id="calledProf" style="font-size:15px;font-weight:800;color:var(--gray-600);margin-top:8px;"></div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer">
+    A página atualiza automaticamente.<br>Não feche este aviso se quiser acompanhar a fila.
+</footer>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('id');
+    const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+    
+    let isCalled = false;
+
+    if (!patientId) {
+        document.getElementById('loader').innerHTML = '❌ Código do paciente inválido ou não fornecido.';
+    } else {
+        setInterval(fetchStatus, 3000);
+        fetchStatus();
+    }
+
+    async function fetchStatus() {
+        if (isCalled) return; // Stop fetching if already called
+        try {
+            const res = await fetch(`${API_URL}/patients/${patientId}/status`);
+            if (!res.ok) throw new Error('Patient not found');
+            const data = await res.json();
+            
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+            
+            const p = data.patient;
+            
+            document.getElementById('nome').textContent = p.nome;
+            document.getElementById('setor').textContent = p.setor;
+            
+            if (p.status === 'chamado' || p.status === 'atendido') {
+                isCalled = true;
+                showCalled(p);
+            } else if (p.status === 'desistencia') {
+                document.getElementById('content').innerHTML = `
+                  <div class="card" style="border-color:var(--orange);">
+                    <div style="font-size:40px;margin-bottom:12px;">🚶</div>
+                    <div class="card-title" style="color:var(--orange);font-size:16px;">Atendimento Cancelado</div>
+                    <div style="font-weight:700;color:var(--gray-600);">Seu atendimento foi registrado como desistência.</div>
+                  </div>`;
+            } else {
+                updatePosition(data.position, p.setor);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    function updatePosition(pos, setor) {
+        const posEl = document.getElementById('posicao');
+        const countAhead = Math.max(0, pos - 1);
+        posEl.textContent = countAhead; // Quantos tem na frente
+        
+        let minTime = (pos * 5); // Ex: 5 min por pessoa (estimated)
+        if (setor === 'Médico' || setor === 'Odontologia') minTime = pos * 15;
+        if (countAhead === 0) {
+            document.getElementById('tempo').textContent = "A qualquer momento!";
+            document.getElementById('badgeWait').style.background = 'rgba(74,171,60,0.1)';
+            document.getElementById('badgeWait').style.color = 'var(--green)';
+            posEl.style.color = 'var(--green)';
+            document.querySelector('.status-badge::before').style.borderColor = 'var(--green)';
+        } else {
+            document.getElementById('tempo').textContent = `~ ${minTime} minutos`;
+        }
+    }
+
+    function showCalled(p) {
+        document.getElementById('waitingCard').style.display = 'none';
+        const card = document.getElementById('calledCard');
+        card.style.display = 'flex';
+        document.getElementById('calledSetor').textContent = p.setor + (p.consultorio ? ` (Cons. ${p.consultorio})` : '');
+        if (p.profissional || p.medico) {
+            document.getElementById('calledProf').textContent = `Profissional: ${p.profissional || p.medico}`;
+        }
+        
+        // Vibrate if supported
+        if (navigator.vibrate) {
+            navigator.vibrate([500, 200, 500, 200, 1000]);
+        }
+    }
+</script>
+</body>
+</html>

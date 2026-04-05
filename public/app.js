@@ -1,3 +1,4 @@
+// @ts-nocheck
 // API Base URL
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 
@@ -208,6 +209,7 @@ async function addPatient(btn) {
   try {
     const r = await fetch(`${API_URL}/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional }) });
     if (!r.ok) throw new Error();
+    const newPatient = await r.json();
     document.getElementById('input-nome').value = '';
     document.getElementById('input-setor').value = '';
     document.getElementById('input-prioridade').value = 'geral';
@@ -216,8 +218,35 @@ async function addPatient(btn) {
     const profLabel = profissional ? ` (${profissional})` : '';
     showToast(`${nome} adicionado à fila de ${setor}${profLabel}!${prioLabel}`);
     await loadQueues();
+    showQrModal(newPatient);
   } catch { showToast('Erro ao adicionar paciente!', true); }
-  finally { if (btn) btn.disabled = false; }
+  if (btn) btn.disabled = false;
+}
+
+let qrCodeInstance = null;
+function showQrModal(p) {
+  document.getElementById('qr-patient-name').textContent = p.nome;
+  document.getElementById('qr-patient-sector').textContent = p.setor + (p.profissional ? ` - ${p.profissional}` : '');
+  
+  const qrContainer = document.getElementById('qrcode-container');
+  qrContainer.innerHTML = '';
+  
+  const virtualUrl = `${window.location.origin}/virtual.html?id=${p.id}`;
+  
+  if (window.QRCode) {
+    qrCodeInstance = new QRCode(qrContainer, {
+      text: virtualUrl,
+      width: 160,
+      height: 160,
+      colorDark : "#0a1e5c",
+      colorLight : "#ffffff",
+      correctLevel : QRCode.CorrectLevel.H
+    });
+  } else {
+    qrContainer.innerHTML = '<span style="font-size:12px;color:red;">Erro ao gerar QR Code</span>';
+  }
+  
+  document.getElementById('qr-modal').style.display = 'flex';
 }
 
 // ====== CALL NEXT ======
@@ -454,7 +483,7 @@ function updatePainel() {
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="ph-time">${p.horario_chamada}</div>
-        <button class="btn btn-ghost" onclick="speakViaSynthesis('${p.nome.replace(/'/g,"\\\\'")}','${p.setor}','${(p.medico||'').replace(/'/g,"\\\\'")}')}" style="padding:6px 12px;font-size:13px;">🔊</button>
+        <button class="btn btn-ghost" onclick="speakViaSynthesis('${p.nome.replace(/'/g,"\\\\'")}','${p.setor}','${(p.medico||'').replace(/'/g,"\\\\'")}')" style="padding:6px 12px;font-size:13px;">🔊</button>
       </div>
     </div>`;
   }).join('');
@@ -528,34 +557,163 @@ async function applyFilters() {
   } catch { showToast('Erro ao filtrar', true); }
 }
 
-// ====== CHAT ======
-async function loadChat() { try { const r = await fetch(`${API_URL}/chat`); chatMessages = await r.json(); renderChat(); } catch (e) { console.error(e); } }
+// ====== CHAT AVANÇADO COM CANAIS ======
+const CANAIS = [
+  { id:'geral', nome:'📢 Geral', desc:'Todos os setores' },
+  { id:'acolhimento', nome:'💜 Acolhimento', desc:'Canal do Acolhimento' },
+  { id:'farmacia', nome:'💊 Farmácia', desc:'Canal da Farmácia' },
+  { id:'regulacao', nome:'📋 Regulação', desc:'Canal da Regulação' },
+  { id:'medico', nome:'🩺 Médico', desc:'Canal Médico' },
+  { id:'enfermagem', nome:'👩‍⚕️ Enfermagem', desc:'Canal da Enfermagem' },
+  { id:'odontologia', nome:'🦷 Odontologia', desc:'Canal da Odontologia' },
+  { id:'gerencia', nome:'🏛️ Gerência', desc:'Canal da Gerência' }
+];
+let activeCanal = 'geral';
+let channelMessages = {};
+let channelUnread = {};
+let chatUrgent = false;
+let typingTimeout = null;
+CANAIS.forEach(c => { channelMessages[c.id] = []; channelUnread[c.id] = 0; });
 
-function renderChat() {
+// Restore saved setor
+const savedSetor = localStorage.getItem('chatSetor');
+if (savedSetor) { setTimeout(() => { const sel = document.getElementById('chat-remetente'); if (sel) sel.value = savedSetor; }, 100); }
+
+function onChatSetorChange() {
+  const v = document.getElementById('chat-remetente').value;
+  localStorage.setItem('chatSetor', v);
+  renderCanalList();
+}
+
+function getVisibleCanais() {
+  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
+  if (setor === 'Gerência') return CANAIS;
+  const setorKey = setor.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'');
+  return CANAIS.filter(c => c.id === 'geral' || c.id === 'gerencia' || c.id === setorKey);
+}
+
+function renderCanalList() {
+  const el = document.getElementById('chat-canal-list'); if (!el) return;
+  const visible = getVisibleCanais();
+  el.innerHTML = visible.map(c => {
+    const unread = channelUnread[c.id] || 0;
+    const badge = unread > 0 ? `<span class="chat-canal-badge">${unread}</span>` : '';
+    return `<button class="chat-canal-btn ${c.id===activeCanal?'active':''}" onclick="switchCanal('${c.id}')">${c.nome}${badge}</button>`;
+  }).join('');
+}
+
+function switchCanal(canalId) {
+  activeCanal = canalId;
+  const canal = CANAIS.find(c => c.id === canalId);
+  document.getElementById('chat-canal-title').textContent = canal?.nome?.replace(/^[^\s]+\s/,'') || canalId;
+  document.getElementById('chat-canal-sub').textContent = canal?.desc || '';
+  document.getElementById('chat-canal-icon').textContent = canal?.nome?.split(' ')[0] || '📢';
+  channelUnread[canalId] = 0;
+  renderCanalList();
+  renderChannelChat();
+  // Mark as read
+  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
+  fetch(`${API_URL}/chat/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({canal:canalId,setor}) }).catch(()=>{});
+}
+
+async function loadChannelMessages(canalId) {
+  try { const r = await fetch(`${API_URL}/chat/canais/${canalId}`); channelMessages[canalId] = await r.json(); } catch(e) { console.error(e); }
+}
+
+async function loadAllChannels() {
+  for (const c of getVisibleCanais()) { await loadChannelMessages(c.id); }
+  renderChannelChat();
+  // Load unread counts
+  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
+  try { const r = await fetch(`${API_URL}/chat/unread/${encodeURIComponent(setor)}`); const d = await r.json(); Object.keys(d).forEach(k => { channelUnread[k] = d[k]; }); } catch(e){}
+  renderCanalList();
+}
+
+function renderChannelChat() {
   const c = document.getElementById('chat-messages'); if (!c) return;
-  const meu = document.getElementById('chat-remetente').value;
-  if (!chatMessages.length) { c.innerHTML = '<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Diga algo para os outros setores!</p></div>'; return; }
-  c.innerHTML = chatMessages.map(m => {
-    const t = new Date(m.created_at).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    const isMe = m.remetente === meu || m.remetente.includes(meu);
-    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}"><div class="chat-meta"><span>${m.remetente}</span></div><div>${m.mensagem}</div><div class="chat-time">${t}</div></div>`;
+  const msgs = channelMessages[activeCanal] || [];
+  const meu = document.getElementById('chat-remetente')?.value || '';
+  if (!msgs.length) { c.innerHTML = '<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Nenhuma mensagem neste canal</p></div>'; return; }
+  c.innerHTML = msgs.map(m => {
+    const t = new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const isMe = m.autor === meu;
+    const urgClass = m.urgente ? ' bubble-urgent bubble-urgent-anim' : '';
+    const urgTag = m.urgente ? '<span style="color:var(--red);font-weight:800;">🚨 URGENTE</span> ' : '';
+    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}"><div class="chat-meta"><span>${urgTag}${m.autor}</span></div><div>${m.texto}</div><div class="chat-time">${t}</div></div>`;
   }).join('');
   c.scrollTop = c.scrollHeight;
 }
 
-async function sendChatMessage() {
-  const rem = document.getElementById('chat-remetente').value;
-  const inp = document.getElementById('chat-input'); const msg = inp.value.trim();
-  if (!msg) return;
-  try { inp.disabled = true; const r = await fetch(`${API_URL}/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ remetente: rem, mensagem: msg }) }); if (r.ok) inp.value = ''; }
-  catch { showToast('Erro ao enviar mensagem!', true); }
+async function sendChatChannelMessage() {
+  const autor = document.getElementById('chat-remetente').value;
+  const inp = document.getElementById('chat-input');
+  const texto = inp.value.trim();
+  if (!texto) return;
+  try {
+    inp.disabled = true;
+    const r = await fetch(`${API_URL}/chat/canais/${activeCanal}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({autor,texto,urgente:chatUrgent}) });
+    if (r.ok) { inp.value = ''; chatUrgent = false; document.getElementById('chat-urgent-btn').classList.remove('active'); }
+  } catch { showToast('Erro ao enviar!', true); }
   finally { inp.disabled = false; inp.focus(); }
+}
+
+function handleChatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatChannelMessage(); }
+}
+
+function handleChatTyping() {
+  // Auto-resize textarea
+  const ta = document.getElementById('chat-input');
+  ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+}
+
+function toggleUrgent() {
+  chatUrgent = !chatUrgent;
+  document.getElementById('chat-urgent-btn').classList.toggle('active', chatUrgent);
+}
+
+function toggleEmojiPicker() {
+  const picker = document.getElementById('emoji-picker');
+  picker.classList.toggle('show');
+  if (picker.classList.contains('show') && !picker.innerHTML) {
+    const emojis = ['😊','👍','👋','⚠️','✅','❌','🔴','📋','💊','🩺','❤️','🙏','👀','🎉','😂','🤔'];
+    picker.innerHTML = emojis.map(e => `<button onclick="insertEmoji('${e}')">${e}</button>`).join('');
+  }
+}
+
+function insertEmoji(emoji) {
+  const inp = document.getElementById('chat-input');
+  inp.value += emoji; inp.focus();
+  document.getElementById('emoji-picker').classList.remove('show');
+}
+
+async function clearChatCanal() {
+  const senha = prompt('Limpar canal? Digite a senha administrativa:');
+  if (!senha) return;
+  try {
+    const r = await fetch(`${API_URL}/chat/canais/${activeCanal}/clear`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({senha}) });
+    if (r.status === 403) { showToast('Senha incorreta!', true); return; }
+    if (r.ok) { channelMessages[activeCanal] = []; renderChannelChat(); showToast('Canal limpo!'); }
+  } catch { showToast('Erro!', true); }
 }
 
 function updateChatBadge() {
   const b = document.getElementById('badge-chat');
-  if (b) { if (unreadChatCount > 0) { b.textContent = unreadChatCount; b.style.display = 'inline-block'; } else { b.style.display = 'none'; } }
+  const total = Object.values(channelUnread).reduce((s,v) => s+v, 0);
+  if (b) { if (total > 0) { b.textContent = total; b.style.display = 'inline-block'; } else { b.style.display = 'none'; } }
 }
+
+// Desktop notifications
+function requestNotifPermission() { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }
+function sendDesktopNotif(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') { new Notification(title, { body, icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><text y="32" font-size="32">🏥</text></svg>' }); }
+}
+requestNotifPermission();
+
+// Legacy chat kept for inactivity alerts
+async function loadChat() { /* noop – using channels now */ }
+function renderChat() { renderChannelChat(); }
+async function sendChatMessage() { await sendChatChannelMessage(); }
 
 // ====== INACTIVITY CHECK ======
 function checkInactivity() {
@@ -566,14 +724,127 @@ function checkInactivity() {
       const diff = (now - new Date(p.created_at)) / 60000;
       if (diff >= 20) {
         alertedPatients.add(p.id);
-        fetch(`${API_URL}/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ remetente: '🤖 Sistema', mensagem: `⚠️ ALERTA: ${p.nome} aguarda há ${Math.round(diff)} minutos na fila de ${setor}` })
-        }).catch(() => {});
+        fetch(`${API_URL}/chat/canais/geral`, { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ autor:'🤖 Sistema', texto:`⚠️ ALERTA: ${p.nome} aguarda há ${Math.round(diff)} min na fila de ${setor}`, urgente:true })
+        }).catch(()=>{});
       }
     });
   });
 }
 setInterval(checkInactivity, 60000);
+
+// ====== AGENDAMENTOS ======
+const WA_TEMPLATES = {
+  lembrete: `Olá [NOME]! 😊\n\nLembramos que você tem uma consulta agendada na *USF Chico Mendes*:\n\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📋 Tipo: [TIPO]\n\nPor favor, chegue com 15 minutos de antecedência e traga seus documentos.\n\n[OBS]\n\nAtenciosamente,\n*USF Chico Mendes* 🏥`,
+  confirmacao: `Olá [NOME]! ✅\n\nSua consulta na *USF Chico Mendes* está *CONFIRMADA*:\n\n📅 [DATA] às [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\nDocumentos necessários:\n✓ RG e CPF\n✓ Cartão SUS\n✓ Carteira de vacinação\n\n[OBS]\n\n*USF Chico Mendes* 🏥`,
+  reagendamento: `Olá [NOME]! 🔄\n\nInformamos que sua consulta na *USF Chico Mendes* foi *REAGENDADA*:\n\n📅 Nova data: [DATA]\n⏰ Novo horário: [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\n[OBS]\n\nPedimos desculpas pelo inconveniente.\n*USF Chico Mendes* 🏥`,
+  preparo_exames: `Olá [NOME]! 🔬\n\nVocê tem exames agendados na *USF Chico Mendes*:\n\n📅 [DATA] às [HORARIO]\n\n*Preparos necessários:*\n[EXAMES]\n\n[OBS]\n\n*USF Chico Mendes* 🏥`
+};
+
+const EXAMES_CHECKLIST = ['Hemograma','Glicemia Jejum','Colesterol Total','Triglicerídeos','TSH','Urina EAS','Parasitológico','Ultrassom','ECG','PSA'];
+
+function toggleChecklistExames() {
+  const tpl = document.getElementById('agend-template').value;
+  const grupo = document.getElementById('checklist-exames-grupo');
+  const container = document.getElementById('checklist-exames');
+  if (tpl === 'preparo_exames') {
+    grupo.style.display = 'flex';
+    if (!container.innerHTML) {
+      container.innerHTML = EXAMES_CHECKLIST.map(e => `<label style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--gray-100);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;"><input type="checkbox" value="${e}" style="cursor:pointer;"> ${e}</label>`).join('');
+    }
+  } else { grupo.style.display = 'none'; }
+}
+
+function buildWaMessage(agend) {
+  const tpl = WA_TEMPLATES[agend.template] || WA_TEMPLATES.lembrete;
+  const dataFmt = new Date(agend.data_agendamento+'T12:00:00').toLocaleDateString('pt-BR');
+  let exames = '';
+  if (agend.checklist_exames) {
+    try { const arr = JSON.parse(agend.checklist_exames); exames = arr.map(e => `• ${e}: Jejum de 8h`).join('\n'); } catch(e) { exames = agend.checklist_exames; }
+  }
+  return tpl.replace(/\[NOME\]/g, agend.nome).replace(/\[DATA\]/g, dataFmt).replace(/\[HORARIO\]/g, agend.horario)
+    .replace(/\[PROFISSIONAL\]/g, agend.profissional||'A definir').replace(/\[TIPO\]/g, agend.tipo_atendimento||'Consulta')
+    .replace(/\[OBS\]/g, agend.observacoes ? `📝 Obs: ${agend.observacoes}` : '').replace(/\[EXAMES\]/g, exames||'Consulte a unidade');
+}
+
+async function criarAgendamento() {
+  const nome = document.getElementById('agend-nome').value.trim();
+  const telefone = document.getElementById('agend-telefone').value.trim().replace(/\D/g,'');
+  const data_agendamento = document.getElementById('agend-data').value;
+  const horario = document.getElementById('agend-horario').value.trim();
+  const profissional = document.getElementById('agend-profissional').value;
+  const tipo_atendimento = document.getElementById('agend-tipo').value;
+  const template = document.getElementById('agend-template').value;
+  const observacoes = document.getElementById('agend-obs').value.trim();
+  let checklist_exames = null;
+  if (template === 'preparo_exames') {
+    const checked = [...document.querySelectorAll('#checklist-exames input:checked')].map(c => c.value);
+    if (checked.length) checklist_exames = JSON.stringify(checked);
+  }
+  if (!nome||!telefone||!data_agendamento||!horario) { showToast('Preencha nome, telefone, data e horário!', true); return; }
+  if (telefone.length < 10) { showToast('Telefone inválido!', true); return; }
+  try {
+    const r = await fetch(`${API_URL}/agendamentos`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome,telefone,data_agendamento,horario,profissional,tipo_atendimento,template,observacoes,checklist_exames}) });
+    if (!r.ok) throw new Error();
+    showToast('📅 Agendamento criado!');
+    document.getElementById('agend-nome').value=''; document.getElementById('agend-telefone').value='';
+    document.getElementById('agend-horario').value=''; document.getElementById('agend-obs').value='';
+    loadAgendamentos();
+  } catch { showToast('Erro ao agendar!', true); }
+}
+
+async function loadAgendamentos() {
+  const data = document.getElementById('agend-filter-data')?.value || '';
+  const status = document.getElementById('agend-filter-status')?.value || '';
+  const params = new URLSearchParams(); if (data) params.set('data',data); if (status) params.set('status',status);
+  try {
+    const r = await fetch(`${API_URL}/agendamentos?${params}`);
+    const list = await r.json();
+    renderAgendamentos(list);
+  } catch { showToast('Erro ao carregar agendamentos', true); }
+}
+
+function renderAgendamentos(list) {
+  const tbody = document.getElementById('agend-tbody'); if (!tbody) return;
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr>'; return; }
+  tbody.innerHTML = list.map(a => {
+    const dataFmt = new Date(a.data_agendamento+'T12:00:00').toLocaleDateString('pt-BR');
+    const statusCls = a.status.replace(/\s+/g,'_');
+    return `<tr>
+      <td><b>${a.nome}</b><br><span style="font-size:11px;color:var(--gray-600);">${a.telefone}</span></td>
+      <td>${dataFmt}</td><td>${a.horario}</td><td>${a.profissional||'-'}</td>
+      <td><span class="agend-status ${statusCls}">${a.status}</span></td>
+      <td><div class="agend-actions">
+        <button onclick="openWaPreview(${a.id})" title="WhatsApp">📲</button>
+        <button onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar lembrete">📨</button>
+        <button onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmado">✅</button>
+        <button onclick="updateAgendStatus(${a.id},'cancelado')" title="Cancelar">❌</button>
+      </div></td></tr>`;
+  }).join('');
+}
+
+async function updateAgendStatus(id, status) {
+  try {
+    await fetch(`${API_URL}/agendamentos/${id}/status`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
+    showToast('Status atualizado!'); loadAgendamentos();
+  } catch { showToast('Erro!', true); }
+}
+
+async function openWaPreview(id) {
+  try {
+    const r = await fetch(`${API_URL}/agendamentos`);
+    const list = await r.json();
+    const agend = list.find(a => a.id === id);
+    if (!agend) return;
+    const msg = buildWaMessage(agend);
+    document.getElementById('wa-preview-text').textContent = msg;
+    const phone = agend.telefone.replace(/\D/g,'');
+    document.getElementById('wa-send-link').href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    document.getElementById('wa-modal').classList.add('show');
+  } catch { showToast('Erro!', true); }
+}
+
+function closeWaModal() { document.getElementById('wa-modal').classList.remove('show'); }
 
 // ====== PDF ======
 function generatePDF() {
@@ -590,10 +861,10 @@ function generatePDF() {
 
 // ====== RESET ======
 async function resetData() {
-  const senha = prompt('⚠️ RESETAR FILA DIÁRIA\n\nIsso limpará a fila ativa (histórico será preservado).\n\nDigite a senha administrativa:');
+  const senha = prompt('⚠️ RESETAR FILA DIÁRIA\n\nIsso limpará a fila ativa.\n\nDigite a senha administrativa:');
   if (!senha) return;
   try {
-    const r = await fetch(`${API_URL}/reset`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha }) });
+    const r = await fetch(`${API_URL}/reset`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({senha}) });
     if (r.status === 403) { showToast('❌ Senha incorreta!', true); return; }
     if (!r.ok) throw new Error();
     showToast('✅ Fila zerada com sucesso!');
@@ -610,45 +881,41 @@ function showToast(msg, error = false, duration = 3000) {
 // ====== INIT ======
 initSectorScreens();
 initOverview();
-loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadChat();
+renderCanalList();
+loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAllChannels();
 
 // ====== SOCKET.IO ======
 const socket = io({ transports: ['websocket'], upgrade: false });
-let lastChatCount = 0;
 
-setInterval(() => {
-  loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended();
-  fetch(`${API_URL}/chat`).then(r => r.json()).then(d => {
-    if (d.length > chatMessages.length) {
-      const newCount = d.length - chatMessages.length;
-      chatMessages = d; renderChat();
-      const at = document.querySelector('.nav-tab.active');
-      if (at && at.id !== 'tab-chat') {
-        unreadChatCount += newCount;
-        updateChatBadge();
-        playChatSound();
-        const last = d[d.length - 1];
-        showToast(`💬 ${last.remetente}: ${last.mensagem.substring(0, 60)}`, false, 5000);
-      }
-    }
-  }).catch(()=>{});
-}, 3000);
+setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); }, 5000);
+setInterval(() => { loadAllChannels(); }, 8000);
 
 socket.on('queueUpdate', () => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); });
 socket.on('callPatient', (d) => { speak(d.patient.nome, d.setor, d.audioUrl, d.patient.medico); loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); });
-socket.on('chatMessage', (msg) => {
-  // Avoid duplicates
-  if (chatMessages.some(m => m.id === msg.id)) return;
-  chatMessages.push(msg); renderChat();
+socket.on('chatChannelMessage', (data) => {
+  const { canal, mensagem } = data;
+  if (!channelMessages[canal]) channelMessages[canal] = [];
+  if (channelMessages[canal].some(m => m.id === mensagem.id)) return;
+  channelMessages[canal].push(mensagem);
   const at = document.querySelector('.nav-tab.active');
-  if (at && at.id !== 'tab-chat') {
-    unreadChatCount++;
-    updateChatBadge();
-    playChatSound();
-    showToast(`💬 ${msg.remetente}: ${msg.mensagem.substring(0, 60)}`, false, 5000);
+  const isChatScreen = at && at.id === 'tab-chat';
+  if (canal === activeCanal && isChatScreen) {
+    renderChannelChat();
   } else {
-    const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight;
+    channelUnread[canal] = (channelUnread[canal]||0) + 1;
+    updateChatBadge(); renderCanalList();
+  }
+  if (!isChatScreen || canal !== activeCanal) {
+    playChatSound();
+    showToast(`💬 [${canal}] ${mensagem.autor}: ${mensagem.texto.substring(0,50)}`, false, 4000);
+    if (mensagem.urgente) sendDesktopNotif('🚨 URGENTE - USF Chat', `${mensagem.autor}: ${mensagem.texto}`);
   }
 });
-socket.on('chatReset', () => { chatMessages = []; renderChat(); });
+socket.on('chatChannelClear', (data) => {
+  if (data.canal === '__all__') { CANAIS.forEach(c => { channelMessages[c.id]=[]; channelUnread[c.id]=0; }); }
+  else { channelMessages[data.canal]=[]; channelUnread[data.canal]=0; }
+  renderChannelChat(); renderCanalList(); updateChatBadge();
+});
+socket.on('chatReset', () => { CANAIS.forEach(c => { channelMessages[c.id]=[]; channelUnread[c.id]=0; }); renderChannelChat(); renderCanalList(); });
+
 setTimeout(() => { document.getElementById('sound-modal').style.display = 'flex'; }, 600);
