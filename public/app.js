@@ -787,8 +787,8 @@ async function criarAgendamento() {
     const r = await fetch(`${API_URL}/agendamentos`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome,telefone,data_agendamento,horario,profissional,tipo_atendimento,template,observacoes,checklist_exames}) });
     if (!r.ok) throw new Error();
     showToast('📅 Agendamento criado!');
-    document.getElementById('agend-nome').value=''; document.getElementById('agend-telefone').value='';
-    document.getElementById('agend-horario').value=''; document.getElementById('agend-obs').value='';
+    document.getElementById('agend-nome').value=''; document.getElementById('agend-telefone').value='+55 ';
+    document.getElementById('agend-obs').value='';
     loadAgendamentos();
   } catch { showToast('Erro ao agendar!', true); }
 }
@@ -919,3 +919,19 @@ socket.on('chatChannelClear', (data) => {
 socket.on('chatReset', () => { CANAIS.forEach(c => { channelMessages[c.id]=[]; channelUnread[c.id]=0; }); renderChannelChat(); renderCanalList(); });
 
 setTimeout(() => { document.getElementById('sound-modal').style.display = 'flex'; }, 600);
+
+function initAgendamentoDefaults() {
+  const dataInput = document.getElementById('agend-data');
+  if (dataInput && !dataInput.value) {
+    const today = new Date();
+    dataInput.value = today.toISOString().split('T')[0];
+  }
+}
+
+// Inicializar preenchimento de agendamento na primeira tela
+initAgendamentoDefaults();
+setInterval(() => {
+  if (document.getElementById('screen-agendamentos')?.classList.contains('active')) {
+    initAgendamentoDefaults();
+  }
+}, 5000);

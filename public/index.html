@@ -433,10 +433,10 @@
       <div class="card-white">
         <div class="card-title"><span>📝</span> Novo Agendamento</div>
         <div class="form-group" style="margin-bottom:12px;"><label>Nome do Paciente</label><input type="text" id="agend-nome" placeholder="Nome completo"></div>
-        <div class="form-group" style="margin-bottom:12px;"><label>Telefone (com DDD)</label><input type="text" id="agend-telefone" placeholder="55119XXXXXXXX"></div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Telefone do Paciente</label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 11 99999-9999"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div class="form-group"><label>Data</label><input type="date" id="agend-data" style="width:100%;"></div>
-          <div class="form-group"><label>Horário</label><input type="text" id="agend-horario" placeholder="08:00"></div>
+          <div class="form-group"><label>Horário</label><input type="text" id="agend-horario" value="08:00" placeholder="08:00"></div>
         </div>
         <div class="form-group" style="margin-bottom:12px;"><label>Profissional</label>
           <select id="agend-profissional" title="Profissional">
@@ -545,9 +545,14 @@
 
 <style>
   @media print {
-    body * { visibility: hidden; }
-    #ticketPrintArea, #ticketPrintArea * { visibility: visible; }
-    #ticketPrintArea { position: absolute; left: 0; top: 0; width: 100%; padding: 0; box-shadow: none; border-radius: 0; }
+    body { background: #fff !important; min-height: auto !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
+    body > *:not(#qr-modal) { display: none !important; }
+    #qr-modal { display: block !important; position: static !important; inset: auto !important; background: #fff !important; width: 100% !important; height: auto !important; }
+    
+    #ticketPrintArea { position: static !important; width: 100% !important; padding: 0 !important; box-shadow: none !important; border-radius: 0 !important; transform: none !important; margin: 0 auto !important; max-width: 100% !important; }
+    #ticketPrintArea * { visibility: visible; }
+    .qr-content { display: block !important; }
+    
     .no-print { display: none !important; }
     @page { margin: 0; size: 58mm auto; }
   }
