@@ -735,7 +735,7 @@ setInterval(checkInactivity, 60000);
 
 // ====== AGENDAMENTOS ======
 const WA_TEMPLATES = {
-  lembrete: `Olá [NOME]! 😊\n\nLembramos que você tem uma consulta agendada na *USF Chico Mendes*:\n\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📋 Tipo: [TIPO]\n\nPor favor, chegue com 15 minutos de antecedência e traga seus documentos.\n\n[OBS]\n\nAtenciosamente,\n*USF Chico Mendes* 🏥`,
+  lembrete: `Lembrete de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙\n\nhttps://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg`,
   confirmacao: `Olá [NOME]! ✅\n\nSua consulta na *USF Chico Mendes* está *CONFIRMADA*:\n\n📅 [DATA] às [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\nDocumentos necessários:\n✓ RG e CPF\n✓ Cartão SUS\n✓ Carteira de vacinação\n\n[OBS]\n\n*USF Chico Mendes* 🏥`,
   reagendamento: `Olá [NOME]! 🔄\n\nInformamos que sua consulta na *USF Chico Mendes* foi *REAGENDADA*:\n\n📅 Nova data: [DATA]\n⏰ Novo horário: [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\n[OBS]\n\nPedimos desculpas pelo inconveniente.\n*USF Chico Mendes* 🏥`,
   preparo_exames: `Olá [NOME]! 🔬\n\nVocê tem exames agendados na *USF Chico Mendes*:\n\n📅 [DATA] às [HORARIO]\n\n*Preparos necessários:*\n[EXAMES]\n\n[OBS]\n\n*USF Chico Mendes* 🏥`
