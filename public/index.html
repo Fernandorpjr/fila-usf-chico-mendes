@@ -241,6 +241,52 @@
    .wa-btn-send{background:#25D366;color:white;border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(37,211,102,0.4);}
    .wa-btn-send:hover{background:#1fb855;}
    @media(max-width:900px){.agend-grid{grid-template-columns:1fr;}}
+
+   /* ====== ACOLHIMENTO WORKFLOW ====== */
+   .acol-stages-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:start;}
+   @media(max-width:1100px){.acol-stages-grid{grid-template-columns:1fr;}}
+   .acol-stage-col{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius);padding:16px;min-height:200px;backdrop-filter:blur(8px);}
+   .acol-stage-recepcao{border-top:4px solid #4aab3c;}
+   .acol-stage-escuta1{border-top:4px solid #f4821e;}
+   .acol-stage-escuta2{border-top:4px solid #e53935;}
+   .acol-stage-header{display:flex;align-items:center;gap:10px;padding-bottom:14px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.1);font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;}
+   .acol-stage-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+   .acol-stage-count{margin-left:auto;background:rgba(255,255,255,0.15);color:var(--white);font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;min-width:24px;text-align:center;}
+   .acol-card-list{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow-y:auto;scrollbar-width:thin;}
+
+   .acol-card{background:var(--white);border-radius:12px;padding:14px 16px;color:var(--gray-700);box-shadow:0 2px 8px rgba(0,0,0,0.08);border-left:5px solid #4aab3c;transition:all 0.25s;animation:slideIn 0.3s ease;}
+   .acol-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,0.12);}
+   .acol-card.etapa-primeira_escuta{border-left-color:#f4821e;}
+   .acol-card.etapa-segunda_escuta{border-left-color:#e53935;}
+   .acol-card .acol-card-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--blue-dark);margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+   .acol-card .acol-card-meta{font-size:12px;color:var(--gray-600);font-weight:600;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+   .acol-card .acol-card-queixa{font-size:12px;color:var(--gray-600);background:var(--gray-100);padding:6px 10px;border-radius:8px;margin-bottom:8px;font-weight:600;font-style:italic;}
+   .acol-card .acol-card-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+   .acol-risco-badge{font-size:11px;font-weight:800;padding:2px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:0.5px;display:inline-block;}
+   .acol-risco-badge.verde{background:rgba(74,171,60,0.15);color:#2d7a22;}
+   .acol-risco-badge.amarelo{background:rgba(249,200,35,0.2);color:#8a6d00;}
+   .acol-risco-badge.vermelho{background:rgba(229,57,53,0.15);color:#c62828;animation:pulseAlert 1.5s infinite;}
+
+   .acol-btn-action{padding:6px 12px;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:4px;}
+   .acol-btn-action:hover{transform:scale(1.05);}
+   .acol-btn-iniciar{background:linear-gradient(135deg,#f4821e,#d46b10);color:white;box-shadow:0 2px 8px rgba(244,130,30,0.3);}
+   .acol-btn-encaminhar{background:linear-gradient(135deg,#e53935,#c62828);color:white;box-shadow:0 2px 8px rgba(229,57,53,0.3);}
+   .acol-btn-finalizar{background:linear-gradient(135deg,#4aab3c,#3a8a2e);color:white;box-shadow:0 2px 8px rgba(74,171,60,0.3);}
+
+   .acol-modal-overlay{position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+   .acol-modal-overlay.show{display:flex;}
+   .acol-modal{background:white;border-radius:20px;padding:32px;max-width:520px;width:90%;max-height:85vh;overflow-y:auto;color:var(--gray-700);box-shadow:0 24px 60px rgba(0,0,0,0.4);}
+   .acol-modal h3{font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:var(--blue-dark);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+
+   .acol-risco-btn{padding:8px 16px;border:2px solid var(--gray-200);border-radius:20px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:var(--gray-100);color:var(--gray-600);}
+   .acol-risco-btn:hover{transform:scale(1.05);}
+   .acol-risco-btn.active{font-weight:800;}
+   .acol-risco-verde.active{background:rgba(74,171,60,0.15);color:#2d7a22;border-color:#4aab3c;}
+   .acol-risco-amarelo.active{background:rgba(249,200,35,0.2);color:#8a6d00;border-color:#f9c823;}
+   .acol-risco-vermelho.active{background:rgba(229,57,53,0.15);color:#c62828;border-color:#e53935;}
+
+   .acol-tempo-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(26,79,196,0.1);color:var(--blue);}
 </style>
 </head>
 <body>
@@ -356,7 +402,158 @@
   </div>
 
   <!-- ============ SECTOR SCREENS (generated by JS) ============ -->
-  <div class="screen" id="screen-acolhimento"></div>
+  <div class="screen" id="screen-acolhimento">
+    <div class="sector-page-header" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="sector-icon-big" style="background:rgba(142,36,170,0.2);">💜</div>
+        <div><div class="sector-page-title">ACOLHIMENTO – FLUXO INTEGRADO</div><div class="sector-page-sub">Recepção → 1ª Escuta (ACS) → 2ª Escuta (Profissional)</div></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="btn btn-ghost btn-sm" onclick="gerarRelatorioAcolhimento()" title="Relatório do Acolhimento">📊 Relatório</button>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div id="acol-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+      <button class="btn-filter active" data-acol-filter="todos" onclick="filtrarAcolhimento('todos')">📋 Todos</button>
+      <button class="btn-filter" data-acol-filter="recepcao" onclick="filtrarAcolhimento('recepcao')">🟢 Recepção</button>
+      <button class="btn-filter" data-acol-filter="primeira_escuta" onclick="filtrarAcolhimento('primeira_escuta')">🟡 1ª Escuta</button>
+      <button class="btn-filter" data-acol-filter="segunda_escuta" onclick="filtrarAcolhimento('segunda_escuta')">🔴 2ª Escuta</button>
+      <button class="btn-filter" data-acol-filter="minha_fila" onclick="filtrarAcolhimento('minha_fila')">🔔 Minha Fila</button>
+      <select id="acol-minha-fila-prof" style="display:none;padding:8px 12px;border:2px solid var(--gray-200);border-radius:20px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;background:var(--gray-100);color:var(--gray-600);" onchange="filtrarAcolhimento('minha_fila')">
+        <option value="">— Profissional —</option>
+        <option>Dra. Anahy Duarte</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
+        <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Gisele Monteiro</option>
+      </select>
+    </div>
+
+    <!-- 3 Stages grid -->
+    <div class="acol-stages-grid">
+      <!-- RECEPÇÃO -->
+      <div class="acol-stage-col acol-stage-recepcao" id="acol-col-recepcao">
+        <div class="acol-stage-header">
+          <div class="acol-stage-dot" style="background:#4aab3c;"></div>
+          <span>🟢 RECEPÇÃO</span>
+          <span class="acol-stage-count" id="acol-cnt-recepcao">0</span>
+        </div>
+        <div class="acol-card-list" id="acol-list-recepcao"></div>
+      </div>
+      <!-- 1ª ESCUTA -->
+      <div class="acol-stage-col acol-stage-escuta1" id="acol-col-primeira_escuta">
+        <div class="acol-stage-header">
+          <div class="acol-stage-dot" style="background:#f4821e;"></div>
+          <span>🟡 1ª ESCUTA (ACS)</span>
+          <span class="acol-stage-count" id="acol-cnt-primeira_escuta">0</span>
+        </div>
+        <div class="acol-card-list" id="acol-list-primeira_escuta"></div>
+      </div>
+      <!-- 2ª ESCUTA -->
+      <div class="acol-stage-col acol-stage-escuta2" id="acol-col-segunda_escuta">
+        <div class="acol-stage-header">
+          <div class="acol-stage-dot" style="background:#e53935;"></div>
+          <span>🔴 2ª ESCUTA (Profissional)</span>
+          <span class="acol-stage-count" id="acol-cnt-segunda_escuta">0</span>
+        </div>
+        <div class="acol-card-list" id="acol-list-segunda_escuta"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 1ª Escuta (Encaminhar) -->
+  <div class="acol-modal-overlay" id="acol-escuta-modal">
+    <div class="acol-modal">
+      <h3>🟡 1ª Escuta – Encaminhar Paciente</h3>
+      <div id="acol-modal-patient-info" style="margin-bottom:16px;padding:12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:15px;color:var(--gray-700);"></div>
+      <input type="hidden" id="acol-modal-id">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="color:var(--gray-600);">Queixa Principal</label>
+        <textarea id="acol-modal-queixa" rows="3" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Descreva a queixa do paciente..."></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="color:var(--gray-600);">Classificação de Risco</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-risco-chooser">
+          <button type="button" class="acol-risco-btn acol-risco-verde active" data-risco="verde" onclick="selectRisco('verde')">🟢 Verde (Baixo)</button>
+          <button type="button" class="acol-risco-btn acol-risco-amarelo" data-risco="amarelo" onclick="selectRisco('amarelo')">🟡 Amarelo (Moderado)</button>
+          <button type="button" class="acol-risco-btn acol-risco-vermelho" data-risco="vermelho" onclick="selectRisco('vermelho')">🔴 Vermelho (Alto)</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div class="form-group">
+          <label style="color:var(--gray-600);">Tipo Profissional Destino</label>
+          <select id="acol-modal-tipo-prof" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);" onchange="updateAcolProfDest()">
+            <option value="">— Opcional —</option>
+            <option value="medico">🩺 Médico</option>
+            <option value="enfermagem">👩‍⚕️ Enfermagem</option>
+            <option value="odontologia">🦷 Odontologia</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="color:var(--gray-600);">Profissional Destino</label>
+          <select id="acol-modal-prof-dest" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);">
+            <option value="">— Opcional —</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:20px;">
+        <button class="btn btn-orange" style="flex:1;" onclick="confirmarEncaminhamento()">📤 Encaminhar para 2ª Escuta</button>
+        <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="fecharEscutaModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Seleção de ACS (Acolhimento) -->
+  <div class="acol-modal-overlay" id="acol-acs-modal">
+    <div class="acol-modal">
+      <h3>🟡 Iniciar 1ª Escuta</h3>
+      <div id="acol-acs-patient-info" style="margin-bottom:16px;padding:12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:15px;color:var(--gray-700);"></div>
+      <input type="hidden" id="acol-acs-patient-id">
+      
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="color:var(--gray-600);">ACS Responsável</label>
+        <select id="acol-acs-select" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);">
+          <option value="">— Selecione o Agente de Saúde —</option>
+          <optgroup label="Equipe 1 Chico Mendes">
+            <option value="Ana Paula - Eq 1 Chico Mendes">Ana Paula</option>
+            <option value="Ana Lúcia - Eq 1 Chico Mendes">Ana Lúcia</option>
+            <option value="Lenilda - Eq 1 Chico Mendes">Lenilda</option>
+            <option value="Ceça Conceição - Eq 1 Chico Mendes">Ceça Conceição</option>
+            <option value="Joselita - Eq 1 Chico Mendes">Joselita</option>
+            <option value="Alda - Eq 1 Chico Mendes">Alda</option>
+          </optgroup>
+          <optgroup label="Equipe 2 Ximbore">
+            <option value="Simone - Eq 2 Ximbore">Simone</option>
+            <option value="Patrícia - Eq 2 Ximbore">Patrícia</option>
+            <option value="Telma - Eq 2 Ximbore">Telma</option>
+            <option value="Jeane - Eq 2 Ximbore">Jeane</option>
+          </optgroup>
+          <optgroup label="Equipe 3 Aurora Caçote">
+            <option value="Josélia - Eq 3 Aurora">Josélia</option>
+            <option value="Arlinda - Eq 3 Aurora">Arlinda</option>
+            <option value="Nena - Eq 3 Aurora">Nena</option>
+            <option value="Rosilene - Eq 3 Aurora">Rosilene</option>
+            <option value="Fátima - Eq 3 Aurora">Fátima</option>
+          </optgroup>
+        </select>
+      </div>
+      
+      <div style="display:flex;gap:12px;margin-top:20px;">
+        <button class="btn btn-orange" style="flex:1;" onclick="confirmarIniciarEscuta()">Iniciar Escuta</button>
+        <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-acs-modal').classList.remove('show')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Relatório Acolhimento -->
+  <div class="acol-modal-overlay" id="acol-relatorio-modal">
+    <div class="acol-modal" style="max-width:650px;">
+      <h3>📊 Relatório do Acolhimento – Hoje</h3>
+      <div id="acol-relatorio-content" style="font-size:14px;color:var(--gray-700);line-height:1.7;"></div>
+      <div style="display:flex;gap:12px;margin-top:20px;">
+        <button class="btn btn-primary" style="flex:1;" onclick="exportarRelatorioAcolhimentoPDF()">📄 Exportar PDF</button>
+        <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-relatorio-modal').classList.remove('show')">Fechar</button>
+      </div>
+    </div>
+  </div>
   <div class="screen" id="screen-farmacia"></div>
   <div class="screen" id="screen-regulacao"></div>
   <div class="screen" id="screen-medico"></div>

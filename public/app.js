@@ -36,6 +36,7 @@ const CAPACITY_LIMITS = { 'Total': 30, 'Regulação': 10, 'Farmácia': 999, 'Mé
 // ====== INIT: Generate sector screens ======
 function initSectorScreens() {
   SETORES.forEach(setor => {
+    if (setor === 'Acolhimento') return; // Acolhimento has its own custom workflow screen
     const cfg = SECTOR_CONFIG[setor];
     const screenEl = document.getElementById('screen-' + cfg.key);
     if (!screenEl) return;
@@ -63,7 +64,7 @@ function initSectorScreens() {
     let profHTML = '';
     if (cfg.profissionais) {
       const consultOpts = ['1','2','3','4','5','6','Odontológico'].map(c =>
-        `<option value="${c}">${c === 'Odontológico' ? 'Cons. Odontológico' : 'Consultório ' + c}</option>`
+        `<option value="${c}">${c === 'Odontológico' ? 'Consultório Odontológico' : 'Consultório ' + c}</option>`
       ).join('');
       const profOpts = cfg.profissionais.map(p => `<option value="${p}">${p}</option>`).join('');
       profHTML = `
@@ -224,7 +225,7 @@ async function addPatient(btn) {
     const profLabel = profissional ? ` (${profissional})` : '';
     showToast(`${nome} adicionado à fila de ${setor}${profLabel}!${prioLabel}`);
     await loadQueues();
-    showQrModal(newPatient);
+    // showQrModal(newPatient); // 🚫 Desativado a pedido: Não mostrar modal de QR automático
   } catch { showToast('Erro ao adicionar paciente!', true); }
   if (btn) btn.disabled = false;
 }
@@ -267,7 +268,7 @@ async function callNext(setor) {
       const pEl = document.getElementById('profissional-' + cfg.key);
       consultorio = cEl ? cEl.value : null;
       profissional = pEl ? pEl.value : null;
-      const consLabel = consultorio === 'Odontológico' ? 'Cons. Odontológico' : 'Consultório ' + consultorio;
+      const consLabel = consultorio === 'Odontológico' ? 'Consultório Odontológico' : 'Consultório ' + consultorio;
       medico = `${consLabel} - ${profissional}`;
     }
     const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional, filtro_profissional }) });
@@ -489,7 +490,7 @@ function updatePainel() {
     const l = callHistory[0]; const cfg = SECTOR_CONFIG[l.setor] || {};
     const prioBadge = l.prioridade === 'prioritario' ? `<div class="priority-badge-tv">⭐ ${l.tipo_prioridade || 'PRIORITÁRIO'}</div>` : '';
     let details = '';
-    if (l.consultorio) details += `<div style="font-size:18px;opacity:0.9;margin-top:6px;font-weight:700;">🏠 ${l.consultorio === 'Odontológico' ? 'Cons. Odontológico' : 'Consultório ' + l.consultorio}</div>`;
+    if (l.consultorio) details += `<div style="font-size:18px;opacity:0.9;margin-top:6px;font-weight:700;">🏠 ${l.consultorio === 'Odontológico' ? 'Consultório Odontológico' : 'Consultório ' + l.consultorio}</div>`;
     if (l.profissional) details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${l.profissional}</div>`;
     else if (l.medico) details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${l.medico}</div>`;
     main.innerHTML = `<div class="painel-call-label">🔔 Chamando agora</div><div class="painel-call-name">${l.nome}</div><div class="painel-call-sector">${cfg.icon||'📋'} ${l.setor}${details}</div>${prioBadge}`;
@@ -801,7 +802,7 @@ function checkInactivity() {
     });
   });
 }
-setInterval(checkInactivity, 60000);
+// setInterval(checkInactivity, 60000); // 🤖 Mensagens automáticas desativadas a pedido do cliente
 
 // ====== AGENDAMENTOS ======
 const WA_TEMPLATES = {
@@ -968,20 +969,299 @@ function showToast(msg, error = false, duration = 3000) {
   t.classList.toggle('error', error); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), duration);
 }
 
+// ====== ACOLHIMENTO WORKFLOW ======
+let acolhimentoFluxo = { recepcao: [], primeira_escuta: [], segunda_escuta: [] };
+let acolhimentoFilter = 'todos';
+let selectedRisco = 'verde';
+
+async function loadAcolhimentoFluxo() {
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/fluxo`);
+    acolhimentoFluxo = await r.json();
+    renderAcolhimentoFluxo();
+  } catch (e) { console.error('Acolhimento fluxo error:', e); }
+}
+
+function renderAcolhimentoFluxo() {
+  const etapas = ['recepcao', 'primeira_escuta', 'segunda_escuta'];
+  etapas.forEach(etapa => {
+    let pacientes = acolhimentoFluxo[etapa] || [];
+    // Apply filter
+    if (acolhimentoFilter !== 'todos' && acolhimentoFilter !== 'minha_fila') {
+      if (acolhimentoFilter !== etapa) pacientes = [];
+    }
+    if (acolhimentoFilter === 'minha_fila') {
+      const prof = document.getElementById('acol-minha-fila-prof')?.value;
+      if (prof) pacientes = pacientes.filter(p => p.profissional_destino === prof);
+      else pacientes = [];
+    }
+    const cntEl = document.getElementById('acol-cnt-' + etapa);
+    if (cntEl) cntEl.textContent = (acolhimentoFluxo[etapa] || []).length;
+    renderAcolhimentoEtapa(etapa, pacientes);
+  });
+  // Show/hide columns based on filter
+  etapas.forEach(etapa => {
+    const col = document.getElementById('acol-col-' + etapa);
+    if (!col) return;
+    if (acolhimentoFilter === 'todos' || acolhimentoFilter === 'minha_fila' || acolhimentoFilter === etapa) {
+      col.style.display = '';
+    } else {
+      col.style.display = 'none';
+    }
+  });
+  // Badge
+  const totalAcol = (acolhimentoFluxo.recepcao?.length || 0) + (acolhimentoFluxo.primeira_escuta?.length || 0) + (acolhimentoFluxo.segunda_escuta?.length || 0);
+  const badge = document.getElementById('badge-acolhimento');
+  if (badge) badge.textContent = totalAcol;
+}
+
+function renderAcolhimentoEtapa(etapa, pacientes) {
+  const el = document.getElementById('acol-list-' + etapa);
+  if (!el) return;
+  if (!pacientes.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:rgba(255,255,255,0.3);font-size:13px;font-weight:600;">Nenhum paciente</div>';
+    return;
+  }
+  el.innerHTML = pacientes.map(p => {
+    const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIO'}</span>` : '';
+    const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde' ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : '🟡 MODERADO'}</span>` : '';
+    const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
+    const tempoBadge = `<span class="acol-tempo-badge">⏱ ${tempoMin} min</span>`;
+    const acsLabel = p.acs_responsavel ? `<span style="font-size:11px;">👤 ACS: ${p.acs_responsavel}</span>` : '';
+    const profLabel = p.profissional_destino ? `<span style="font-size:11px;">👨‍⚕️ ${p.profissional_destino}</span>` : '';
+    const queixaEl = p.queixa ? `<div class="acol-card-queixa">"${p.queixa}"</div>` : '';
+    const nomeSafe = p.nome.replace(/'/g, "\\'");
+
+    let actions = '';
+    if (etapa === 'recepcao') {
+      actions = `<button class="acol-btn-action acol-btn-iniciar" onclick="iniciarEscuta(${p.id},'${nomeSafe}')">🟡 Iniciar 1ª Escuta</button>`;
+    } else if (etapa === 'primeira_escuta') {
+      actions = `<button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>`;
+    } else if (etapa === 'segunda_escuta') {
+      actions = `<button class="acol-btn-action acol-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar</button>`;
+    }
+    // Admin: remove/delete buttons
+    const adminBtns = isAdmin ? `
+      <button class="btn-danger" style="font-size:11px;padding:4px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
+      <button class="btn-danger" style="font-size:11px;padding:4px 8px;background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${nomeSafe}')" title="Excluir">🔥</button>
+    ` : '';
+
+    return `<div class="acol-card etapa-${etapa}">
+      <div class="acol-card-name">${p.nome}${prioBadge}${riscoBadge}</div>
+      <div class="acol-card-meta">
+        <span>🕐 ${p.horario}</span>
+        ${tempoBadge}
+        ${acsLabel}
+        ${profLabel}
+      </div>
+      ${queixaEl}
+      <div class="acol-card-actions">
+        ${actions}
+        ${adminBtns}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filtrarAcolhimento(filtro) {
+  acolhimentoFilter = filtro;
+  document.querySelectorAll('#acol-filter-bar .btn-filter').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.acolFilter === filtro);
+  });
+  const profSelect = document.getElementById('acol-minha-fila-prof');
+  if (profSelect) profSelect.style.display = filtro === 'minha_fila' ? 'inline-block' : 'none';
+  renderAcolhimentoFluxo();
+}
+
+function iniciarEscuta(id, nome) {
+  document.getElementById('acol-acs-patient-id').value = id;
+  document.getElementById('acol-acs-patient-info').textContent = `👤 ${nome}`;
+  const acsSelect = document.getElementById('acol-acs-select');
+  if (acsSelect) acsSelect.value = '';
+  document.getElementById('acol-acs-modal').classList.add('show');
+}
+
+async function confirmarIniciarEscuta() {
+  const id = document.getElementById('acol-acs-patient-id').value;
+  const nome = document.getElementById('acol-acs-patient-info').textContent.replace('👤 ', '');
+  const acs = document.getElementById('acol-acs-select').value;
+  if (!acs) { showToast('Selecione o ACS responsável!', true); return; }
+  
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/iniciar-escuta`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acs_responsavel: acs })
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    document.getElementById('acol-acs-modal').classList.remove('show');
+    showToast(`🟡 1ª Escuta iniciada para ${nome} (ACS: ${acs})`);
+    loadAcolhimentoFluxo();
+  } catch (e) { showToast(e.message || 'Erro ao iniciar escuta', true); }
+}
+
+function abrirModalEncaminhar(id, nome) {
+  document.getElementById('acol-modal-id').value = id;
+  document.getElementById('acol-modal-patient-info').textContent = `👤 ${nome}`;
+  document.getElementById('acol-modal-queixa').value = '';
+  selectRisco('verde');
+  document.getElementById('acol-modal-tipo-prof').value = '';
+  document.getElementById('acol-modal-prof-dest').innerHTML = '<option value="">— Opcional —</option>';
+  document.getElementById('acol-escuta-modal').classList.add('show');
+}
+
+function fecharEscutaModal() {
+  document.getElementById('acol-escuta-modal').classList.remove('show');
+}
+
+function selectRisco(risco) {
+  selectedRisco = risco;
+  document.querySelectorAll('#acol-risco-chooser .acol-risco-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.risco === risco);
+  });
+}
+
+function updateAcolProfDest() {
+  const tipo = document.getElementById('acol-modal-tipo-prof').value;
+  const sel = document.getElementById('acol-modal-prof-dest');
+  sel.innerHTML = '<option value="">— Opcional —</option>';
+  if (tipo && SECTOR_CONFIG) {
+    const sectorKey = tipo === 'medico' ? 'Médico' : tipo === 'enfermagem' ? 'Enfermagem' : 'Odontologia';
+    const cfg = SECTOR_CONFIG[sectorKey];
+    if (cfg && cfg.profissionais) {
+      cfg.profissionais.forEach(p => {
+        sel.innerHTML += `<option value="${p}">${p}</option>`;
+      });
+    }
+  }
+}
+
+async function confirmarEncaminhamento() {
+  const id = document.getElementById('acol-modal-id').value;
+  const queixa = document.getElementById('acol-modal-queixa').value.trim();
+  const profissional_destino = document.getElementById('acol-modal-prof-dest').value || null;
+  const tipo_profissional_destino = document.getElementById('acol-modal-tipo-prof').value || null;
+  if (!queixa) { showToast('Preencha a queixa!', true); return; }
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/encaminhar`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queixa, risco_clinico: selectedRisco, profissional_destino, tipo_profissional_destino })
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    fecharEscutaModal();
+    const riscoLabel = selectedRisco === 'vermelho' ? '🔴 RISCO ALTO' : selectedRisco === 'amarelo' ? '🟡 RISCO MODERADO' : '🟢 BAIXO';
+    showToast(`📤 Paciente encaminhado para 2ª Escuta (${riscoLabel})`);
+    loadAcolhimentoFluxo();
+  } catch (e) { showToast(e.message || 'Erro ao encaminhar', true); }
+}
+
+async function finalizarAtendimento(id, nome) {
+  if (!confirm(`✅ Finalizar atendimento de "${nome}"?\n\nO paciente será marcado como atendido.`)) return;
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    showToast(`✅ Atendimento de ${nome} finalizado!`);
+    loadAcolhimentoFluxo();
+    loadHistory();
+    loadAttended();
+  } catch (e) { showToast(e.message || 'Erro ao finalizar', true); }
+}
+
+async function gerarRelatorioAcolhimento() {
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/relatorio`);
+    const data = await r.json();
+    const el = document.getElementById('acol-relatorio-content');
+    const avgRec = data.tempoMedio?.avg_recepcao_min ? Math.round(data.tempoMedio.avg_recepcao_min) : '—';
+    const avgEsc = data.tempoMedio?.avg_escuta_min ? Math.round(data.tempoMedio.avg_escuta_min) : '—';
+    let riscoHtml = '';
+    if (data.riscoCor && data.riscoCor.length) {
+      riscoHtml = data.riscoCor.map(r => {
+        const emoji = r.risco_clinico === 'vermelho' ? '🔴' : '🟡';
+        return `${emoji} ${r.risco_clinico}: <b>${r.total}</b>`;
+      }).join(' · ');
+    }
+    let acsHtml = '<div style="color:var(--gray-600);">Nenhum ACS registrado</div>';
+    if (data.porAcs && data.porAcs.length) {
+      acsHtml = data.porAcs.map(a => `<div>👤 ${a.acs_responsavel}: <b>${a.total}</b> pacientes</div>`).join('');
+    }
+    let profHtml = '<div style="color:var(--gray-600);">Nenhum encaminhamento</div>';
+    if (data.porProf && data.porProf.length) {
+      profHtml = data.porProf.map(p => `<div>👨‍⚕️ ${p.profissional_destino} (${p.tipo_profissional_destino || '—'}): <b>${p.total}</b></div>`).join('');
+    }
+    // Ativos por etapa
+    let ativosHtml = '';
+    if (data.ativos && data.ativos.length) {
+      const etapas = {};
+      data.ativos.forEach(a => {
+        if (!etapas[a.etapa_fluxo]) etapas[a.etapa_fluxo] = 0;
+        etapas[a.etapa_fluxo] += parseInt(a.total);
+      });
+      const labels = { recepcao: '🟢 Recepção', primeira_escuta: '🟡 1ª Escuta', segunda_escuta: '🔴 2ª Escuta' };
+      ativosHtml = Object.entries(etapas).map(([k, v]) => `${labels[k] || k}: <b>${v}</b>`).join(' · ');
+    }
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div style="background:var(--gray-100);padding:16px;border-radius:12px;text-align:center;">
+          <div style="font-size:28px;font-weight:900;color:var(--green);">${data.totalFinalizados}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;">Finalizados Hoje</div>
+        </div>
+        <div style="background:var(--gray-100);padding:16px;border-radius:12px;text-align:center;">
+          <div style="font-size:28px;font-weight:900;color:var(--blue);">${avgRec} / ${avgEsc}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;">Tempo Médio Recep./Escuta (min)</div>
+        </div>
+      </div>
+      ${ativosHtml ? `<div style="margin-bottom:16px;"><b>📊 Ativos agora:</b> ${ativosHtml}</div>` : ''}
+      ${riscoHtml ? `<div style="margin-bottom:16px;"><b>⚠️ Classificação de Risco:</b> ${riscoHtml}</div>` : ''}
+      <div style="margin-bottom:16px;"><b>👤 Atendimentos por ACS:</b>${acsHtml}</div>
+      <div style="margin-bottom:16px;"><b>👨‍⚕️ Encaminhamentos por Profissional:</b>${profHtml}</div>
+    `;
+    document.getElementById('acol-relatorio-modal').classList.add('show');
+  } catch (e) { showToast('Erro ao gerar relatório', true); console.error(e); }
+}
+
+function exportarRelatorioAcolhimentoPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) { showToast('Carregando biblioteca PDF...', true); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('Relatório de Acolhimento', 105, 20, { align: 'center' });
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`USF Chico Mendes | ${new Date().toLocaleDateString('pt-BR')}`, 105, 28, { align: 'center' });
+  // Content from DOM
+  const content = document.getElementById('acol-relatorio-content')?.innerText || 'Sem dados';
+  const lines = doc.splitTextToSize(content, 170);
+  doc.text(lines, 20, 42);
+  doc.save(`acolhimento_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+  showToast('✅ PDF do Acolhimento gerado!');
+}
+
 // ====== INIT ======
 initSectorScreens();
 initOverview();
 renderCanalList();
 loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAllChannels();
+loadAcolhimentoFluxo();
 
 // ====== SOCKET.IO ======
 const socket = io({ transports: ['websocket'], upgrade: false });
 
-setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); }, 5000);
+setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); }, 5000);
 setInterval(() => { loadAllChannels(); }, 8000);
 
-socket.on('queueUpdate', () => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); });
-socket.on('callPatient', (d) => { speak(d.patient.nome, d.setor, d.audioUrl, d.patient.medico); loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); });
+socket.on('queueUpdate', () => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); });
+socket.on('callPatient', (d) => { speak(d.patient.nome, d.setor, d.audioUrl, d.patient.medico); loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); });
+socket.on('acolhimentoUpdate', () => { loadAcolhimentoFluxo(); });
+socket.on('acolhimentoUrgente', (data) => {
+  const p = data.patient;
+  showToast(`🚨 URGENTE: ${p.nome} – Risco VERMELHO encaminhado para 2ª Escuta!`, false, 6000);
+  playChatSound();
+  sendDesktopNotif('🚨 ACOLHIMENTO URGENTE', `${p.nome} encaminhado com risco VERMELHO para 2ª Escuta`);
+});
 socket.on('chatChannelMessage', (data) => {
   const { canal, mensagem } = data;
   if (!channelMessages[canal]) channelMessages[canal] = [];

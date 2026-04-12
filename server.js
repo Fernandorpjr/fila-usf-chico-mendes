@@ -124,6 +124,14 @@ async function initDB() {
       { table: 'call_history', column: 'tipo_atendimento', type: 'TEXT' },
       { table: 'call_history', column: 'consultorio', type: 'TEXT' },
       { table: 'call_history', column: 'profissional', type: 'TEXT' },
+      // Acolhimento workflow columns
+      { table: 'patients', column: 'etapa_fluxo', type: "TEXT DEFAULT 'recepcao'" },
+      { table: 'patients', column: 'queixa', type: 'TEXT' },
+      { table: 'patients', column: 'risco_clinico', type: "TEXT DEFAULT 'verde'" },
+      { table: 'patients', column: 'acs_responsavel', type: 'TEXT' },
+      { table: 'patients', column: 'profissional_destino', type: 'TEXT' },
+      { table: 'patients', column: 'tipo_profissional_destino', type: 'TEXT' },
+      { table: 'patients', column: 'inicio_etapa', type: 'TIMESTAMPTZ' },
     ];
     
     for (const col of columns) {
@@ -887,6 +895,187 @@ app.post('/api/history/:id/delete', async (req, res) => {
     res.json({ message: 'Registro excluído do histórico', record: result.rows[0] });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== ACOLHIMENTO WORKFLOW ======
+
+// GET fluxo – pacientes do Acolhimento agrupados por etapa
+app.get('/api/acolhimento/fluxo', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM patients
+       WHERE setor = 'Acolhimento' AND status NOT IN ('atendido', 'desistencia')
+       ORDER BY
+         CASE WHEN risco_clinico = 'vermelho' THEN 0 WHEN risco_clinico = 'amarelo' THEN 1 ELSE 2 END ASC,
+         CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
+         created_at AT TIME ZONE 'America/Sao_Paulo' ASC`
+    );
+    const grouped = { recepcao: [], primeira_escuta: [], segunda_escuta: [] };
+    result.rows.forEach(p => {
+      const etapa = p.etapa_fluxo || 'recepcao';
+      if (grouped[etapa]) grouped[etapa].push(p);
+    });
+    res.json(grouped);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET relatório do acolhimento
+app.get('/api/acolhimento/relatorio', async (req, res) => {
+  try {
+    // Finalizados hoje
+    const finalizados = await pool.query(
+      `SELECT * FROM call_history
+       WHERE setor = 'Acolhimento'
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`
+    );
+    // Ativos agora
+    const ativos = await pool.query(
+      `SELECT etapa_fluxo, risco_clinico, COUNT(*) as total
+       FROM patients
+       WHERE setor = 'Acolhimento' AND status NOT IN ('atendido', 'desistencia')
+       GROUP BY etapa_fluxo, risco_clinico`
+    );
+    // Por ACS
+    const porAcs = await pool.query(
+      `SELECT acs_responsavel, COUNT(*) as total
+       FROM patients
+       WHERE setor = 'Acolhimento' AND acs_responsavel IS NOT NULL
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       GROUP BY acs_responsavel`
+    );
+    // Por profissional destino
+    const porProf = await pool.query(
+      `SELECT profissional_destino, tipo_profissional_destino, COUNT(*) as total
+       FROM patients
+       WHERE setor = 'Acolhimento' AND profissional_destino IS NOT NULL
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       GROUP BY profissional_destino, tipo_profissional_destino`
+    );
+    // Tempo médio por etapa
+    const tempoMedio = await pool.query(
+      `SELECT
+         AVG(CASE WHEN etapa_fluxo != 'recepcao' THEN EXTRACT(EPOCH FROM (updated_at - created_at))/60 END) as avg_recepcao_min,
+         AVG(CASE WHEN etapa_fluxo = 'segunda_escuta' OR etapa_fluxo = 'finalizado' THEN EXTRACT(EPOCH FROM (updated_at - inicio_etapa))/60 END) as avg_escuta_min
+       FROM patients
+       WHERE setor = 'Acolhimento'
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
+    );
+    // Risco por cor
+    const riscoCor = await pool.query(
+      `SELECT risco_clinico, COUNT(*) as total
+       FROM patients
+       WHERE setor = 'Acolhimento' AND risco_clinico IS NOT NULL AND risco_clinico != 'verde'
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       GROUP BY risco_clinico`
+    );
+    res.json({
+      finalizados: finalizados.rows,
+      totalFinalizados: finalizados.rows.length,
+      ativos: ativos.rows,
+      porAcs: porAcs.rows,
+      porProf: porProf.rows,
+      tempoMedio: tempoMedio.rows[0] || {},
+      riscoCor: riscoCor.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT iniciar escuta – recepcao -> primeira_escuta
+app.put('/api/acolhimento/:id/iniciar-escuta', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { acs_responsavel } = req.body;
+    if (!acs_responsavel) {
+      return res.status(400).json({ error: 'Nome do ACS é obrigatório' });
+    }
+    const result = await pool.query(
+      `UPDATE patients SET etapa_fluxo = 'primeira_escuta', acs_responsavel = $2, inicio_etapa = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'recepcao' RETURNING *`,
+      [id, acs_responsavel]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado ou não está na recepção' });
+    }
+    io.emit('queueUpdate');
+    io.emit('acolhimentoUpdate');
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT encaminhar – primeira_escuta -> segunda_escuta
+app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { queixa, risco_clinico, profissional_destino, tipo_profissional_destino } = req.body;
+    if (!queixa) {
+      return res.status(400).json({ error: 'Queixa é obrigatória' });
+    }
+    const result = await pool.query(
+      `UPDATE patients SET etapa_fluxo = 'segunda_escuta', queixa = $2, risco_clinico = $3,
+       profissional_destino = $4, tipo_profissional_destino = $5, inicio_etapa = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta' RETURNING *`,
+      [id, queixa, risco_clinico || 'verde', profissional_destino || null, tipo_profissional_destino || null]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado ou não está na 1ª Escuta' });
+    }
+    const patient = result.rows[0];
+    io.emit('queueUpdate');
+    io.emit('acolhimentoUpdate');
+    // Notify professionals about second-listen patients
+    if (risco_clinico === 'vermelho') {
+      io.emit('acolhimentoUrgente', { patient, risco: risco_clinico });
+    }
+    res.json(patient);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT finalizar – segunda_escuta -> finalizado (registra no call_history)
+app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    const pResult = await client.query(
+      `SELECT * FROM patients WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'segunda_escuta'`,
+      [id]
+    );
+    if (pResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado ou não está na 2ª Escuta' });
+    }
+    const patient = pResult.rows[0];
+    // Mark as finalized
+    await client.query(
+      `UPDATE patients SET etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+    // Add to history
+    const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    await client.query(
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional)
+       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6)`,
+      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino]
+    );
+    await client.query('COMMIT');
+    io.emit('queueUpdate');
+    io.emit('acolhimentoUpdate');
+    res.json({ message: 'Atendimento finalizado', patient });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 });
 
