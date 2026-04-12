@@ -1292,6 +1292,19 @@ async function gerarRelatorioAcolhimento() {
     if (data.porProf && data.porProf.length) {
       profHtml = data.porProf.map(p => `<div>👨‍⚕️ ${p.profissional_destino} (${p.tipo_profissional_destino || '—'}): <b>${p.total}</b></div>`).join('');
     }
+
+    // Ativos por etapa
+    let ativosHtml = '';
+    if (data.ativos && data.ativos.length) {
+      const etapas = {};
+      data.ativos.forEach(a => {
+        if (!etapas[a.etapa_fluxo]) etapas[a.etapa_fluxo] = 0;
+        etapas[a.etapa_fluxo] += parseInt(a.total);
+      });
+      const labels = { recepcao: '🟢 Recep.', primeira_escuta: '🟡 1ª Esc.', segunda_escuta: '🔴 2ª Esc.' };
+      ativosHtml = Object.entries(etapas).map(([k, v]) => `${labels[k] || k}: <b>${v}</b>`).join(' · ');
+    }
+
     // Tabela detalhada de finalizados
     let finalizadosHtml = '<div style="color:var(--gray-600);text-align:center;padding:12px;">Nenhum finalizado hoje</div>';
     let countEscuta1 = 0;
