@@ -1169,6 +1169,9 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
       return res.status(404).json({ error: 'Paciente não encontrado ou não está na 2ª Escuta' });
     }
     
+    // Use data from the initial check to provide fallbacks for editing
+    const existingPatient = pResult.rows[0];
+
     // Mark as finalized and update edited fields
     const updtResult = await client.query(
       `UPDATE patients SET 
@@ -1176,7 +1179,14 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
         gravidade_final = $2, agendamento_realizado = $3,
         queixa = $4, cpf = $5, cartao_sus = $6
        WHERE id = $1 RETURNING *`,
-      [id, gravidade_final || null, agendamento_realizado || false, req.body.queixa || patient.queixa, req.body.cpf || patient.cpf, req.body.cartao_sus || patient.cartao_sus]
+      [
+        id, 
+        gravidade_final || null, 
+        agendamento_realizado || false, 
+        req.body.queixa || existingPatient.queixa, 
+        req.body.cpf || existingPatient.cpf, 
+        req.body.cartao_sus || existingPatient.cartao_sus
+      ]
     );
     const patient = updtResult.rows[0];
 
