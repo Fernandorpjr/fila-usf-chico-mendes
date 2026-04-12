@@ -1240,6 +1240,16 @@ function finalizarAtendimento(id, nome) {
   document.getElementById('acol-escuta2-modal').classList.add('show');
 }
 
+async function chamarNoPainelEscuta2() {
+  const id = document.getElementById('acol-escuta2-id').value;
+  const nome = document.getElementById('acol-escuta2-patient-info').textContent.replace('👤 ', '');
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    showToast(`🔊 Chamando ${nome} no painel...`);
+  } catch (e) { showToast('Erro ao chamar no painel', true); }
+}
+
 let selectedGravidade = 'verde';
 function selectGravidade(gravidade) {
   selectedGravidade = gravidade;

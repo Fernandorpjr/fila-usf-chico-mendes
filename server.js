@@ -1088,6 +1088,27 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
   }
 });
 
+// POST chamar – Dispara chamado no painel sem mudar status
+app.post('/api/acolhimento/:id/chamar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Paciente não encontrado' });
+    const patient = result.rows[0];
+    
+    // Formata o profissional para aparecer no painel
+    const displayPatient = { 
+      ...patient, 
+      medico: patient.profissional_destino ? `2ª Escuta (${patient.profissional_destino})` : '2ª Escuta' 
+    };
+
+    io.emit('callPatient', { patient: displayPatient, setor: 'Acolhimento', audioUrl: null });
+    res.json({ message: 'Chamado disparado' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PUT finalizar-escuta1 – Direto da 1ª Escuta para o fim
 app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
   const client = await pool.connect();
