@@ -511,6 +511,7 @@
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:20px;">
+        <button class="btn" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;" onclick="chamarNoPainel('escuta1')">🔊 Chamar no Painel</button>
         <button class="btn btn-orange" style="width:100%;padding:12px;" onclick="confirmarEncaminhamento()">📤 Encaminhar para 2ª Escuta</button>
         <button class="btn" style="width:100%;padding:12px;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;" onclick="finalizarEscuta1()">✅ Finalizar Atendimento Direto</button>
         <button class="btn" style="width:100%;padding:12px;background:#1976d2;color:white;border:none;border-radius:24px;font-weight:700;" onclick="agendarEscuta1()">📅 Finalizar e Agendar</button>
@@ -525,6 +526,22 @@
       <h3>🔴 2ª Escuta – Encerramento Clínico</h3>
       <div id="acol-escuta2-patient-info" style="margin-bottom:16px;padding:12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:15px;color:var(--gray-700);"></div>
       <input type="hidden" id="acol-escuta2-id">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div class="form-group">
+          <label style="color:var(--gray-600);">CPF</label>
+          <input type="text" id="acol-escuta2-cpf" placeholder="000.000.000-00" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;">
+        </div>
+        <div class="form-group">
+          <label style="color:var(--gray-600);">Cartão SUS</label>
+          <input type="text" id="acol-escuta2-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="color:var(--gray-600);">Queixa Principal (Edição)</label>
+        <textarea id="acol-escuta2-queixa" rows="3" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Revise a queixa..."></textarea>
+      </div>
       
       <div class="form-group" style="margin-bottom:18px;">
         <label style="color:var(--gray-600);margin-bottom:8px;">Classificação de Gravidade Final</label>
@@ -544,7 +561,7 @@
       </div>
       
       <div style="display:flex;gap:12px;">
-        <button class="btn" style="flex:1;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;padding:14px;font-size:16px;" onclick="chamarNoPainelEscuta2()">🔊 Chamar no Painel</button>
+        <button class="btn" style="flex:1;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;padding:14px;font-size:16px;" onclick="chamarNoPainel('escuta2')">🔊 Chamar no Painel</button>
         <button class="btn" style="flex:1;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;padding:14px;font-size:16px;" onclick="confirmarFinalizacaoEscuta2()">✅ Salvar e Finalizar</button>
         <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')">Cancelar</button>
       </div>

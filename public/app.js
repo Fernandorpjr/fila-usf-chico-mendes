@@ -1139,8 +1139,25 @@ function abrirModalEncaminhar(id, nome) {
   document.getElementById('acol-modal-sus').value = '';
   selectRisco('verde');
   document.getElementById('acol-modal-tipo-prof').value = '';
+  document.getElementById('acol-modal-tipo-prof').value = '';
   document.getElementById('acol-modal-prof-dest').innerHTML = '<option value="">— Opcional —</option>';
   document.getElementById('acol-escuta-modal').classList.add('show');
+}
+
+async function chamarNoPainel(source) {
+  const prefix = source === 'escuta1' ? 'acol-modal' : 'acol-escuta2';
+  const inputId = document.getElementById(`${prefix}-id`);
+  const infoEl = document.getElementById(`${prefix}-patient-info`);
+  if (!inputId || !inputId.value) { showToast('Erro: Paciente não identificado', true); return; }
+  
+  const id = inputId.value;
+  const nome = infoEl ? infoEl.textContent.replace('👤 ', '') : 'Paciente';
+  
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    showToast(`🔊 Chamando ${nome} no painel...`);
+  } catch (e) { showToast('Erro ao chamar no painel', true); }
 }
 
 function fecharEscutaModal() {
@@ -1233,22 +1250,21 @@ async function agendarEscuta1() {
 }
 
 function finalizarAtendimento(id, nome) {
+  const patient = acolhimentoFluxo.segunda_escuta?.find(p => p.id === id);
   document.getElementById('acol-escuta2-id').value = id;
   document.getElementById('acol-escuta2-patient-info').textContent = `👤 ${nome}`;
+  
+  // Pre-fill fields for editing
+  document.getElementById('acol-escuta2-queixa').value = patient?.queixa || '';
+  document.getElementById('acol-escuta2-cpf').value = patient?.cpf || '';
+  document.getElementById('acol-escuta2-sus').value = patient?.cartao_sus || '';
+  
   selectGravidade('verde');
   document.querySelector('input[name="acol-escuta2-agend"][value="false"]').checked = true;
   document.getElementById('acol-escuta2-modal').classList.add('show');
 }
 
-async function chamarNoPainelEscuta2() {
-  const id = document.getElementById('acol-escuta2-id').value;
-  const nome = document.getElementById('acol-escuta2-patient-info').textContent.replace('👤 ', '');
-  try {
-    const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, { method: 'POST' });
-    if (!r.ok) throw new Error();
-    showToast(`🔊 Chamando ${nome} no painel...`);
-  } catch (e) { showToast('Erro ao chamar no painel', true); }
-}
+
 
 let selectedGravidade = 'verde';
 function selectGravidade(gravidade) {
@@ -1261,12 +1277,20 @@ function selectGravidade(gravidade) {
 async function confirmarFinalizacaoEscuta2() {
   const id = document.getElementById('acol-escuta2-id').value;
   const agendamento = document.querySelector('input[name="acol-escuta2-agend"]:checked').value === 'true';
+  const queixa = document.getElementById('acol-escuta2-queixa').value.trim();
+  const cpf = document.getElementById('acol-escuta2-cpf').value.trim();
+  const cartao_sus = document.getElementById('acol-escuta2-sus').value.trim();
   const nome = document.getElementById('acol-escuta2-patient-info').textContent.replace('👤 ', '');
   
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gravidade_final: selectedGravidade, agendamento_realizado: agendamento })
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        gravidade_final: selectedGravidade, 
+        agendamento_realizado: agendamento,
+        queixa, cpf, cartao_sus
+      })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     document.getElementById('acol-escuta2-modal').classList.remove('show');

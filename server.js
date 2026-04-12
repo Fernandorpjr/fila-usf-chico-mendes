@@ -1169,13 +1169,14 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
       return res.status(404).json({ error: 'Paciente não encontrado ou não está na 2ª Escuta' });
     }
     
-    // Mark as finalized
+    // Mark as finalized and update edited fields
     const updtResult = await client.query(
       `UPDATE patients SET 
         etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP,
-        gravidade_final = $2, agendamento_realizado = $3
+        gravidade_final = $2, agendamento_realizado = $3,
+        queixa = $4, cpf = $5, cartao_sus = $6
        WHERE id = $1 RETURNING *`,
-      [id, gravidade_final || null, agendamento_realizado || false]
+      [id, gravidade_final || null, agendamento_realizado || false, req.body.queixa || patient.queixa, req.body.cpf || patient.cpf, req.body.cartao_sus || patient.cartao_sus]
     );
     const patient = updtResult.rows[0];
 
