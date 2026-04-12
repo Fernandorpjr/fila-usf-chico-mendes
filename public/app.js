@@ -881,7 +881,7 @@ function renderAgendamentos(list) {
         <button onclick="openWaPreview(${a.id})" title="WhatsApp">📲</button>
         <button onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar lembrete">📨</button>
         <button onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmado">✅</button>
-        <button onclick="abrirEdicaoAgendamento(${a.id}, '${nomeA}', '${telA}')" title="Editar Contato">✏️</button>
+        <button onclick="abrirEdicaoAgendamento(${a.id}, '${a.nome.replace(/'/g,"\\'").trim()}', '${a.telefone.replace(/'/g,"\\'").trim()}')" title="Editar Contato">✏️</button>
         <button onclick="updateAgendStatus(${a.id},'cancelado')" title="Cancelar">❌</button>
         <button onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" style="color:var(--red);">🗑️</button>
       </div></td></tr>`;
@@ -1292,31 +1292,30 @@ async function gerarRelatorioAcolhimento() {
     if (data.porProf && data.porProf.length) {
       profHtml = data.porProf.map(p => `<div>👨‍⚕️ ${p.profissional_destino} (${p.tipo_profissional_destino || '—'}): <b>${p.total}</b></div>`).join('');
     }
-    // Ativos por etapa
-    let ativosHtml = '';
-    if (data.ativos && data.ativos.length) {
-      const etapas = {};
-      data.ativos.forEach(a => {
-        if (!etapas[a.etapa_fluxo]) etapas[a.etapa_fluxo] = 0;
-        etapas[a.etapa_fluxo] += parseInt(a.total);
-      });
-      const labels = { recepcao: '🟢 Recepção', primeira_escuta: '🟡 1ª Escuta', segunda_escuta: '🔴 2ª Escuta' };
-      ativosHtml = Object.entries(etapas).map(([k, v]) => `${labels[k] || k}: <b>${v}</b>`).join(' · ');
-    }
-
     // Tabela detalhada de finalizados
     let finalizadosHtml = '<div style="color:var(--gray-600);text-align:center;padding:12px;">Nenhum finalizado hoje</div>';
+    let countEscuta1 = 0;
+    let countEscuta2 = 0;
+
     if (data.finalizados && data.finalizados.length) {
+      data.finalizados.forEach(f => {
+        if (f.gravidade_final) countEscuta2++;
+        else countEscuta1++;
+      });
+
       finalizadosHtml = `
-        <table style="width:100%;font-size:13px;border-collapse:collapse;text-align:left;">
-          <thead><tr style="border-bottom:2px solid var(--gray-200);background:var(--gray-100);"><th style="padding:8px;">Nome Completo</th><th style="padding:8px;">CPF</th><th style="padding:8px;">Cartão do SUS</th><th style="padding:8px;">Horário</th></tr></thead>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left;">
+          <thead><tr style="border-bottom:2px solid var(--gray-200);background:var(--gray-100);"><th style="padding:8px;">Paciente</th><th style="padding:8px;">Risco</th><th style="padding:8px;">ACS</th><th style="padding:8px;">Profissional (2ª)</th><th style="padding:8px;">Hora</th></tr></thead>
           <tbody>
-            ${data.finalizados.map(f => `<tr style="border-bottom:1px solid #efefef;">
-              <td style="padding:8px;"><b>${f.nome}</b></td>
-              <td style="padding:8px;color:var(--gray-600);">${f.cpf || 'Não inf.'}</td>
-              <td style="padding:8px;color:var(--gray-600);">${f.cartao_sus || 'Não inf.'}</td>
-              <td style="padding:8px;">${f.horario_chamada || '-'}</td>
-            </tr>`).join('')}
+            ${data.finalizados.map(f => {
+              const riscoLabel = f.gravidade_final === 'vermelho' ? '🔴 Vermelho' : f.gravidade_final === 'amarelo' ? '🟡 Amarelo' : f.gravidade_final === 'verde' ? '🟢 Verde' : '—';
+              return `<tr style="border-bottom:1px solid #efefef;">
+                <td style="padding:8px;"><b>${f.nome}</b><br><span style="font-size:10px;color:var(--gray-600);">CPF: ${f.cpf||'-'}</span></td>
+                <td style="padding:8px;">${riscoLabel}</td>
+                <td style="padding:8px;">${f.acs_responsavel||'—'}</td>
+                <td style="padding:8px;">${f.profissional||'—'}</td>
+                <td style="padding:8px;">${f.horario_chamada || '-'}</td>
+              </tr>`}).join('')}
           </tbody>
         </table>
       `;
@@ -1329,19 +1328,17 @@ async function gerarRelatorioAcolhimento() {
           <div style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;">Finalizados Hoje</div>
         </div>
         <div style="background:var(--gray-100);padding:16px;border-radius:12px;text-align:center;">
-          <div style="font-size:28px;font-weight:900;color:var(--blue);">${avgRec} / ${avgEsc}</div>
-          <div style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;">Tempo Médio Recep./Escuta (min)</div>
+          <div style="font-size:18px;font-weight:900;color:var(--blue-dark);">${countEscuta1} 1ª Esc. / ${countEscuta2} 2ª Esc.</div>
+          <div style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;">Fluxo de Equipe</div>
         </div>
       </div>
-      ${ativosHtml ? `<div style="margin-bottom:16px;"><b>📊 Ativos agora:</b> ${ativosHtml}</div>` : ''}
-      ${riscoHtml ? `<div style="margin-bottom:16px;"><b>⚠️ Classificação de Risco:</b> ${riscoHtml}</div>` : ''}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;font-size:13px;">
-        <div><b>👤 ACS:</b><br>${acsHtml}</div>
-        <div><b>👨‍⚕️ Encaminhamentos:</b><br>${profHtml}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div style="background:rgba(26,79,196,0.05);padding:12px;border-radius:12px;font-size:13px;"><b>Ativos agora:</b> ${ativosHtml || '0'}</div>
+        <div style="background:rgba(142,36,170,0.05);padding:12px;border-radius:12px;font-size:13px;"><b>Tempos Médios:</b> ${avgRec}m recip. / ${avgEsc}m esc.</div>
       </div>
       <div style="border-top:2px solid var(--gray-200);padding-top:16px;">
-        <h4 style="margin-bottom:12px;color:var(--blue-dark);">📋 Relação de Pacientes Finalizados</h4>
-        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;">${finalizadosHtml}</div>
+        <h4 style="margin-bottom:12px;color:var(--blue-dark);display:flex;justify-content:space-between;">📋 Detalhamento dos Atendimentos</h4>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;">${finalizadosHtml}</div>
       </div>
     `;
     document.getElementById('acol-relatorio-modal').classList.add('show');
@@ -1377,14 +1374,15 @@ function exportarRelatorioAcolhimentoPDF() {
   
   const finalizadosData = (d.finalizados || []).map(f => [
     f.nome,
-    f.cpf || 'Não informado',
-    f.cartao_sus || 'Não informado',
+    f.gravidade_final ? f.gravidade_final.toUpperCase() : '1ª ESCUTA',
+    f.acs_responsavel || '-',
+    f.profissional || '-',
     f.horario_chamada || '-'
   ]);
 
   doc.autoTable({
     startY: currentY + 6,
-    head: [['Nome Completo', 'CPF', 'Cartão do SUS', 'Horário']],
+    head: [['Paciente', 'Risco/Etapa', 'ACS', 'Profissional', 'Horário']],
     body: finalizadosData,
     theme: 'grid',
     headStyles: { fillColor: [142,36,170] },

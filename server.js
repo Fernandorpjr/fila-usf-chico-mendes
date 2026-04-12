@@ -144,6 +144,7 @@ async function initDB() {
       { table: 'call_history', column: 'cpf', type: 'TEXT' },
       { table: 'call_history', column: 'cartao_sus', type: 'TEXT' },
       { table: 'call_history', column: 'gravidade_final', type: 'TEXT' },
+      { table: 'call_history', column: 'acs_responsavel', type: 'TEXT' },
       { table: 'call_history', column: 'agendamento_realizado', type: 'BOOLEAN DEFAULT false' },
     ];
     
@@ -1111,9 +1112,9 @@ app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
     // Add to history
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     await client.query(
-      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, agendamento_realizado)
-       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9)`,
-      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.agendamento_realizado]
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, agendamento_realizado)
+       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.agendamento_realizado]
     );
     await client.query('COMMIT');
     io.emit('queueUpdate');
@@ -1156,9 +1157,9 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
     // Add to history
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     await client.query(
-      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, gravidade_final, agendamento_realizado)
-       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.gravidade_final, patient.agendamento_realizado]
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, gravidade_final, agendamento_realizado)
+       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.gravidade_final, patient.agendamento_realizado]
     );
     await client.query('COMMIT');
     io.emit('queueUpdate');
