@@ -15,6 +15,11 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 io.on('connection', (socket) => {
   console.log('Device connected to WebSocket');
+  io.emit('activeUsers', io.engine.clientsCount);
+  
+  socket.on('disconnect', () => {
+    io.emit('activeUsers', io.engine.clientsCount);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -840,6 +845,27 @@ app.put('/api/agendamentos/:id/status', async (req, res) => {
     const result = await pool.query(
       'UPDATE agendamentos SET status = $2 WHERE id = $1 RETURNING *',
       [id, status]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Agendamento não encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT - Editar Contato (nome e telefone) do Agendamento
+app.put('/api/agendamentos/:id/edit', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, telefone } = req.body;
+    if (!nome || !telefone) {
+      return res.status(400).json({ error: 'Nome e telefone são obrigatórios' });
+    }
+    const result = await pool.query(
+      'UPDATE agendamentos SET nome = $1, telefone = $2 WHERE id = $3 RETURNING *',
+      [nome, telefone, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Agendamento não encontrado' });

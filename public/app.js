@@ -881,6 +881,7 @@ function renderAgendamentos(list) {
         <button onclick="openWaPreview(${a.id})" title="WhatsApp">📲</button>
         <button onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar lembrete">📨</button>
         <button onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmado">✅</button>
+        <button onclick="abrirEdicaoAgendamento(${a.id}, '${nomeA}', '${telA}')" title="Editar Contato">✏️</button>
         <button onclick="updateAgendStatus(${a.id},'cancelado')" title="Cancelar">❌</button>
         <button onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" style="color:var(--red);">🗑️</button>
       </div></td></tr>`;
@@ -921,6 +922,39 @@ async function openWaPreview(id) {
 }
 
 function closeWaModal() { document.getElementById('wa-modal').classList.remove('show'); }
+
+// Edição de Contato do Agendamento
+function abrirEdicaoAgendamento(id, nome, telefone) {
+  document.getElementById('edit-agend-id').value = id;
+  document.getElementById('edit-agend-nome').value = nome;
+  document.getElementById('edit-agend-telefone').value = telefone;
+  document.getElementById('agend-edit-modal').classList.add('show');
+}
+
+function closeAgendEditModal() {
+  document.getElementById('agend-edit-modal').classList.remove('show');
+}
+
+async function salvarEdicaoAgendamento() {
+  const id = document.getElementById('edit-agend-id').value;
+  const nome = document.getElementById('edit-agend-nome').value.trim();
+  const telefone = document.getElementById('edit-agend-telefone').value.trim();
+  if (!nome || !telefone) { showToast('Preencha nome e telefone!', true); return; }
+  
+  try {
+    const r = await fetch(`${API_URL}/agendamentos/${id}/edit`, { 
+      method: 'PUT', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ nome, telefone }) 
+    });
+    if (!r.ok) throw new Error();
+    showToast('✅ Contato atualizado com sucesso!');
+    closeAgendEditModal();
+    loadAgendamentos();
+  } catch {
+    showToast('Erro ao atualizar contato!', true);
+  }
+}
 
 // ====== PDF ======
 function generatePDF() {

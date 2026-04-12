@@ -742,6 +742,24 @@
     </div>
   </div>
 
+  <!-- Agendamento Edit Modal -->
+  <div class="wa-modal-overlay" id="agend-edit-modal">
+    <div class="wa-modal">
+      <h3>✏️ Editar Contato do Paciente</h3>
+      <input type="hidden" id="edit-agend-id">
+      <div class="form-group" style="margin-bottom:12px;text-align:left;">
+        <label>Nome do Paciente</label>
+        <input type="text" id="edit-agend-nome" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+      </div>
+      <div class="form-group" style="margin-bottom:16px;text-align:left;">
+        <label>Telefone do Paciente</label>
+        <input type="text" id="edit-agend-telefone" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+      </div>
+      <button class="btn btn-green" style="width:100%;margin-bottom:12px;" onclick="salvarEdicaoAgendamento()">💾 Salvar Alterações</button>
+      <button class="btn btn-ghost" style="width:100%;" onclick="closeAgendEditModal()">Cancelar</button>
+    </div>
+  </div>
+
   <!-- ============ ATENDIDOS ============ -->
   <div class="screen" id="screen-atendidos">
     <div class="page-title"><div class="icon" style="background:rgba(74,171,60,0.2);">✅</div> Pacientes Atendidos</div>
