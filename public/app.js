@@ -787,22 +787,7 @@ function renderChat() { renderChannelChat(); }
 async function sendChatMessage() { await sendChatChannelMessage(); }
 
 // ====== INACTIVITY CHECK ======
-function checkInactivity() {
-  const now = new Date();
-  SETORES.forEach(setor => {
-    (queues[setor] || []).forEach(p => {
-      if (p.status !== 'aguardando' || alertedPatients.has(p.id)) return;
-      const diff = (now - safeDate(p.created_at)) / 60000;
-      if (diff >= 20) {
-        alertedPatients.add(p.id);
-        fetch(`${API_URL}/chat/canais/geral`, { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ autor:'🤖 Sistema', texto:`⚠️ ALERTA: ${p.nome} aguarda há ${Math.round(diff)} min na fila de ${setor}`, urgente:true })
-        }).catch(()=>{});
-      }
-    });
-  });
-}
-// setInterval(checkInactivity, 60000); // 🤖 Mensagens automáticas desativadas a pedido do cliente
+// 🤖 Mensagens automáticas desativadas a pedido do cliente
 
 // ====== AGENDAMENTOS ======
 const WA_TEMPLATES = {
@@ -976,9 +961,20 @@ let selectedRisco = 'verde';
 
 async function loadAcolhimentoFluxo() {
   try {
-    const r = await fetch(`${API_URL}/acolhimento/fluxo`);
-    acolhimentoFluxo = await r.json();
+    const [rFluxo, rStat] = await Promise.all([
+      fetch(`${API_URL}/acolhimento/fluxo`),
+      fetch(`${API_URL}/acolhimento/relatorio`)
+    ]);
+    acolhimentoFluxo = await rFluxo.json();
     renderAcolhimentoFluxo();
+    
+    if (rStat.ok) {
+      const stats = await rStat.json();
+      const elAtendidos = document.getElementById('acol-stat-atendidos');
+      if (elAtendidos) {
+        elAtendidos.textContent = (stats.totalResult && stats.totalResult.length) ? stats.totalResult[0].total_finalizados : 0;
+      }
+    }
   } catch (e) { console.error('Acolhimento fluxo error:', e); }
 }
 
@@ -1009,10 +1005,12 @@ function renderAcolhimentoFluxo() {
       col.style.display = 'none';
     }
   });
-  // Badge
+  // Badge and Stats
   const totalAcol = (acolhimentoFluxo.recepcao?.length || 0) + (acolhimentoFluxo.primeira_escuta?.length || 0) + (acolhimentoFluxo.segunda_escuta?.length || 0);
   const badge = document.getElementById('badge-acolhimento');
   if (badge) badge.textContent = totalAcol;
+  const statAtivos = document.getElementById('acol-stat-ativos');
+  if (statAtivos) statAtivos.textContent = totalAcol;
 }
 
 function renderAcolhimentoEtapa(etapa, pacientes) {

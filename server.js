@@ -1036,8 +1036,17 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
       return res.status(404).json({ error: 'Paciente não encontrado ou não está na 1ª Escuta' });
     }
     const patient = result.rows[0];
+    // Formata o profissional para aparecer no painel
+    patient.profissional = patient.profissional_destino ? `2ª Escuta (${patient.profissional_destino})` : '2ª Escuta';
+    
     io.emit('queueUpdate');
     io.emit('acolhimentoUpdate');
+    
+    // Auto call to TV immediately on transition
+    setTimeout(() => {
+      io.emit('callPatient', { patient, setor: 'Acolhimento', audioUrl: null });
+    }, 100);
+
     // Notify professionals about second-listen patients
     if (risco_clinico === 'vermelho') {
       io.emit('acolhimentoUrgente', { patient, risco: risco_clinico });
