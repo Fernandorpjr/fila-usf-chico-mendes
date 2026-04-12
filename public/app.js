@@ -1266,10 +1266,14 @@ async function confirmarFinalizacaoEscuta2() {
   } catch (e) { showToast(e.message || 'Erro ao finalizar', true); }
 }
 
+let lastAcolhimentoReportData = null;
+
 async function gerarRelatorioAcolhimento() {
   try {
     const r = await fetch(`${API_URL}/acolhimento/relatorio`);
     const data = await r.json();
+    lastAcolhimentoReportData = data;
+    
     const el = document.getElementById('acol-relatorio-content');
     const avgRec = data.tempoMedio?.avg_recepcao_min ? Math.round(data.tempoMedio.avg_recepcao_min) : '—';
     const avgEsc = data.tempoMedio?.avg_escuta_min ? Math.round(data.tempoMedio.avg_escuta_min) : '—';
@@ -1300,6 +1304,24 @@ async function gerarRelatorioAcolhimento() {
       ativosHtml = Object.entries(etapas).map(([k, v]) => `${labels[k] || k}: <b>${v}</b>`).join(' · ');
     }
 
+    // Tabela detalhada de finalizados
+    let finalizadosHtml = '<div style="color:var(--gray-600);text-align:center;padding:12px;">Nenhum finalizado hoje</div>';
+    if (data.finalizados && data.finalizados.length) {
+      finalizadosHtml = `
+        <table style="width:100%;font-size:13px;border-collapse:collapse;text-align:left;">
+          <thead><tr style="border-bottom:2px solid var(--gray-200);background:var(--gray-100);"><th style="padding:8px;">Nome Completo</th><th style="padding:8px;">CPF</th><th style="padding:8px;">Cartão do SUS</th><th style="padding:8px;">Horário</th></tr></thead>
+          <tbody>
+            ${data.finalizados.map(f => `<tr style="border-bottom:1px solid #efefef;">
+              <td style="padding:8px;"><b>${f.nome}</b></td>
+              <td style="padding:8px;color:var(--gray-600);">${f.cpf || 'Não inf.'}</td>
+              <td style="padding:8px;color:var(--gray-600);">${f.cartao_sus || 'Não inf.'}</td>
+              <td style="padding:8px;">${f.horario_chamada || '-'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
     el.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
         <div style="background:var(--gray-100);padding:16px;border-radius:12px;text-align:center;">
@@ -1313,8 +1335,14 @@ async function gerarRelatorioAcolhimento() {
       </div>
       ${ativosHtml ? `<div style="margin-bottom:16px;"><b>📊 Ativos agora:</b> ${ativosHtml}</div>` : ''}
       ${riscoHtml ? `<div style="margin-bottom:16px;"><b>⚠️ Classificação de Risco:</b> ${riscoHtml}</div>` : ''}
-      <div style="margin-bottom:16px;"><b>👤 Atendimentos por ACS:</b>${acsHtml}</div>
-      <div style="margin-bottom:16px;"><b>👨‍⚕️ Encaminhamentos por Profissional:</b>${profHtml}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;font-size:13px;">
+        <div><b>👤 ACS:</b><br>${acsHtml}</div>
+        <div><b>👨‍⚕️ Encaminhamentos:</b><br>${profHtml}</div>
+      </div>
+      <div style="border-top:2px solid var(--gray-200);padding-top:16px;">
+        <h4 style="margin-bottom:12px;color:var(--blue-dark);">📋 Relação de Pacientes Finalizados</h4>
+        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;">${finalizadosHtml}</div>
+      </div>
     `;
     document.getElementById('acol-relatorio-modal').classList.add('show');
   } catch (e) { showToast('Erro ao gerar relatório', true); console.error(e); }
@@ -1322,20 +1350,49 @@ async function gerarRelatorioAcolhimento() {
 
 function exportarRelatorioAcolhimentoPDF() {
   if (!window.jspdf || !window.jspdf.jsPDF) { showToast('Carregando biblioteca PDF...', true); return; }
+  if (!lastAcolhimentoReportData) { showToast('Carregue o relatório primeiro!', true); return; }
+  
+  const d = lastAcolhimentoReportData;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
+  
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('Relatório de Acolhimento', 105, 20, { align: 'center' });
+  doc.text('Relatório de Acolhimento Diário', 105, 20, { align: 'center' });
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
   doc.text(`USF Chico Mendes | ${new Date().toLocaleDateString('pt-BR')}`, 105, 28, { align: 'center' });
-  // Content from DOM
-  const content = document.getElementById('acol-relatorio-content')?.innerText || 'Sem dados';
-  const lines = doc.splitTextToSize(content, 170);
-  doc.text(lines, 20, 42);
-  doc.save(`acolhimento_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
-  showToast('✅ PDF do Acolhimento gerado!');
+  
+  doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text('Resumo Diário', 14, 40);
+  doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+  doc.text(`Total Finalizados: ${d.totalFinalizados}`, 14, 50);
+  
+  const avgRec = d.tempoMedio?.avg_recepcao_min ? Math.round(d.tempoMedio.avg_recepcao_min) : '-';
+  const avgEsc = d.tempoMedio?.avg_escuta_min ? Math.round(d.tempoMedio.avg_escuta_min) : '-';
+  doc.text(`Tempo Médio (Recepção / Escuta): ${avgRec} / ${avgEsc} min`, 14, 57);
+  
+  let currentY = 70;
+  doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+  doc.text('Relação de Pacientes (Finalizados)', 14, currentY);
+  
+  const finalizadosData = (d.finalizados || []).map(f => [
+    f.nome,
+    f.cpf || 'Não informado',
+    f.cartao_sus || 'Não informado',
+    f.horario_chamada || '-'
+  ]);
+
+  doc.autoTable({
+    startY: currentY + 6,
+    head: [['Nome Completo', 'CPF', 'Cartão do SUS', 'Horário']],
+    body: finalizadosData,
+    theme: 'grid',
+    headStyles: { fillColor: [142,36,170] },
+    alternateRowStyles: { fillColor: [248,240,255] }
+  });
+
+  doc.save(`acolhimento_relatorio_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+  showToast('✅ PDF do Acolhimento gerado com sucesso!');
 }
 
 // ====== INIT ======
