@@ -132,6 +132,14 @@ async function initDB() {
       { table: 'patients', column: 'profissional_destino', type: 'TEXT' },
       { table: 'patients', column: 'tipo_profissional_destino', type: 'TEXT' },
       { table: 'patients', column: 'inicio_etapa', type: 'TIMESTAMPTZ' },
+      { table: 'patients', column: 'cpf', type: 'TEXT' },
+      { table: 'patients', column: 'cartao_sus', type: 'TEXT' },
+      { table: 'patients', column: 'gravidade_final', type: 'TEXT' },
+      { table: 'patients', column: 'agendamento_realizado', type: 'BOOLEAN DEFAULT false' },
+      { table: 'call_history', column: 'cpf', type: 'TEXT' },
+      { table: 'call_history', column: 'cartao_sus', type: 'TEXT' },
+      { table: 'call_history', column: 'gravidade_final', type: 'TEXT' },
+      { table: 'call_history', column: 'agendamento_realizado', type: 'BOOLEAN DEFAULT false' },
     ];
     
     for (const col of columns) {
@@ -1014,15 +1022,15 @@ app.put('/api/acolhimento/:id/iniciar-escuta', async (req, res) => {
 app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
   try {
     const { id } = req.params;
-    const { queixa, risco_clinico, profissional_destino, tipo_profissional_destino } = req.body;
+    const { queixa, risco_clinico, profissional_destino, tipo_profissional_destino, cpf, cartao_sus } = req.body;
     if (!queixa) {
       return res.status(400).json({ error: 'Queixa é obrigatória' });
     }
     const result = await pool.query(
       `UPDATE patients SET etapa_fluxo = 'segunda_escuta', queixa = $2, risco_clinico = $3,
-       profissional_destino = $4, tipo_profissional_destino = $5, inicio_etapa = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       profissional_destino = $4, tipo_profissional_destino = $5, cpf = $6, cartao_sus = $7, inicio_etapa = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta' RETURNING *`,
-      [id, queixa, risco_clinico || 'verde', profissional_destino || null, tipo_profissional_destino || null]
+      [id, queixa, risco_clinico || 'verde', profissional_destino || null, tipo_profissional_destino || null, cpf || null, cartao_sus || null]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Paciente não encontrado ou não está na 1ª Escuta' });
@@ -1040,11 +1048,56 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
   }
 });
 
+// PUT finalizar-escuta1 – Direto da 1ª Escuta para o fim
+app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { queixa, cpf, cartao_sus, agendamento_realizado } = req.body;
+    await client.query('BEGIN');
+    const pResult = await client.query(
+      `SELECT * FROM patients WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta'`, [id]
+    );
+    if (pResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado na 1ª Escuta' });
+    }
+    
+    // Atualiza patient e finaliza
+    const updtResult = await client.query(
+      `UPDATE patients SET 
+        etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP,
+        queixa = $2, cpf = $3, cartao_sus = $4, agendamento_realizado = $5
+       WHERE id = $1 RETURNING *`,
+      [id, queixa || null, cpf || null, cartao_sus || null, agendamento_realizado || false]
+    );
+    const patient = updtResult.rows[0];
+
+    // Add to history
+    const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    await client.query(
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, agendamento_realizado)
+       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9)`,
+      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.agendamento_realizado]
+    );
+    await client.query('COMMIT');
+    io.emit('queueUpdate');
+    io.emit('acolhimentoUpdate');
+    res.json({ message: 'Atendimento finalizado na 1ª Escuta', patient });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // PUT finalizar – segunda_escuta -> finalizado (registra no call_history)
 app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
+    const { gravidade_final, agendamento_realizado } = req.body;
     await client.query('BEGIN');
     const pResult = await client.query(
       `SELECT * FROM patients WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'segunda_escuta'`,
@@ -1054,18 +1107,23 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Paciente não encontrado ou não está na 2ª Escuta' });
     }
-    const patient = pResult.rows[0];
+    
     // Mark as finalized
-    await client.query(
-      `UPDATE patients SET etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [id]
+    const updtResult = await client.query(
+      `UPDATE patients SET 
+        etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP,
+        gravidade_final = $2, agendamento_realizado = $3
+       WHERE id = $1 RETURNING *`,
+      [id, gravidade_final || null, agendamento_realizado || false]
     );
+    const patient = updtResult.rows[0];
+
     // Add to history
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     await client.query(
-      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional)
-       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6)`,
-      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino]
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, gravidade_final, agendamento_realizado)
+       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.gravidade_final, patient.agendamento_realizado]
     );
     await client.query('COMMIT');
     io.emit('queueUpdate');

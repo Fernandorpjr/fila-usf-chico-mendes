@@ -1103,6 +1103,8 @@ function abrirModalEncaminhar(id, nome) {
   document.getElementById('acol-modal-id').value = id;
   document.getElementById('acol-modal-patient-info').textContent = `👤 ${nome}`;
   document.getElementById('acol-modal-queixa').value = '';
+  document.getElementById('acol-modal-cpf').value = '';
+  document.getElementById('acol-modal-sus').value = '';
   selectRisco('verde');
   document.getElementById('acol-modal-tipo-prof').value = '';
   document.getElementById('acol-modal-prof-dest').innerHTML = '<option value="">— Opcional —</option>';
@@ -1138,13 +1140,15 @@ function updateAcolProfDest() {
 async function confirmarEncaminhamento() {
   const id = document.getElementById('acol-modal-id').value;
   const queixa = document.getElementById('acol-modal-queixa').value.trim();
+  const cpf = document.getElementById('acol-modal-cpf').value.trim();
+  const cartao_sus = document.getElementById('acol-modal-sus').value.trim();
   const profissional_destino = document.getElementById('acol-modal-prof-dest').value || null;
   const tipo_profissional_destino = document.getElementById('acol-modal-tipo-prof').value || null;
   if (!queixa) { showToast('Preencha a queixa!', true); return; }
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/encaminhar`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ queixa, risco_clinico: selectedRisco, profissional_destino, tipo_profissional_destino })
+      body: JSON.stringify({ queixa, risco_clinico: selectedRisco, profissional_destino, tipo_profissional_destino, cpf, cartao_sus })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     fecharEscutaModal();
@@ -1154,17 +1158,79 @@ async function confirmarEncaminhamento() {
   } catch (e) { showToast(e.message || 'Erro ao encaminhar', true); }
 }
 
-async function finalizarAtendimento(id, nome) {
-  if (!confirm(`✅ Finalizar atendimento de "${nome}"?\n\nO paciente será marcado como atendido.`)) return;
+async function finalizarEscuta1() {
+  const id = document.getElementById('acol-modal-id').value;
+  const queixa = document.getElementById('acol-modal-queixa').value.trim();
+  const cpf = document.getElementById('acol-modal-cpf').value.trim();
+  const cartao_sus = document.getElementById('acol-modal-sus').value.trim();
+  
   try {
-    const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }
+    const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar-escuta1`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queixa, cpf, cartao_sus })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    fecharEscutaModal();
+    showToast(`✅ Atendimento finalizado na 1ª Escuta`);
+    loadAcolhimentoFluxo();
+    loadHistory(); loadAttended();
+  } catch (e) { showToast(e.message || 'Erro ao finalizar', true); }
+}
+
+async function agendarEscuta1() {
+  const id = document.getElementById('acol-modal-id').value;
+  const queixa = document.getElementById('acol-modal-queixa').value.trim();
+  const cpf = document.getElementById('acol-modal-cpf').value.trim();
+  const cartao_sus = document.getElementById('acol-modal-sus').value.trim();
+  const nome = document.getElementById('acol-modal-patient-info').textContent.replace('👤 ', '');
+
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar-escuta1`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queixa, cpf, cartao_sus, agendamento_realizado: true })
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    fecharEscutaModal();
+    showToast(`📅 Paciente finalizado para agendamento!`);
+    loadAcolhimentoFluxo(); loadHistory(); loadAttended();
+    
+    showScreen('agendamentos');
+    const nomeInput = document.getElementById('agend-nome');
+    if(nomeInput) { nomeInput.value = nome; nomeInput.focus(); }
+  } catch (e) { showToast(e.message || 'Erro ao agendar/finalizar', true); }
+}
+
+function finalizarAtendimento(id, nome) {
+  document.getElementById('acol-escuta2-id').value = id;
+  document.getElementById('acol-escuta2-patient-info').textContent = `👤 ${nome}`;
+  selectGravidade('verde');
+  document.querySelector('input[name="acol-escuta2-agend"][value="false"]').checked = true;
+  document.getElementById('acol-escuta2-modal').classList.add('show');
+}
+
+let selectedGravidade = 'verde';
+function selectGravidade(gravidade) {
+  selectedGravidade = gravidade;
+  document.querySelectorAll('#acol-gravidade-chooser .acol-risco-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.gravidade === gravidade);
+  });
+}
+
+async function confirmarFinalizacaoEscuta2() {
+  const id = document.getElementById('acol-escuta2-id').value;
+  const agendamento = document.querySelector('input[name="acol-escuta2-agend"]:checked').value === 'true';
+  const nome = document.getElementById('acol-escuta2-patient-info').textContent.replace('👤 ', '');
+  
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gravidade_final: selectedGravidade, agendamento_realizado: agendamento })
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    document.getElementById('acol-escuta2-modal').classList.remove('show');
     showToast(`✅ Atendimento de ${nome} finalizado!`);
     loadAcolhimentoFluxo();
-    loadHistory();
-    loadAttended();
+    loadHistory(); loadAttended();
   } catch (e) { showToast(e.message || 'Erro ao finalizar', true); }
 }
 

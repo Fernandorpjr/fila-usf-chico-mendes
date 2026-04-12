@@ -318,7 +318,7 @@
   <button class="nav-tab" onclick="showScreen('enfermagem')" id="tab-enfermagem">👩‍⚕️ Enfermagem <span class="tab-badge" style="background:var(--teal);" id="badge-enfermagem">0</span></button>
   <button class="nav-tab" onclick="showScreen('odontologia')" id="tab-odontologia">🦷 Odontologia <span class="tab-badge" style="background:var(--pink);" id="badge-odontologia">0</span></button>
   <button class="nav-tab" onclick="showScreen('chat')" id="tab-chat">💬 Chat <span class="tab-badge badge-pulse" style="background:var(--red);display:none;" id="badge-chat">0</span></button>
-  <button class="nav-tab admin-only" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
+  <button class="nav-tab" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
   <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
@@ -465,6 +465,16 @@
       <h3>🟡 1ª Escuta – Encaminhar Paciente</h3>
       <div id="acol-modal-patient-info" style="margin-bottom:16px;padding:12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:15px;color:var(--gray-700);"></div>
       <input type="hidden" id="acol-modal-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div class="form-group">
+          <label style="color:var(--gray-600);">CPF (Opcional)</label>
+          <input type="text" id="acol-modal-cpf" placeholder="000.000.000-00" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;">
+        </div>
+        <div class="form-group">
+          <label style="color:var(--gray-600);">Cartão SUS (Opcional)</label>
+          <input type="text" id="acol-modal-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;">
+        </div>
+      </div>
       <div class="form-group" style="margin-bottom:14px;">
         <label style="color:var(--gray-600);">Queixa Principal</label>
         <textarea id="acol-modal-queixa" rows="3" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Descreva a queixa do paciente..."></textarea>
@@ -494,9 +504,42 @@
           </select>
         </div>
       </div>
-      <div style="display:flex;gap:12px;margin-top:20px;">
-        <button class="btn btn-orange" style="flex:1;" onclick="confirmarEncaminhamento()">📤 Encaminhar para 2ª Escuta</button>
-        <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="fecharEscutaModal()">Cancelar</button>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:20px;">
+        <button class="btn btn-orange" style="width:100%;padding:12px;" onclick="confirmarEncaminhamento()">📤 Encaminhar para 2ª Escuta</button>
+        <button class="btn" style="width:100%;padding:12px;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;" onclick="finalizarEscuta1()">✅ Finalizar Atendimento Direto</button>
+        <button class="btn" style="width:100%;padding:12px;background:#1976d2;color:white;border:none;border-radius:24px;font-weight:700;" onclick="agendarEscuta1()">📅 Finalizar e Agendar</button>
+        <button class="btn btn-ghost" style="width:100%;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="fecharEscutaModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 2ª Escuta (Encerramento/Classificação) -->
+  <div class="acol-modal-overlay" id="acol-escuta2-modal">
+    <div class="acol-modal">
+      <h3>🔴 2ª Escuta – Encerramento Clínico</h3>
+      <div id="acol-escuta2-patient-info" style="margin-bottom:16px;padding:12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:15px;color:var(--gray-700);"></div>
+      <input type="hidden" id="acol-escuta2-id">
+      
+      <div class="form-group" style="margin-bottom:18px;">
+        <label style="color:var(--gray-600);margin-bottom:8px;">Classificação de Gravidade Final</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-gravidade-chooser">
+          <button type="button" class="acol-risco-btn" data-gravidade="verde" onclick="selectGravidade('verde')">🟢 Verde (Baixa Gravidade)</button>
+          <button type="button" class="acol-risco-btn" data-gravidade="amarelo" onclick="selectGravidade('amarelo')">🟡 Amarelo (Moderado)</button>
+          <button type="button" class="acol-risco-btn" data-gravidade="vermelho" onclick="selectGravidade('vermelho')">🔴 Vermelho (Alta/Crítico)</button>
+        </div>
+      </div>
+      
+      <div class="form-group" style="margin-bottom:24px;">
+        <label style="color:var(--gray-600);margin-bottom:8px;">Status de Agendamento Realizado?</label>
+        <div style="display:flex;gap:16px;background:var(--gray-100);padding:14px;border-radius:10px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;"><input type="radio" name="acol-escuta2-agend" value="true" style="transform:scale(1.2);"> Sim</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;"><input type="radio" name="acol-escuta2-agend" value="false" checked style="transform:scale(1.2);"> Não</label>
+        </div>
+      </div>
+      
+      <div style="display:flex;gap:12px;">
+        <button class="btn" style="flex:1;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;padding:14px;font-size:16px;" onclick="confirmarFinalizacaoEscuta2()">✅ Salvar e Finalizar</button>
+        <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')">Cancelar</button>
       </div>
     </div>
   </div>
