@@ -1071,7 +1071,11 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
     
     // Auto call to TV immediately on transition
     setTimeout(() => {
-      io.emit('callPatient', { patient, setor: 'Acolhimento', audioUrl: null });
+      io.emit('callPatient', { 
+        patient: { ...patient, medico: patient.profissional }, 
+        setor: 'Acolhimento', 
+        audioUrl: null 
+      });
     }, 100);
 
     // Notify professionals about second-listen patients

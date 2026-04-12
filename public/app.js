@@ -1420,7 +1420,11 @@ setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAtten
 setInterval(() => { loadAllChannels(); }, 8000);
 
 socket.on('queueUpdate', () => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); });
-socket.on('callPatient', (d) => { speak(d.patient.nome, d.setor, d.audioUrl, d.patient.medico); loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); });
+socket.on('callPatient', (d) => { 
+  const prof = d.patient.medico || d.patient.profissional;
+  speak(d.patient.nome, d.setor, d.audioUrl, prof); 
+  loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); 
+});
 socket.on('acolhimentoUpdate', () => { loadAcolhimentoFluxo(); });
 socket.on('acolhimentoUrgente', (data) => {
   const p = data.patient;
