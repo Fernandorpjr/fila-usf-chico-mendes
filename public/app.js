@@ -1205,10 +1205,23 @@ async function chamarNoPainel(source) {
   const id = inputId.value;
   const nome = infoEl ? infoEl.textContent.replace('👤 ', '') : 'Paciente';
   
+  // Determinar destino para a voz
+  let destino = 'Acolhimento';
+  if (source === 'escuta1') {
+    destino = '1ª Escuta do Acolhimento';
+  } else {
+    // 2ª Escuta – tenta pegar profissional destino
+    const profEl = document.getElementById('acol-escuta2-patient-info');
+    const patient = acolhimentoFluxo.segunda_escuta?.find(p => p.id == id);
+    destino = patient?.profissional_destino ? `${patient.profissional_destino}` : '2ª Escuta do Acolhimento';
+  }
+  
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, { method: 'POST' });
     if (!r.ok) throw new Error();
     showToast(`🔊 Chamando ${nome} no painel...`);
+    // Chamar em voz alta diretamente no navegador
+    speakViaSynthesis(nome, 'Acolhimento', destino);
   } catch (e) { showToast('Erro ao chamar no painel', true); }
 }
 
