@@ -287,6 +287,25 @@
    .acol-risco-vermelho.active{background:rgba(229,57,53,0.15);color:#c62828;border-color:#e53935;}
 
    .acol-tempo-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(26,79,196,0.1);color:var(--blue);}
+
+   /* Classificação Azul */
+   .acol-risco-azul.active{background:rgba(33,150,243,0.15);color:#1565c0;border-color:#2196f3;}
+   .acol-risco-badge.azul{background:rgba(33,150,243,0.15);color:#1565c0;}
+
+   /* Condições Especiais Badges */
+   .cond-badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;display:inline-block;margin-left:4px;letter-spacing:0.3px;}
+   .cond-hipertenso{background:rgba(33,150,243,0.15);color:#1565c0;}
+   .cond-diabetico{background:rgba(244,130,30,0.15);color:#e65100;}
+   .cond-gestante{background:rgba(142,36,170,0.15);color:#7b1fa2;}
+
+   /* Chat mobile toggle */
+   .chat-sidebar-toggle{display:none;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;}
+   @media(max-width:768px){
+     .chat-sidebar-toggle{display:inline-flex;align-items:center;gap:6px;}
+     .chat-layout{grid-template-columns:1fr;height:auto;}
+     .chat-sidebar{display:none;max-height:none;}
+     .chat-sidebar.open{display:flex;}
+   }
 </style>
 </head>
 <body>
@@ -388,6 +407,20 @@
             <option value="">— Selecione o profissional —</option>
           </select>
         </div>
+        <div style="margin-bottom:16px;">
+          <label style="margin-bottom:8px;display:block;">Condições Especiais</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;" id="condicoes-especiais-recepcao">
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(33,150,243,0.08);border:2px solid rgba(33,150,243,0.2);border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;color:var(--gray-700);">
+              <input type="checkbox" value="hipertenso" style="transform:scale(1.2);cursor:pointer;"> 💙 Hipertenso
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(244,130,30,0.08);border:2px solid rgba(244,130,30,0.2);border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;color:var(--gray-700);">
+              <input type="checkbox" value="diabetico" style="transform:scale(1.2);cursor:pointer;"> 🧡 Diabético
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(142,36,170,0.08);border:2px solid rgba(142,36,170,0.2);border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;color:var(--gray-700);">
+              <input type="checkbox" value="gestante" style="transform:scale(1.2);cursor:pointer;"> 💜 Gestante
+            </label>
+          </div>
+        </div>
         <button class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;" onclick="addPatient(this)">➕ Adicionar à Fila</button>
         <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--gray-200);">
           <div class="card-title" style="margin-bottom:14px;font-size:14px;">📊 Últimos Cadastrados</div>
@@ -417,6 +450,19 @@
     <div class="stats-row" style="margin-bottom:20px;margin-top:16px;">
       <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.3);"><div class="stat-icon" style="background:var(--green); color:white;">✅</div><div><div class="stat-value" id="acol-stat-atendidos" style="color:var(--green);">0</div><div class="stat-label">Atendimentos Finalizados (Hoje)</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:rgba(255,255,255,0.1);">👥</div><div><div class="stat-value" id="acol-stat-ativos">0</div><div class="stat-label">Total Ativos (Na Fila)</div></div></div>
+    </div>
+
+    <!-- Chamar Próximo banner + button -->
+    <div class="calling-banner" id="banner-acolhimento">
+      <div class="cb-icon">🔔</div>
+      <div class="cb-text"><div class="cb-label">Chamando agora</div><div class="cb-name" id="banner-name-acolhimento">—</div><div class="cb-sector">💜 Acolhimento</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="speakAgain('Acolhimento')">🔊 Repetir</button>
+    </div>
+    <div class="card" style="margin-bottom:20px;padding:16px;">
+      <div class="btn-group">
+        <button class="btn btn-purple" onclick="callNext('Acolhimento')" style="flex:1;">📢 Chamar Próximo Paciente</button>
+        <button class="btn" style="width:auto;padding:14px 20px;background:rgba(142,36,170,0.15);color:var(--purple);border:1px solid rgba(142,36,170,0.3);border-radius:10px;font-weight:800;" onclick="speakAgain('Acolhimento')">🔊 Repetir</button>
+      </div>
     </div>
 
     <!-- Filter bar -->
@@ -491,6 +537,7 @@
           <button type="button" class="acol-risco-btn acol-risco-verde active" data-risco="verde" onclick="selectRisco('verde')">🟢 Verde (Baixo)</button>
           <button type="button" class="acol-risco-btn acol-risco-amarelo" data-risco="amarelo" onclick="selectRisco('amarelo')">🟡 Amarelo (Moderado)</button>
           <button type="button" class="acol-risco-btn acol-risco-vermelho" data-risco="vermelho" onclick="selectRisco('vermelho')">🔴 Vermelho (Alto)</button>
+          <button type="button" class="acol-risco-btn acol-risco-azul" data-risco="azul" onclick="selectRisco('azul')">🟦 Azul (Sem Risco / Exames)</button>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
@@ -510,7 +557,23 @@
           </select>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:20px;">
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+        <div style="margin-bottom:8px;">
+          <label style="color:var(--gray-600);margin-bottom:8px;display:block;">Condições Especiais</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="condicoes-especiais-escuta1">
+            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(33,150,243,0.08);border:2px solid rgba(33,150,243,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+              <input type="checkbox" value="hipertenso" style="transform:scale(1.1);cursor:pointer;"> 💙 Hipertenso
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(244,130,30,0.08);border:2px solid rgba(244,130,30,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+              <input type="checkbox" value="diabetico" style="transform:scale(1.1);cursor:pointer;"> 🧡 Diabético
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(142,36,170,0.08);border:2px solid rgba(142,36,170,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+              <input type="checkbox" value="gestante" style="transform:scale(1.1);cursor:pointer;"> 💜 Gestante
+            </label>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
         <button class="btn" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;" onclick="chamarNoPainel('escuta1')">🔊 Chamar no Painel</button>
         <button class="btn btn-orange" style="width:100%;padding:12px;" onclick="confirmarEncaminhamento()">📤 Encaminhar para 2ª Escuta</button>
         <button class="btn" style="width:100%;padding:12px;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;" onclick="finalizarEscuta1()">✅ Finalizar Atendimento Direto</button>
@@ -549,6 +612,7 @@
           <button type="button" class="acol-risco-btn acol-risco-verde" data-gravidade="verde" onclick="selectGravidade('verde')">🟢 Verde (Baixa Gravidade)</button>
           <button type="button" class="acol-risco-btn acol-risco-amarelo" data-gravidade="amarelo" onclick="selectGravidade('amarelo')">🟡 Amarelo (Moderado)</button>
           <button type="button" class="acol-risco-btn acol-risco-vermelho" data-gravidade="vermelho" onclick="selectGravidade('vermelho')">🔴 Vermelho (Alta/Crítico)</button>
+          <button type="button" class="acol-risco-btn acol-risco-azul" data-gravidade="azul" onclick="selectGravidade('azul')">🟦 Azul (Sem Risco / Exames)</button>
         </div>
       </div>
       
@@ -557,6 +621,21 @@
         <div style="display:flex;gap:16px;background:var(--gray-100);padding:14px;border-radius:10px;">
           <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;"><input type="radio" name="acol-escuta2-agend" value="true" style="transform:scale(1.2);"> Sim</label>
           <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;"><input type="radio" name="acol-escuta2-agend" value="false" checked style="transform:scale(1.2);"> Não</label>
+        </div>
+      </div>
+      
+      <div style="margin-bottom:14px;">
+        <label style="color:var(--gray-600);margin-bottom:8px;display:block;">Condições Especiais</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="condicoes-especiais-escuta2">
+          <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(33,150,243,0.08);border:2px solid rgba(33,150,243,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+            <input type="checkbox" value="hipertenso" style="transform:scale(1.1);cursor:pointer;"> 💙 Hipertenso
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(244,130,30,0.08);border:2px solid rgba(244,130,30,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+            <input type="checkbox" value="diabetico" style="transform:scale(1.1);cursor:pointer;"> 🧡 Diabético
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(142,36,170,0.08);border:2px solid rgba(142,36,170,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+            <input type="checkbox" value="gestante" style="transform:scale(1.1);cursor:pointer;"> 💜 Gestante
+          </label>
         </div>
       </div>
       
@@ -653,7 +732,8 @@
       <div><div class="sector-page-title">Chat Interno USF</div><div class="sector-page-sub">Comunicação por canais entre os setores da unidade</div></div>
     </div>
     <div class="chat-layout">
-      <div class="chat-sidebar">
+      <button class="chat-sidebar-toggle" onclick="toggleChatSidebar()">☰ Canais</button>
+      <div class="chat-sidebar" id="chat-sidebar">
         <div class="chat-sidebar-header"><h3>💬 Canais</h3></div>
         <div class="chat-canal-list" id="chat-canal-list"></div>
         <div class="chat-setor-select">

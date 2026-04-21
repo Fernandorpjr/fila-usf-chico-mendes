@@ -141,11 +141,15 @@ async function initDB() {
       { table: 'patients', column: 'cartao_sus', type: 'TEXT' },
       { table: 'patients', column: 'gravidade_final', type: 'TEXT' },
       { table: 'patients', column: 'agendamento_realizado', type: 'BOOLEAN DEFAULT false' },
+      { table: 'patients', column: 'condicoes_especiais', type: 'TEXT' },
       { table: 'call_history', column: 'cpf', type: 'TEXT' },
       { table: 'call_history', column: 'cartao_sus', type: 'TEXT' },
       { table: 'call_history', column: 'gravidade_final', type: 'TEXT' },
       { table: 'call_history', column: 'acs_responsavel', type: 'TEXT' },
       { table: 'call_history', column: 'agendamento_realizado', type: 'BOOLEAN DEFAULT false' },
+      { table: 'call_history', column: 'condicoes_especiais', type: 'TEXT' },
+      { table: 'call_history', column: 'queixa', type: 'TEXT' },
+      { table: 'call_history', column: 'risco_clinico', type: 'TEXT' },
     ];
     
     for (const col of columns) {
@@ -218,7 +222,7 @@ app.get('/api/queues', async (req, res) => {
 // Add patient
 app.post('/api/patients', async (req, res) => {
   try {
-    const { nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional } = req.body;
+    const { nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais } = req.body;
 
     if (!nome || !setor) {
       return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
@@ -227,9 +231,9 @@ app.post('/api/patients', async (req, res) => {
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
     const result = await pool.query(
-      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento, profissional, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP) RETURNING *`,
-      [nome, setor, horario, 'aguardando', prioridade || 'geral', tipo_prioridade || null, tipo_atendimento || null, profissional || null]
+      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP) RETURNING *`,
+      [nome, setor, horario, 'aguardando', prioridade || 'geral', tipo_prioridade || null, tipo_atendimento || null, profissional || null, condicoes_especiais || null]
     );
 
     io.emit('queueUpdate');
@@ -942,7 +946,7 @@ app.get('/api/acolhimento/fluxo', async (req, res) => {
       `SELECT * FROM patients
        WHERE setor = 'Acolhimento' AND status NOT IN ('atendido', 'desistencia')
        ORDER BY
-         CASE WHEN risco_clinico = 'vermelho' THEN 0 WHEN risco_clinico = 'amarelo' THEN 1 ELSE 2 END ASC,
+         CASE WHEN risco_clinico = 'vermelho' THEN 0 WHEN risco_clinico = 'amarelo' THEN 1 WHEN risco_clinico = 'verde' THEN 2 WHEN risco_clinico = 'azul' THEN 3 ELSE 2 END ASC,
          CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
          created_at AT TIME ZONE 'America/Sao_Paulo' ASC`
     );
@@ -999,11 +1003,11 @@ app.get('/api/acolhimento/relatorio', async (req, res) => {
        WHERE setor = 'Acolhimento'
        AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
     );
-    // Risco por cor
+    // Risco por cor (include all non-green/non-null)
     const riscoCor = await pool.query(
       `SELECT risco_clinico, COUNT(*) as total
        FROM patients
-       WHERE setor = 'Acolhimento' AND risco_clinico IS NOT NULL AND risco_clinico != 'verde'
+       WHERE setor = 'Acolhimento' AND risco_clinico IS NOT NULL
        AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
        GROUP BY risco_clinico`
     );
@@ -1049,15 +1053,15 @@ app.put('/api/acolhimento/:id/iniciar-escuta', async (req, res) => {
 app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
   try {
     const { id } = req.params;
-    const { queixa, risco_clinico, profissional_destino, tipo_profissional_destino, cpf, cartao_sus } = req.body;
+    const { queixa, risco_clinico, profissional_destino, tipo_profissional_destino, cpf, cartao_sus, condicoes_especiais } = req.body;
     if (!queixa) {
       return res.status(400).json({ error: 'Queixa é obrigatória' });
     }
     const result = await pool.query(
       `UPDATE patients SET etapa_fluxo = 'segunda_escuta', queixa = $2, risco_clinico = $3,
-       profissional_destino = $4, tipo_profissional_destino = $5, cpf = $6, cartao_sus = $7, inicio_etapa = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       profissional_destino = $4, tipo_profissional_destino = $5, cpf = $6, cartao_sus = $7, condicoes_especiais = COALESCE($8, condicoes_especiais), inicio_etapa = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta' RETURNING *`,
-      [id, queixa, risco_clinico || 'verde', profissional_destino || null, tipo_profissional_destino || null, cpf || null, cartao_sus || null]
+      [id, queixa, risco_clinico || 'verde', profissional_destino || null, tipo_profissional_destino || null, cpf || null, cartao_sus || null, condicoes_especiais || null]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Paciente não encontrado ou não está na 1ª Escuta' });
@@ -1114,7 +1118,7 @@ app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { queixa, cpf, cartao_sus, agendamento_realizado } = req.body;
+    const { queixa, cpf, cartao_sus, agendamento_realizado, condicoes_especiais } = req.body;
     await client.query('BEGIN');
     const pResult = await client.query(
       `SELECT * FROM patients WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta'`, [id]
@@ -1128,18 +1132,18 @@ app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
     const updtResult = await client.query(
       `UPDATE patients SET 
         etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP,
-        queixa = $2, cpf = $3, cartao_sus = $4, agendamento_realizado = $5
+        queixa = $2, cpf = $3, cartao_sus = $4, agendamento_realizado = $5, condicoes_especiais = COALESCE($6, condicoes_especiais)
        WHERE id = $1 RETURNING *`,
-      [id, queixa || null, cpf || null, cartao_sus || null, agendamento_realizado || false]
+      [id, queixa || null, cpf || null, cartao_sus || null, agendamento_realizado || false, condicoes_especiais || null]
     );
     const patient = updtResult.rows[0];
 
     // Add to history
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     await client.query(
-      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, agendamento_realizado)
-       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.agendamento_realizado]
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, agendamento_realizado, condicoes_especiais, queixa, risco_clinico)
+       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico]
     );
     await client.query('COMMIT');
     io.emit('queueUpdate');
@@ -1158,7 +1162,7 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { gravidade_final, agendamento_realizado } = req.body;
+    const { gravidade_final, agendamento_realizado, condicoes_especiais } = req.body;
     await client.query('BEGIN');
     const pResult = await client.query(
       `SELECT * FROM patients WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'segunda_escuta'`,
@@ -1177,7 +1181,7 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
       `UPDATE patients SET 
         etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP,
         gravidade_final = $2, agendamento_realizado = $3,
-        queixa = $4, cpf = $5, cartao_sus = $6
+        queixa = $4, cpf = $5, cartao_sus = $6, condicoes_especiais = COALESCE($7, condicoes_especiais)
        WHERE id = $1 RETURNING *`,
       [
         id, 
@@ -1185,7 +1189,8 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
         agendamento_realizado || false, 
         req.body.queixa || existingPatient.queixa, 
         req.body.cpf || existingPatient.cpf, 
-        req.body.cartao_sus || existingPatient.cartao_sus
+        req.body.cartao_sus || existingPatient.cartao_sus,
+        condicoes_especiais || null
       ]
     );
     const patient = updtResult.rows[0];
@@ -1193,9 +1198,9 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
     // Add to history
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     await client.query(
-      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, gravidade_final, agendamento_realizado)
-       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.gravidade_final, patient.agendamento_realizado]
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, gravidade_final, agendamento_realizado, condicoes_especiais, queixa, risco_clinico)
+       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.gravidade_final, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico]
     );
     await client.query('COMMIT');
     io.emit('queueUpdate');

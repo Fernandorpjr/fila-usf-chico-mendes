@@ -198,6 +198,40 @@ function toggleTipoAtendimento() {
   }
 }
 
+// ====== HELPER: Condições Especiais ======
+function getCondicoesFromContainer(containerId) {
+  const checks = document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`);
+  const arr = [...checks].map(c => c.value);
+  return arr.length ? JSON.stringify(arr) : null;
+}
+function renderCondicoesBadges(condicoesStr) {
+  if (!condicoesStr) return '';
+  try {
+    const arr = JSON.parse(condicoesStr);
+    return arr.map(c => {
+      if (c === 'hipertenso') return '<span class="cond-badge cond-hipertenso">💙 HAS</span>';
+      if (c === 'diabetico') return '<span class="cond-badge cond-diabetico">🧡 DM</span>';
+      if (c === 'gestante') return '<span class="cond-badge cond-gestante">💜 GEST</span>';
+      return '';
+    }).join('');
+  } catch { return ''; }
+}
+function setCondicoesCheckboxes(containerId, condicoesStr) {
+  const checks = document.querySelectorAll(`#${containerId} input[type="checkbox"]`);
+  checks.forEach(c => c.checked = false);
+  if (!condicoesStr) return;
+  try {
+    const arr = JSON.parse(condicoesStr);
+    checks.forEach(c => { if (arr.includes(c.value)) c.checked = true; });
+  } catch {}
+}
+
+// ====== CHAT SIDEBAR TOGGLE (mobile) ======
+function toggleChatSidebar() {
+  const sb = document.getElementById('chat-sidebar');
+  if (sb) sb.classList.toggle('open');
+}
+
 // ====== ADD PATIENT ======
 async function addPatient(btn) {
   const nome = document.getElementById('input-nome').value.trim();
@@ -207,6 +241,7 @@ async function addPatient(btn) {
   const tipo_atendimento = ['Médico','Enfermagem','Odontologia'].includes(setor) ? document.getElementById('input-tipo-atendimento').value : null;
   const profissionalEl = document.getElementById('input-profissional');
   const profissional = ['Médico','Enfermagem'].includes(setor) && profissionalEl ? profissionalEl.value || null : null;
+  const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-recepcao');
 
   if (!nome) { showToast('Digite o nome do paciente!', true); return; }
   if (!setor) { showToast('Selecione o setor!', true); return; }
@@ -214,12 +249,14 @@ async function addPatient(btn) {
 
   if (btn) btn.disabled = true;
   try {
-    const r = await fetch(`${API_URL}/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional }) });
+    const r = await fetch(`${API_URL}/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais }) });
     if (!r.ok) throw new Error();
     const newPatient = await r.json();
     document.getElementById('input-nome').value = '';
     document.getElementById('input-setor').value = '';
     document.getElementById('input-prioridade').value = 'geral';
+    // Reset condições checkboxes
+    document.querySelectorAll('#condicoes-especiais-recepcao input[type="checkbox"]').forEach(c => c.checked = false);
     togglePrioridadeDetalhes(); toggleTipoAtendimento();
     const prioLabel = prioridade === 'prioritario' ? ' ⭐ PRIORITÁRIO' : '';
     const profLabel = profissional ? ` (${profissional})` : '';
@@ -429,6 +466,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
     const tipoLabel = p.tipo_atendimento ? `<span style="font-size:11px;color:var(--gray-600);margin-left:4px;">(${p.tipo_atendimento})</span>` : '';
     const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${p.profissional}</span>` : '';
+    const condBadges = renderCondicoesBadges(p.condicoes_especiais);
     const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
     const removeBtn = isAdmin ? `<div style="display:flex;gap:4px;">
       <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Marcar como Desistência">🚶</button>
@@ -436,7 +474,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     </div>` : '';
     return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
-      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}</div>
+      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges}</div>
       <div class="queue-time">${p.horario}</div>
       <div style="display:flex;gap:8px;align-items:center;">
         ${qrBtn}
@@ -960,11 +998,17 @@ async function salvarEdicaoAgendamento() {
 function generatePDF() {
   if (!attendedPatients.length) { showToast('Não há pacientes para exportar.', true); return; }
   if (!window.jspdf || !window.jspdf.jsPDF) { showToast('Carregando biblioteca PDF...', true); return; }
-  const { jsPDF } = window.jspdf; const doc = new jsPDF();
-  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('Relatório de Atendimentos', 105, 20, { align: 'center' });
-  doc.setFontSize(12); doc.setFont('helvetica','normal'); doc.text(`USF Chico Mendes | Data: ${new Date().toLocaleDateString('pt-BR')}`, 105, 28, { align: 'center' });
-  const data = attendedPatients.map((p, i) => [attendedPatients.length - i, p.nome, p.prioridade === 'prioritario' ? '⭐ ' + (p.tipo_prioridade||'PRIO') : 'Geral', p.setor, p.profissional || p.medico || '-', p.horario_chamada || p.horario]);
-  doc.autoTable({ startY: 40, head: [['Nº','Nome','Prioridade','Setor','Profissional','Horário']], body: data, theme: 'grid', headStyles: { fillColor: [26,79,196] }, alternateRowStyles: { fillColor: [240,244,255] } });
+  const { jsPDF } = window.jspdf; const doc = new jsPDF('l'); // Landscape
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('Relatório de Atendimentos', 148, 15, { align: 'center' });
+  doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.text(`USF Chico Mendes | Data: ${new Date().toLocaleDateString('pt-BR')}`, 148, 22, { align: 'center' });
+  const data = attendedPatients.map((p, i) => {
+    let condLabel = '-';
+    try { const arr = JSON.parse(p.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'HAS':c==='diabetico'?'DM':c==='gestante'?'GEST':c).join(', ') || '-'; } catch {}
+    const risco = p.gravidade_final || p.risco_clinico || '-';
+    const agend = p.agendamento_realizado ? 'Sim' : 'Não';
+    return [attendedPatients.length - i, p.nome, p.cpf || '-', p.setor, safeDate(p.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}), p.queixa || '-', risco, p.profissional || p.medico || '-', agend, condLabel];
+  });
+  doc.autoTable({ startY: 30, head: [['Nº','Nome','CPF/SUS','Setor','Data/Hora','Queixa','Risco','Profissional','Agendado?','Condições']], body: data, theme: 'grid', headStyles: { fillColor: [26,79,196], fontSize: 8 }, bodyStyles: { fontSize: 8 }, alternateRowStyles: { fillColor: [240,244,255] }, columnStyles: { 0:{cellWidth:10}, 1:{cellWidth:35}, 4:{cellWidth:28}, 5:{cellWidth:40} } });
   const ds = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date()).replace(/\//g, '-');
   doc.save(`atendimentos_${ds}.pdf`); showToast('✅ PDF gerado com sucesso!');
 }
@@ -1056,7 +1100,8 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
   }
   el.innerHTML = pacientes.map(p => {
     const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIO'}</span>` : '';
-    const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde' ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : '🟡 MODERADO'}</span>` : '';
+    const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde' ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : p.risco_clinico === 'amarelo' ? '🟡 MODERADO' : p.risco_clinico === 'azul' ? '🟦 SEM RISCO' : ''}</span>` : '';
+    const condBadges = renderCondicoesBadges(p.condicoes_especiais);
     const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
     const tempoBadge = `<span class="acol-tempo-badge">⏱ ${tempoMin} min</span>`;
     const acsLabel = p.acs_responsavel ? `<span style="font-size:11px;">👤 ACS: ${p.acs_responsavel}</span>` : '';
@@ -1079,7 +1124,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     ` : '';
 
     return `<div class="acol-card etapa-${etapa}">
-      <div class="acol-card-name">${p.nome}${prioBadge}${riscoBadge}</div>
+      <div class="acol-card-name">${p.nome}${prioBadge}${riscoBadge}${condBadges}</div>
       <div class="acol-card-meta">
         <span>🕐 ${p.horario}</span>
         ${tempoBadge}
@@ -1141,6 +1186,9 @@ function abrirModalEncaminhar(id, nome) {
   document.getElementById('acol-modal-tipo-prof').value = '';
   document.getElementById('acol-modal-tipo-prof').value = '';
   document.getElementById('acol-modal-prof-dest').innerHTML = '<option value="">— Opcional —</option>';
+  // Pre-fill condições from patient data
+  const patient = acolhimentoFluxo.primeira_escuta?.find(p => p.id == id);
+  setCondicoesCheckboxes('condicoes-especiais-escuta1', patient?.condicoes_especiais);
   document.getElementById('acol-escuta-modal').classList.add('show');
 }
 
@@ -1148,7 +1196,11 @@ async function chamarNoPainel(source) {
   const prefix = source === 'escuta1' ? 'acol-modal' : 'acol-escuta2';
   const inputId = document.getElementById(`${prefix}-id`);
   const infoEl = document.getElementById(`${prefix}-patient-info`);
-  if (!inputId || !inputId.value) { showToast('Erro: Paciente não identificado', true); return; }
+  if (!inputId || !inputId.value) { 
+    console.error('Campo ID não encontrado ou vazio:', `${prefix}-id`);
+    showToast('Erro: Paciente não identificado', true); 
+    return; 
+  }
   
   const id = inputId.value;
   const nome = infoEl ? infoEl.textContent.replace('👤 ', '') : 'Paciente';
@@ -1193,15 +1245,16 @@ async function confirmarEncaminhamento() {
   const cartao_sus = document.getElementById('acol-modal-sus').value.trim();
   const profissional_destino = document.getElementById('acol-modal-prof-dest').value || null;
   const tipo_profissional_destino = document.getElementById('acol-modal-tipo-prof').value || null;
+  const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-escuta1');
   if (!queixa) { showToast('Preencha a queixa!', true); return; }
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/encaminhar`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ queixa, risco_clinico: selectedRisco, profissional_destino, tipo_profissional_destino, cpf, cartao_sus })
+      body: JSON.stringify({ queixa, risco_clinico: selectedRisco, profissional_destino, tipo_profissional_destino, cpf, cartao_sus, condicoes_especiais })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     fecharEscutaModal();
-    const riscoLabel = selectedRisco === 'vermelho' ? '🔴 RISCO ALTO' : selectedRisco === 'amarelo' ? '🟡 RISCO MODERADO' : '🟢 BAIXO';
+    const riscoLabel = selectedRisco === 'vermelho' ? '🔴 RISCO ALTO' : selectedRisco === 'amarelo' ? '🟡 RISCO MODERADO' : selectedRisco === 'azul' ? '🟦 SEM RISCO' : '🟢 BAIXO';
     showToast(`📤 Paciente encaminhado para 2ª Escuta (${riscoLabel})`);
     loadAcolhimentoFluxo();
   } catch (e) { showToast(e.message || 'Erro ao encaminhar', true); }
@@ -1212,11 +1265,12 @@ async function finalizarEscuta1() {
   const queixa = document.getElementById('acol-modal-queixa').value.trim();
   const cpf = document.getElementById('acol-modal-cpf').value.trim();
   const cartao_sus = document.getElementById('acol-modal-sus').value.trim();
+  const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-escuta1');
   
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar-escuta1`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ queixa, cpf, cartao_sus })
+      body: JSON.stringify({ queixa, cpf, cartao_sus, condicoes_especiais })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     fecharEscutaModal();
@@ -1231,12 +1285,13 @@ async function agendarEscuta1() {
   const queixa = document.getElementById('acol-modal-queixa').value.trim();
   const cpf = document.getElementById('acol-modal-cpf').value.trim();
   const cartao_sus = document.getElementById('acol-modal-sus').value.trim();
+  const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-escuta1');
   const nome = document.getElementById('acol-modal-patient-info').textContent.replace('👤 ', '');
 
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar-escuta1`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ queixa, cpf, cartao_sus, agendamento_realizado: true })
+      body: JSON.stringify({ queixa, cpf, cartao_sus, agendamento_realizado: true, condicoes_especiais })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     fecharEscutaModal();
@@ -1250,7 +1305,8 @@ async function agendarEscuta1() {
 }
 
 function finalizarAtendimento(id, nome) {
-  const patient = acolhimentoFluxo.segunda_escuta?.find(p => p.id === id);
+  const idNum = Number(id);
+  const patient = acolhimentoFluxo.segunda_escuta?.find(p => p.id == idNum);
   document.getElementById('acol-escuta2-id').value = id;
   document.getElementById('acol-escuta2-patient-info').textContent = `👤 ${nome}`;
   
@@ -1258,6 +1314,7 @@ function finalizarAtendimento(id, nome) {
   document.getElementById('acol-escuta2-queixa').value = patient?.queixa || '';
   document.getElementById('acol-escuta2-cpf').value = patient?.cpf || '';
   document.getElementById('acol-escuta2-sus').value = patient?.cartao_sus || '';
+  setCondicoesCheckboxes('condicoes-especiais-escuta2', patient?.condicoes_especiais);
   
   selectGravidade('verde');
   document.querySelector('input[name="acol-escuta2-agend"][value="false"]').checked = true;
@@ -1280,6 +1337,7 @@ async function confirmarFinalizacaoEscuta2() {
   const queixa = document.getElementById('acol-escuta2-queixa').value.trim();
   const cpf = document.getElementById('acol-escuta2-cpf').value.trim();
   const cartao_sus = document.getElementById('acol-escuta2-sus').value.trim();
+  const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-escuta2');
   const nome = document.getElementById('acol-escuta2-patient-info').textContent.replace('👤 ', '');
   
   try {
@@ -1289,7 +1347,7 @@ async function confirmarFinalizacaoEscuta2() {
       body: JSON.stringify({ 
         gravidade_final: selectedGravidade, 
         agendamento_realizado: agendamento,
-        queixa, cpf, cartao_sus
+        queixa, cpf, cartao_sus, condicoes_especiais
       })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
@@ -1314,7 +1372,7 @@ async function gerarRelatorioAcolhimento() {
     let riscoHtml = '';
     if (data.riscoCor && data.riscoCor.length) {
       riscoHtml = data.riscoCor.map(r => {
-        const emoji = r.risco_clinico === 'vermelho' ? '🔴' : '🟡';
+        const emoji = r.risco_clinico === 'vermelho' ? '🔴' : r.risco_clinico === 'amarelo' ? '🟡' : r.risco_clinico === 'azul' ? '🟦' : '🟢';
         return `${emoji} ${r.risco_clinico}: <b>${r.total}</b>`;
       }).join(' · ');
     }
@@ -1352,16 +1410,21 @@ async function gerarRelatorioAcolhimento() {
 
       finalizadosHtml = `
         <table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left;">
-          <thead><tr style="border-bottom:2px solid var(--gray-200);background:var(--gray-100);"><th style="padding:8px;">Paciente</th><th style="padding:8px;">Risco</th><th style="padding:8px;">ACS</th><th style="padding:8px;">Profissional (2ª)</th><th style="padding:8px;">Hora</th></tr></thead>
+          <thead><tr style="border-bottom:2px solid var(--gray-200);background:var(--gray-100);"><th style="padding:8px;">Paciente</th><th style="padding:8px;">Risco</th><th style="padding:8px;">ACS</th><th style="padding:8px;">Profissional (2ª)</th><th style="padding:8px;">Hora</th><th style="padding:8px;">Agend.</th><th style="padding:8px;">Condições</th></tr></thead>
           <tbody>
             ${data.finalizados.map(f => {
-              const riscoLabel = f.gravidade_final === 'vermelho' ? '🔴 Vermelho' : f.gravidade_final === 'amarelo' ? '🟡 Amarelo' : f.gravidade_final === 'verde' ? '🟢 Verde' : '—';
+              const riscoLabel = f.gravidade_final === 'vermelho' ? '🔴 Vermelho' : f.gravidade_final === 'amarelo' ? '🟡 Amarelo' : f.gravidade_final === 'verde' ? '🟢 Verde' : f.gravidade_final === 'azul' ? '🟦 Azul' : '—';
+              let condLabel = '';
+              try { const arr = JSON.parse(f.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'💙 HAS':c==='diabetico'?'🧡 DM':c==='gestante'?'💜 GEST':c).join(', '); } catch {}
+              const agendLabel = f.agendamento_realizado ? '✅ Sim' : '—';
               return `<tr style="border-bottom:1px solid #efefef;">
                 <td style="padding:8px;"><b>${f.nome}</b><br><span style="font-size:10px;color:var(--gray-600);">CPF: ${f.cpf||'-'}</span></td>
                 <td style="padding:8px;">${riscoLabel}</td>
                 <td style="padding:8px;">${f.acs_responsavel||'—'}</td>
                 <td style="padding:8px;">${f.profissional||'—'}</td>
                 <td style="padding:8px;">${f.horario_chamada || '-'}</td>
+                <td style="padding:8px;">${agendLabel}</td>
+                <td style="padding:8px;font-size:11px;">${condLabel||'—'}</td>
               </tr>`}).join('')}
           </tbody>
         </table>
@@ -1398,42 +1461,40 @@ function exportarRelatorioAcolhimentoPDF() {
   
   const d = lastAcolhimentoReportData;
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF('l'); // Landscape
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('Relatório de Acolhimento Diário', 105, 20, { align: 'center' });
-  doc.setFontSize(12);
+  doc.text('Relatório de Acolhimento Diário', 148, 15, { align: 'center' });
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(`USF Chico Mendes | ${new Date().toLocaleDateString('pt-BR')}`, 105, 28, { align: 'center' });
+  doc.text(`USF Chico Mendes | ${new Date().toLocaleDateString('pt-BR')}`, 148, 22, { align: 'center' });
   
-  doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text('Resumo Diário', 14, 40);
-  doc.setFontSize(11); doc.setFont('helvetica', 'normal');
-  doc.text(`Total Finalizados: ${d.totalFinalizados}`, 14, 50);
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('Resumo Diário', 14, 32);
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+  doc.text(`Total Finalizados: ${d.totalFinalizados}`, 14, 39);
   
   const avgRec = d.tempoMedio?.avg_recepcao_min ? Math.round(d.tempoMedio.avg_recepcao_min) : '-';
   const avgEsc = d.tempoMedio?.avg_escuta_min ? Math.round(d.tempoMedio.avg_escuta_min) : '-';
-  doc.text(`Tempo Médio (Recepção / Escuta): ${avgRec} / ${avgEsc} min`, 14, 57);
+  doc.text(`Tempo Médio (Recepção / Escuta): ${avgRec} / ${avgEsc} min`, 14, 45);
   
-  let currentY = 70;
-  doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-  doc.text('Relação de Pacientes (Finalizados)', 14, currentY);
-  
-  const finalizadosData = (d.finalizados || []).map(f => [
-    f.nome,
-    f.gravidade_final ? f.gravidade_final.toUpperCase() : '1ª ESCUTA',
-    f.acs_responsavel || '-',
-    f.profissional || '-',
-    f.horario_chamada || '-'
-  ]);
+  const finalizadosData = (d.finalizados || []).map(f => {
+    let condLabel = '-';
+    try { const arr = JSON.parse(f.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'HAS':c==='diabetico'?'DM':c==='gestante'?'GEST':c).join(', ') || '-'; } catch {}
+    const risco = f.gravidade_final ? f.gravidade_final.toUpperCase() : '1ª ESCUTA';
+    const agend = f.agendamento_realizado ? 'Sim' : 'Não';
+    return [f.nome, f.cpf || '-', f.queixa || '-', risco, f.acs_responsavel || '-', f.profissional || '-', f.horario_chamada || '-', agend, condLabel];
+  });
 
   doc.autoTable({
-    startY: currentY + 6,
-    head: [['Paciente', 'Risco/Etapa', 'ACS', 'Profissional', 'Horário']],
+    startY: 52,
+    head: [['Paciente', 'CPF/SUS', 'Queixa', 'Risco', 'ACS', 'Profissional', 'Horário', 'Agendado?', 'Condições']],
     body: finalizadosData,
     theme: 'grid',
-    headStyles: { fillColor: [142,36,170] },
-    alternateRowStyles: { fillColor: [248,240,255] }
+    headStyles: { fillColor: [142,36,170], fontSize: 8 },
+    bodyStyles: { fontSize: 8 },
+    alternateRowStyles: { fillColor: [248,240,255] },
+    columnStyles: { 2:{cellWidth:45} }
   });
 
   doc.save(`acolhimento_relatorio_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
