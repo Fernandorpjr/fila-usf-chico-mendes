@@ -306,9 +306,131 @@
      .chat-sidebar{display:none;max-height:none;}
      .chat-sidebar.open{display:flex;}
    }
+
+    /* === MELHORIA A: PORTÃO DE ENTRADA === */
+    .gate-overlay {
+      position: fixed; inset: 0; z-index: 99999;
+      background: linear-gradient(135deg, #0a1e5c 0%, #0d2a7a 40%, #1a4fc4 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Nunito', sans-serif;
+    }
+    .gate-overlay.hidden { display: none; }
+    .gate-card {
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 24px; padding: 48px 40px; max-width: 420px; width: 90%;
+      text-align: center; backdrop-filter: blur(20px);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+      animation: gateIn 0.5s ease;
+    }
+    @keyframes gateIn { from { opacity:0; transform: translateY(30px) scale(0.95); } to { opacity:1; transform: translateY(0) scale(1); } }
+    .gate-logo-big { font-size: 40px; font-weight: 900; margin-bottom: 6px; }
+    .gate-logo-big .u { color: #fff; } .gate-logo-big .s { color: var(--green); } .gate-logo-big .f { color: var(--orange); }
+    .gate-subtitle { font-size: 15px; color: var(--gray-300); font-weight: 600; margin-bottom: 32px; letter-spacing: 1px; }
+    .gate-lock-icon { font-size: 42px; margin-bottom: 12px; }
+    .gate-title { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 24px; }
+    .gate-input {
+      width: 100%; padding: 16px 20px; border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 14px; background: rgba(255,255,255,0.08); color: #fff;
+      font-family: 'Nunito Sans', sans-serif; font-size: 16px; font-weight: 600;
+      outline: none; text-align: center; letter-spacing: 3px;
+      transition: border-color 0.2s;
+    }
+    .gate-input:focus { border-color: var(--orange); background: rgba(255,255,255,0.12); }
+    .gate-input::placeholder { color: rgba(255,255,255,0.3); letter-spacing: 1px; }
+    .gate-btn {
+      width: 100%; padding: 16px; margin-top: 16px; border: none;
+      border-radius: 14px; font-family: 'Nunito', sans-serif; font-size: 17px;
+      font-weight: 900; cursor: pointer; transition: all 0.2s;
+      background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
+      color: #fff; box-shadow: 0 4px 20px rgba(244,130,30,0.5);
+    }
+    .gate-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(244,130,30,0.6); }
+    .gate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .gate-error { color: var(--red); font-size: 14px; font-weight: 700; margin-top: 14px; min-height: 20px; }
+    .gate-lockout { color: var(--yellow); font-size: 14px; font-weight: 700; margin-top: 10px; }
+    .gate-footer { margin-top: 28px; font-size: 12px; color: rgba(255,255,255,0.35); font-weight: 600; }
+    .btn-logout-gate {
+      background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.15);
+      padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; font-family: 'Nunito', sans-serif;
+    }
+    .btn-logout-gate:hover { background: rgba(229,57,53,0.15); color: var(--red); border-color: rgba(229,57,53,0.3); }
+    /* === FIM MELHORIA A === */
+
+    /* === MELHORIA B: BADGES DAS ABAS === */
+    .nav-tab { position: relative; }
+    .tab-badge-live {
+      position: absolute; top: 4px; right: 4px;
+      background: #e53935; color: #fff; border-radius: 50%;
+      min-width: 18px; height: 18px; font-size: 11px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      animation: pulse-badge 1.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .tab-badge-live.hide { display: none; }
+    @keyframes pulse-badge {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.85; }
+    }
+    /* === FIM MELHORIA B === */
+
+    /* === MELHORIA C: CHAT APRIMORADO === */
+    .chat-canal-btn { flex-wrap: wrap; }
+    .chat-canal-preview {
+      width: 100%; font-size: 11px; color: #888; font-style: italic;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      margin-top: 2px;
+    }
+    .chat-presence-dot {
+      width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+      margin-right: 4px; flex-shrink: 0;
+    }
+    .chat-presence-dot.online { background: #4aab3c; box-shadow: 0 0 4px rgba(74,171,60,0.6); }
+    .chat-presence-dot.offline { background: #666; }
+    .chat-pin-banner {
+      background: linear-gradient(135deg, #fff8e1, #fff3cd);
+      border-bottom: 1px solid rgba(249,200,35,0.4);
+      padding: 10px 16px; font-size: 13px; color: #5d4037;
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 600;
+    }
+    .chat-pin-banner .pin-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-pin-banner .pin-close {
+      background: transparent; border: none; font-size: 16px; cursor: pointer;
+      color: #8d6e63; padding: 2px 6px; border-radius: 4px;
+    }
+    .chat-pin-banner .pin-close:hover { background: rgba(0,0,0,0.08); }
+    .chat-bubble .pin-btn {
+      display: none; position: absolute; top: 4px; right: 4px;
+      background: rgba(255,255,255,0.9); border: 1px solid var(--gray-200);
+      border-radius: 6px; padding: 2px 6px; font-size: 14px;
+      cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .chat-bubble:hover .pin-btn { display: block; }
+    /* === FIM MELHORIA C === */
 </style>
 </head>
 <body>
+
+<!-- === MELHORIA A: PORTÃO DE ENTRADA (GATE) === -->
+<div class="gate-overlay" id="gate-overlay">
+  <div class="gate-card">
+    <div class="gate-logo-big"><span class="u">U</span><span class="s">S</span><span class="f">F</span></div>
+    <div class="gate-subtitle">Chico Mendes &bull; Sistema de Gestão de Filas</div>
+    <div class="gate-lock-icon">🔐</div>
+    <div class="gate-title">Acesso Restrito à Equipe</div>
+    <input type="password" class="gate-input" id="gate-password" placeholder="••••••••" autocomplete="off">
+    <button class="gate-btn" id="gate-btn" onclick="tentarEntrar()">🔓 Entrar</button>
+    <div class="gate-error" id="gate-error"></div>
+    <div class="gate-lockout" id="gate-lockout"></div>
+    <div class="gate-footer">⚠️ Uso exclusivo da equipe USF Chico Mendes</div>
+  </div>
+</div>
+<!-- === FIM MELHORIA A: GATE === -->
+
+<!-- Sistema principal (oculto até autenticação no portão) -->
+<div id="app-wrapper" style="display:none;">
 
 <header class="header">
   <div class="logo-area">
@@ -321,6 +443,9 @@
     <button class="btn-admin-lock" id="btn-admin" onclick="toggleAdmin()" title="Modo Administrador">🔒 Modo Público</button>
     <a href="/dashboard" target="_blank" class="btn-reset admin-only" style="text-decoration:none;" title="Abrir Painel de Métricas">📊 Dashboard</a>
     <button class="btn-reset admin-only" onclick="resetData()" title="Zerar fila diária">🗑️ Resetar Diário</button>
+    <!-- === MELHORIA A: BOTÃO LOGOUT === -->
+    <button class="btn-logout-gate" id="btn-logout-gate" onclick="logoutGate()" title="Encerrar sessão do portão de entrada">🚪 Encerrar sessão</button>
+    <!-- === FIM MELHORIA A === -->
     <div>
       <div class="date-display" id="dateDisplay"></div>
       <div class="clock" id="clockDisplay">00:00:00</div>
@@ -758,6 +883,13 @@
             <button class="btn btn-ghost btn-sm admin-only" onclick="clearChatCanal()" title="Limpar canal">🗑️</button>
           </div>
         </div>
+        <!-- === MELHORIA C: PIN BANNER === -->
+        <div class="chat-pin-banner" id="chat-pin-banner" style="display:none;">
+          <span>📌</span>
+          <span class="pin-text" id="chat-pin-text"></span>
+          <button class="pin-close" onclick="removeChatPin()" title="Remover pin">✕</button>
+        </div>
+        <!-- === FIM MELHORIA C === -->
         <div class="chat-messages-area" id="chat-messages"></div>
         <div class="chat-typing-indicator" id="chat-typing"></div>
         <div class="chat-input-area">
@@ -883,6 +1015,9 @@
     </div>
   </div>
 </div>
+
+</div>
+<!-- === FIM APP WRAPPER === -->
 
 <div id="sound-modal" style="display:none;position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
   <div style="background:var(--white);border-radius:24px;padding:40px 48px;text-align:center;max-width:440px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.4);">

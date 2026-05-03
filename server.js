@@ -13,14 +13,31 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
+/* === MELHORIA C: PRESENÇA ONLINE VIA SOCKET === */
 io.on('connection', (socket) => {
   console.log('Device connected to WebSocket');
   io.emit('activeUsers', io.engine.clientsCount);
-  
-  socket.on('disconnect', () => {
+
+  // Track setor presence
+  socket.on('registerPresenca', async (data) => {
+    if (data && data.setor) {
+      socket.presencaSetor = data.setor;
+      try {
+        await pool.query(
+          `INSERT INTO chat_presenca (setor, last_seen) VALUES ($1, CURRENT_TIMESTAMP)
+           ON CONFLICT (setor) DO UPDATE SET last_seen = CURRENT_TIMESTAMP`,
+          [data.setor]
+        );
+      } catch(e) { console.error('Presença error:', e.message); }
+    }
+  });
+
+  socket.on('disconnect', async () => {
     io.emit('activeUsers', io.engine.clientsCount);
+    // Mark setor as offline on disconnect (optional — last_seen already tracks)
   });
 });
+/* === FIM MELHORIA C: PRESENÇA === */
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = '0177';
@@ -96,6 +113,23 @@ async function initDB() {
         PRIMARY KEY (canal, setor)
       )
     `);
+
+    /* === MELHORIA C: TABELAS DE PRESENÇA E PINS === */
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat_presenca (
+        setor TEXT PRIMARY KEY,
+        last_seen TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat_channel_pins (
+        canal TEXT PRIMARY KEY,
+        texto TEXT NOT NULL,
+        autor TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    /* === FIM MELHORIA C: TABELAS === */
 
     // Agendamentos
     await pool.query(`
@@ -786,6 +820,81 @@ app.get('/api/chat/unread/:setor', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+/* === MELHORIA C: ROTAS DE PRESENÇA ONLINE === */
+
+// POST registrar presença
+app.post('/api/chat/presenca', async (req, res) => {
+  try {
+    const { setor } = req.body;
+    if (!setor) return res.status(400).json({ error: 'Setor obrigatório' });
+    await pool.query(
+      `INSERT INTO chat_presenca (setor, last_seen) VALUES ($1, CURRENT_TIMESTAMP)
+       ON CONFLICT (setor) DO UPDATE SET last_seen = CURRENT_TIMESTAMP`,
+      [setor]
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET listar presenças
+app.get('/api/chat/presenca', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT setor, last_seen FROM chat_presenca');
+    const map = {};
+    result.rows.forEach(r => { map[r.setor] = r.last_seen; });
+    res.json(map);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* === MELHORIA C: ROTAS DE PIN === */
+
+// GET pin de um canal
+app.get('/api/chat/canais/:canal/pin', async (req, res) => {
+  try {
+    const { canal } = req.params;
+    const result = await pool.query('SELECT * FROM chat_channel_pins WHERE canal = $1', [canal]);
+    res.json(result.rows.length ? result.rows[0] : null);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST fixar mensagem
+app.post('/api/chat/canais/:canal/pin', async (req, res) => {
+  try {
+    const { canal } = req.params;
+    const { texto, autor } = req.body;
+    if (!texto || !autor) return res.status(400).json({ error: 'Texto e autor obrigatórios' });
+    await pool.query(
+      `INSERT INTO chat_channel_pins (canal, texto, autor) VALUES ($1, $2, $3)
+       ON CONFLICT (canal) DO UPDATE SET texto = $2, autor = $3, created_at = CURRENT_TIMESTAMP`,
+      [canal, texto, autor]
+    );
+    io.emit('chatPinUpdate', { canal, pin: { texto, autor } });
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE remover pin
+app.delete('/api/chat/canais/:canal/pin', async (req, res) => {
+  try {
+    const { canal } = req.params;
+    await pool.query('DELETE FROM chat_channel_pins WHERE canal = $1', [canal]);
+    io.emit('chatPinUpdate', { canal, pin: null });
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* === FIM MELHORIA C: ROTAS === */
 
 // ====== AGENDAMENTOS ======
 

@@ -2,6 +2,125 @@
 // API Base URL
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 
+/* === MELHORIA A: PORTÃO DE ENTRADA === */
+const GATE_HASH = 'af99a4ea5f59cb313edbcf21759afcbad8c77212870be1098363836e00e816c1';
+const GATE_EXPIRY_MS = 10 * 60 * 60 * 1000; // 10 horas
+let gateAttempts = 0;
+let gateLocked = false;
+let gateLockTimer = null;
+
+async function hashSHA256(str) {
+  const enc = new TextEncoder();
+  const buffer = await crypto.subtle.digest('SHA-256', enc.encode(str));
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function verificarSenhaEntrada(digitada) {
+  const hash = await hashSHA256(digitada);
+  return hash === GATE_HASH;
+}
+
+function checkGateSession() {
+  // Exceção: Painel TV
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('modo') === 'tv') {
+    hideGate();
+    // Auto-show painel TV
+    setTimeout(() => { showScreen('painel'); }, 300);
+    return;
+  }
+  const auth = sessionStorage.getItem('usf_gate_auth');
+  const time = sessionStorage.getItem('usf_gate_time');
+  if (auth === 'true' && time) {
+    const elapsed = Date.now() - parseInt(time, 10);
+    if (elapsed < GATE_EXPIRY_MS) {
+      hideGate();
+      return;
+    }
+    // Sessão expirada
+    sessionStorage.removeItem('usf_gate_auth');
+    sessionStorage.removeItem('usf_gate_time');
+  }
+  showGate();
+}
+
+function showGate() {
+  const gate = document.getElementById('gate-overlay');
+  const wrapper = document.getElementById('app-wrapper');
+  if (gate) gate.classList.remove('hidden');
+  if (wrapper) wrapper.style.display = 'none';
+}
+
+function hideGate() {
+  const gate = document.getElementById('gate-overlay');
+  const wrapper = document.getElementById('app-wrapper');
+  if (gate) gate.classList.add('hidden');
+  if (wrapper) wrapper.style.display = '';
+}
+
+async function tentarEntrar() {
+  if (gateLocked) return;
+  const inp = document.getElementById('gate-password');
+  const errEl = document.getElementById('gate-error');
+  const senha = inp.value.trim();
+  if (!senha) { errEl.textContent = '❌ Digite a senha.'; return; }
+
+  const ok = await verificarSenhaEntrada(senha);
+  if (ok) {
+    sessionStorage.setItem('usf_gate_auth', 'true');
+    sessionStorage.setItem('usf_gate_time', Date.now().toString());
+    errEl.textContent = '';
+    inp.value = '';
+    gateAttempts = 0;
+    hideGate();
+  } else {
+    gateAttempts++;
+    errEl.textContent = '❌ Senha incorreta. Tente novamente.';
+    inp.value = '';
+    inp.focus();
+    if (gateAttempts >= 5) {
+      gateLocked = true;
+      const btn = document.getElementById('gate-btn');
+      const lockEl = document.getElementById('gate-lockout');
+      btn.disabled = true;
+      inp.disabled = true;
+      let remaining = 120;
+      lockEl.textContent = `⏳ Bloqueado. Tente novamente em ${remaining}s`;
+      gateLockTimer = setInterval(() => {
+        remaining--;
+        lockEl.textContent = `⏳ Bloqueado. Tente novamente em ${remaining}s`;
+        if (remaining <= 0) {
+          clearInterval(gateLockTimer);
+          gateLocked = false;
+          gateAttempts = 0;
+          btn.disabled = false;
+          inp.disabled = false;
+          lockEl.textContent = '';
+          errEl.textContent = '';
+        }
+      }, 1000);
+    }
+  }
+}
+
+function logoutGate() {
+  sessionStorage.removeItem('usf_gate_auth');
+  sessionStorage.removeItem('usf_gate_time');
+  window.location.reload();
+}
+
+// Enter key listener for gate
+document.addEventListener('DOMContentLoaded', () => {
+  const gateInp = document.getElementById('gate-password');
+  if (gateInp) {
+    gateInp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') tentarEntrar();
+    });
+  }
+  checkGateSession();
+});
+/* === FIM MELHORIA A: PORTÃO DE ENTRADA === */
+
 // ====== SECTOR CONFIG ======
 const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia'];
 
@@ -171,9 +290,19 @@ function updateAdminUI() {
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'chat') { unreadChatCount = 0; updateChatBadge(); setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50); }
+  const screenEl = document.getElementById('screen-' + name);
+  const tabEl = document.getElementById('tab-' + name);
+  if (screenEl) screenEl.classList.add('active');
+  if (tabEl) tabEl.classList.add('active');
+  if (name === 'chat') {
+    unreadChatCount = 0;
+    updateChatBadge();
+    /* === MELHORIA C: Marcar canal como lido e registrar presença === */
+    markCanalAsRead(activeCanal);
+    registerPresenca();
+    /* === FIM MELHORIA C === */
+    setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
+  }
 }
 
 // ====== FORM HELPERS ======
@@ -439,18 +568,33 @@ function updateStats() {
 }
 
 function updateBadges() {
+  /* === MELHORIA B: BADGES DAS ABAS COM VISIBILIDADE DINÂMICA === */
   SETORES.forEach(setor => {
     const cfg = SECTOR_CONFIG[setor];
     const allItems = (queues[setor] || []).filter(p => p.status === 'aguardando');
     const count = allItems.length;
-    // Tab badge always shows total
-    const badge = document.getElementById('badge-' + cfg.key); if (badge) badge.textContent = count;
+    // Tab badge always shows total + hide when 0
+    const badge = document.getElementById('badge-' + cfg.key);
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'inline-block' : 'none';
+      if (count > 0) badge.classList.add('badge-pulse');
+      else badge.classList.remove('badge-pulse');
+    }
     const cnt = document.getElementById('cnt-' + cfg.key); if (cnt) cnt.textContent = count + ' na fila';
     // Sector screen count shows filtered count
     const filter = sectorFilters[cfg.key] || null;
     const filteredCount = filter ? allItems.filter(p => p.profissional === filter).length : count;
     const cnt2 = document.getElementById('cnt2-' + cfg.key); if (cnt2) cnt2.textContent = filteredCount;
   });
+
+  // Badge do Atendidos
+  const attendedBadge = document.getElementById('attended-count');
+  if (attendedBadge) {
+    const val = parseInt(attendedBadge.textContent) || 0;
+    attendedBadge.style.display = val > 0 ? 'inline-block' : 'none';
+  }
+  /* === FIM MELHORIA B === */
 }
 
 function getColor(setor) { return SECTOR_CONFIG[setor]?.color || 'var(--blue)'; }
@@ -693,13 +837,82 @@ function getVisibleCanais() {
   return CANAIS.filter(c => c.id === 'geral' || c.id === 'gerencia' || c.id === setorKey);
 }
 
+/* === MELHORIA C: PRESENÇA E PREVIEW NO CHAT === */
+let chatPresencaMap = {};
+let chatPinsMap = {};
+
+async function loadChatPresenca() {
+  try {
+    const r = await fetch(`${API_URL}/chat/presenca`);
+    chatPresencaMap = await r.json();
+  } catch(e) {}
+}
+
+function registerPresenca() {
+  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
+  fetch(`${API_URL}/chat/presenca`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({setor}) }).catch(()=>{});
+  // Also register via socket
+  if (typeof socket !== 'undefined') {
+    socket.emit('registerPresenca', { setor });
+  }
+}
+
+function getPresenceDot(canalId) {
+  // Map canal ID to setor name for presence lookup
+  const canalToSetor = { geral:null, acolhimento:'Acolhimento', farmacia:'Farmácia', regulacao:'Regulação', medico:'Médico', enfermagem:'Enfermagem', odontologia:'Odontologia', gerencia:'Gerência' };
+  const setorName = canalToSetor[canalId];
+  if (!setorName) return ''; // 'geral' has no specific setor
+  const lastSeen = chatPresencaMap[setorName];
+  if (!lastSeen) return '<span class="chat-presence-dot offline"></span>';
+  const ago = Date.now() - new Date(lastSeen).getTime();
+  const isOnline = ago < 5 * 60 * 1000; // 5 minutos
+  return `<span class="chat-presence-dot ${isOnline ? 'online' : 'offline'}"></span>`;
+}
+
+function getLastMessagePreview(canalId) {
+  const msgs = channelMessages[canalId];
+  if (!msgs || !msgs.length) return '<div class="chat-canal-preview">Nenhuma mensagem ainda</div>';
+  const last = msgs[msgs.length - 1];
+  const txt = last.texto.length > 32 ? last.texto.substring(0, 32) + '...' : last.texto;
+  const time = safeDate(last.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
+  return `<div class="chat-canal-preview">"${txt}"  ${time}</div>`;
+}
+
+function markCanalAsRead(canalId) {
+  localStorage.setItem('chatLastRead_' + canalId, Date.now().toString());
+  channelUnread[canalId] = 0;
+  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
+  fetch(`${API_URL}/chat/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({canal:canalId,setor}) }).catch(()=>{});
+}
+
+function bipChat() {
+  if (!audioUnlocked) return; // Only bip if sound is unlocked
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 660;
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+  } catch(e) {}
+}
+/* === FIM MELHORIA C: PRESENÇA E PREVIEW === */
+
 function renderCanalList() {
   const el = document.getElementById('chat-canal-list'); if (!el) return;
   const visible = getVisibleCanais();
   el.innerHTML = visible.map(c => {
     const unread = channelUnread[c.id] || 0;
     const badge = unread > 0 ? `<span class="chat-canal-badge">${unread}</span>` : '';
-    return `<button class="chat-canal-btn ${c.id===activeCanal?'active':''}" onclick="switchCanal('${c.id}')">${c.nome}${badge}</button>`;
+    /* === MELHORIA C: Presença + Preview === */
+    const presenceDot = getPresenceDot(c.id);
+    const preview = getLastMessagePreview(c.id);
+    /* === FIM MELHORIA C === */
+    return `<button class="chat-canal-btn ${c.id===activeCanal?'active':''}" onclick="switchCanal('${c.id}')">${presenceDot}${c.nome}${badge}${preview}</button>`;
   }).join('');
 }
 
@@ -709,12 +922,12 @@ function switchCanal(canalId) {
   document.getElementById('chat-canal-title').textContent = canal?.nome?.replace(/^[^\s]+\s/,'') || canalId;
   document.getElementById('chat-canal-sub').textContent = canal?.desc || '';
   document.getElementById('chat-canal-icon').textContent = canal?.nome?.split(' ')[0] || '📢';
-  channelUnread[canalId] = 0;
+  /* === MELHORIA C: usar markCanalAsRead === */
+  markCanalAsRead(canalId);
+  /* === FIM MELHORIA C === */
   renderCanalList();
   renderChannelChat();
-  // Mark as read
-  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
-  fetch(`${API_URL}/chat/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({canal:canalId,setor}) }).catch(()=>{});
+  loadChatPin(canalId);
 }
 
 async function loadChannelMessages(canalId) {
@@ -740,7 +953,10 @@ function renderChannelChat() {
     const isMe = m.autor === meu;
     const urgClass = m.urgente ? ' bubble-urgent bubble-urgent-anim' : '';
     const urgTag = m.urgente ? '<span style="color:var(--red);font-weight:800;">🚨 URGENTE</span> ' : '';
-    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}"><div class="chat-meta"><span>${urgTag}${m.autor}</span></div><div>${m.texto}</div><div class="chat-time">${t}</div></div>`;
+    /* === MELHORIA C: Botão Pin nas mensagens === */
+    const pinBtn = `<button class="pin-btn" onclick="event.stopPropagation();pinChatMessage('${m.texto.replace(/'/g,"\\\\'")}','${m.autor}')" title="Fixar mensagem">📌</button>`;
+    /* === FIM MELHORIA C === */
+    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}">${pinBtn}<div class="chat-meta"><span>${urgTag}${m.autor}</span></div><div>${m.texto}</div><div class="chat-time">${t}</div></div>`;
   }).join('');
   c.scrollTop = c.scrollHeight;
 }
@@ -809,8 +1025,53 @@ async function clearChatCanal() {
 function updateChatBadge() {
   const b = document.getElementById('badge-chat');
   const total = Object.values(channelUnread).reduce((s,v) => s+v, 0);
-  if (b) { if (total > 0) { b.textContent = total; b.style.display = 'inline-block'; } else { b.style.display = 'none'; } }
+  if (b) {
+    if (total > 0) { b.textContent = total; b.style.display = 'inline-block'; b.classList.add('badge-pulse'); }
+    else { b.style.display = 'none'; b.classList.remove('badge-pulse'); }
+  }
 }
+
+/* === MELHORIA C: PIN FUNCTIONS === */
+async function loadChatPin(canalId) {
+  try {
+    const r = await fetch(`${API_URL}/chat/canais/${canalId}/pin`);
+    const pin = await r.json();
+    chatPinsMap[canalId] = pin;
+    renderChatPin(pin);
+  } catch(e) {}
+}
+
+function renderChatPin(pin) {
+  const banner = document.getElementById('chat-pin-banner');
+  const textEl = document.getElementById('chat-pin-text');
+  if (!banner || !textEl) return;
+  if (pin && pin.texto) {
+    textEl.innerHTML = `<b>[Mensagem fixada]</b> — "${pin.texto}" · fixado por ${pin.autor}`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+async function pinChatMessage(texto, autor) {
+  try {
+    await fetch(`${API_URL}/chat/canais/${activeCanal}/pin`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ texto, autor })
+    });
+    showToast('📌 Mensagem fixada!');
+    loadChatPin(activeCanal);
+  } catch(e) { showToast('Erro ao fixar mensagem', true); }
+}
+
+async function removeChatPin() {
+  try {
+    await fetch(`${API_URL}/chat/canais/${activeCanal}/pin`, { method: 'DELETE' });
+    showToast('📌 Pin removido');
+    loadChatPin(activeCanal);
+  } catch(e) { showToast('Erro ao remover pin', true); }
+}
+/* === FIM MELHORIA C: PIN === */
 
 // Desktop notifications
 function requestNotifPermission() { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }
@@ -1547,17 +1808,26 @@ socket.on('chatChannelMessage', (data) => {
   channelMessages[canal].push(mensagem);
   const at = document.querySelector('.nav-tab.active');
   const isChatScreen = at && at.id === 'tab-chat';
+  const meuSetor = document.getElementById('chat-remetente')?.value || '';
   if (canal === activeCanal && isChatScreen) {
     renderChannelChat();
+    markCanalAsRead(canal);
   } else {
     channelUnread[canal] = (channelUnread[canal]||0) + 1;
     updateChatBadge(); renderCanalList();
   }
   if (!isChatScreen || canal !== activeCanal) {
-    playChatSound();
+    /* === MELHORIA C: bipChat em vez de playChatSound para mensagens não-próprias === */
+    if (mensagem.autor !== meuSetor) {
+      bipChat();
+    }
+    /* === FIM MELHORIA C === */
     showToast(`💬 [${canal}] ${mensagem.autor}: ${mensagem.texto.substring(0,50)}`, false, 4000);
     if (mensagem.urgente) sendDesktopNotif('🚨 URGENTE - USF Chat', `${mensagem.autor}: ${mensagem.texto}`);
   }
+});
+socket.on('chatPinUpdate', (data) => {
+  if (data.canal === activeCanal) renderChatPin(data.pin);
 });
 socket.on('chatChannelClear', (data) => {
   if (data.canal === '__all__') { CANAIS.forEach(c => { channelMessages[c.id]=[]; channelUnread[c.id]=0; }); }
@@ -1566,7 +1836,23 @@ socket.on('chatChannelClear', (data) => {
 });
 socket.on('chatReset', () => { CANAIS.forEach(c => { channelMessages[c.id]=[]; channelUnread[c.id]=0; }); renderChannelChat(); renderCanalList(); });
 
-setTimeout(() => { document.getElementById('sound-modal').style.display = 'flex'; }, 600);
+setTimeout(() => {
+  // Only show sound modal if past the gate
+  if (sessionStorage.getItem('usf_gate_auth') === 'true' || new URLSearchParams(window.location.search).get('modo') === 'tv') {
+    document.getElementById('sound-modal').style.display = 'flex';
+  }
+}, 600);
+
+/* === MELHORIA C: Presença periódica === */
+setInterval(() => {
+  const at = document.querySelector('.nav-tab.active');
+  if (at && at.id === 'tab-chat') registerPresenca();
+  loadChatPresenca().then(() => renderCanalList());
+}, 30000); // A cada 30s
+loadChatPresenca();
+// Load initial pin for active canal
+setTimeout(() => loadChatPin(activeCanal), 1000);
+/* === FIM MELHORIA C === */
 
 function initAgendamentoDefaults() {
   const dataInput = document.getElementById('agend-data');
