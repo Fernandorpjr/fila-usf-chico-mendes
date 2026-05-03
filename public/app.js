@@ -121,6 +121,90 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 /* === FIM MELHORIA A: PORTÃO DE ENTRADA === */
 
+/* === MELHORIA D: NOTIFICAÇÕES POP-UP CENTRAL === */
+let notifQueue = [];       // fila de notificações pendentes
+let notifCurrent = null;   // notificação sendo exibida
+let notifDismissedIds = new Set(); // IDs já fechados nesta sessão
+
+// Determinar setor ativo do dispositivo pela aba selecionada
+function getMeuSetorAtivo() {
+  const activeTab = document.querySelector('.nav-tab.active');
+  if (!activeTab) return null;
+  const tabId = activeTab.id.replace('tab-', '');
+  const setorMap = {
+    medico: 'Médico', enfermagem: 'Enfermagem', odontologia: 'Odontologia',
+    farmacia: 'Farmácia', regulacao: 'Regulação', acolhimento: 'Acolhimento'
+  };
+  return setorMap[tabId] || null;
+}
+
+// Carregar notificações pendentes do servidor
+async function loadNotificacoes() {
+  const setor = getMeuSetorAtivo();
+  if (!setor) return;
+  try {
+    const r = await fetch(`${API_URL}/notificacoes/${encodeURIComponent(setor)}`);
+    const data = await r.json();
+    // Filtrar notificações já na fila, já exibida ou já fechadas
+    const knownIds = new Set([
+      ...notifQueue.map(n => n.id),
+      ...(notifCurrent ? [notifCurrent.id] : []),
+      ...notifDismissedIds
+    ]);
+    const newNotifs = data.filter(n => !knownIds.has(n.id));
+    if (newNotifs.length > 0) {
+      notifQueue.push(...newNotifs);
+      if (!notifCurrent) showNextNotif();
+    }
+  } catch(e) {}
+}
+
+// Exibir próxima notificação da fila
+function showNextNotif() {
+  if (notifQueue.length === 0) {
+    notifCurrent = null;
+    const overlay = document.getElementById('notif-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    return;
+  }
+  notifCurrent = notifQueue.shift();
+  const iconMap = { presenca: '✅', urgente: '🚨', sistema: 'ℹ️' };
+  document.getElementById('notif-icon').textContent = iconMap[notifCurrent.tipo] || '🔔';
+  document.getElementById('notif-title').textContent = notifCurrent.titulo;
+  document.getElementById('notif-body').textContent = notifCurrent.mensagem;
+  const remaining = notifQueue.length;
+  document.getElementById('notif-counter').textContent =
+    remaining > 0 ? `+${remaining} notificação(ões) na fila` : '';
+  document.getElementById('notif-overlay').classList.remove('hidden');
+  // Som de alerta
+  bipChat();
+}
+
+// Fechar notificação atual e sincronizar com servidor
+async function dismissNotificacao() {
+  if (!notifCurrent) return;
+  const id = notifCurrent.id;
+  notifDismissedIds.add(id);
+  try {
+    await fetch(`${API_URL}/notificacoes/${id}/dismiss`, { method: 'POST' });
+  } catch(e) {}
+  showNextNotif(); // Mostrar próxima ou fechar overlay
+}
+/* === FIM MELHORIA D === */
+
+/* === MELHORIA E: CONFIRMAÇÃO DE PRESENÇA === */
+async function confirmarPresenca(id, nome) {
+  try {
+    const r = await fetch(`${API_URL}/patients/${id}/confirmar-presenca`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) throw new Error();
+    showToast(`✅ Presença de ${nome} confirmada!`);
+    loadQueues();
+  } catch { showToast('Erro ao confirmar presença!', true); }
+}
+/* === FIM MELHORIA E === */
+
 // ====== SECTOR CONFIG ======
 const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia'];
 
@@ -606,6 +690,8 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     items = items.filter(p => p.profissional === filterProfissional);
   }
   if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
+  // Detect if this is a sector queue (not mini-queue from recepção)
+  const isSectorQueue = containerId.startsWith('queue-');
   el.innerHTML = items.map((p, i) => {
     const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
     const tipoLabel = p.tipo_atendimento ? `<span style="font-size:11px;color:var(--gray-600);margin-left:4px;">(${p.tipo_atendimento})</span>` : '';
@@ -616,9 +702,20 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Marcar como Desistência">🚶</button>
       <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir Permanentemente">🔥</button>
     </div>` : '';
+    /* === MELHORIA E: Badge de presença no setor + botão na recepção === */
+    let presencaHtml = '';
+    if (isSectorQueue && ['Médico','Enfermagem','Odontologia'].includes(setor)) {
+      // Nas filas dos setores: mostrar badge de presença
+      if (p.presenca_confirmada) {
+        presencaHtml = '<span class="presenca-badge presenca-confirmada">🟢 PRESENTE</span>';
+      } else {
+        presencaHtml = '<span class="presenca-badge presenca-aguardando">⚪ AGUARDANDO</span>';
+      }
+    }
+    /* === FIM MELHORIA E === */
     return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
-      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges}</div>
+      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${presencaHtml}</div>
       <div class="queue-time">${p.horario}</div>
       <div style="display:flex;gap:8px;align-items:center;">
         ${qrBtn}
@@ -637,7 +734,47 @@ function updateQueues() {
   });
 }
 
-function updateMiniQueues() { SETORES.forEach(s => renderQueueItems('mini-queue-' + SECTOR_CONFIG[s].key, s)); }
+function updateMiniQueues() {
+  /* === MELHORIA E: Mini-queues com botão de confirmar presença === */
+  SETORES.forEach(s => {
+    const cfg = SECTOR_CONFIG[s];
+    const el = document.getElementById('mini-queue-' + cfg.key); if (!el) return;
+    const items = (queues[s] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
+    if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
+    el.innerHTML = items.map((p, i) => {
+      const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
+      const tipoLabel = p.tipo_atendimento ? `<span style="font-size:11px;color:var(--gray-600);margin-left:4px;">(${p.tipo_atendimento})</span>` : '';
+      const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${p.profissional}</span>` : '';
+      const condBadges = renderCondicoesBadges(p.condicoes_especiais);
+      const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
+      const removeBtn = isAdmin ? `<div style="display:flex;gap:4px;">
+        <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Marcar como Desistência">🚶</button>
+        <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir Permanentemente">🔥</button>
+      </div>` : '';
+      // Botão de confirmar presença (apenas na Recepção, setores com profissional)
+      let presencaBtn = '';
+      if (['Médico','Enfermagem','Odontologia'].includes(s) && p.status === 'aguardando') {
+        if (p.presenca_confirmada) {
+          presencaBtn = '<span class="presenca-badge presenca-confirmada" style="margin-left:4px;">🟢 Presente</span>';
+        } else {
+          presencaBtn = `<button class="btn-confirmar-presenca" onclick="event.stopPropagation();confirmarPresenca(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Confirmar presença na recepção">✅ Confirmar Presença</button>`;
+        }
+      }
+      return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
+        <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">${i+1}</div>
+        <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges}</div>
+        <div class="queue-time">${p.horario}</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          ${presencaBtn}
+          ${qrBtn}
+          <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>
+          ${removeBtn}
+        </div>
+      </div>`;
+    }).join('');
+  });
+  /* === FIM MELHORIA E === */
+}
 
 function updateRecent() {
   const el = document.getElementById('recent-list');
@@ -1785,7 +1922,7 @@ loadAcolhimentoFluxo();
 // ====== SOCKET.IO ======
 const socket = io({ transports: ['websocket'], upgrade: false });
 
-setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); }, 5000);
+setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); loadNotificacoes(); }, 5000);
 setInterval(() => { loadAllChannels(); }, 8000);
 
 socket.on('queueUpdate', () => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); });
@@ -1835,6 +1972,31 @@ socket.on('chatChannelClear', (data) => {
   renderChannelChat(); renderCanalList(); updateChatBadge();
 });
 socket.on('chatReset', () => { CANAIS.forEach(c => { channelMessages[c.id]=[]; channelUnread[c.id]=0; }); renderChannelChat(); renderCanalList(); });
+
+/* === MELHORIA D: Socket.IO listeners para notificações === */
+socket.on('notificacaoNova', (data) => {
+  const meuSetor = getMeuSetorAtivo();
+  if (meuSetor && meuSetor === data.setor) {
+    // Verificar se já está na fila ou foi dismissada
+    const id = data.notificacao.id;
+    if (notifDismissedIds.has(id)) return;
+    const knownIds = new Set([...notifQueue.map(n=>n.id), ...(notifCurrent ? [notifCurrent.id] : [])]);
+    if (knownIds.has(id)) return;
+    notifQueue.push(data.notificacao);
+    if (!notifCurrent) showNextNotif();
+  }
+});
+
+socket.on('notificacaoDismissed', (data) => {
+  const id = data.id;
+  notifDismissedIds.add(id);
+  // Remover da fila local se outro dispositivo dismissou
+  notifQueue = notifQueue.filter(n => n.id !== id);
+  if (notifCurrent && notifCurrent.id === id) {
+    showNextNotif(); // Avançar para próxima
+  }
+});
+/* === FIM MELHORIA D === */
 
 setTimeout(() => {
   // Only show sound modal if past the gate

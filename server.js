@@ -131,6 +131,21 @@ async function initDB() {
     `);
     /* === FIM MELHORIA C: TABELAS === */
 
+    /* === MELHORIA D: TABELA DE NOTIFICAÇÕES === */
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notificacoes (
+        id SERIAL PRIMARY KEY,
+        setor TEXT NOT NULL,
+        titulo TEXT NOT NULL,
+        mensagem TEXT NOT NULL,
+        tipo TEXT DEFAULT 'presenca',
+        patient_id INTEGER,
+        dismissed BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    /* === FIM MELHORIA D: TABELA === */
+
     // Agendamentos
     await pool.query(`
       CREATE TABLE IF NOT EXISTS agendamentos (
@@ -184,6 +199,8 @@ async function initDB() {
       { table: 'call_history', column: 'condicoes_especiais', type: 'TEXT' },
       { table: 'call_history', column: 'queixa', type: 'TEXT' },
       { table: 'call_history', column: 'risco_clinico', type: 'TEXT' },
+      // Melhoria E: Confirmação de presença
+      { table: 'patients', column: 'presenca_confirmada', type: 'BOOLEAN DEFAULT false' },
     ];
     
     for (const col of columns) {
@@ -895,6 +912,105 @@ app.delete('/api/chat/canais/:canal/pin', async (req, res) => {
 });
 
 /* === FIM MELHORIA C: ROTAS === */
+
+/* === MELHORIA D: ROTAS DE NOTIFICAÇÕES POP-UP === */
+
+// GET notificações ativas para um setor
+app.get('/api/notificacoes/:setor', async (req, res) => {
+  try {
+    const { setor } = req.params;
+    const result = await pool.query(
+      `SELECT * FROM notificacoes WHERE setor = $1 AND dismissed = false
+       ORDER BY created_at ASC`,
+      [setor]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST criar notificação (uso interno)
+app.post('/api/notificacoes', async (req, res) => {
+  try {
+    const { setor, titulo, mensagem, tipo, patient_id } = req.body;
+    if (!setor || !titulo || !mensagem) {
+      return res.status(400).json({ error: 'Setor, titulo e mensagem são obrigatórios' });
+    }
+    const result = await pool.query(
+      `INSERT INTO notificacoes (setor, titulo, mensagem, tipo, patient_id)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [setor, titulo, mensagem, tipo || 'sistema', patient_id || null]
+    );
+    const notif = result.rows[0];
+    io.emit('notificacaoNova', { setor, notificacao: notif });
+    res.status(201).json(notif);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST dismiss notificação (sincroniza entre dispositivos)
+app.post('/api/notificacoes/:id/dismiss', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('UPDATE notificacoes SET dismissed = true WHERE id = $1', [id]);
+    io.emit('notificacaoDismissed', { id: parseInt(id) });
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* === FIM MELHORIA D: ROTAS === */
+
+/* === MELHORIA E: CONFIRMAÇÃO DE PRESENÇA === */
+
+// POST confirmar presença de paciente
+app.post('/api/patients/:id/confirmar-presenca', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Atualizar paciente
+    const result = await pool.query(
+      `UPDATE patients SET presenca_confirmada = true, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    
+    const patient = result.rows[0];
+    const setor = patient.setor;
+    const profLabel = patient.profissional ? ` — ${patient.profissional}` : '';
+    
+    // Criar notificação para o setor do profissional
+    const notifResult = await pool.query(
+      `INSERT INTO notificacoes (setor, titulo, mensagem, tipo, patient_id)
+       VALUES ($1, $2, $3, 'presenca', $4) RETURNING *`,
+      [
+        setor,
+        '✅ Paciente Presente',
+        `${patient.nome} confirmou presença na recepção${profLabel}`,
+        patient.id
+      ]
+    );
+    
+    const notif = notifResult.rows[0];
+    
+    // Emitir eventos Socket.IO
+    io.emit('queueUpdate');
+    io.emit('notificacaoNova', { setor, notificacao: notif });
+    
+    res.json({ message: 'Presença confirmada', patient, notificacao: notif });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* === FIM MELHORIA E: CONFIRMAÇÃO DE PRESENÇA === */
 
 // ====== AGENDAMENTOS ======
 

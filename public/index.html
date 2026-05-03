@@ -409,6 +409,65 @@
     }
     .chat-bubble:hover .pin-btn { display: block; }
     /* === FIM MELHORIA C === */
+
+    /* === MELHORIA D: NOTIFICAÇÃO POP-UP CENTRAL === */
+    .notif-overlay {
+      position: fixed; inset: 0; z-index: 99990;
+      background: rgba(5,18,60,0.85);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(6px);
+    }
+    .notif-overlay.hidden { display: none; }
+    .notif-card {
+      background: white; border-radius: 24px; padding: 40px 36px;
+      max-width: 480px; width: 90%; text-align: center;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+      animation: notifIn 0.4s ease; color: var(--gray-700);
+    }
+    @keyframes notifIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .notif-icon { font-size: 56px; margin-bottom: 12px; }
+    .notif-title {
+      font-family: 'Nunito', sans-serif; font-size: 20px; font-weight: 900;
+      color: var(--blue-dark); margin-bottom: 8px;
+    }
+    .notif-body {
+      font-size: 15px; font-weight: 600; color: var(--gray-600);
+      margin-bottom: 24px; line-height: 1.5;
+    }
+    .notif-counter {
+      font-size: 12px; color: var(--gray-300); margin-bottom: 16px;
+      font-weight: 700;
+    }
+    .notif-btn-ok {
+      width: 100%; padding: 16px; border: none; border-radius: 14px;
+      font-family: 'Nunito', sans-serif; font-size: 17px; font-weight: 900;
+      cursor: pointer; transition: all 0.2s;
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      color: #fff; box-shadow: 0 4px 20px rgba(74,171,60,0.5);
+    }
+    .notif-btn-ok:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(74,171,60,0.6); }
+    /* === FIM MELHORIA D === */
+
+    /* === MELHORIA E: PRESENÇA CONFIRMADA === */
+    .presenca-badge {
+      font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 20px;
+      text-transform: uppercase; letter-spacing: 0.3px; display: inline-block;
+    }
+    .presenca-aguardando { background: rgba(158,158,158,0.15); color: #757575; }
+    .presenca-confirmada { background: rgba(74,171,60,0.15); color: #2d7a22; }
+    .btn-confirmar-presenca {
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      color: #fff; border: none; border-radius: 8px; padding: 5px 12px;
+      font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800;
+      cursor: pointer; transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(74,171,60,0.3);
+    }
+    .btn-confirmar-presenca:hover { transform: scale(1.05); }
+    .btn-confirmar-presenca:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    /* === FIM MELHORIA E === */
 </style>
 </head>
 <body>
@@ -428,6 +487,18 @@
   </div>
 </div>
 <!-- === FIM MELHORIA A: GATE === -->
+
+<!-- === MELHORIA D: POP-UP DE NOTIFICAÇÃO === -->
+<div class="notif-overlay hidden" id="notif-overlay">
+  <div class="notif-card">
+    <div class="notif-icon" id="notif-icon">✅</div>
+    <div class="notif-title" id="notif-title">Notificação</div>
+    <div class="notif-body" id="notif-body">Texto da notificação</div>
+    <div class="notif-counter" id="notif-counter"></div>
+    <button class="notif-btn-ok" onclick="dismissNotificacao()">✓ Entendido</button>
+  </div>
+</div>
+<!-- === FIM MELHORIA D === -->
 
 <!-- Sistema principal (oculto até autenticação no portão) -->
 <div id="app-wrapper" style="display:none;">
