@@ -949,7 +949,7 @@ const CANAIS = [
   { id:'odontologia', nome:'🦷 Odontologia', desc:'Canal da Odontologia' },
   { id:'gerencia', nome:'🏛️ Gerência', desc:'Canal da Gerência' }
 ];
-let activeCanal = 'global';
+let activeCanal = 'geral';
 let channelMessages = {};
 let channelUnread = {};
 let chatUrgent = false;
@@ -1054,17 +1054,10 @@ function renderCanalList() {
 }
 
 function switchCanal(canalId) {
-  activeCanal = canalId;
-  const canal = CANAIS.find(c => c.id === canalId);
-  document.getElementById('chat-canal-title').textContent = canal?.nome?.replace(/^[^\s]+\s/,'') || canalId;
-  document.getElementById('chat-canal-sub').textContent = canal?.desc || '';
-  document.getElementById('chat-canal-icon').textContent = canal?.nome?.split(' ')[0] || '📢';
-  /* === MELHORIA C: usar markCanalAsRead === */
-  markCanalAsRead(canalId);
-  /* === FIM MELHORIA C === */
-  renderCanalList();
+  activeCanal = 'geral';
+  document.getElementById('chat-canal-title').textContent = 'Chat da Unidade';
+  document.getElementById('chat-canal-sub').textContent = 'Todos os setores e profissionais';
   renderChannelChat();
-  loadChatPin(canalId);
 }
 
 async function loadChannelMessages(canalId) {
@@ -1161,7 +1154,7 @@ async function sendChatChannelMessage() {
   const texto = inp.value.trim();
   
   if (!texto && !chatAttachment) return;
-  if (!activeCanal) { activeCanal = 'global'; }
+  if (!activeCanal) { activeCanal = 'geral'; }
   
   try {
     inp.disabled = true;
