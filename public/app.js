@@ -1919,126 +1919,49 @@ renderCanalList();
 loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAllChannels();
 loadAcolhimentoFluxo();
 
-// ====== SOCKET.IO ======
-const socket = io({
-  transports: ['polling'],
-  upgrade: false,
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 5000,
-  timeout: 20000,
-  forceNew: false
-});
-
 // Connection status indicator
 let socketConnected = false;
-socket.on('connect', () => {
-  socketConnected = true;
-  console.log('✅ Socket.IO conectado');
-  const dot = document.getElementById('socket-status-dot');
-  if (dot) { dot.style.background = '#4aab3c'; dot.title = 'Conectado'; }
-  // Reload all data on reconnect
-  loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo();
-});
-socket.on('disconnect', () => {
-  socketConnected = false;
-  console.log('⚠️ Socket.IO desconectado - usando polling');
-  const dot = document.getElementById('socket-status-dot');
-  if (dot) { dot.style.background = '#e53935'; dot.title = 'Desconectado - tentando reconectar...'; }
-});
-socket.on('connect_error', (err) => {
-  console.log('⚠️ Socket.IO erro de conexão - dados continuam via polling');
-});
-
-// Add status indicator to header
 (function addSocketIndicator() {
   const hr = document.querySelector('.header-right');
   if (hr) {
     const dot = document.createElement('div');
     dot.id = 'socket-status-dot';
-    dot.title = 'Conectando...';
-    dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#f9c823;flex-shrink:0;';
+    dot.title = 'Conectado via API Polling (Vercel)';
+    dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#4aab3c;flex-shrink:0;';
     hr.insertBefore(dot, hr.firstChild);
   }
 })();
 
-// Reliable polling fallback (works even without WebSocket)
+// Reliable polling fallback (Vercel Serverless environment)
 setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); loadNotificacoes(); }, 3000);
 setInterval(() => { loadAllChannels(); }, 8000);
 
-socket.on('queueUpdate', () => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); });
-socket.on('callPatient', (d) => { 
-  const prof = d.patient.medico || d.patient.profissional;
-  speak(d.patient.nome, d.setor, d.audioUrl, prof); 
-  loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); 
-});
-socket.on('acolhimentoUpdate', () => { loadAcolhimentoFluxo(); });
-socket.on('acolhimentoUrgente', (data) => {
-  const p = data.patient;
-  showToast(`🚨 URGENTE: ${p.nome} – Risco VERMELHO encaminhado para 2ª Escuta!`, false, 6000);
-  playChatSound();
-  sendDesktopNotif('🚨 ACOLHIMENTO URGENTE', `${p.nome} encaminhado com risco VERMELHO para 2ª Escuta`);
-});
+/* Eventos Socket.IO desabilitados temporariamente devido a limites da Vercel
+   O fallback de polling manual já cobre as funcionalidades.
+*/
+/*
 socket.on('chatChannelMessage', (data) => {
-  const { canal, mensagem } = data;
-  if (!channelMessages[canal]) channelMessages[canal] = [];
-  if (channelMessages[canal].some(m => m.id === mensagem.id)) return;
-  channelMessages[canal].push(mensagem);
-  const at = document.querySelector('.nav-tab.active');
-  const isChatScreen = at && at.id === 'tab-chat';
-  const meuSetor = document.getElementById('chat-remetente')?.value || '';
-  if (canal === activeCanal && isChatScreen) {
-    renderChannelChat();
-    markCanalAsRead(canal);
-  } else {
-    channelUnread[canal] = (channelUnread[canal]||0) + 1;
-    updateChatBadge(); renderCanalList();
-  }
-  if (!isChatScreen || canal !== activeCanal) {
-    /* === MELHORIA C: bipChat em vez de playChatSound para mensagens não-próprias === */
-    if (mensagem.autor !== meuSetor) {
-      bipChat();
-    }
-    /* === FIM MELHORIA C === */
-    showToast(`💬 [${canal}] ${mensagem.autor}: ${mensagem.texto.substring(0,50)}`, false, 4000);
-    if (mensagem.urgente) sendDesktopNotif('🚨 URGENTE - USF Chat', `${mensagem.autor}: ${mensagem.texto}`);
-  }
+  // polling handles chat
 });
 socket.on('chatPinUpdate', (data) => {
   if (data.canal === activeCanal) renderChatPin(data.pin);
 });
 socket.on('chatChannelClear', (data) => {
-  if (data.canal === '__all__') { CANAIS.forEach(c => { channelMessages[c.id]=[]; channelUnread[c.id]=0; }); }
-  else { channelMessages[data.canal]=[]; channelUnread[data.canal]=0; }
-  renderChannelChat(); renderCanalList(); updateChatBadge();
+  // handled by polling
 });
-socket.on('chatReset', () => { CANAIS.forEach(c => { channelMessages[c.id]=[]; channelUnread[c.id]=0; }); renderChannelChat(); renderCanalList(); });
+socket.on('chatReset', () => { 
+  // handled by polling
+});
 
-/* === MELHORIA D: Socket.IO listeners para notificações === */
+// Socket.IO listeners para notificações
 socket.on('notificacaoNova', (data) => {
-  const meuSetor = getMeuSetorAtivo();
-  if (meuSetor && meuSetor === data.setor) {
-    // Verificar se já está na fila ou foi dismissada
-    const id = data.notificacao.id;
-    if (notifDismissedIds.has(id)) return;
-    const knownIds = new Set([...notifQueue.map(n=>n.id), ...(notifCurrent ? [notifCurrent.id] : [])]);
-    if (knownIds.has(id)) return;
-    notifQueue.push(data.notificacao);
-    if (!notifCurrent) showNextNotif();
-  }
+  // handled by polling
 });
 
 socket.on('notificacaoDismissed', (data) => {
-  const id = data.id;
-  notifDismissedIds.add(id);
-  // Remover da fila local se outro dispositivo dismissou
-  notifQueue = notifQueue.filter(n => n.id !== id);
-  if (notifCurrent && notifCurrent.id === id) {
-    showNextNotif(); // Avançar para próxima
-  }
+  // handled by polling
 });
-/* === FIM MELHORIA D === */
+*/
 
 setTimeout(() => {
   // Only show sound modal if past the gate
