@@ -1920,9 +1920,51 @@ loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAllChanne
 loadAcolhimentoFluxo();
 
 // ====== SOCKET.IO ======
-const socket = io({ transports: ['websocket'], upgrade: false });
+const socket = io({
+  transports: ['polling'],
+  upgrade: false,
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 20000,
+  forceNew: false
+});
 
-setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); loadNotificacoes(); }, 5000);
+// Connection status indicator
+let socketConnected = false;
+socket.on('connect', () => {
+  socketConnected = true;
+  console.log('✅ Socket.IO conectado');
+  const dot = document.getElementById('socket-status-dot');
+  if (dot) { dot.style.background = '#4aab3c'; dot.title = 'Conectado'; }
+  // Reload all data on reconnect
+  loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo();
+});
+socket.on('disconnect', () => {
+  socketConnected = false;
+  console.log('⚠️ Socket.IO desconectado - usando polling');
+  const dot = document.getElementById('socket-status-dot');
+  if (dot) { dot.style.background = '#e53935'; dot.title = 'Desconectado - tentando reconectar...'; }
+});
+socket.on('connect_error', (err) => {
+  console.log('⚠️ Socket.IO erro de conexão - dados continuam via polling');
+});
+
+// Add status indicator to header
+(function addSocketIndicator() {
+  const hr = document.querySelector('.header-right');
+  if (hr) {
+    const dot = document.createElement('div');
+    dot.id = 'socket-status-dot';
+    dot.title = 'Conectando...';
+    dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#f9c823;flex-shrink:0;';
+    hr.insertBefore(dot, hr.firstChild);
+  }
+})();
+
+// Reliable polling fallback (works even without WebSocket)
+setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); loadNotificacoes(); }, 3000);
 setInterval(() => { loadAllChannels(); }, 8000);
 
 socket.on('queueUpdate', () => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); });
