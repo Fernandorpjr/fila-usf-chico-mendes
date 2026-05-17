@@ -99,7 +99,7 @@ async function initDB() {
       )
     `);
 
-    // Chat avançado com canais
+    // Chat avançado com canais (agora com suporte a anexos)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS chat_channels (
         id SERIAL PRIMARY KEY,
@@ -107,9 +107,15 @@ async function initDB() {
         autor TEXT NOT NULL,
         texto TEXT NOT NULL,
         urgente BOOLEAN DEFAULT false,
+        anexo_nome TEXT,
+        anexo_base64 TEXT,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // Assegura que colunas existam se a tabela já foi criada antes
+    await pool.query('ALTER TABLE chat_channels ADD COLUMN IF NOT EXISTS anexo_nome TEXT');
+    await pool.query('ALTER TABLE chat_channels ADD COLUMN IF NOT EXISTS anexo_base64 TEXT');
 
     // Leitura de mensagens por setor
     await pool.query(`
@@ -755,14 +761,20 @@ app.get('/api/chat/canais/:canal', async (req, res) => {
 app.post('/api/chat/canais/:canal', async (req, res) => {
   try {
     const { canal } = req.params;
-    const { autor, texto, urgente } = req.body;
-    if (!autor || !texto) {
-      console.error(`❌ Chat error [${canal}]: Autor or texto missing`);
-      return res.status(400).json({ error: 'Autor e texto são obrigatórios' });
+    const { autor, texto, urgente, anexo_nome, anexo_base64 } = req.body;
+    if (!autor || (!texto && !anexo_base64)) {
+      console.error(`❌ Chat error [${canal}]: Autor or texto/anexo missing`);
+      return res.status(400).json({ error: 'Autor e texto/anexo são obrigatórios' });
     }
+    
+    // Limite de segurança no backend (~3MB de base64) para evitar estourar o limite da Vercel
+    if (anexo_base64 && anexo_base64.length > 4000000) {
+      return res.status(413).json({ error: 'Arquivo muito grande. O limite é de aproximadamente 2MB.' });
+    }
+
     const result = await pool.query(
-      'INSERT INTO chat_channels (canal, autor, texto, urgente) VALUES ($1, $2, $3, $4) RETURNING *',
-      [canal, autor, texto, urgente || false]
+      'INSERT INTO chat_channels (canal, autor, texto, urgente, anexo_nome, anexo_base64) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [canal, autor, texto || '', urgente || false, anexo_nome || null, anexo_base64 || null]
     );
     const msg = result.rows[0];
     io.emit('chatChannelMessage', { canal, mensagem: msg });

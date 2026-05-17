@@ -927,29 +927,27 @@
       <div class="sector-icon-big" style="background:rgba(26,79,196,0.2);">💬</div>
       <div><div class="sector-page-title">Chat Interno USF</div><div class="sector-page-sub">Comunicação por canais entre os setores da unidade</div></div>
     </div>
-    <div class="chat-layout">
-      <button class="chat-sidebar-toggle" onclick="toggleChatSidebar()">☰ Canais</button>
-      <div class="chat-sidebar" id="chat-sidebar">
-        <div class="chat-sidebar-header"><h3>💬 Canais</h3></div>
-        <div class="chat-canal-list" id="chat-canal-list"></div>
-        <div class="chat-setor-select">
-          <label style="font-size:11px;color:var(--gray-300);font-weight:700;">Seu Setor:</label>
-          <select id="chat-remetente" title="Selecione seu setor" onchange="onChatSetorChange()">
-            <option value="Recepção">🏢 Recepção</option>
-            <option value="Acolhimento">💜 Acolhimento</option>
-            <option value="Farmácia">💊 Farmácia</option>
-            <option value="Regulação">📋 Regulação</option>
-            <option value="Médico">🩺 Médico</option>
-            <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
-            <option value="Odontologia">🦷 Odontologia</option>
-            <option value="Gerência">🏛️ Gerência</option>
-          </select>
-        </div>
-      </div>
+    <div class="chat-layout" style="grid-template-columns: 1fr;"> <!-- Força largura total -->
       <div class="chat-main">
         <div class="chat-main-header">
           <div style="font-size:22px;" id="chat-canal-icon">📢</div>
-          <div><div class="ch-title" id="chat-canal-title">Geral</div><div class="ch-sub" id="chat-canal-sub">Todos os setores</div></div>
+          <div><div class="ch-title" id="chat-canal-title">Chat da Unidade</div><div class="ch-sub" id="chat-canal-sub">Todos os setores e profissionais</div></div>
+          
+          <div style="margin-left:auto; display:flex; align-items:center; gap: 8px;">
+            <label style="font-size:11px;color:var(--gray-300);font-weight:700;">Identificação:</label>
+            <input type="text" id="chat-remetente-nome" placeholder="Seu nome" style="padding:4px; border-radius:4px; border:1px solid #ddd; font-size:12px; width: 100px;">
+            <select id="chat-remetente" title="Selecione seu setor" onchange="onChatSetorChange()" style="padding:4px; border-radius:4px; border:1px solid #ddd; font-size:12px;">
+              <option value="Recepção">🏢 Recepção</option>
+              <option value="Acolhimento">💜 Acolhimento</option>
+              <option value="Farmácia">💊 Farmácia</option>
+              <option value="Regulação">📋 Regulação</option>
+              <option value="Médico">🩺 Médico</option>
+              <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
+              <option value="Odontologia">🦷 Odontologia</option>
+              <option value="Gerência">🏛️ Gerência</option>
+            </select>
+          </div>
+
           <div class="ch-actions">
             <button class="btn btn-ghost btn-sm admin-only" onclick="clearChatCanal()" title="Limpar canal">🗑️</button>
           </div>
@@ -965,7 +963,18 @@
         <div class="chat-typing-indicator" id="chat-typing"></div>
         <div class="chat-input-area">
           <div class="emoji-picker" id="emoji-picker"></div>
+          
+          <input type="file" id="chat-file-input" style="display:none;" accept=".pdf,.doc,.docx,.xlsx,.png,.jpg,.jpeg">
+          <button onclick="document.getElementById('chat-file-input').click()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Anexar Arquivo">📎</button>
+          
           <button onclick="toggleEmojiPicker()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Emojis">😊</button>
+          
+          <!-- Container de preview do anexo -->
+          <div id="chat-file-preview" style="display:none; position:absolute; bottom: 60px; left: 10px; background: white; padding: 8px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); align-items:center; gap:8px;">
+             <span id="chat-file-name" style="font-size: 12px; font-weight: bold; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+             <button onclick="removeChatAttachment()" style="background: #f44336; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer;">✕</button>
+          </div>
+
           <textarea id="chat-input" placeholder="Digite sua mensagem..." rows="1" onkeydown="handleChatKeydown(event)" oninput="handleChatTyping()"></textarea>
           <button class="chat-urgent-toggle" id="chat-urgent-btn" onclick="toggleUrgent()" title="Marcar como urgente">🔴</button>
           <button class="chat-send-btn" onclick="sendChatChannelMessage()" title="Enviar">🚀</button>
@@ -1004,6 +1013,7 @@
             <option value="lembrete">📋 Lembrete de Consulta</option>
             <option value="confirmacao">✅ Confirmação de Agendamento</option>
             <option value="reagendamento">🔄 Reagendamento</option>
+            <option value="cancelamento">❌ Cancelamento</option>
             <option value="preparo_exames">🔬 Preparo para Exames</option>
           </select>
         </div>

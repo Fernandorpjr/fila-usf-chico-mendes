@@ -949,7 +949,7 @@ const CANAIS = [
   { id:'odontologia', nome:'🦷 Odontologia', desc:'Canal da Odontologia' },
   { id:'gerencia', nome:'🏛️ Gerência', desc:'Canal da Gerência' }
 ];
-let activeCanal = 'geral';
+let activeCanal = 'global';
 let channelMessages = {};
 let channelUnread = {};
 let chatUrgent = false;
@@ -1083,31 +1083,109 @@ async function loadAllChannels() {
 function renderChannelChat() {
   const c = document.getElementById('chat-messages'); if (!c) return;
   const msgs = channelMessages[activeCanal] || [];
-  const meu = document.getElementById('chat-remetente')?.value || '';
-  if (!msgs.length) { c.innerHTML = '<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Nenhuma mensagem neste canal</p></div>'; return; }
+  const meuSetor = document.getElementById('chat-remetente')?.value || '';
+  const meuNome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
+  const meuIdentificador = meuNome ? `${meuNome} (${meuSetor})` : meuSetor;
+  
+  if (!msgs.length) { c.innerHTML = '<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Nenhuma mensagem</p></div>'; return; }
   c.innerHTML = msgs.map(m => {
     const t = safeDate(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    const isMe = m.autor === meu;
+    const isMe = m.autor === meuIdentificador || m.autor === meuSetor;
     const urgClass = m.urgente ? ' bubble-urgent bubble-urgent-anim' : '';
     const urgTag = m.urgente ? '<span style="color:var(--red);font-weight:800;">🚨 URGENTE</span> ' : '';
-    /* === MELHORIA C: Botão Pin nas mensagens === */
+    
+    let anexoHtml = '';
+    if (m.anexo_base64 && m.anexo_nome) {
+      const isImg = m.anexo_nome.match(/\.(jpeg|jpg|png|gif)$/i);
+      if (isImg) {
+        anexoHtml = `<div style="margin-top:8px;"><img src="${m.anexo_base64}" style="max-width:100%; max-height:200px; border-radius:8px; cursor:pointer;" onclick="window.open('${m.anexo_base64}', '_blank')"></div>`;
+      } else {
+        anexoHtml = `<div style="margin-top:8px; background:rgba(0,0,0,0.05); padding:8px; border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <span style="font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">📎 ${m.anexo_nome}</span>
+          <a href="${m.anexo_base64}" download="${m.anexo_nome}" class="btn btn-sm btn-primary" style="padding:4px 8px; font-size:11px;">Baixar</a>
+        </div>`;
+      }
+    }
+
     const pinBtn = `<button class="pin-btn" onclick="event.stopPropagation();pinChatMessage('${m.texto.replace(/'/g,"\\\\'")}','${m.autor}')" title="Fixar mensagem">📌</button>`;
-    /* === FIM MELHORIA C === */
-    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}">${pinBtn}<div class="chat-meta"><span>${urgTag}${m.autor}</span></div><div>${m.texto}</div><div class="chat-time">${t}</div></div>`;
+    
+    // Se não tiver texto, não renderiza a div de texto vazia
+    const textHtml = m.texto ? `<div>${m.texto}</div>` : '';
+
+    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}">${pinBtn}<div class="chat-meta"><span>${urgTag}${m.autor}</span></div>${textHtml}${anexoHtml}<div class="chat-time">${t}</div></div>`;
   }).join('');
   c.scrollTop = c.scrollHeight;
 }
 
+let chatAttachment = null;
+
+function removeChatAttachment() {
+  chatAttachment = null;
+  document.getElementById('chat-file-input').value = '';
+  document.getElementById('chat-file-preview').style.display = 'none';
+  document.getElementById('chat-file-name').textContent = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const fileInput = document.getElementById('chat-file-input');
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) { // 2MB limite
+        showToast('O arquivo deve ter no máximo 2MB.', true);
+        fileInput.value = '';
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        chatAttachment = {
+          nome: file.name,
+          base64: ev.target.result
+        };
+        document.getElementById('chat-file-name').textContent = '📎 ' + file.name;
+        document.getElementById('chat-file-preview').style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+});
+
 async function sendChatChannelMessage() {
-  const autor = document.getElementById('chat-remetente').value;
+  const setor = document.getElementById('chat-remetente')?.value || 'Equipe';
+  const nome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
+  const autor = nome ? `${nome} (${setor})` : setor;
+  
   const inp = document.getElementById('chat-input');
   const texto = inp.value.trim();
-  if (!texto) return;
-  if (!activeCanal) { showToast('Selecione um canal!', true); return; }
+  
+  if (!texto && !chatAttachment) return;
+  if (!activeCanal) { activeCanal = 'global'; }
+  
   try {
     inp.disabled = true;
-    const r = await fetch(`${API_URL}/chat/canais/${activeCanal}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({autor,texto,urgente:chatUrgent}) });
-    if (r.ok) { inp.value = ''; chatUrgent = false; document.getElementById('chat-urgent-btn').classList.remove('active'); }
+    const payload = { 
+      autor, 
+      texto, 
+      urgente: chatUrgent 
+    };
+    if (chatAttachment) {
+      payload.anexo_nome = chatAttachment.nome;
+      payload.anexo_base64 = chatAttachment.base64;
+    }
+
+    const r = await fetch(`${API_URL}/chat/canais/${activeCanal}`, { 
+      method:'POST', 
+      headers:{'Content-Type':'application/json'}, 
+      body:JSON.stringify(payload) 
+    });
+    if (r.ok) { 
+      inp.value = ''; 
+      chatUrgent = false; 
+      document.getElementById('chat-urgent-btn').classList.remove('active');
+      removeChatAttachment(); // Clear attachment after send
+    }
     else {
       const err = await r.json();
       showToast(`Erro: ${err.error || 'Falha ao enviar'}`, true);
