@@ -387,6 +387,9 @@ function showScreen(name) {
     /* === FIM MELHORIA C === */
     setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
   }
+  if (name === 'agendamentos') {
+    loadAgendamentos();
+  }
 }
 
 // ====== FORM HELPERS ======
@@ -1336,6 +1339,77 @@ function buildWaMessage(agend) {
     .replace(/\[OBS\]/g, agend.observacoes ? `📝 Obs: ${agend.observacoes}` : '').replace(/\[EXAMES\]/g, exames||'Consulte a unidade');
 }
 
+function handleAgendTipoChange() {
+  const tipo = document.getElementById('agend-tipo').value;
+  const data = document.getElementById('agend-data').value;
+  const profSelect = document.getElementById('agend-profissional');
+  
+  if (tipo === 'Coleta de Sangue' && data) {
+    const d = new Date(data + 'T12:00:00');
+    const day = d.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    let targetProf = '';
+    if (day === 3) targetProf = 'Viviane';
+    else if (day === 4) targetProf = 'Vilma';
+    else if (day === 5) targetProf = 'Fernando';
+    
+    if (targetProf) {
+      // Garantir que a opção existe no select
+      if (![...profSelect.options].some(o => o.value === targetProf)) {
+        const opt = document.createElement('option');
+        opt.value = targetProf;
+        opt.text = targetProf;
+        profSelect.add(opt);
+      }
+      profSelect.value = targetProf;
+    }
+  }
+}
+
+async function loadColetasStats() {
+  const dashboardContent = document.getElementById('coleta-dashboard-content');
+  if (!dashboardContent) return;
+  const data = document.getElementById('agend-filter-data')?.value || new Date().toISOString().split('T')[0];
+  try {
+    const r = await fetch(`${API_URL}/agendamentos/coletas/stats?data=${data}`);
+    const stats = await r.json();
+    let pendente = 0, realizado = 0, faltou = 0;
+    stats.forEach(s => {
+      if (s.status === 'pendente' || s.status === 'lembrete_enviado' || s.status === 'confirmado') pendente += parseInt(s.count);
+      else if (s.status === 'realizado') realizado += parseInt(s.count);
+      else if (s.status === 'faltou') faltou += parseInt(s.count);
+    });
+    const totalAgendados = pendente + realizado + faltou;
+    
+    const d = new Date(data + 'T12:00:00');
+    const day = d.getDay();
+    let prof = 'Não há coleta hoje';
+    if (day === 3) prof = 'Viviane (Quarta)';
+    else if (day === 4) prof = 'Vilma (Quinta)';
+    else if (day === 5) prof = 'Fernando (Sexta)';
+    
+    dashboardContent.innerHTML = `
+      <div style="background:var(--gray-100);padding:12px;border-radius:8px;flex:1;min-width:180px;">
+        <div style="font-size:11px;color:var(--gray-600);text-transform:uppercase;font-weight:800;">Téc. do Dia</div>
+        <div style="font-size:16px;font-weight:800;color:var(--blue-dark);">${prof}</div>
+      </div>
+      <div style="background:rgba(26,79,196,0.05);padding:12px;border-radius:8px;flex:1;min-width:120px;">
+        <div style="font-size:11px;color:var(--gray-600);text-transform:uppercase;font-weight:800;">Agendados</div>
+        <div style="font-size:22px;font-weight:900;color:var(--blue);">${totalAgendados} <span style="font-size:12px;color:var(--gray-600);">/ 12</span></div>
+      </div>
+      <div style="background:rgba(74,171,60,0.1);padding:12px;border-radius:8px;flex:1;min-width:120px;">
+        <div style="font-size:11px;color:var(--green);text-transform:uppercase;font-weight:800;">Realizados ✅</div>
+        <div style="font-size:22px;font-weight:900;color:var(--green);">${realizado}</div>
+      </div>
+      <div style="background:rgba(244,67,54,0.1);padding:12px;border-radius:8px;flex:1;min-width:120px;">
+        <div style="font-size:11px;color:var(--red);text-transform:uppercase;font-weight:800;">Faltas ❌</div>
+        <div style="font-size:22px;font-weight:900;color:var(--red);">${faltou}</div>
+      </div>
+    `;
+  } catch (e) {
+    console.error('Erro ao carregar stats de coleta', e);
+  }
+}
+
 async function criarAgendamento() {
   const nome = document.getElementById('agend-nome').value.trim();
   const telefone = document.getElementById('agend-telefone').value.trim().replace(/\D/g,'');
@@ -1352,6 +1426,23 @@ async function criarAgendamento() {
   }
   if (!nome||!telefone||!data_agendamento||!horario) { showToast('Preencha nome, telefone, data e horário!', true); return; }
   if (telefone.length < 10) { showToast('Telefone inválido!', true); return; }
+  
+  if (tipo_atendimento === 'Coleta de Sangue') {
+    try {
+      const r = await fetch(`${API_URL}/agendamentos/coletas/stats?data=${data_agendamento}`);
+      const stats = await r.json();
+      let total = 0;
+      stats.forEach(s => {
+        if (s.status !== 'cancelado') total += parseInt(s.count);
+      });
+      if (total >= 12) {
+        if (!confirm(`⚠️ Já existem ${total} coletas agendadas para este dia (limite recomendado: 12).\nDeseja realizar um encaixe extra?`)) {
+          return;
+        }
+      }
+    } catch(e) {}
+  }
+
   try {
     const r = await fetch(`${API_URL}/agendamentos`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome,telefone,data_agendamento,horario,profissional,tipo_atendimento,template,observacoes,checklist_exames}) });
     if (!r.ok) throw new Error();
@@ -1370,6 +1461,7 @@ async function loadAgendamentos() {
     const r = await fetch(`${API_URL}/agendamentos?${params}`);
     const list = await r.json();
     renderAgendamentos(list);
+    loadColetasStats();
   } catch { showToast('Erro ao carregar agendamentos', true); }
 }
 
@@ -1380,11 +1472,25 @@ function renderAgendamentos(list) {
     const dataIsoDate = (a.data_agendamento || '').split('T')[0];
     const dataFmt = dataIsoDate ? new Date(dataIsoDate + 'T12:00:00').toLocaleDateString('pt-BR') : '';
     const statusCls = a.status.replace(/\s+/g,'_');
+    
+    let extraBtns = '';
+    if (a.tipo_atendimento === 'Coleta de Sangue' && ['pendente', 'lembrete_enviado', 'confirmado'].includes(a.status)) {
+      extraBtns = `
+        <button onclick="updateAgendStatus(${a.id},'realizado')" title="Compareceu (Realizado)" style="background:var(--green);color:white;padding:2px 6px;font-size:11px;">✅ Compareceu</button>
+        <button onclick="updateAgendStatus(${a.id},'faltou')" title="Faltou" style="background:var(--red);color:white;padding:2px 6px;font-size:11px;">❌ Faltou</button>
+      `;
+    }
+
     return `<tr>
-      <td><b>${a.nome}</b><br><span style="font-size:11px;color:var(--gray-600);">${a.telefone}</span></td>
+      <td>
+        <b>${a.nome}</b><br>
+        <span style="font-size:11px;color:var(--gray-600);">${a.telefone}</span><br>
+        <span style="font-size:10px;background:var(--gray-200);padding:2px 6px;border-radius:4px;font-weight:700;display:inline-block;margin-top:4px;">${a.tipo_atendimento||'Consulta'}</span>
+      </td>
       <td>${dataFmt}</td><td>${a.horario}</td><td>${a.profissional||'-'}</td>
       <td><span class="agend-status ${statusCls}">${a.status}</span></td>
-      <td><div class="agend-actions">
+      <td><div class="agend-actions" style="display:flex;gap:4px;flex-wrap:wrap;">
+        ${extraBtns}
         <button onclick="openWaPreview(${a.id})" title="WhatsApp">📲</button>
         <button onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar lembrete">📨</button>
         <button onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmado">✅</button>
@@ -2057,6 +2163,11 @@ function initAgendamentoDefaults() {
   if (dataInput && !dataInput.value) {
     const today = new Date();
     dataInput.value = today.toISOString().split('T')[0];
+  }
+  const filterInput = document.getElementById('agend-filter-data');
+  if (filterInput && !filterInput.value) {
+    const today = new Date();
+    filterInput.value = today.toISOString().split('T')[0];
   }
 }
 

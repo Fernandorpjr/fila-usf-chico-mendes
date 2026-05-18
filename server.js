@@ -1034,6 +1034,21 @@ app.post('/api/patients/:id/confirmar-presenca', async (req, res) => {
 
 // ====== AGENDAMENTOS ======
 
+// GET - Estatísticas de Coletas de Sangue
+app.get('/api/agendamentos/coletas/stats', async (req, res) => {
+  try {
+    const { data } = req.query;
+    if (!data) return res.status(400).json({ error: 'Data é obrigatória' });
+    const result = await pool.query(
+      "SELECT status, COUNT(*) as count FROM agendamentos WHERE tipo_atendimento = 'Coleta de Sangue' AND data_agendamento = $1 GROUP BY status",
+      [data]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET – listar agendamentos com filtros
 app.get('/api/agendamentos', async (req, res) => {
   try {
