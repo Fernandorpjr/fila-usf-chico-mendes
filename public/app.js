@@ -267,8 +267,8 @@ function initSectorScreens() {
 
     let profHTML = '';
     if (cfg.profissionais) {
-      const consultOpts = ['1','2','3','4','5','6','Odontológico'].map(c =>
-        `<option value="${c}">${c === 'Odontológico' ? 'Consultório Odontológico' : 'Consultório ' + c}</option>`
+      const consultOpts = ['1','2','3','4','5','6','Odontológico','Sala de Procedimentos'].map(c =>
+        `<option value="${c}">${c === 'Odontológico' ? 'Consultório Odontológico' : c === 'Sala de Procedimentos' ? c : 'Consultório ' + c}</option>`
       ).join('');
       const profOpts = cfg.profissionais.map(p => `<option value="${p}">${p}</option>`).join('');
       profHTML = `
@@ -479,14 +479,14 @@ async function addPatient(btn) {
   const setor = document.getElementById('input-setor').value;
   const prioridade = document.getElementById('input-prioridade').value;
   const tipo_prioridade = prioridade === 'prioritario' ? document.getElementById('input-tipo-prioridade').value : null;
-  const tipo_atendimento = ['Médico','Enfermagem','Odontologia'].includes(setor) ? document.getElementById('input-tipo-atendimento').value : null;
+  const tipo_atendimento = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? document.getElementById('input-tipo-atendimento').value : null;
   const profissionalEl = document.getElementById('input-profissional');
-  const profissional = ['Médico','Enfermagem'].includes(setor) && profissionalEl ? profissionalEl.value || null : null;
+  const profissional = ['Médico','Enfermagem','Téc. Enfermagem'].includes(setor) && profissionalEl ? profissionalEl.value || null : null;
   const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-recepcao');
 
   if (!nome) { showToast('Digite o nome do paciente!', true); return; }
   if (!setor) { showToast('Selecione o setor!', true); return; }
-  if (['Médico','Enfermagem'].includes(setor) && !profissional) { showToast('Selecione o profissional responsável!', true); return; }
+  if (['Médico','Enfermagem','Téc. Enfermagem'].includes(setor) && !profissional) { showToast('Selecione o profissional responsável!', true); return; }
 
   if (btn) btn.disabled = true;
   try {
@@ -732,7 +732,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     </div>` : '';
     /* === MELHORIA E: Badge de presença no setor + botão na recepção === */
     let presencaHtml = '';
-    if (isSectorQueue && ['Médico','Enfermagem','Odontologia'].includes(setor)) {
+    if (isSectorQueue && ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor)) {
       // Nas filas dos setores: mostrar badge de presença
       if (p.presenca_confirmada) {
         presencaHtml = '<span class="presenca-badge presenca-confirmada">🟢 PRESENTE</span>';
@@ -781,7 +781,7 @@ function updateMiniQueues() {
       </div>` : '';
       // Botão de confirmar presença (apenas na Recepção, setores com profissional)
       let presencaBtn = '';
-      if (['Médico','Enfermagem','Odontologia'].includes(s) && p.status === 'aguardando') {
+      if (['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(s) && p.status === 'aguardando') {
         if (p.presenca_confirmada) {
           presencaBtn = '<span class="presenca-badge presenca-confirmada" style="margin-left:4px;">🟢 Presente</span>';
         } else {
