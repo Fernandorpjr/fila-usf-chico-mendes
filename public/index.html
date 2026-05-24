@@ -534,6 +534,7 @@
   <button class="nav-tab" onclick="showScreen('medico')" id="tab-medico">🩺 Médico <span class="tab-badge" id="badge-medico">0</span></button>
   <button class="nav-tab" onclick="showScreen('enfermagem')" id="tab-enfermagem">👩‍⚕️ Enfermagem <span class="tab-badge" style="background:var(--teal);" id="badge-enfermagem">0</span></button>
   <button class="nav-tab" onclick="showScreen('odontologia')" id="tab-odontologia">🦷 Odontologia <span class="tab-badge" style="background:var(--pink);" id="badge-odontologia">0</span></button>
+  <button class="nav-tab" onclick="showScreen('tec-enfermagem')" id="tab-tec-enfermagem">🩹 Tec. Enfermagem <span class="tab-badge" style="background:#0097a7;display:none;" id="badge-tec-enfermagem">0</span></button>
   <button class="nav-tab" onclick="showScreen('chat')" id="tab-chat">💬 Chat <span class="tab-badge badge-pulse" style="background:var(--red);display:none;" id="badge-chat">0</span></button>
   <button class="nav-tab admin-only" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
@@ -729,13 +730,16 @@
         <label style="color:var(--gray-600);">Queixa Principal</label>
         <textarea id="acol-modal-queixa" rows="3" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Descreva a queixa do paciente..."></textarea>
       </div>
-      <div class="form-group" style="margin-bottom:14px;">
-        <label style="color:var(--gray-600);">Classificação de Risco</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-risco-chooser">
-          <button type="button" class="acol-risco-btn acol-risco-verde active" data-risco="verde" onclick="selectRisco('verde')">🟢 Verde (Baixo)</button>
-          <button type="button" class="acol-risco-btn acol-risco-amarelo" data-risco="amarelo" onclick="selectRisco('amarelo')">🟡 Amarelo (Moderado)</button>
-          <button type="button" class="acol-risco-btn acol-risco-vermelho" data-risco="vermelho" onclick="selectRisco('vermelho')">🔴 Vermelho (Alto)</button>
-          <button type="button" class="acol-risco-btn acol-risco-azul" data-risco="azul" onclick="selectRisco('azul')">🟦 Azul (Sem Risco / Exames)</button>
+      <!-- Classificação de Risco removida da 1ª Escuta (exclusivo da 2ª Escuta / Médico) -->
+      <div style="display:none;" id="acol-risco-chooser-container">
+        <div class="form-group" style="margin-bottom:14px;">
+          <label style="color:var(--gray-600);">Classificação de Risco</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-risco-chooser">
+            <button type="button" class="acol-risco-btn acol-risco-verde active" data-risco="verde" onclick="selectRisco('verde')">🟢 Verde (Baixo)</button>
+            <button type="button" class="acol-risco-btn acol-risco-amarelo" data-risco="amarelo" onclick="selectRisco('amarelo')">🟡 Amarelo (Moderado)</button>
+            <button type="button" class="acol-risco-btn acol-risco-vermelho" data-risco="vermelho" onclick="selectRisco('vermelho')">🔴 Vermelho (Alto)</button>
+            <button type="button" class="acol-risco-btn acol-risco-azul" data-risco="azul" onclick="selectRisco('azul')">🟦 Azul (Sem Risco / Exames)</button>
+          </div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
@@ -904,6 +908,85 @@
   <div class="screen" id="screen-enfermagem"></div>
   <div class="screen" id="screen-odontologia"></div>
 
+  <!-- ============ TÉC. ENFERMAGEM ============ -->
+  <div class="screen" id="screen-tec-enfermagem">
+    <div class="sector-page-header">
+      <div class="sector-icon-big" style="background:rgba(0,151,167,0.2);">🩹</div>
+      <div><div class="sector-page-title">Técnicos de Enfermagem</div><div class="sector-page-sub">Registro de atendimentos: Coleta, Vacina, Curativo e Procedimento</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:400px 1fr;gap:24px;align-items:start;" class="tec-enf-grid">
+      <div class="card-white">
+        <div class="card-title"><span>📝</span> Registrar Atendimento</div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Profissional <span style="color:var(--red);">*</span></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="tec-prof-chooser">
+            <button type="button" class="btn-filter active" data-tec-prof="Viviane" onclick="selecionarTecProf('Viviane')">👩‍⚕️ Viviane</button>
+            <button type="button" class="btn-filter" data-tec-prof="Vilma" onclick="selecionarTecProf('Vilma')">👩‍⚕️ Vilma</button>
+            <button type="button" class="btn-filter" data-tec-prof="Fernando" onclick="selecionarTecProf('Fernando')">👨‍⚕️ Fernando</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Tipo de Atendimento <span style="color:var(--red);">*</span></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="tec-servico-chooser">
+            <button type="button" class="btn-filter" data-tec-servico="Coleta" onclick="selecionarTecServico('Coleta')">🩸 Coleta</button>
+            <button type="button" class="btn-filter" data-tec-servico="Vacina" onclick="selecionarTecServico('Vacina')">💉 Vacina</button>
+            <button type="button" class="btn-filter" data-tec-servico="Curativo" onclick="selecionarTecServico('Curativo')">🩹 Curativo</button>
+            <button type="button" class="btn-filter" data-tec-servico="Procedimento" onclick="selecionarTecServico('Procedimento')">🔬 Procedimento</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Nome do Paciente <span style="color:var(--red);">*</span></label>
+          <input type="text" id="tec-nome-paciente" placeholder="Nome completo do paciente">
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Observações</label>
+          <input type="text" id="tec-observacoes" placeholder="Opcional — ex: braço direito, 2ª dose, etc.">
+        </div>
+        <button class="btn btn-teal" onclick="registrarAtendimentoTec()" id="btn-registrar-tec">🩹 Registrar Atendimento</button>
+      </div>
+      <div class="card-white" style="padding:20px;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <div><span>📋</span> Atendimentos de Hoje</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="font-size:13px;color:var(--gray-600);font-weight:700;">Filtrar por:</div>
+            <select id="tec-filter-prof" title="Filtrar Profissional" style="padding:6px 10px;border-radius:8px;border:1px solid var(--gray-200);font-size:13px;" onchange="loadTecAtendimentos()">
+              <option value="">Todos</option>
+              <option value="Viviane">Viviane</option>
+              <option value="Vilma">Vilma</option>
+              <option value="Fernando">Fernando</option>
+            </select>
+            <select id="tec-filter-servico" title="Filtrar Serviço" style="padding:6px 10px;border-radius:8px;border:1px solid var(--gray-200);font-size:13px;" onchange="loadTecAtendimentos()">
+              <option value="">Todos Serviços</option>
+              <option value="Coleta">🩸 Coleta</option>
+              <option value="Vacina">💉 Vacina</option>
+              <option value="Curativo">🩹 Curativo</option>
+              <option value="Procedimento">🔬 Procedimento</option>
+            </select>
+          </div>
+        </div>
+        <div id="tec-stats-row" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;"></div>
+        <div style="overflow-x:auto;">
+          <table class="agend-table" id="tec-atend-table">
+            <thead><tr>
+              <th>Paciente</th><th>Profissional</th><th>Serviço</th><th>Horário</th><th>Obs.</th><th>Ações</th>
+            </tr></thead>
+            <tbody id="tec-atend-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum atendimento registrado hoje</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <style>
+      @media(max-width:900px){.tec-enf-grid{grid-template-columns:1fr!important;}}
+      .tec-servico-badge{font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;display:inline-block;}
+      .tec-srv-Coleta{background:rgba(229,57,53,0.12);color:#c62828;}
+      .tec-srv-Vacina{background:rgba(26,79,196,0.12);color:var(--blue);}
+      .tec-srv-Curativo{background:rgba(0,137,123,0.12);color:var(--teal-dark);}
+      .tec-srv-Procedimento{background:rgba(142,36,170,0.12);color:var(--purple-dark);}
+    </style>
+  </div>
+
   <!-- ============ PAINEL PÚBLICO ============ -->
   <div class="screen" id="screen-painel">
     <div class="painel-screen">
@@ -1000,17 +1083,17 @@
     <div class="agend-grid">
       <div class="card-white">
         <div class="card-title"><span>📝</span> Novo Agendamento</div>
-        <div class="form-group" style="margin-bottom:12px;"><label>Nome do Paciente</label><input type="text" id="agend-nome" placeholder="Nome completo"></div>
-        <div class="form-group" style="margin-bottom:12px;"><label>Telefone do Paciente</label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 11 99999-9999"></div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Nome do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-nome" placeholder="Nome completo" oninput="validarCampoAgend('agend-nome')"></div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Telefone do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 11 99999-9999" oninput="validarCampoAgend('agend-telefone')"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-          <div class="form-group"><label>Data</label><input type="date" id="agend-data" style="width:100%;" onchange="handleAgendTipoChange()"></div>
-          <div class="form-group"><label>Horário</label><input type="text" id="agend-horario" value="08:00" placeholder="08:00"></div>
+          <div class="form-group"><label>Data <span style="color:var(--red);">*</span></label><input type="date" id="agend-data" style="width:100%;" onchange="handleAgendTipoChange();validarDataAgend()" min=""></div>
+          <div class="form-group"><label>Horário <span style="color:var(--red);">*</span></label><input type="text" id="agend-horario" value="08:00" placeholder="08:00" oninput="mascaraHorario(this)"></div>
         </div>
         <div class="form-group" style="margin-bottom:12px;"><label>Profissional</label>
           <select id="agend-profissional" title="Profissional">
             <option value="">— Opcional —</option>
             <option>Dra. Anahy Duarte</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
-            <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Gisele Monteiro</option>
+            <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Juliana Cavalcante</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom:12px;"><label>Tipo de Atendimento</label>
@@ -1095,7 +1178,7 @@
       <div class="filter-row">
         <div class="form-group"><label>Data</label><input type="date" id="filter-data"></div>
         <div class="form-group"><label>Setor</label><select id="filter-setor" style="padding:10px;font-size:14px;"><option value="">Todos</option><option value="Acolhimento">Acolhimento</option><option value="Farmácia">Farmácia</option><option value="Regulação">Regulação</option><option value="Médico">Médico</option><option value="Enfermagem">Enfermagem</option><option value="Odontologia">Odontologia</option></select></div>
-        <div class="form-group"><label>Profissional</label><select id="filter-profissional" style="padding:10px;font-size:14px;"><option value="">Todos</option><option>Dra. Anahy Duarte</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option><option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Gisele Monteiro</option></select></div>
+        <div class="form-group"><label>Profissional</label><select id="filter-profissional" style="padding:10px;font-size:14px;"><option value="">Todos</option><option>Dra. Anahy Duarte</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option><option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Juliana Cavalcante</option></select></div>
         <button class="btn btn-primary btn-sm" onclick="applyFilters()">🔍 Filtrar</button>
       </div>
       <div id="attended-list" style="display:flex;flex-direction:column;gap:8px;max-height:600px;overflow-y:auto;">
