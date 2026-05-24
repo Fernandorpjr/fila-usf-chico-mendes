@@ -62,10 +62,10 @@ const pool = new Pool({
 });
 
 // Setores válidos
-const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia'];
+const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'];
 
 // Canais de chat válidos
-const CANAIS_CHAT = ['geral', 'acolhimento', 'farmacia', 'regulacao', 'medico', 'enfermagem', 'odontologia', 'gerencia'];
+const CANAIS_CHAT = ['geral', 'acolhimento', 'farmacia', 'regulacao', 'medico', 'enfermagem', 'odontologia', 'tec_enfermagem', 'gerencia'];
 
 // Create tables on startup
 async function initDB() {
@@ -1493,80 +1493,7 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// ====== TÉCNICOS DE ENFERMAGEM ======
 
-// GET - Listar atendimentos com filtros
-app.get('/api/tec-enfermagem', async (req, res) => {
-  try {
-    const { data, profissional, servico } = req.query;
-    let query = 'SELECT * FROM atendimentos_tec_enfermagem WHERE 1=1';
-    const params = [];
-    let idx = 1;
-
-    if (data) {
-      query += ` AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $${idx}`;
-      params.push(data);
-      idx++;
-    }
-    if (profissional) {
-      query += ` AND profissional = $${idx}`;
-      params.push(profissional);
-      idx++;
-    }
-    if (servico) {
-      query += ` AND servico = $${idx}`;
-      params.push(servico);
-      idx++;
-    }
-
-    query += ` ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`;
-    const result = await pool.query(query, params);
-    res.json(result.rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// POST - Registrar novo atendimento
-app.post('/api/tec-enfermagem', async (req, res) => {
-  try {
-    const { profissional, servico, nome_paciente, observacoes } = req.body;
-    if (!profissional || !servico || !nome_paciente) {
-      return res.status(400).json({ error: 'Profissional, serviço e nome do paciente são obrigatórios' });
-    }
-    const horariosAtual = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
-    const result = await pool.query(
-      `INSERT INTO atendimentos_tec_enfermagem (profissional, servico, nome_paciente, observacoes, horario)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [profissional, servico, nome_paciente, observacoes || null, horariosAtual]
-    );
-    io.emit('tecEnfermagemUpdate');
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// POST - Excluir atendimento (admin)
-app.post('/api/tec-enfermagem/:id/delete', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { senha } = req.body;
-    if (senha !== ADMIN_PASSWORD) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
-    }
-    const result = await pool.query('DELETE FROM atendimentos_tec_enfermagem WHERE id = $1 RETURNING *', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Atendimento não encontrado' });
-    }
-    io.emit('tecEnfermagemUpdate');
-    res.json({ message: 'Atendimento excluído', atendimento: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ====== FIM TÉCNICOS DE ENFERMAGEM ======
 
 // Serve frontend
 app.get('*', (req, res) => {

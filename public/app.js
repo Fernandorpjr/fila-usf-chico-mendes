@@ -205,8 +205,7 @@ async function confirmarPresenca(id, nome) {
 }
 /* === FIM MELHORIA E === */
 
-// ====== SECTOR CONFIG ======
-const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia'];
+const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'];
 
 const SECTOR_CONFIG = {
   'Acolhimento': { icon: '💜', color: 'var(--purple)', colorDark: 'var(--purple-dark)', btnClass: 'btn-purple', tagClass: 'tag-acolhimento', key: 'acolhimento' },
@@ -217,7 +216,9 @@ const SECTOR_CONFIG = {
   'Enfermagem': { icon: '👩‍⚕️', color: 'var(--teal)', colorDark: 'var(--teal-dark)', btnClass: 'btn-teal', tagClass: 'tag-enfermagem', key: 'enfermagem',
     profissionais: ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu'], defaultConsultorios: ['4','5','6'] },
   'Odontologia': { icon: '🦷', color: 'var(--pink)', colorDark: 'var(--pink-dark)', btnClass: 'btn-pink', tagClass: 'tag-odontologia', key: 'odontologia',
-    profissionais: ['Dra. Juliana Cavalcante'], defaultConsultorios: ['Odontológico'] }
+    profissionais: ['Dra. Juliana Cavalcante'], defaultConsultorios: ['Odontológico'] },
+  'Téc. Enfermagem': { icon: '🩹', color: '#0097a7', colorDark: '#006064', btnClass: 'btn-teal', tagClass: 'tag-enfermagem', key: 'tec_enfermagem',
+    profissionais: ['Viviane', 'Vilma', 'Fernando'], defaultConsultorios: ['Sala de Procedimentos'] }
 };
 
 // ====== STATE ======
@@ -234,7 +235,7 @@ function safeDate(d) {
   return isNaN(date.getTime()) ? new Date() : date;
 }
 
-const CAPACITY_LIMITS = { 'Total': 30, 'Regulação': 10, 'Farmácia': 999, 'Médico': 999, 'Acolhimento': 999, 'Enfermagem': 999, 'Odontologia': 999 };
+const CAPACITY_LIMITS = { 'Total': 30, 'Regulação': 10, 'Farmácia': 999, 'Médico': 999, 'Acolhimento': 999, 'Enfermagem': 999, 'Odontologia': 999, 'Téc. Enfermagem': 999 };
 
 // ====== INIT: Generate sector screens ======
 function initSectorScreens() {
@@ -390,9 +391,6 @@ function showScreen(name) {
   if (name === 'agendamentos') {
     loadAgendamentos();
   }
-  if (name === 'tec-enfermagem') {
-    loadTecAtendimentos();
-  }
 }
 
 // ====== FORM HELPERS ======
@@ -402,11 +400,35 @@ function togglePrioridadeDetalhes() {
 
 function toggleTipoAtendimento() {
   const setor = document.getElementById('input-setor').value;
-  document.getElementById('tipo-atendimento-grupo').style.display = ['Médico','Enfermagem','Odontologia'].includes(setor) ? 'flex' : 'none';
+  document.getElementById('tipo-atendimento-grupo').style.display = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? 'flex' : 'none';
+
+  const selectTipo = document.getElementById('input-tipo-atendimento');
+  if (selectTipo) {
+    if (setor === 'Téc. Enfermagem') {
+      selectTipo.innerHTML = `
+        <option value="Coleta">🩸 Coleta</option>
+        <option value="Vacina">💉 Vacina</option>
+        <option value="Curativo">🩹 Curativo</option>
+        <option value="Procedimento">🔬 Procedimento</option>
+      `;
+    } else {
+      selectTipo.innerHTML = `
+        <option value="Consulta">🩺 Consulta</option>
+        <option value="Renovação de Receita">📄 Renovação de Receita</option>
+        <option value="Hiperdia">❤️ Hiperdia</option>
+        <option value="Puericultura">👶 Puericultura</option>
+        <option value="Saúde da Mulher">🩷 Saúde da Mulher</option>
+        <option value="Prevenção">🛡️ Prevenção</option>
+        <option value="Pré-Natal">🤰 Pré-Natal</option>
+        <option value="Retorno">🔄 Retorno</option>
+        <option value="Exame Citopatológico">🔬 Exame Citopatológico</option>
+      `;
+    }
+  }
 
   const profGrupo = document.getElementById('profissional-grupo');
   if (profGrupo) {
-    const showProf = ['Médico','Enfermagem'].includes(setor);
+    const showProf = ['Médico','Enfermagem','Téc. Enfermagem'].includes(setor);
     profGrupo.style.display = showProf ? 'flex' : 'none';
     if (showProf) {
       const cfg = SECTOR_CONFIG[setor];
@@ -2131,122 +2153,7 @@ function validarDataAgend() {
   el.style.borderColor = el.value >= hoje ? 'var(--green)' : '#f4821e';
 }
 
-// ====== TÉCNICOS DE ENFERMAGEM ======
-let tecProfSelecionado = 'Viviane';
-let tecServicoSelecionado = null;
 
-function selecionarTecProf(prof) {
-  tecProfSelecionado = prof;
-  document.querySelectorAll('#tec-prof-chooser .btn-filter').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tecProf === prof);
-  });
-}
-
-function selecionarTecServico(servico) {
-  tecServicoSelecionado = servico;
-  document.querySelectorAll('#tec-servico-chooser .btn-filter').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tecServico === servico);
-  });
-}
-
-async function registrarAtendimentoTec() {
-  const nome_paciente = document.getElementById('tec-nome-paciente')?.value.trim();
-  const observacoes = document.getElementById('tec-observacoes')?.value.trim();
-  const btn = document.getElementById('btn-registrar-tec');
-
-  if (!tecProfSelecionado) { showToast('⚠️ Selecione o profissional!', true); return; }
-  if (!tecServicoSelecionado) { showToast('⚠️ Selecione o tipo de atendimento!', true); return; }
-  if (!nome_paciente) { showToast('⚠️ Preencha o nome do paciente!', true); return; }
-
-  if (btn) btn.disabled = true;
-  try {
-    const r = await fetch(`${API_URL}/tec-enfermagem`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profissional: tecProfSelecionado, servico: tecServicoSelecionado, nome_paciente, observacoes: observacoes || null })
-    });
-    if (!r.ok) throw new Error();
-    showToast(`✅ ${tecServicoSelecionado} registrado para ${nome_paciente} (${tecProfSelecionado})!`);
-    document.getElementById('tec-nome-paciente').value = '';
-    document.getElementById('tec-observacoes').value = '';
-    await loadTecAtendimentos();
-  } catch { showToast('❌ Erro ao registrar atendimento!', true); }
-  if (btn) btn.disabled = false;
-}
-
-async function loadTecAtendimentos() {
-  const prof = document.getElementById('tec-filter-prof')?.value || '';
-  const servico = document.getElementById('tec-filter-servico')?.value || '';
-  const hoje = new Date().toISOString().split('T')[0];
-  try {
-    let url = `${API_URL}/tec-enfermagem?data=${hoje}`;
-    if (prof) url += `&profissional=${encodeURIComponent(prof)}`;
-    if (servico) url += `&servico=${encodeURIComponent(servico)}`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error();
-    const list = await r.json();
-    renderTecAtendimentos(list);
-    renderTecStatsRow(list);
-  } catch { /* silent fail */ }
-}
-
-function renderTecStatsRow(list) {
-  const el = document.getElementById('tec-stats-row'); if (!el) return;
-  const contagem = { Coleta: 0, Vacina: 0, Curativo: 0, Procedimento: 0 };
-  list.forEach(a => { if (contagem[a.servico] !== undefined) contagem[a.servico]++; });
-  const icons = { Coleta: '🩸', Vacina: '💉', Curativo: '🩹', Procedimento: '🔬' };
-  const colors = { Coleta: 'rgba(229,57,53,0.1)', Vacina: 'rgba(26,79,196,0.1)', Curativo: 'rgba(0,137,123,0.1)', Procedimento: 'rgba(142,36,170,0.1)' };
-  const textColors = { Coleta: '#c62828', Vacina: 'var(--blue)', Curativo: 'var(--teal-dark)', Procedimento: 'var(--purple-dark)' };
-  el.innerHTML = Object.entries(contagem).map(([srv, cnt]) =>
-    `<div style="background:${colors[srv]};padding:10px 16px;border-radius:10px;min-width:100px;text-align:center;">
-      <div style="font-size:20px;">${icons[srv]}</div>
-      <div style="font-size:22px;font-weight:900;color:${textColors[srv]};">${cnt}</div>
-      <div style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;">${srv}</div>
-    </div>`
-  ).join('');
-  // Total
-  const total = list.length;
-  el.innerHTML += `<div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:10px 16px;border-radius:10px;min-width:100px;text-align:center;">
-    <div style="font-size:20px;">📊</div>
-    <div style="font-size:22px;font-weight:900;color:var(--white);">${total}</div>
-    <div style="font-size:11px;font-weight:700;color:var(--gray-300);text-transform:uppercase;">Total Hoje</div>
-  </div>`;
-}
-
-function renderTecAtendimentos(list) {
-  const tbody = document.getElementById('tec-atend-tbody'); if (!tbody) return;
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum atendimento registrado hoje</td></tr>';
-    return;
-  }
-  const srvIcons = { Coleta: '🩸', Vacina: '💉', Curativo: '🩹', Procedimento: '🔬' };
-  tbody.innerHTML = list.map((a, i) => {
-    const horario = a.horario || new Date(a.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const srvIcon = srvIcons[a.servico] || '🏥';
-    const delBtn = isAdmin ? `<button onclick="deleteTecAtendimento(${a.id}, '${(a.nome_paciente||'').replace(/'/g,"\\'")}')"
-      style="background:transparent;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;" title="Excluir">🗑️</button>` : '';
-    return `<tr>
-      <td><b>${a.nome_paciente}</b></td>
-      <td><b>${a.profissional}</b></td>
-      <td><span class="tec-servico-badge tec-srv-${a.servico}">${srvIcon} ${a.servico}</span></td>
-      <td>${horario}</td>
-      <td style="font-size:12px;color:var(--gray-600);">${a.observacoes || '—'}</td>
-      <td>${delBtn}</td>
-    </tr>`;
-  }).join('');
-}
-
-async function deleteTecAtendimento(id, nome) {
-  const senha = prompt(`🗑️ Excluir atendimento de "${nome}"?\nDigite a senha administrativa:`);
-  if (!senha) return;
-  try {
-    const r = await fetch(`${API_URL}/tec-enfermagem/${id}/delete`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({senha}) });
-    if (r.status === 403) { showToast('❌ Senha incorreta!', true); return; }
-    if (!r.ok) throw new Error();
-    showToast(`🗑️ Atendimento de ${nome} excluído!`);
-    loadTecAtendimentos();
-  } catch { showToast('Erro ao excluir!', true); }
-}
 
 // ====== INIT ======
 initSectorScreens();

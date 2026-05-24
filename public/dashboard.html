@@ -232,7 +232,7 @@ function renderCharts() {
 
 function renderWaitTable() {
   const d = metricsData;
-  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia'];
+  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
   const tbody = document.getElementById('waitTable');
   tbody.innerHTML = setores.map(s => {
     const wait = d.avgWaitBySetor.find(r => r.setor === s);
@@ -263,7 +263,7 @@ function exportDailyReport() {
   doc.text(`Aguardando: ${totalWaiting}`, 14, 62);
   doc.text(`Desistências: ${d.totalDesist} (${d.dropoutRate}%)`, 14, 69);
 
-  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia'];
+  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
   const rows = setores.map(s => {
     const w = d.avgWaitBySetor.find(r => r.setor === s);
     const wt = d.waitingBySetor.find(r => r.setor === s);
