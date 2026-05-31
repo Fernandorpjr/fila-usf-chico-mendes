@@ -1,6 +1,7 @@
 // @ts-nocheck
 // API Base URL
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+const socket = typeof io !== 'undefined' ? io(window.location.origin) : null;
 
 /* === MELHORIA A: PORTÃO DE ENTRADA === */
 const GATE_HASH = 'af99a4ea5f59cb313edbcf21759afcbad8c77212870be1098363836e00e816c1';
@@ -596,20 +597,46 @@ function speakAgain(setor) {
   if (currentCalling[setor]) { const p = currentCalling[setor]; speakViaSynthesis(p.nome, setor, p.medico); } else showToast('Nenhum paciente sendo chamado!', true);
 }
 
-function speakViaSynthesis(nome, setor, medico) {
+let speechQueue = [];
+let isSpeaking = false;
+
+function processSpeechQueue() {
+  if (isSpeaking || speechQueue.length === 0) return;
   if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const h = new Date().getHours();
-  const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-  const destino = medico ? `ao ${medico}` : `à ${setor}`;
-  const texto = `${saudacao}. Usuário ${nome}, dirija-se ${destino}.`;
+  
+  isSpeaking = true;
+  const { texto } = speechQueue.shift();
   const utter = new SpeechSynthesisUtterance(texto);
   utter.lang = 'pt-BR'; utter.rate = 0.95; utter.pitch = 1;
   const voices = window.speechSynthesis.getVoices();
   const pv = voices.find(v => v.name.includes('Francisca') || v.name.includes('Antonio') || v.name.includes('Google português do Brasil') || v.name.includes('Luciana') || v.name.includes('Daniel'));
   const fv = voices.find(v => v.lang.startsWith('pt'));
   if (pv) utter.voice = pv; else if (fv) utter.voice = fv;
+  
+  utter.onend = () => {
+    isSpeaking = false;
+    setTimeout(processSpeechQueue, 500); // pequeno delay entre áudios
+  };
+  
+  utter.onerror = (e) => {
+    console.error("SpeechSynthesis erro", e);
+    isSpeaking = false;
+    processSpeechQueue();
+  };
+  
   window.speechSynthesis.speak(utter);
+}
+
+function speakViaSynthesis(nome, setor, medico) {
+  if (!('speechSynthesis' in window)) return;
+  
+  const h = new Date().getHours();
+  const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  const destino = medico ? `ao ${medico}` : `à ${setor}`;
+  const texto = `${saudacao}. Usuário ${nome}, dirija-se ${destino}.`;
+  
+  speechQueue.push({ texto });
+  processSpeechQueue();
 }
 
 function speakPatientName() {
@@ -653,12 +680,18 @@ async function loadHistory() {
     const r = await fetch(`${API_URL}/history`);
     callHistory = await r.json();
     if (callHistory && callHistory.length) {
-      const topId = callHistory[0].id;
-      if (lastSpokenCallId !== null && topId !== lastSpokenCallId) {
-        const p = callHistory[0];
-        speakViaSynthesis(p.nome, p.setor, p.medico);
+      if (lastSpokenCallId !== null) {
+        // Encontrar todas as novas chamadas cronologicamente
+        const newCalls = [];
+        for (const p of callHistory) {
+          if (p.id === lastSpokenCallId) break;
+          newCalls.unshift(p);
+        }
+        for (const p of newCalls) {
+          speakViaSynthesis(p.nome, p.setor, p.medico);
+        }
       }
-      lastSpokenCallId = topId;
+      lastSpokenCallId = callHistory[0].id;
     }
     updatePainel();
     renderAllSectorAttended();
@@ -2175,36 +2208,72 @@ let socketConnected = false;
   }
 })();
 
-// Reliable polling fallback (Vercel Serverless environment)
-setInterval(() => { loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAcolhimentoFluxo(); loadNotificacoes(); }, 3000);
-setInterval(() => { loadAllChannels(); }, 8000);
+// ====== ADAPTATIVE POLLING (Page Visibility + Horário) ======
+let pollingTimer1 = null;
+let pollingTimer2 = null;
 
-/* Eventos Socket.IO desabilitados temporariamente devido a limites da Vercel
-   O fallback de polling manual já cobre as funcionalidades.
-*/
-/*
-socket.on('chatChannelMessage', (data) => {
-  // polling handles chat
-});
-socket.on('chatPinUpdate', (data) => {
-  if (data.canal === activeCanal) renderChatPin(data.pin);
-});
-socket.on('chatChannelClear', (data) => {
-  // handled by polling
-});
-socket.on('chatReset', () => { 
-  // handled by polling
-});
+function isDentroDoHorario() {
+  const now = new Date();
+  const options = { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false };
+  const formatter = new Intl.DateTimeFormat('pt-BR', options);
+  const hour = parseInt(formatter.format(now), 10);
+  if (hour >= 20 || hour < 6) return false;
+  return true;
+}
 
-// Socket.IO listeners para notificações
-socket.on('notificacaoNova', (data) => {
-  // handled by polling
-});
+function startAdaptivePolling() {
+  if (pollingTimer1) clearTimeout(pollingTimer1);
+  if (pollingTimer2) clearTimeout(pollingTimer2);
+  
+  const inHours = isDentroDoHorario();
+  const isHidden = document.hidden;
+  const isTV = new URLSearchParams(window.location.search).get('modo') === 'tv';
+  
+  if (!inHours) {
+     if (isTV) return; // TV para de fazer polling fora do horário
+     pollingTimer1 = setTimeout(() => { loopData1(); }, 60000); // checagem de hora em hora/minuto
+     return;
+  }
+  
+  const interval1 = isHidden ? 30000 : 5000;
+  const interval2 = isHidden ? 60000 : 8000;
+  
+  pollingTimer1 = setTimeout(() => { loopData1(); }, interval1);
+  pollingTimer2 = setTimeout(() => { loopData2(); }, interval2);
+}
 
-socket.on('notificacaoDismissed', (data) => {
-  // handled by polling
-});
-*/
+async function loopData1() {
+  await Promise.all([
+    loadQueues(), loadCurrentCalling(), loadHistory(), loadAttended(), loadAcolhimentoFluxo(), loadNotificacoes()
+  ].map(p => p.catch(() => {})));
+  startAdaptivePolling();
+}
+
+async function loopData2() {
+  await loadAllChannels().catch(() => {});
+  startAdaptivePolling();
+}
+
+startAdaptivePolling();
+document.addEventListener('visibilitychange', startAdaptivePolling);
+
+/* Eventos Socket.IO essenciais reativados */
+if (socket) {
+  socket.on('queueUpdate', () => {
+    loadQueues();
+    loadCurrentCalling();
+    loadAcolhimentoFluxo();
+  });
+  
+  socket.on('acolhimentoUpdate', () => {
+    loadAcolhimentoFluxo();
+  });
+
+  socket.on('callPatient', (data) => {
+    // O painel chama voz via loadHistory, então forçamos refresh do history se não for polling
+    setTimeout(() => { loadHistory(); }, 200);
+  });
+}
 
 setTimeout(() => {
   // Only show sound modal if past the gate

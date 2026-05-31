@@ -55,10 +55,38 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 app.use(express.static('public'));
 
+// === BLOQUEIO POR HORÁRIO (06:00 - 20:00 BRT) ===
+app.use('/api', (req, res, next) => {
+  // Ignorar rotas de chat/presença para não quebrar UI de aviso se necessário, ou bloquear tudo
+  // Vamos bloquear tudo exceto verificações se houver necessidade.
+  // Para evitar sobrecarga no Neon, bloqueamos qualquer /api fora do horário
+  
+  // Pegar hora atual no fuso de SP
+  const date = new Date();
+  const options = { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false };
+  const formatter = new Intl.DateTimeFormat('pt-BR', options);
+  const timeString = formatter.format(date);
+  const hour = parseInt(timeString.split(':')[0], 10);
+
+  // Considerar finais de semana (opcional)? O usuário não respondeu, então faremos apenas bloqueio diário de horário
+  const day = date.getDay(); // 0=Domingo, 6=Sábado. Mantemos aberto para não quebrar se tiver plantão, limitamos só por hora.
+
+  if (hour >= 20 || hour < 6) {
+    return res.status(503).json({ 
+      error: 'Sistema fora do horário de funcionamento (20:00 às 06:00). Banco de dados suspenso para economia.'
+    });
+  }
+  
+  next();
+});
+
 // Database setup
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  max: 3,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000
 });
 
 // Setores válidos
