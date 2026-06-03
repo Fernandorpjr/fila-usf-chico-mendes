@@ -1,6 +1,17 @@
 // @ts-nocheck
 // API Base URL
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+
+// Previne agressivamente que o navegador use cache (mesmo se já estava em cache antes da correção do servidor)
+const originalFetch = window.fetch;
+window.fetch = function(resource, config) {
+  if (typeof resource === 'string' && resource.startsWith(API_URL) && (!config || !config.method || config.method.toUpperCase() === 'GET')) {
+    const separator = resource.includes('?') ? '&' : '?';
+    resource += `${separator}_t=${Date.now()}`;
+  }
+  return originalFetch(resource, config);
+};
+
 const socket = typeof io !== 'undefined' ? io(window.location.origin) : null;
 
 /* === MELHORIA A: PORTÃO DE ENTRADA === */
@@ -1239,6 +1250,9 @@ async function sendChatChannelMessage() {
       chatUrgent = false; 
       document.getElementById('chat-urgent-btn').classList.remove('active');
       removeChatAttachment(); // Clear attachment after send
+      
+      // Forçar carregamento imediato para exibir a mensagem sem esperar o próximo ciclo de polling
+      loadAllChannels().catch(()=>{});
     }
     else {
       const err = await r.json();
