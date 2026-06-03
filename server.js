@@ -57,6 +57,11 @@ app.use(express.static('public'));
 
 // === BLOQUEIO POR HORÁRIO (06:00 - 20:00 BRT) ===
 app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+
   // Ignorar rotas de chat/presença para não quebrar UI de aviso se necessário, ou bloquear tudo
   // Vamos bloquear tudo exceto verificações se houver necessidade.
   // Para evitar sobrecarga no Neon, bloqueamos qualquer /api fora do horário
