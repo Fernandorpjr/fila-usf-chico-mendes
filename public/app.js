@@ -2273,6 +2273,50 @@ if (socket) {
     // O painel chama voz via loadHistory, então forçamos refresh do history se não for polling
     setTimeout(() => { loadHistory(); }, 200);
   });
+
+  socket.on('chatChannelMessage', (data) => {
+    const { canal, mensagem } = data;
+    if (!channelMessages[canal]) channelMessages[canal] = [];
+    
+    // Check if message already exists to avoid duplicates
+    if (!channelMessages[canal].some(m => m.id === mensagem.id)) {
+      channelMessages[canal].push(mensagem);
+    }
+    
+    const meuSetor = document.getElementById('chat-remetente')?.value || '';
+    const meuNome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
+    const meuIdentificador = meuNome ? `${meuNome} (${meuSetor})` : meuSetor;
+    const isMe = mensagem.autor === meuIdentificador || mensagem.autor === meuSetor;
+    
+    if (!isMe) {
+      if (activeCanal !== canal || document.hidden) {
+        channelUnread[canal] = (channelUnread[canal] || 0) + 1;
+        if (typeof bipChat === 'function') bipChat();
+        else if (typeof playChatSound === 'function') playChatSound();
+      } else {
+        markCanalAsRead(canal);
+      }
+    }
+    
+    if (activeCanal === canal) {
+      renderChannelChat();
+      setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
+    }
+    renderCanalList();
+  });
+
+  socket.on('chatChannelClear', (data) => {
+    const { canal } = data;
+    if (canal === '__all__') {
+      for (const k in channelMessages) channelMessages[k] = [];
+      for (const k in channelUnread) channelUnread[k] = 0;
+    } else {
+      channelMessages[canal] = [];
+      channelUnread[canal] = 0;
+    }
+    if (activeCanal === canal || canal === '__all__') renderChannelChat();
+    renderCanalList();
+  });
 }
 
 setTimeout(() => {
