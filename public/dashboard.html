@@ -114,7 +114,7 @@ function verifyDashboardAccess() {
             setInterval(loadDashboard, 10000);
             
             // Iniciar socket contagem ao vivo
-            const socket = io({ transports: ['websocket'], upgrade: false });
+            const socket = io({ transports: ['polling'], upgrade: false, reconnectionDelay: 3000, reconnectionDelayMax: 10000 });
             socket.on('activeUsers', (count) => {
               document.getElementById('dashActiveUsers').textContent = count;
             });

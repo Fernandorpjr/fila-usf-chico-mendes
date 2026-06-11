@@ -12,7 +12,7 @@ window.fetch = function(resource, config) {
   return originalFetch(resource, config);
 };
 
-const socket = typeof io !== 'undefined' ? io(window.location.origin) : null;
+const socket = typeof io !== 'undefined' ? io(window.location.origin, { reconnectionDelay: 3000, reconnectionDelayMax: 10000 }) : null;
 
 /* === MELHORIA A: PORTÃO DE ENTRADA === */
 const GATE_HASH = 'af99a4ea5f59cb313edbcf21759afcbad8c77212870be1098363836e00e816c1';
@@ -623,13 +623,25 @@ function processSpeechQueue() {
   const pv = voices.find(v => v.name.includes('Francisca') || v.name.includes('Antonio') || v.name.includes('Google português do Brasil') || v.name.includes('Luciana') || v.name.includes('Daniel'));
   const fv = voices.find(v => v.lang.startsWith('pt'));
   if (pv) utter.voice = pv; else if (fv) utter.voice = fv;
-  
+
+  // Safety timeout: bug do Chrome onde onend não dispara quando aba perde foco.
+  // Estimativa: ~3 palavras/segundo + 3s de margem de segurança.
+  const wordCount = texto.split(/\s+/).length;
+  const estimatedDuration = Math.ceil(wordCount / 3) * 1000;
+  const safetyTimeout = setTimeout(() => {
+    console.warn('⚠️ Speech onend não disparou (aba minimizada?). Continuando fila...');
+    isSpeaking = false;
+    processSpeechQueue();
+  }, estimatedDuration + 3000);
+
   utter.onend = () => {
+    clearTimeout(safetyTimeout); // Cancelar timeout se onend disparou normalmente
     isSpeaking = false;
     setTimeout(processSpeechQueue, 500); // pequeno delay entre áudios
   };
   
   utter.onerror = (e) => {
+    clearTimeout(safetyTimeout); // Cancelar timeout também em caso de erro
     console.error("SpeechSynthesis erro", e);
     isSpeaking = false;
     processSpeechQueue();
@@ -1126,10 +1138,46 @@ function renderCanalList() {
 }
 
 function switchCanal(canalId) {
-  activeCanal = 'geral';
-  document.getElementById('chat-canal-title').textContent = 'Chat da Unidade';
-  document.getElementById('chat-canal-sub').textContent = 'Todos os setores e profissionais';
-  renderChannelChat();
+  // Marcar canal anterior como lido antes de trocar
+  if (activeCanal && activeCanal !== canalId) {
+    markCanalAsRead(activeCanal);
+  }
+
+  activeCanal = canalId;
+
+  // Atualizar título e subtítulo do canal
+  const canalInfo = CANAIS.find(c => c.id === canalId);
+  if (canalInfo) {
+    document.getElementById('chat-canal-title').textContent = canalInfo.nome.replace(/^\S+\s/, ''); // remove emoji
+    document.getElementById('chat-canal-sub').textContent = canalInfo.desc;
+  } else {
+    document.getElementById('chat-canal-title').textContent = 'Chat da Unidade';
+    document.getElementById('chat-canal-sub').textContent = 'Todos os setores e profissionais';
+  }
+
+  // Carregar mensagens do canal se ainda não estiverem em memória
+  if (!channelMessages[canalId] || channelMessages[canalId].length === 0) {
+    loadChannelMessages(canalId).then(() => {
+      renderChannelChat();
+      markCanalAsRead(canalId);
+      updateChatBadge();
+      renderCanalList();
+    });
+  } else {
+    renderChannelChat();
+    markCanalAsRead(canalId);
+    updateChatBadge();
+    renderCanalList();
+  }
+
+  // Scroll para o final das mensagens
+  setTimeout(() => {
+    const c = document.getElementById('chat-messages');
+    if (c) c.scrollTop = c.scrollHeight;
+  }, 50);
+
+  // Carregar pin do novo canal
+  loadChatPin(canalId);
 }
 
 async function loadChannelMessages(canalId) {
@@ -1246,13 +1294,19 @@ async function sendChatChannelMessage() {
       body:JSON.stringify(payload) 
     });
     if (r.ok) { 
+      const msg = await r.json();
       inp.value = ''; 
       chatUrgent = false; 
       document.getElementById('chat-urgent-btn').classList.remove('active');
-      removeChatAttachment(); // Clear attachment after send
+      removeChatAttachment(); // Limpar anexo após envio
       
-      // Forçar carregamento imediato para exibir a mensagem sem esperar o próximo ciclo de polling
-      loadAllChannels().catch(()=>{});
+      // Injeta a mensagem localmente para feedback instantâneo (contorna limitações do Vercel Serverless)
+      if (!channelMessages[activeCanal]) channelMessages[activeCanal] = [];
+      if (!channelMessages[activeCanal].some(m => m.id === msg.id)) {
+        channelMessages[activeCanal].push(msg);
+      }
+      renderChannelChat();
+      setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
     }
     else {
       const err = await r.json();
@@ -2235,37 +2289,42 @@ function isDentroDoHorario() {
   return true;
 }
 
-function startAdaptivePolling() {
+function startPolling1() {
   if (pollingTimer1) clearTimeout(pollingTimer1);
-  if (pollingTimer2) clearTimeout(pollingTimer2);
-  
   const inHours = isDentroDoHorario();
-  const isHidden = document.hidden;
   const isTV = new URLSearchParams(window.location.search).get('modo') === 'tv';
   
   if (!inHours) {
-     if (isTV) return; // TV para de fazer polling fora do horário
-     pollingTimer1 = setTimeout(() => { loopData1(); }, 60000); // checagem de hora em hora/minuto
+     if (isTV) return;
+     pollingTimer1 = setTimeout(() => { loopData1(); }, 60000);
      return;
   }
-  
-  const interval1 = isHidden ? 30000 : 5000;
-  const interval2 = isHidden ? 60000 : 8000;
-  
+  const interval1 = document.hidden ? 30000 : 5000;
   pollingTimer1 = setTimeout(() => { loopData1(); }, interval1);
+}
+
+function startPolling2() {
+  if (pollingTimer2) clearTimeout(pollingTimer2);
+  if (!isDentroDoHorario()) return; // Sem polling de chat fora de horário
+  const interval2 = document.hidden ? 60000 : 8000;
   pollingTimer2 = setTimeout(() => { loopData2(); }, interval2);
+}
+
+function startAdaptivePolling() {
+  startPolling1();
+  startPolling2();
 }
 
 async function loopData1() {
   await Promise.all([
     loadQueues(), loadCurrentCalling(), loadHistory(), loadAttended(), loadAcolhimentoFluxo(), loadNotificacoes()
   ].map(p => p.catch(() => {})));
-  startAdaptivePolling();
+  startPolling1();
 }
 
 async function loopData2() {
   await loadAllChannels().catch(() => {});
-  startAdaptivePolling();
+  startPolling2();
 }
 
 startAdaptivePolling();
@@ -2273,14 +2332,41 @@ document.addEventListener('visibilitychange', startAdaptivePolling);
 
 /* Eventos Socket.IO essenciais reativados */
 if (socket) {
+  // Debounce para evitar múltiplas chamadas simultâneas
+  // (o servidor pode emitir queueUpdate + acolhimentoUpdate ao mesmo tempo)
+  let queueUpdateDebounce = null;
+  let acolhimentoUpdateDebounce = null;
+
   socket.on('queueUpdate', () => {
-    loadQueues();
-    loadCurrentCalling();
-    loadAcolhimentoFluxo();
+    clearTimeout(queueUpdateDebounce);
+    queueUpdateDebounce = setTimeout(() => {
+      loadQueues();
+      loadCurrentCalling();
+      loadAcolhimentoFluxo();
+    }, 300);
   });
   
   socket.on('acolhimentoUpdate', () => {
-    loadAcolhimentoFluxo();
+    clearTimeout(acolhimentoUpdateDebounce);
+    acolhimentoUpdateDebounce = setTimeout(() => {
+      loadAcolhimentoFluxo();
+    }, 300);
+  });
+
+  // Recuperação de estado ao reconectar após queda do socket
+  // Dispara tanto na conexão inicial quanto em reconexões
+  socket.on('connect', () => {
+    console.log('🔌 Socket conectado/reconectado — sincronizando estado...');
+    // Busca estado atual do banco para não assumir que estado local está correto
+    Promise.all([
+      loadQueues(),
+      loadCurrentCalling(),
+      loadHistory(),
+      loadAcolhimentoFluxo(),
+      loadAllChannels()
+    ].map(p => p.catch(() => {}))).then(() => {
+      console.log('✅ Estado sincronizado após reconexão');
+    });
   });
 
   socket.on('callPatient', (data) => {
@@ -2292,7 +2378,7 @@ if (socket) {
     const { canal, mensagem } = data;
     if (!channelMessages[canal]) channelMessages[canal] = [];
     
-    // Check if message already exists to avoid duplicates
+    // Verificar se mensagem já existe para evitar duplicatas
     if (!channelMessages[canal].some(m => m.id === mensagem.id)) {
       channelMessages[canal].push(mensagem);
     }
@@ -2317,6 +2403,7 @@ if (socket) {
       setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
     }
     renderCanalList();
+    updateChatBadge();
   });
 
   socket.on('chatChannelClear', (data) => {
@@ -2330,6 +2417,7 @@ if (socket) {
     }
     if (activeCanal === canal || canal === '__all__') renderChannelChat();
     renderCanalList();
+    updateChatBadge();
   });
 }
 

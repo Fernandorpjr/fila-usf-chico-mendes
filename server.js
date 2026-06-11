@@ -15,9 +15,8 @@ const io = new Server(server, {
   cors: { origin: '*' },
   transports: ['polling'],
   allowUpgrades: false,
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  connectTimeout: 45000
+  pingTimeout: 30000, // Reduced to 30s to free connections faster
+  pingInterval: 5000 // Increased polling interval to 5s minimum as requested
 });
 
 /* === MELHORIA C: PRESENÇA ONLINE VIA SOCKET === */
@@ -27,6 +26,7 @@ io.on('connection', (socket) => {
 
   // Track setor presence
   socket.on('registerPresenca', async (data) => {
+    if (!isDentroDoHorario()) return; // Previne queries ao Neon fora do horário
     if (data && data.setor) {
       socket.presencaSetor = data.setor;
       try {
@@ -56,27 +56,22 @@ app.use(express.urlencoded({ limit: '5mb', extended: true }));
 app.use(express.static('public'));
 
 // === BLOQUEIO POR HORÁRIO (06:00 - 20:00 BRT) ===
+function isDentroDoHorario() {
+  const date = new Date();
+  const options = { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false };
+  const formatter = new Intl.DateTimeFormat('pt-BR', options);
+  const timeString = formatter.format(date);
+  const hour = parseInt(timeString.split(':')[0], 10);
+  return (hour >= 6 && hour < 20);
+}
+
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
   res.set('Surrogate-Control', 'no-store');
 
-  // Ignorar rotas de chat/presença para não quebrar UI de aviso se necessário, ou bloquear tudo
-  // Vamos bloquear tudo exceto verificações se houver necessidade.
-  // Para evitar sobrecarga no Neon, bloqueamos qualquer /api fora do horário
-  
-  // Pegar hora atual no fuso de SP
-  const date = new Date();
-  const options = { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false };
-  const formatter = new Intl.DateTimeFormat('pt-BR', options);
-  const timeString = formatter.format(date);
-  const hour = parseInt(timeString.split(':')[0], 10);
-
-  // Considerar finais de semana (opcional)? O usuário não respondeu, então faremos apenas bloqueio diário de horário
-  const day = date.getDay(); // 0=Domingo, 6=Sábado. Mantemos aberto para não quebrar se tiver plantão, limitamos só por hora.
-
-  if (hour >= 20 || hour < 6) {
+  if (!isDentroDoHorario()) {
     return res.status(503).json({ 
       error: 'Sistema fora do horário de funcionamento (20:00 às 06:00). Banco de dados suspenso para economia.'
     });
@@ -89,7 +84,7 @@ app.use('/api', (req, res, next) => {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 3,
+  max: 1, // Reduced to 1 to allow auto-suspend between requests
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 5000
 });
@@ -796,7 +791,9 @@ app.get('/api/chat/canais/:canal', async (req, res) => {
   try {
     const { canal } = req.params;
     const result = await pool.query(
-      'SELECT * FROM chat_channels WHERE canal = $1 ORDER BY created_at ASC LIMIT 100',
+      `SELECT * FROM (
+         SELECT * FROM chat_channels WHERE canal = $1 ORDER BY created_at DESC LIMIT 100
+       ) sub ORDER BY created_at ASC`,
       [canal]
     );
     res.json(result.rows);
@@ -1534,13 +1531,10 @@ app.get('*', (req, res) => {
 });
 
 // Start server
-server.listen(PORT, async () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Database: PostgreSQL (Neon)`);
-  try {
-    await initDB();
-    console.log(`✅ Base de dados pronta!`);
-  } catch (e) {
-    console.error(`❌ Falha ao inicializar o banco de dados:`, e.message);
-  }
+  // initDB() já foi chamado na linha de boot (antes deste listen).
+  // NÃO chamar de novo aqui para evitar ~15 ALTER TABLE queries extras
+  // a cada restart, que impediriam o Auto-suspend do Neon.
 });

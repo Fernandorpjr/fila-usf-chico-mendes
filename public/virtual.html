@@ -170,7 +170,7 @@
     if (!patientId) {
         document.getElementById('loader').innerHTML = '❌ Código do paciente inválido ou não fornecido.';
     } else {
-        setInterval(fetchStatus, 3000);
+        setInterval(fetchStatus, 5000); // Increased polling interval to 5000ms
         fetchStatus();
     }
 
