@@ -12,7 +12,8 @@ window.fetch = function(resource, config) {
   return originalFetch(resource, config);
 };
 
-const socket = typeof io !== 'undefined' ? io(window.location.origin, { reconnectionDelay: 3000, reconnectionDelayMax: 10000 }) : null;
+// Socket removido para economia Vercel Pro
+const socket = null;
 
 /* === MELHORIA A: PORTÃO DE ENTRADA === */
 const GATE_HASH = 'af99a4ea5f59cb313edbcf21759afcbad8c77212870be1098363836e00e816c1';
@@ -1072,10 +1073,6 @@ async function loadChatPresenca() {
 function registerPresenca() {
   const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
   fetch(`${API_URL}/chat/presenca`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({setor}) }).catch(()=>{});
-  // Also register via socket
-  if (typeof socket !== 'undefined') {
-    socket.emit('registerPresenca', { setor });
-  }
 }
 
 function getPresenceDot(canalId) {
@@ -2330,96 +2327,7 @@ async function loopData2() {
 startAdaptivePolling();
 document.addEventListener('visibilitychange', startAdaptivePolling);
 
-/* Eventos Socket.IO essenciais reativados */
-if (socket) {
-  // Debounce para evitar múltiplas chamadas simultâneas
-  // (o servidor pode emitir queueUpdate + acolhimentoUpdate ao mesmo tempo)
-  let queueUpdateDebounce = null;
-  let acolhimentoUpdateDebounce = null;
-
-  socket.on('queueUpdate', () => {
-    clearTimeout(queueUpdateDebounce);
-    queueUpdateDebounce = setTimeout(() => {
-      loadQueues();
-      loadCurrentCalling();
-      loadAcolhimentoFluxo();
-    }, 300);
-  });
-  
-  socket.on('acolhimentoUpdate', () => {
-    clearTimeout(acolhimentoUpdateDebounce);
-    acolhimentoUpdateDebounce = setTimeout(() => {
-      loadAcolhimentoFluxo();
-    }, 300);
-  });
-
-  // Recuperação de estado ao reconectar após queda do socket
-  // Dispara tanto na conexão inicial quanto em reconexões
-  socket.on('connect', () => {
-    console.log('🔌 Socket conectado/reconectado — sincronizando estado...');
-    // Busca estado atual do banco para não assumir que estado local está correto
-    Promise.all([
-      loadQueues(),
-      loadCurrentCalling(),
-      loadHistory(),
-      loadAcolhimentoFluxo(),
-      loadAllChannels()
-    ].map(p => p.catch(() => {}))).then(() => {
-      console.log('✅ Estado sincronizado após reconexão');
-    });
-  });
-
-  socket.on('callPatient', (data) => {
-    // O painel chama voz via loadHistory, então forçamos refresh do history se não for polling
-    setTimeout(() => { loadHistory(); }, 200);
-  });
-
-  socket.on('chatChannelMessage', (data) => {
-    const { canal, mensagem } = data;
-    if (!channelMessages[canal]) channelMessages[canal] = [];
-    
-    // Verificar se mensagem já existe para evitar duplicatas
-    if (!channelMessages[canal].some(m => m.id === mensagem.id)) {
-      channelMessages[canal].push(mensagem);
-    }
-    
-    const meuSetor = document.getElementById('chat-remetente')?.value || '';
-    const meuNome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
-    const meuIdentificador = meuNome ? `${meuNome} (${meuSetor})` : meuSetor;
-    const isMe = mensagem.autor === meuIdentificador || mensagem.autor === meuSetor;
-    
-    if (!isMe) {
-      if (activeCanal !== canal || document.hidden) {
-        channelUnread[canal] = (channelUnread[canal] || 0) + 1;
-        if (typeof bipChat === 'function') bipChat();
-        else if (typeof playChatSound === 'function') playChatSound();
-      } else {
-        markCanalAsRead(canal);
-      }
-    }
-    
-    if (activeCanal === canal) {
-      renderChannelChat();
-      setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
-    }
-    renderCanalList();
-    updateChatBadge();
-  });
-
-  socket.on('chatChannelClear', (data) => {
-    const { canal } = data;
-    if (canal === '__all__') {
-      for (const k in channelMessages) channelMessages[k] = [];
-      for (const k in channelUnread) channelUnread[k] = 0;
-    } else {
-      channelMessages[canal] = [];
-      channelUnread[canal] = 0;
-    }
-    if (activeCanal === canal || canal === '__all__') renderChannelChat();
-    renderCanalList();
-    updateChatBadge();
-  });
-}
+/* Eventos Socket.IO removidos para economia na Vercel */
 
 setTimeout(() => {
   // Only show sound modal if past the gate

@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-<script src="/socket.io/socket.io.js"></script>
+
 <style>
   :root { --blue:#1a4fc4; --blue-dark:#0f3491; --blue-bg:#0a1e5c; --green:#4aab3c; --orange:#f4821e; --red:#e53935; --yellow:#f9c823; --white:#fff; --gray-100:#f0f4ff; --gray-300:#b8c8f0; --gray-600:#5a6a8c; --radius:16px; }
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -113,11 +113,8 @@ function verifyDashboardAccess() {
             loadDashboard(); 
             setInterval(loadDashboard, 10000);
             
-            // Iniciar socket contagem ao vivo
-            const socket = io({ transports: ['polling'], upgrade: false, reconnectionDelay: 3000, reconnectionDelayMax: 10000 });
-            socket.on('activeUsers', (count) => {
-              document.getElementById('dashActiveUsers').textContent = count;
-            });
+            // Contagem ao vivo agora é estática ou pode ser atualizada via API se necessário
+            document.getElementById('dashActiveUsers').textContent = "API";
         } else { 
             alert('Senha incorreta!'); 
         } 

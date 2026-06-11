@@ -7,44 +7,11 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const path = require('path');
 const http = require('http');
-const { Server } = require('socket.io');
-
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: '*' },
-  transports: ['polling'],
-  allowUpgrades: false,
-  pingTimeout: 30000, // Reduced to 30s to free connections faster
-  pingInterval: 5000 // Increased polling interval to 5s minimum as requested
-});
 
-/* === MELHORIA C: PRESENÇA ONLINE VIA SOCKET === */
-io.on('connection', (socket) => {
-  console.log('Device connected to WebSocket');
-  io.emit('activeUsers', io.engine.clientsCount);
-
-  // Track setor presence
-  socket.on('registerPresenca', async (data) => {
-    if (!isDentroDoHorario()) return; // Previne queries ao Neon fora do horário
-    if (data && data.setor) {
-      socket.presencaSetor = data.setor;
-      try {
-        await pool.query(
-          `INSERT INTO chat_presenca (setor, last_seen) VALUES ($1, CURRENT_TIMESTAMP)
-           ON CONFLICT (setor) DO UPDATE SET last_seen = CURRENT_TIMESTAMP`,
-          [data.setor]
-        );
-      } catch(e) { console.error('Presença error:', e.message); }
-    }
-  });
-
-  socket.on('disconnect', async () => {
-    io.emit('activeUsers', io.engine.clientsCount);
-    // Mark setor as offline on disconnect (optional — last_seen already tracks)
-  });
-});
-/* === FIM MELHORIA C: PRESENÇA === */
+// Socket.io removido completamente para economizar Invocations/GB-h no Vercel
+const io = { emit: () => {} };
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = '0177';
@@ -66,10 +33,15 @@ function isDentroDoHorario() {
 }
 
 app.use('/api', (req, res, next) => {
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.set('Pragma', 'no-cache');
-  res.set('Expires', '0');
-  res.set('Surrogate-Control', 'no-store');
+  if (req.method === 'GET') {
+    // Permite cache no Edge Server da Vercel por 3 segundos para abater requisições repetidas (Economia de Invocations)
+    res.set('Cache-Control', 'public, s-maxage=3, stale-while-revalidate=2');
+  } else {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
+  }
 
   if (!isDentroDoHorario()) {
     return res.status(503).json({ 
@@ -79,6 +51,7 @@ app.use('/api', (req, res, next) => {
   
   next();
 });
+
 
 // Database setup
 const pool = new Pool({
