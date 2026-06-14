@@ -731,6 +731,8 @@ function repeatLastCall(btnElement) {
 
 // ====== CHAT SOUND ======
 function playChatSound() {
+  if (typeof isMuted !== 'undefined' && isMuted) return;
+  if (typeof audioUnlocked !== 'undefined' && !audioUnlocked) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -1234,7 +1236,30 @@ function switchCanal(canalId) {
 }
 
 async function loadChannelMessages(canalId) {
-  try { const r = await fetch(`${API_URL}/chat/canais/${canalId}`); channelMessages[canalId] = await r.json(); } catch(e) { console.error(e); }
+  try { 
+    const r = await fetch(`${API_URL}/chat/canais/${canalId}`); 
+    const newMsgs = await r.json();
+    
+    const oldMsgs = channelMessages[canalId];
+    if (oldMsgs && newMsgs.length > 0) {
+      const oldLast = oldMsgs.length > 0 ? oldMsgs[oldMsgs.length - 1] : null;
+      const newLast = newMsgs[newMsgs.length - 1];
+      
+      // Se houver uma nova mensagem
+      if (!oldLast || newLast.id > oldLast.id) {
+        const meuSetor = document.getElementById('chat-remetente')?.value || '';
+        const meuNome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
+        const meuIdentificador = meuNome ? `${meuNome} (${meuSetor})` : meuSetor;
+        
+        // Só toca o som se a mensagem não foi enviada por mim
+        if (newLast.autor !== meuIdentificador && newLast.autor !== meuSetor) {
+          playChatSound();
+        }
+      }
+    }
+    
+    channelMessages[canalId] = newMsgs; 
+  } catch(e) { console.error(e); }
 }
 
 async function loadAllChannels() {
