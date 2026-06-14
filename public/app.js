@@ -1269,6 +1269,7 @@ async function loadAllChannels() {
   const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
   try { const r = await fetch(`${API_URL}/chat/unread/${encodeURIComponent(setor)}`); const d = await r.json(); Object.keys(d).forEach(k => { channelUnread[k] = d[k]; }); } catch(e){}
   renderCanalList();
+  updateChatBadge();
 }
 
 function renderChannelChat() {
