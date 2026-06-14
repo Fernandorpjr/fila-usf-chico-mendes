@@ -305,8 +305,9 @@ function initSectorScreens() {
         ${filterHTML}
         ${profHTML}
         <div class="btn-group" style="margin-bottom:20px;">
-          <button class="btn ${cfg.btnClass}" onclick="callNext('${setor}')" style="flex:1;">📢 Chamar Próximo</button>
-          <button class="btn btn-orange" onclick="speakAgain('${setor}')" style="width:auto;padding:16px 20px;background:${cfg.color}33;color:${cfg.color};box-shadow:none;border:1px solid ${cfg.color}55;">🔊 Repetir</button>
+          <button class="btn ${cfg.btnClass} btn-3d" onclick="callNext('${setor}', this)" style="flex:1;">📢 Chamar Próximo</button>
+          ${(setor === 'Farmácia' || setor === 'Regulação') ? `<button class="btn ${cfg.btnClass} btn-3d" onclick="callNextMulti('${setor}', this)" style="flex:1;">📢 Chamar 3 Próximos (Multi)</button>` : ''}
+          <button class="btn btn-orange btn-3d" onclick="speakAgain('${setor}', this)" style="width:auto;padding:16px 20px;background:${cfg.color}33;color:${cfg.color};box-shadow:none;border:1px solid ${cfg.color}55;">🔊 Repetir</button>
         </div>
         <div class="sector-header">
           <div class="sector-name"><div class="sector-dot" style="background:${cfg.color}"></div>Aguardando</div>
@@ -548,7 +549,17 @@ function showQrModal(p) {
 }
 
 // ====== CALL NEXT ======
-async function callNext(setor) {
+async function callNext(setor, btnElement) {
+  if (btnElement) {
+    btnElement.disabled = true;
+    const originalText = btnElement.innerHTML;
+    btnElement.innerHTML = '⏳ Chamando...';
+    setTimeout(() => {
+      btnElement.disabled = false;
+      btnElement.innerHTML = originalText;
+    }, 2500);
+  }
+
   try {
     const cfg = SECTOR_CONFIG[setor];
     let consultorio = null, profissional = null, medico = null;
@@ -566,6 +577,28 @@ async function callNext(setor) {
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     loadQueues(); loadCurrentCalling();
   } catch (e) { showToast(e.message || `Fila de ${setor} está vazia!`, true); }
+}
+
+async function callNextMulti(setor, btnElement, count = 3) {
+  if (btnElement) {
+    btnElement.disabled = true;
+    const originalText = btnElement.innerHTML;
+    btnElement.innerHTML = '⏳ Chamando Múltiplos...';
+    setTimeout(() => {
+      btnElement.disabled = false;
+      btnElement.innerHTML = originalText;
+    }, 3500);
+  }
+
+  try {
+    for (let i = 0; i < count; i++) {
+      // Pequeno atraso para dar tempo de enviar e o painel renderizar em ordem
+      if (i > 0) await new Promise(r => setTimeout(r, 800));
+      await callNext(setor, null);
+    }
+  } catch (e) {
+    console.error('Erro na chamada múltipla:', e);
+  }
 }
 
 // ====== REMOVE PATIENT ======
@@ -596,6 +629,16 @@ async function deletePatientPermanently(id, nome) {
 
 // ====== SPEAK ======
 let audioUnlocked = false;
+let isMuted = false;
+
+function toggleMute() {
+  isMuted = !isMuted;
+  const btn = document.getElementById('btn-mute');
+  if (btn) {
+    btn.innerHTML = isMuted ? '🔇' : '🔊';
+  }
+  showToast(isMuted ? 'Áudio silenciado' : 'Áudio ativado');
+}
 function unlockAudio() {
   if (!audioUnlocked && 'speechSynthesis' in window) { const d = new SpeechSynthesisUtterance(' '); d.volume = 0; window.speechSynthesis.speak(d); audioUnlocked = true; }
   const g = document.getElementById('global-audio'); if (g) g.play().catch(() => {});
@@ -605,7 +648,11 @@ function unlockAudio() {
 
 function speak(nome, setor, audioUrl, medico) { speakViaSynthesis(nome, setor, medico); }
 
-function speakAgain(setor) {
+function speakAgain(setor, btnElement) {
+  if (btnElement) {
+    btnElement.disabled = true;
+    setTimeout(() => btnElement.disabled = false, 2500);
+  }
   if (currentCalling[setor]) { const p = currentCalling[setor]; speakViaSynthesis(p.nome, setor, p.medico); } else showToast('Nenhum paciente sendo chamado!', true);
 }
 
@@ -652,6 +699,7 @@ function processSpeechQueue() {
 }
 
 function speakViaSynthesis(nome, setor, medico) {
+  if (isMuted) return;
   if (!('speechSynthesis' in window)) return;
   
   const h = new Date().getHours();
@@ -663,12 +711,20 @@ function speakViaSynthesis(nome, setor, medico) {
   processSpeechQueue();
 }
 
-function speakPatientName() {
+function speakPatientName(btnElement) {
+  if (btnElement) {
+    btnElement.disabled = true;
+    setTimeout(() => btnElement.disabled = false, 2500);
+  }
   if (!callHistory || !callHistory.length) { showToast('Nenhuma chamada registrada!', true); return; }
   const l = callHistory[0]; speakViaSynthesis(l.nome, l.setor, l.medico); showToast(`🔊 Chamando: ${l.nome}`);
 }
 
-function repeatLastCall() {
+function repeatLastCall(btnElement) {
+  if (btnElement) {
+    btnElement.disabled = true;
+    setTimeout(() => btnElement.disabled = false, 2500);
+  }
   if (callHistory && callHistory.length) { const l = callHistory[0]; speakViaSynthesis(l.nome, l.setor, l.medico); showToast(`🔊 Repetindo: ${l.nome}`); }
   else showToast('Nenhuma chamada no histórico!', true);
 }

@@ -91,6 +91,26 @@
   .btn-qr { background: #e8eeff; color: var(--blue); border: 1px solid var(--blue); border-radius: 6px; padding: 4px 8px; font-size: 14px; cursor: pointer; transition: 0.2s; font-weight: 800; }
   .btn-qr:hover { background: var(--blue); color: white; transform: scale(1.1); }
 
+  /* Efeito 3D para Botões de Chamar */
+  .btn-3d {
+    border-bottom: 4px solid rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.1s ease;
+  }
+  .btn-3d:active:not(:disabled) {
+    border-bottom-width: 0px;
+    transform: translateY(4px);
+    box-shadow: none;
+    filter: brightness(0.85);
+  }
+  .btn-3d:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    border-bottom-width: 0px;
+    transform: translateY(4px);
+    box-shadow: none;
+  }
+
   .two-col { display: grid; grid-template-columns: 400px 1fr; gap: 24px; align-items: start; }
   .sector-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--gray-200); }
   .sector-name { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 900; color: var(--blue-dark); display: flex; align-items: center; gap: 10px; }
@@ -519,6 +539,7 @@
     <!-- === MELHORIA A: BOTÃO LOGOUT === -->
     <button class="btn-logout-gate" id="btn-logout-gate" onclick="logoutGate()" title="Encerrar sessão do portão de entrada">🚪 Encerrar sessão</button>
     <!-- === FIM MELHORIA A === -->
+    <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
     <div>
       <div class="date-display" id="dateDisplay"></div>
       <div class="clock" id="clockDisplay">00:00:00</div>
@@ -660,7 +681,7 @@
     </div>
     <div class="card" style="margin-bottom:20px;padding:16px;">
       <div class="btn-group">
-        <button class="btn btn-purple" onclick="callNext('Acolhimento')" style="flex:1;">📢 Chamar Próximo Paciente</button>
+        <button class="btn btn-purple btn-3d" onclick="callNext('Acolhimento', this)" style="flex:1;">📢 Chamar Próximo Paciente</button>
         <button class="btn" style="width:auto;padding:14px 20px;background:rgba(142,36,170,0.15);color:var(--purple);border:1px solid rgba(142,36,170,0.3);border-radius:10px;font-weight:800;" onclick="speakAgain('Acolhimento')">🔊 Repetir</button>
       </div>
     </div>
@@ -777,7 +798,7 @@
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
-        <button class="btn" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;" onclick="chamarNoPainel('escuta1')">🔊 Chamar no Painel</button>
+        <button class="btn btn-3d" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;" onclick="chamarNoPainel('escuta1', this)">🔊 Chamar no Painel</button>
         <button class="btn btn-orange" style="width:100%;padding:12px;" onclick="confirmarEncaminhamento()">📤 Encaminhar para 2ª Escuta</button>
         <button class="btn" style="width:100%;padding:12px;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;" onclick="finalizarEscuta1()">✅ Finalizar Atendimento Direto</button>
         <button class="btn" style="width:100%;padding:12px;background:#1976d2;color:white;border:none;border-radius:24px;font-weight:700;" onclick="agendarEscuta1()">📅 Finalizar e Agendar</button>
@@ -843,7 +864,7 @@
       </div>
       
       <div style="display:flex;gap:12px;">
-        <button class="btn" style="flex:1;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;padding:14px;font-size:16px;" onclick="chamarNoPainel('escuta2')">🔊 Chamar no Painel</button>
+        <button class="btn btn-3d" style="flex:1;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;padding:14px;font-size:16px;" onclick="chamarNoPainel('escuta2', this)">🔊 Chamar no Painel</button>
         <button class="btn" style="flex:1;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;padding:14px;font-size:16px;" onclick="confirmarFinalizacaoEscuta2()">✅ Salvar e Finalizar</button>
         <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')">Cancelar</button>
       </div>
@@ -923,8 +944,8 @@
       </div>
       <div class="painel-main-call" id="painel-main"><div class="painel-empty">Aguardando chamadas...</div></div>
       <div style="display:flex;gap:12px;justify-content:center;margin-bottom:24px;flex-wrap:wrap;">
-        <button onclick="speakPatientName()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(74,171,60,0.4);display:flex;align-items:center;gap:8px;">🔊 Chamar pelo Nome</button>
-        <button onclick="repeatLastCall()" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">🔁 Repetir Última</button>
+        <button class="btn-3d" onclick="speakPatientName(this)" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(74,171,60,0.4);display:flex;align-items:center;gap:8px;">🔊 Chamar pelo Nome</button>
+        <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">🔁 Repetir Última</button>
       </div>
       <div class="painel-history-title">🕐 Histórico de Chamadas</div>
       <div class="painel-history-grid" id="painel-history" style="max-height:420px;overflow-y:auto;scrollbar-width:thin;"><div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;font-size:14px;font-weight:600;">Nenhuma chamada registrada</div></div>
