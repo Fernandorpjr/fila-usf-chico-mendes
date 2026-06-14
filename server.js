@@ -57,9 +57,9 @@ app.use('/api', (req, res, next) => {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 1, // Reduced to 1 to allow auto-suspend between requests
+  max: 3, // Allow a few connections for concurrent requests
   idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 5000
+  connectionTimeoutMillis: 15000 // 15s para acomodar cold start do Neon.tech (free tier)
 });
 
 // Setores válidos
