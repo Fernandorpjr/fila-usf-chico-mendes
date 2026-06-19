@@ -30,7 +30,8 @@
   .logo-text .u { color: var(--white); } .logo-text .s { color: var(--green); } .logo-text .f { color: var(--orange); }
   .logo-text .nome { color: var(--white); font-size: 22px; margin-left: 6px; }
   .header-subtitle { font-size: 11px; color: var(--gray-300); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
-  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-right { display: flex; align-items: center; gap: 12px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+  .header-right::-webkit-scrollbar { display: none; }
 
   .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
   .btn-admin-lock:hover { background: rgba(255,255,255,0.1); }
@@ -490,6 +491,83 @@
     .btn-confirmar-presenca:hover { transform: scale(1.05); }
     .btn-confirmar-presenca:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     /* === FIM MELHORIA E === */
+
+    /* === MELHORIA F: TELA FORA DO EXPEDIENTE === */
+    .offhours-overlay {
+      position: fixed; inset: 0; z-index: 99998;
+      background: linear-gradient(160deg, #040d1f 0%, #0a1e5c 55%, #0d2a7a 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Nunito', sans-serif;
+    }
+    .offhours-overlay.hidden { display: none; }
+    .offhours-card { text-align: center; max-width: 540px; width: 90%; animation: gateIn 0.6s ease; }
+    .offhours-logo { font-size: 36px; font-weight: 900; margin-bottom: 4px; }
+    .offhours-logo .u { color: #fff; }
+    .offhours-logo .s { color: var(--green); }
+    .offhours-logo .f { color: var(--orange); }
+    .offhours-icon { font-size: 68px; margin: 14px 0; animation: slowPulse 4s ease-in-out infinite; }
+    @keyframes slowPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.6; transform:scale(0.94); } }
+    .offhours-title { font-size: 24px; font-weight: 900; color: #fff; margin-bottom: 8px; letter-spacing: 0.3px; }
+    .offhours-sub { font-size: 16px; color: var(--gray-300); font-weight: 600; margin-bottom: 24px; line-height: 1.55; }
+    .offhours-schedule {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 40px; padding: 14px 30px; margin-bottom: 20px;
+      font-size: 15px; font-weight: 800; color: var(--yellow); letter-spacing: 0.5px;
+    }
+    .offhours-clock-display {
+      font-family: 'Nunito', sans-serif; font-size: 52px; font-weight: 900;
+      color: rgba(255,255,255,0.22); letter-spacing: 6px; margin-top: 6px;
+    }
+    .offhours-hint { font-size: 13px; color: rgba(255,255,255,0.28); margin-top: 18px; font-weight: 600; }
+    /* === FIM MELHORIA F (offhours) === */
+
+    /* === MELHORIA F: TELA PAUSA PALESTRA === */
+    .pause-overlay {
+      position: fixed; inset: 0; z-index: 99997;
+      background: linear-gradient(160deg, #071a0f 0%, #0d3520 55%, #1a5c36 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Nunito', sans-serif;
+    }
+    .pause-overlay.hidden { display: none; }
+    .pause-card { text-align: center; max-width: 620px; width: 90%; animation: gateIn 0.5s ease; }
+    .pause-icon { font-size: 90px; margin-bottom: 20px; animation: breathe 2.8s ease-in-out infinite; }
+    @keyframes breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.09); } }
+    .pause-title { font-size: 30px; font-weight: 900; color: #fff; margin-bottom: 18px; letter-spacing: 0.3px; }
+    .pause-sub {
+      font-size: 18px; color: rgba(255,255,255,0.8); font-weight: 600;
+      line-height: 1.75; max-width: 500px; margin: 0 auto 28px;
+    }
+    .pause-badge {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 40px; padding: 14px 30px;
+      font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.75); letter-spacing: 0.5px;
+    }
+    .pause-badge::before {
+      content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+      background: #4aab3c; box-shadow: 0 0 10px rgba(74,171,60,0.8); flex-shrink: 0;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
+    /* === FIM MELHORIA F (pause) === */
+
+    /* === MELHORIA F: BOTÃO PAUSA === */
+    .btn-palestra {
+      background: rgba(249,200,35,0.18); color: var(--yellow);
+      border: 1.5px solid rgba(249,200,35,0.5); padding: 7px 14px;
+      border-radius: 8px; font-size: 13px; font-weight: 800;
+      cursor: pointer; transition: all 0.2s; font-family: 'Nunito', sans-serif;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-palestra:hover { background: rgba(249,200,35,0.32); border-color: rgba(249,200,35,0.7); }
+    .btn-palestra.btn-palestra-pausado {
+      background: rgba(74,171,60,0.2); color: #6de462;
+      border-color: rgba(74,171,60,0.55);
+      animation: pauseBtnPulse 2s ease-in-out infinite;
+    }
+    @keyframes pauseBtnPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,171,60,0.45); } 50% { box-shadow: 0 0 0 5px rgba(74,171,60,0); } }
+    /* === FIM MELHORIA F (btn) === */
 </style>
 </head>
 <body>
@@ -509,6 +587,31 @@
   </div>
 </div>
 <!-- === FIM MELHORIA A: GATE === -->
+
+<!-- === MELHORIA F: TELA FORA DO EXPEDIENTE === -->
+<div class="offhours-overlay hidden" id="offhours-overlay">
+  <div class="offhours-card">
+    <div class="offhours-logo"><span class="u">U</span><span class="s">S</span><span class="f">F</span></div>
+    <div class="offhours-icon">🏥</div>
+    <div class="offhours-title">Unidade Chico Mendes</div>
+    <div class="offhours-sub">Sistema fora do horário de atendimento</div>
+    <div class="offhours-schedule">🗓️&nbsp; Segunda a Sexta &nbsp;·&nbsp; 06h às 18h</div>
+    <div class="offhours-clock-display" id="offhours-clock">--:--:--</div>
+    <div class="offhours-hint">O sistema retomará automaticamente ao início do expediente</div>
+  </div>
+</div>
+<!-- === FIM MELHORIA F: TELA FORA DO EXPEDIENTE === -->
+
+<!-- === MELHORIA F: TELA PAUSA PALESTRA === -->
+<div class="pause-overlay hidden" id="pause-overlay">
+  <div class="pause-card">
+    <div class="pause-icon">🎙️</div>
+    <div class="pause-title">Atendimento Pausado</div>
+    <div class="pause-sub">Atendimento pausado temporariamente para realização de atividade interna / palestra na recepção.</div>
+    <div class="pause-badge">Aguarde — retornaremos em breve</div>
+  </div>
+</div>
+<!-- === FIM MELHORIA F: TELA PAUSA PALESTRA === -->
 
 <!-- === MELHORIA D: POP-UP DE NOTIFICAÇÃO === -->
 <div class="notif-overlay hidden" id="notif-overlay">
@@ -539,6 +642,9 @@
     <!-- === MELHORIA A: BOTÃO LOGOUT === -->
     <button class="btn-logout-gate" id="btn-logout-gate" onclick="logoutGate()" title="Encerrar sessão do portão de entrada">🚪 Encerrar sessão</button>
     <!-- === FIM MELHORIA A === -->
+    <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
+    <button id="btn-palestra" class="btn-palestra admin-only" onclick="togglePausaPalestra()" title="Pausar sistema para palestra da gestora">🎙️ Pausar para Palestra</button>
+    <!-- === FIM MELHORIA F === -->
     <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
     <div>
       <div class="date-display" id="dateDisplay"></div>

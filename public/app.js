@@ -134,6 +134,120 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 /* === FIM MELHORIA A: PORTÃO DE ENTRADA === */
 
+/* === MELHORIA F: TRAVA DE EXPEDIENTE E PAUSA MANUAL === */
+
+// --- Estado global de pausa e referências aos intervalos controlados ---
+let isPausado = false;
+let intervalChat = null;   // referência ao setInterval do chat (~linha 2422)
+let intervalAgend = null;  // referência ao setInterval de agendamentos (~linha 2447)
+
+// --- Helper: retorna { day: 0-6, hour: 0-23 } no fuso America/Recife ---
+function getDayAndHourRecife(date) {
+  // Formata a data como 'YYYY-MM-DD' no fuso de Recife
+  const dateStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Recife',
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(date);
+  // Obtém hora (0–23) no fuso de Recife
+  const hour = parseInt(new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Recife', hour: '2-digit', hour12: false
+  }).format(date), 10);
+  // Parseia como UTC midnight para obter getUTCDay() correto (sem distorção de fuso local)
+  const midnight = new Date(dateStr + 'T00:00:00Z');
+  return { day: midnight.getUTCDay(), hour }; // day: 0=Dom, 1=Seg, …, 6=Sab
+}
+
+// --- isDentroDoHorario: America/Recife | Segunda–Sexta | 06h–18h ---
+// Substitui a versão antiga (America/Sao_Paulo, sem dia da semana) que fica nas linhas ~2362
+function isDentroDoHorario() {
+  const { day, hour } = getDayAndHourRecife(new Date());
+  if (day === 0 || day === 6) return false; // Domingo (0) ou Sábado (6)
+  if (hour < 6 || hour >= 18) return false; // Fora de 06h–18h
+  return true;
+}
+
+// --- Parar TODOS os loops e timers de polling (garante ZERO tráfego ao banco) ---
+function stopAllPolling() {
+  if (pollingTimer1) { clearTimeout(pollingTimer1);  pollingTimer1 = null; }
+  if (pollingTimer2) { clearTimeout(pollingTimer2);  pollingTimer2 = null; }
+  if (intervalChat)  { clearInterval(intervalChat);  intervalChat  = null; }
+  if (intervalAgend) { clearInterval(intervalAgend); intervalAgend = null; }
+}
+
+// --- Retomar todos os loops após pausa ou retorno ao expediente ---
+function resumeAllPolling() {
+  startAdaptivePolling();
+  if (!intervalChat) {
+    intervalChat = setInterval(() => {
+      const at = document.querySelector('.nav-tab.active');
+      if (at && at.id === 'tab-chat') registerPresenca();
+      loadChatPresenca().then(() => renderCanalList());
+    }, 30000);
+  }
+  if (!intervalAgend) {
+    intervalAgend = setInterval(() => {
+      if (document.getElementById('screen-agendamentos')?.classList.contains('active')) {
+        initAgendamentoDefaults();
+      }
+    }, 5000);
+  }
+}
+
+// --- Relógio na tela de fora de expediente (apenas exibe hora — SEM bater no banco) ---
+function updateOffhoursDisplay() {
+  const el = document.getElementById('offhours-clock');
+  if (!el) return;
+  el.textContent = new Date().toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+}
+setInterval(updateOffhoursDisplay, 1000); // sempre ativo — só lê Date(), não toca no banco
+
+// --- Verificar e aplicar estado de expediente (chamada periódica a cada 60s) ---
+function checkExpediente() {
+  const dentroHorario = isDentroDoHorario();
+  const offEl = document.getElementById('offhours-overlay');
+
+  if (!dentroHorario && !isPausado) {
+    // Fora do expediente → mostrar overlay + parar TODO polling
+    if (offEl) offEl.classList.remove('hidden');
+    stopAllPolling();
+  } else if (dentroHorario && !isPausado) {
+    // Dentro do expediente → esconder overlay + garantir polling ativo
+    if (offEl) offEl.classList.add('hidden');
+    if (!pollingTimer1) resumeAllPolling(); // só retoma se estava parado
+  }
+}
+setInterval(checkExpediente, 60000); // verifica a cada minuto
+
+// --- Botão de Pausa Manual para Palestras da Gestora ---
+function togglePausaPalestra() {
+  if (!isPausado) {
+    // Ativar pausa — requer senha simples
+    const senha = prompt('🎙️ Pausar para Palestra\n\nDigite a senha para ativar o modo pausa:');
+    if (!senha) return;
+    if (senha !== 'chico123') { showToast('❌ Senha incorreta!', true); return; }
+    isPausado = true;
+    const btn = document.getElementById('btn-palestra');
+    if (btn) { btn.innerHTML = '▶️ Retomar Atendimento'; btn.classList.add('btn-palestra-pausado'); }
+    const overlay = document.getElementById('pause-overlay');
+    if (overlay) overlay.classList.remove('hidden');
+    stopAllPolling();
+    showToast('🎙️ Sistema pausado para palestra');
+  } else {
+    // Retomar — sem senha
+    isPausado = false;
+    const btn = document.getElementById('btn-palestra');
+    if (btn) { btn.innerHTML = '🎙️ Pausar para Palestra'; btn.classList.remove('btn-palestra-pausado'); }
+    const overlay = document.getElementById('pause-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    resumeAllPolling();
+    loadQueues(); loadCurrentCalling(); loadHistory();
+    showToast('✅ Atendimento retomado!');
+  }
+}
+/* === FIM MELHORIA F === */
+
 /* === MELHORIA D: NOTIFICAÇÕES POP-UP CENTRAL === */
 let notifQueue = [];       // fila de notificações pendentes
 let notifCurrent = null;   // notificação sendo exibida
@@ -2355,36 +2469,25 @@ let socketConnected = false;
   }
 })();
 
-// ====== ADAPTATIVE POLLING (Page Visibility + Horário) ======
+// ====== ADAPTATIVE POLLING (Page Visibility) ======
 let pollingTimer1 = null;
 let pollingTimer2 = null;
 
-function isDentroDoHorario() {
-  const now = new Date();
-  const options = { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false };
-  const formatter = new Intl.DateTimeFormat('pt-BR', options);
-  const hour = parseInt(formatter.format(now), 10);
-  if (hour >= 20 || hour < 6) return false;
-  return true;
-}
+// isDentroDoHorario() definida no bloco MELHORIA F (topo do arquivo)
+// com fuso America/Recife, Segunda–Sexta, 06h–18h
 
 function startPolling1() {
   if (pollingTimer1) clearTimeout(pollingTimer1);
-  const inHours = isDentroDoHorario();
-  const isTV = new URLSearchParams(window.location.search).get('modo') === 'tv';
-  
-  if (!inHours) {
-     if (isTV) return;
-     pollingTimer1 = setTimeout(() => { loopData1(); }, 60000);
-     return;
-  }
+  // ZERO polling fora do expediente OU em pausa — inclui modo TV (?modo=tv)
+  if (isPausado || !isDentroDoHorario()) return;
   const interval1 = document.hidden ? 30000 : 5000;
   pollingTimer1 = setTimeout(() => { loopData1(); }, interval1);
 }
 
 function startPolling2() {
   if (pollingTimer2) clearTimeout(pollingTimer2);
-  if (!isDentroDoHorario()) return; // Sem polling de chat fora de horário
+  // ZERO polling fora do expediente OU em pausa
+  if (isPausado || !isDentroDoHorario()) return;
   const interval2 = document.hidden ? 60000 : 8000;
   pollingTimer2 = setTimeout(() => { loopData2(); }, interval2);
 }
@@ -2419,7 +2522,7 @@ setTimeout(() => {
 }, 600);
 
 /* === MELHORIA C: Presença periódica === */
-setInterval(() => {
+intervalChat = setInterval(() => {
   const at = document.querySelector('.nav-tab.active');
   if (at && at.id === 'tab-chat') registerPresenca();
   loadChatPresenca().then(() => renderCanalList());
@@ -2444,11 +2547,14 @@ function initAgendamentoDefaults() {
 
 // Inicializar preenchimento de agendamento na primeira tela
 initAgendamentoDefaults();
-setInterval(() => {
+intervalAgend = setInterval(() => {
   if (document.getElementById('screen-agendamentos')?.classList.contains('active')) {
     initAgendamentoDefaults();
   }
 }, 5000);
+
+// --- MELHORIA F: verificação inicial de expediente (após todos os intervalos estarem criados) ---
+checkExpediente();
 
 async function copyWaImageToClipboard() {
   try {
