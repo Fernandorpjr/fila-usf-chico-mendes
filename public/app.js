@@ -228,8 +228,24 @@ function togglePausaPalestra() {
     if (!senha) return;
     if (senha !== 'chico123') { showToast('❌ Senha incorreta!', true); return; }
     isPausado = true;
+    // Fechar qualquer modal aberto
+    document.querySelectorAll('.modal, .modal-overlay, [id$="-modal"]').forEach(el => {
+      if (el.classList.contains('show') || el.style.display === 'flex' || el.style.display === 'block') {
+        el.classList.remove('show');
+        el.style.display = 'none';
+      }
+    });
+    // Bloquear scroll e interação do body
+    document.body.style.overflow = 'hidden';
+    document.body.style.pointerEvents = 'none';
+    // Atualizar botão
     const btn = document.getElementById('btn-palestra');
-    if (btn) { btn.innerHTML = '▶️ Retomar Atendimento'; btn.classList.add('btn-palestra-pausado'); }
+    if (btn) {
+      btn.innerHTML = '▶️ Retomar Atendimento';
+      btn.classList.add('btn-palestra-pausado');
+      btn.style.pointerEvents = 'all'; // Botão deve continuar clicavel
+    }
+    // Mostrar overlay (não é afetado pelo pointer-events do body por ser position:fixed)
     const overlay = document.getElementById('pause-overlay');
     if (overlay) overlay.classList.remove('hidden');
     stopAllPolling();
@@ -237,8 +253,15 @@ function togglePausaPalestra() {
   } else {
     // Retomar — sem senha
     isPausado = false;
+    // Desbloquear scroll e interação
+    document.body.style.overflow = '';
+    document.body.style.pointerEvents = '';
     const btn = document.getElementById('btn-palestra');
-    if (btn) { btn.innerHTML = '🎙️ Pausar para Palestra'; btn.classList.remove('btn-palestra-pausado'); }
+    if (btn) {
+      btn.innerHTML = '🎙️ Pausar para Palestra';
+      btn.classList.remove('btn-palestra-pausado');
+      btn.style.pointerEvents = '';
+    }
     const overlay = document.getElementById('pause-overlay');
     if (overlay) overlay.classList.add('hidden');
     resumeAllPolling();
