@@ -551,7 +551,7 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('click', (e) => {
   const menu = document.getElementById('ctx-menu');
-  if (menu && !menu.contains(e.target) && !e.target.classList.contains('btn-context-menu')) {
+  if (menu && menu.classList.contains('visible') && !menu.contains(e.target) && !e.target.closest('.btn-context-menu')) {
     closeContextMenu();
   }
 });
@@ -615,10 +615,14 @@ async function moveToBottom(patientId, setor) {
 // --- Context Menu ---
 function openContextMenu(event, id, nome, setor) {
   event.stopPropagation();
+  const menu = document.getElementById('ctx-menu');
+  if (menu && menu.classList.contains('visible') && _ctxPatientId === id) {
+    closeContextMenu();
+    return;
+  }
   _ctxPatientId = id;
   _ctxPatientNome = nome;
   _ctxPatientSetor = setor;
-  const menu = document.getElementById('ctx-menu');
   const label = document.getElementById('ctx-menu-patient-label');
   if (label) label.textContent = nome;
   if (!menu) return;
@@ -1029,6 +1033,8 @@ async function callNext(setor, btnElement) {
     let filtro_etapa = null;
     if (setor === 'Acolhimento') {
       filtro_etapa = (acolhimentoFilter === 'todos' || acolhimentoFilter === 'minha_fila') ? null : acolhimentoFilter;
+      if (filtro_etapa === 'primeira_escuta') medico = '1ª Escuta';
+      else if (filtro_etapa === 'segunda_escuta') medico = '2ª Escuta';
     }
 
     if (cfg && cfg.profissionais) {
@@ -1172,8 +1178,8 @@ function speakViaSynthesis(nome, setor, medico) {
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   
   let texto = '';
-  if (medico === '2ª Escuta (via 1ª Escuta)') {
-    texto = `${saudacao}. Usuário ${nome}, da primeira escuta, dirija-se à segunda escuta.`;
+  if (medico && medico.startsWith('1ª Escuta')) {
+    texto = `${saudacao}. Usuário ${nome}, dirija-se à primeira escuta.`;
   } else if (medico && medico.startsWith('2ª Escuta')) {
     texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta.`;
   } else if (setor === 'Acolhimento' && !medico) {
@@ -2507,7 +2513,7 @@ async function chamarNoPainel(source) {
   // Determinar destino para a voz e para o painel
   let destino = 'Acolhimento';
   if (source === 'escuta1') {
-    destino = '2ª Escuta (via 1ª Escuta)';
+    destino = '1ª Escuta';
   } else {
     // 2ª Escuta – tenta pegar profissional destino
     const patient = acolhimentoFluxo.segunda_escuta?.find(p => p.id == id);
