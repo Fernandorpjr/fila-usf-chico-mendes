@@ -1191,9 +1191,19 @@ function speakViaSynthesis(nome, setor, medico) {
   
   let texto = '';
   if (medico && medico.startsWith('1ª Escuta')) {
-    texto = `${saudacao}. Usuário ${nome}, dirija-se à primeira escuta.`;
+    let parts = medico.split('-');
+    if (parts.length > 1 && parts[1].trim() !== '') {
+      texto = `${saudacao}. Usuário ${nome}, dirija-se à primeira escuta com ${parts[1].trim()}.`;
+    } else {
+      texto = `${saudacao}. Usuário ${nome}, dirija-se à primeira escuta.`;
+    }
   } else if (medico && medico.startsWith('2ª Escuta')) {
-    texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta.`;
+    let parts = medico.split('-');
+    if (parts.length > 1 && parts[1].trim() !== '') {
+      texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta com ${parts[1].trim()}.`;
+    } else {
+      texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta.`;
+    }
   } else if (setor === 'Acolhimento' && !medico) {
     texto = `${saudacao}. Usuário ${nome}, dirija-se ao Acolhimento.`;
   } else {
@@ -2525,7 +2535,9 @@ async function chamarNoPainel(source, btn) {
   // Determinar destino para a voz e para o painel
   let destino = 'Acolhimento';
   if (source === 'escuta1') {
-    destino = '1ª Escuta';
+    const patient = acolhimentoFluxo.primeira_escuta?.find(p => p.id == id);
+    const profName = patient?.profissional || patient?.acs_responsavel || document.getElementById('filter-profissional')?.value || '';
+    destino = (profName && profName !== 'Todos') ? `1ª Escuta - ${profName}` : '1ª Escuta';
   } else {
     // 2ª Escuta – tenta pegar profissional destino
     const patient = acolhimentoFluxo.segunda_escuta?.find(p => p.id == id);
