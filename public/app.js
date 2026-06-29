@@ -2523,9 +2523,7 @@ async function chamarNoPainel(source) {
     });
     if (!r.ok) throw new Error();
     showToast(`🔊 Chamando ${nome} no painel...`);
-    // O painel via loadHistory vai pegar o insert no call_history e falar automaticamente.
-    // Tocamos localmente também para o médico ouvir.
-    speakViaSynthesis(nome, 'Acolhimento', destino);
+    // O áudio será tocado automaticamente pelo loadHistory() que escuta o banco de dados.
   } catch (e) { showToast('Erro ao chamar no painel', true); }
 }
 
