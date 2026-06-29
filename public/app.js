@@ -549,12 +549,24 @@ document.addEventListener('keydown', (e) => {
     closePositionModal();
   }
 });
-document.addEventListener('click', (e) => {
+function handleOutsideClick(e) {
   const menu = document.getElementById('ctx-menu');
-  if (menu && menu.classList.contains('visible') && !menu.contains(e.target) && !e.target.closest('.btn-context-menu')) {
+  if (!menu || !menu.classList.contains('visible')) return;
+  if (menu.contains(e.target)) return;
+  
+  let isBtn = false;
+  try {
+    if (e.target && typeof e.target.closest === 'function') {
+      isBtn = e.target.closest('.btn-context-menu');
+    }
+  } catch (err) {}
+  
+  if (!isBtn) {
     closeContextMenu();
   }
-});
+}
+document.addEventListener('click', handleOutsideClick);
+document.addEventListener('touchstart', handleOutsideClick, { passive: true });
 
 // --- API helper de reordenação ---
 async function apiReorder(patientId, setor, newPosition) {
