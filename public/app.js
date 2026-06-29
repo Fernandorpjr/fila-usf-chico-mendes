@@ -1021,9 +1021,17 @@ async function callNext(setor, btnElement) {
   try {
     const cfg = SECTOR_CONFIG[setor];
     let consultorio = null, profissional = null, medico = null;
-    const filtro_profissional = sectorFilters[cfg.key] || null;
+    let filtro_profissional = null;
+    if (cfg && cfg.key) {
+      filtro_profissional = sectorFilters[cfg.key] || null;
+    }
+    
+    let filtro_etapa = null;
+    if (setor === 'Acolhimento') {
+      filtro_etapa = (acolhimentoFilter === 'todos' || acolhimentoFilter === 'minha_fila') ? null : acolhimentoFilter;
+    }
 
-    if (cfg.profissionais) {
+    if (cfg && cfg.profissionais) {
       const cEl = document.getElementById('consultorio-' + cfg.key);
       const pEl = document.getElementById('profissional-' + cfg.key);
       consultorio = cEl ? cEl.value : null;
@@ -1031,7 +1039,7 @@ async function callNext(setor, btnElement) {
       const consLabel = consultorio === 'Odontológico' ? 'Consultório Odontológico' : 'Consultório ' + consultorio;
       medico = `${consLabel} - ${profissional}`;
     }
-    const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional, filtro_profissional }) });
+    const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional, filtro_profissional, filtro_etapa }) });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     loadQueues(); loadCurrentCalling();
   } catch (e) { showToast(e.message || `Fila de ${setor} está vazia!`, true); }

@@ -362,7 +362,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
   const client = await pool.connect();
   try {
     const { setor } = req.params;
-    const { medico, consultorio, profissional, filtro_profissional } = req.body || {};
+    const { medico, consultorio, profissional, filtro_profissional, filtro_etapa } = req.body || {};
 
     await client.query('BEGIN');
 
@@ -373,6 +373,10 @@ app.post('/api/call-next/:setor', async (req, res) => {
     if (filtro_profissional) {
       nextQuery += ` AND profissional = $2`;
       nextParams.push(filtro_profissional);
+    }
+    if (filtro_etapa && setor === 'Acolhimento') {
+      nextQuery += ` AND etapa_fluxo = $${nextParams.length + 1}`;
+      nextParams.push(filtro_etapa);
     }
     nextQuery += ` ORDER BY CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC, COALESCE(sort_order, 2147483647) ASC, created_at AT TIME ZONE 'America/Sao_Paulo' ASC LIMIT 1`;
     const nextResult = await client.query(nextQuery, nextParams);
