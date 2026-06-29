@@ -698,7 +698,62 @@ function openTransferModal(id, nome, setor) {
     });
     sel.value = '';
   }
+  
+  // Resetar campos dinâmicos
+  document.getElementById('transfer-tipo-atendimento-grupo').style.display = 'none';
+  document.getElementById('transfer-profissional-grupo').style.display = 'none';
+  document.getElementById('transfer-tipo-atendimento').value = '';
+  document.getElementById('transfer-profissional').value = '';
+
   document.getElementById('transfer-modal').classList.add('show');
+}
+
+function toggleTransferTipoAtendimento() {
+  const setor = document.getElementById('transfer-setor-destino').value;
+  const tipoGrupo = document.getElementById('transfer-tipo-atendimento-grupo');
+  const profGrupo = document.getElementById('transfer-profissional-grupo');
+  
+  tipoGrupo.style.display = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? 'block' : 'none';
+  
+  const selectTipo = document.getElementById('transfer-tipo-atendimento');
+  if (selectTipo) {
+    if (setor === 'Téc. Enfermagem') {
+      selectTipo.innerHTML = `
+        <option value="">— Opcional —</option>
+        <option value="Coleta">🩸 Coleta</option>
+        <option value="Vacina">💉 Vacina</option>
+        <option value="Curativo">🩹 Curativo</option>
+        <option value="Procedimento">🔬 Procedimento</option>
+      `;
+    } else if (tipoGrupo.style.display === 'block') {
+      selectTipo.innerHTML = `
+        <option value="">— Opcional —</option>
+        <option value="Consulta">🩺 Consulta</option>
+        <option value="Renovação de Receita">📄 Renovação de Receita</option>
+        <option value="Hiperdia">❤️ Hiperdia</option>
+        <option value="Puericultura">👶 Puericultura</option>
+        <option value="Saúde da Mulher">🩷 Saúde da Mulher</option>
+        <option value="Prevenção">🛡️ Prevenção</option>
+        <option value="Pré-Natal">🤰 Pré-Natal</option>
+        <option value="Retorno">🔄 Retorno</option>
+        <option value="Exame Citopatológico">🔬 Exame Citopatológico</option>
+      `;
+    } else {
+      selectTipo.innerHTML = '';
+    }
+  }
+
+  const showProf = ['Médico','Enfermagem','Téc. Enfermagem', 'Odontologia'].includes(setor);
+  // Odontologia tem profissional mas só no SECTOR_CONFIG, então vamos exibir
+  const cfg = SECTOR_CONFIG[setor];
+  if (showProf && cfg && cfg.profissionais) {
+    profGrupo.style.display = 'block';
+    const selectProf = document.getElementById('transfer-profissional');
+    selectProf.innerHTML = '<option value="">— Opcional —</option>' +
+      cfg.profissionais.map(p => `<option value="${p}">${p}</option>`).join('');
+  } else {
+    profGrupo.style.display = 'none';
+  }
 }
 
 function closeTransferModal() {
@@ -709,6 +764,9 @@ async function confirmTransfer() {
   const id = parseInt(document.getElementById('transfer-patient-id').value);
   const setor = document.getElementById('transfer-patient-setor-atual').value;
   const novoSetor = document.getElementById('transfer-setor-destino').value;
+  const novoTipoAtendimento = document.getElementById('transfer-tipo-atendimento').value;
+  const novoProfissional = document.getElementById('transfer-profissional').value;
+
   if (!novoSetor) { showToast('Selecione o setor de destino!', true); return; }
   if (novoSetor === setor) { showToast('O setor de destino deve ser diferente do atual!', true); return; }
   AdminGuard.require(async () => {
@@ -717,7 +775,7 @@ async function confirmTransfer() {
       const r = await fetch(`${API_URL}/patients/${id}/transfer`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novoSetor, senha: adminPassword })
+        body: JSON.stringify({ novoSetor, novoTipoAtendimento, novoProfissional, senha: adminPassword })
       });
       if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
       if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao transferir!', true); return; }

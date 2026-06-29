@@ -498,7 +498,7 @@ app.put('/api/patients/:id/reorder', async (req, res) => {
 app.put('/api/patients/:id/transfer', async (req, res) => {
   try {
     const { id } = req.params;
-    const { novoSetor, senha } = req.body;
+    const { novoSetor, novoTipoAtendimento, novoProfissional, senha } = req.body;
 
     if (senha !== ADMIN_PASSWORD) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
@@ -507,18 +507,25 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       return res.status(400).json({ error: 'Setor de destino inválido' });
     }
 
-    // Transfere o paciente: muda setor, reseta sort_order (vai para o fim)
-    // e atualiza horário de chegada para este setor
+    // Transfere o paciente: muda setor, reseta sort_order (vai para o fim),
+    // atualiza tipo_atendimento e profissional (opcional)
     const novoHorario = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
     });
+    
+    // Se o frontend não enviar, manter os existentes usando COALESCE não funciona bem se quisermos apagar.
+    // O mais seguro é sobrescrever com o que vier (mesmo que seja nulo/vazio).
+    const tipo = novoTipoAtendimento || null;
+    const prof = novoProfissional || null;
+
     const result = await pool.query(
       `UPDATE patients
        SET setor = $2, sort_order = NULL, horario = $3,
+           tipo_atendimento = $4, profissional = $5,
            status = 'aguardando', updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND status NOT IN ('atendido', 'desistencia')
        RETURNING *`,
-      [id, novoSetor, novoHorario]
+      [id, novoSetor, novoHorario, tipo, prof]
     );
 
     if (result.rows.length === 0) {
