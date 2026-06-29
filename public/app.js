@@ -520,6 +520,303 @@ function updateAdminUI() {
   const btn = document.getElementById('btn-admin');
   if (isAdmin) { btn.textContent = '🔓 Admin'; btn.classList.add('unlocked'); document.body.classList.add('admin-active'); }
   else { btn.textContent = '🔒 Modo Público'; btn.classList.remove('unlocked'); document.body.classList.remove('admin-active'); }
+  // Re-render filas para mostrar/ocultar controles admin
+  updateAll();
+}
+
+// ====== MELHORIA G: MÓDULO DE REORDENAÇÃO RBAC ======
+
+// --- Estado do contexto de menu e modais ---
+let _ctxPatientId = null;
+let _ctxPatientNome = null;
+let _ctxPatientSetor = null;
+let _sortableInstances = {}; // Guarda instâncias SortableJS por containerId
+
+// --- AdminGuard: helper de permissão ---
+const AdminGuard = {
+  check() { return isAdmin; },
+  require(action) {
+    if (!isAdmin) { showToast('🔒 Ação restrita ao Administrador!', true); return; }
+    action();
+  }
+};
+
+// --- ESC fecha context menu e modais ---
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeContextMenu();
+    closeTransferModal();
+    closePositionModal();
+  }
+});
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('ctx-menu');
+  if (menu && !menu.contains(e.target) && !e.target.classList.contains('btn-context-menu')) {
+    closeContextMenu();
+  }
+});
+
+// --- API helper de reordenação ---
+async function apiReorder(patientId, setor, newPosition) {
+  const r = await fetch(`${API_URL}/patients/${patientId}/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ setor, newPosition })
+  });
+  if (r.status === 403) { showToast('❌ Senha administrativa inválida!', true); throw new Error('Unauthorized'); }
+  if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Erro ao reordenar'); }
+  return r.json();
+}
+
+// --- Mover por setas ↑↓ ---
+async function movePatientArrow(patientId, setor, direction) {
+  AdminGuard.require(async () => {
+    const list = (queues[setor] || []).filter(p => p.status === 'aguardando');
+    const idx = list.findIndex(p => p.id === patientId);
+    if (idx === -1) return;
+    const newPos = direction === 'up' ? Math.max(1, idx) : Math.min(list.length, idx + 2);
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === list.length - 1) return;
+    try {
+      // Optimistic update imediato
+      const item = list.splice(idx, 1)[0];
+      list.splice(direction === 'up' ? idx - 1 : idx + 1, 0, item);
+      list.forEach((p, i) => p._optimisticPos = i + 1);
+      updateQueues();
+      await apiReorder(patientId, setor, newPos);
+      await loadQueues();
+    } catch(e) { await loadQueues(); showToast(e.message || 'Erro ao mover paciente!', true); }
+  });
+}
+
+// --- Mover para o topo ---
+async function moveToTop(patientId, setor) {
+  AdminGuard.require(async () => {
+    try {
+      await apiReorder(patientId, setor, 1);
+      showToast('🔝 Paciente movido para o topo!');
+      await loadQueues();
+    } catch(e) { await loadQueues(); showToast(e.message || 'Erro!', true); }
+  });
+}
+
+// --- Mover para o fim ---
+async function moveToBottom(patientId, setor) {
+  AdminGuard.require(async () => {
+    try {
+      const total = (queues[setor] || []).filter(p => p.status === 'aguardando').length;
+      await apiReorder(patientId, setor, total);
+      showToast('⬇️ Paciente movido para o fim!');
+      await loadQueues();
+    } catch(e) { await loadQueues(); showToast(e.message || 'Erro!', true); }
+  });
+}
+
+// --- Context Menu ---
+function openContextMenu(event, id, nome, setor) {
+  event.stopPropagation();
+  _ctxPatientId = id;
+  _ctxPatientNome = nome;
+  _ctxPatientSetor = setor;
+  const menu = document.getElementById('ctx-menu');
+  const label = document.getElementById('ctx-menu-patient-label');
+  if (label) label.textContent = nome;
+  if (!menu) return;
+  // Posicionamento inteligente
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = event.clientX, y = event.clientY;
+  menu.style.display = 'block'; // temporário para medir
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  if (x + mw > vw - 8) x = vw - mw - 8;
+  if (y + mh > vh - 8) y = vh - mh - 8;
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  menu.classList.add('visible');
+}
+
+function closeContextMenu() {
+  const menu = document.getElementById('ctx-menu');
+  if (menu) menu.classList.remove('visible');
+}
+
+function ctxMoveToTop() { closeContextMenu(); moveToTop(_ctxPatientId, _ctxPatientSetor); }
+function ctxMoveToBottom() { closeContextMenu(); moveToBottom(_ctxPatientId, _ctxPatientSetor); }
+function ctxOpenPositionModal() { closeContextMenu(); openPositionModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
+function ctxTransfer() { closeContextMenu(); openTransferModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
+function ctxRemove() { closeContextMenu(); removePatient(_ctxPatientId, _ctxPatientNome); }
+
+// --- Modal de Posição Numérica ---
+function openPositionModal(id, nome, setor) {
+  document.getElementById('position-patient-id').value = id;
+  document.getElementById('position-patient-setor').value = setor;
+  document.getElementById('position-patient-name').textContent = nome;
+  const total = (queues[setor] || []).filter(p => p.status === 'aguardando').length;
+  const inp = document.getElementById('position-input');
+  inp.max = total;
+  inp.placeholder = `1 - ${total}`;
+  inp.value = '';
+  document.getElementById('position-modal').classList.add('show');
+  setTimeout(() => inp.focus(), 100);
+}
+
+function closePositionModal() {
+  document.getElementById('position-modal').classList.remove('show');
+}
+
+async function confirmPosition() {
+  const id = parseInt(document.getElementById('position-patient-id').value);
+  const setor = document.getElementById('position-patient-setor').value;
+  const pos = parseInt(document.getElementById('position-input').value);
+  if (!pos || pos < 1) { showToast('Digite uma posição válida!', true); return; }
+  closePositionModal();
+  AdminGuard.require(async () => {
+    try {
+      await apiReorder(id, setor, pos);
+      showToast(`🔢 Paciente movido para a posição ${pos}!`);
+      await loadQueues();
+    } catch(e) { await loadQueues(); showToast(e.message || 'Erro ao reposicionar!', true); }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const posInp = document.getElementById('position-input');
+  if (posInp) posInp.addEventListener('keydown', e => { if (e.key === 'Enter') confirmPosition(); });
+});
+
+// --- Modal de Transferência ---
+function openTransferModal(id, nome, setor) {
+  document.getElementById('transfer-patient-id').value = id;
+  document.getElementById('transfer-patient-setor-atual').value = setor;
+  document.getElementById('transfer-patient-name').textContent = nome;
+  // Remover o setor atual das opções
+  const sel = document.getElementById('transfer-setor-destino');
+  if (sel) {
+    Array.from(sel.options).forEach(opt => {
+      opt.disabled = (opt.value === setor);
+      if (opt.value === setor) opt.style.color = 'var(--gray-300)';
+      else opt.style.color = '';
+    });
+    sel.value = '';
+  }
+  document.getElementById('transfer-modal').classList.add('show');
+}
+
+function closeTransferModal() {
+  document.getElementById('transfer-modal').classList.remove('show');
+}
+
+async function confirmTransfer() {
+  const id = parseInt(document.getElementById('transfer-patient-id').value);
+  const setor = document.getElementById('transfer-patient-setor-atual').value;
+  const novoSetor = document.getElementById('transfer-setor-destino').value;
+  if (!novoSetor) { showToast('Selecione o setor de destino!', true); return; }
+  if (novoSetor === setor) { showToast('O setor de destino deve ser diferente do atual!', true); return; }
+  AdminGuard.require(async () => {
+    try {
+      closeTransferModal();
+      const r = await fetch(`${API_URL}/patients/${id}/transfer`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ novoSetor })
+      });
+      if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
+      if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao transferir!', true); return; }
+      showToast(`↗️ Paciente transferido para ${novoSetor}!`);
+      await loadQueues();
+    } catch(e) { showToast('Erro ao transferir paciente!', true); }
+  });
+}
+
+// --- SortableJS: Drag & Drop com animação e ESC ---
+function initSortable(containerId, setor) {
+  if (!window.Sortable || !isAdmin) return;
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  // Destruir instância anterior se existir
+  if (_sortableInstances[containerId]) {
+    _sortableInstances[containerId].destroy();
+    delete _sortableInstances[containerId];
+  }
+  let draggedOriginalIndex = -1;
+  _sortableInstances[containerId] = Sortable.create(el, {
+    animation: 100,
+    ghostClass: 'sortable-ghost',
+    dragClass: 'sortable-drag',
+    chosenClass: 'sortable-chosen',
+    handle: '.drag-handle',
+    onStart(evt) {
+      draggedOriginalIndex = evt.oldIndex;
+      // Listener ESC para cancelar
+      const escHandler = (e) => {
+        if (e.key === 'Escape') {
+          _sortableInstances[containerId].cancel ? _sortableInstances[containerId].cancel() : null;
+          // SortableJS não tem cancel() nativo: reordenar de volta
+          const items = el.querySelectorAll('.queue-item[data-id]');
+          if (items.length > 0 && draggedOriginalIndex !== -1) {
+            // Forcar re-render do estado armazenado
+            updateQueues();
+          }
+          document.removeEventListener('keydown', escHandler);
+          showToast('🛑 Arraste cancelado');
+        }
+      };
+      document.addEventListener('keydown', escHandler, { once: true });
+    },
+    onEnd(evt) {
+      if (evt.oldIndex === evt.newIndex) return;
+      const newPos = evt.newIndex + 1;
+      // Pegar o ID do elemento movido
+      const movedEl = evt.item;
+      const patientId = parseInt(movedEl.dataset.id);
+      if (!patientId || !setor) { loadQueues(); return; }
+      AdminGuard.require(async () => {
+        try {
+          await apiReorder(patientId, setor, newPos);
+          showToast(`✅ Posição atualizada (${evt.newIndex + 1}º)`);
+          await loadQueues();
+        } catch(e) {
+          await loadQueues();
+          showToast(e.message || 'Erro ao salvar nova posição!', true);
+        }
+      });
+    }
+  });
+}
+
+// ====== FIM MELHORIA G ======
+
+function renderQueueItems(containerId, patientList, setor) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = patientList.map((p, idx) => `
+    <div class="queue-item ${p.prioridade === 'prioritario' ? 'prio' : ''}" data-id="${p.id}">
+      ${isAdmin ? `
+        <div class="drag-handle" style="cursor:grab;margin-right:8px;color:var(--gray-400);">☰</div>
+        <div class="admin-controls" style="margin-right:8px;display:flex;gap:4px;">
+          <button class="btn-sm btn-ghost" onclick="movePatientArrow(${p.id}, '${setor}', 'up')">⬆️</button>
+          <button class="btn-sm btn-ghost" onclick="movePatientArrow(${p.id}, '${setor}', 'down')">⬇️</button>
+          <button class="btn-sm btn-ghost btn-context-menu" onclick="openContextMenu(event, ${p.id}, '${p.nome}', '${setor}')">⚙️</button>
+        </div>` : ''}
+      <div class="qi-idx">${idx + 1}º</div>
+      <div class="qi-info">
+        <div class="qi-name">${p.nome} ${renderCondicoesBadges(p.condicoes_especiais)}</div>
+        ${p.tipo_atendimento ? `<div class="qi-tipo">${p.tipo_atendimento}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateQueues() {
+  SETORES.forEach(setor => {
+    const list = queues[setor] || [];
+    const aguardando = list.filter(p => p.status === 'aguardando');
+    const containerId = 'queue-' + SECTOR_CONFIG[setor].key;
+    renderQueueItems(containerId, aguardando, setor);
+    initSortable(containerId, setor);
+    
+    const cnt = document.getElementById('cnt2-' + SECTOR_CONFIG[setor].key);
+    if (cnt) cnt.textContent = aguardando.length;
+  });
 }
 
 // ====== SCREEN NAV ======
@@ -969,41 +1266,72 @@ function renderQueueItems(containerId, setor, filterProfissional) {
   if (filterProfissional) {
     items = items.filter(p => p.profissional === filterProfissional);
   }
-  if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
-  // Detect if this is a sector queue (not mini-queue from recepção)
+  if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">\u2705</div><p>Fila vazia</p></div>'; return; }
   const isSectorQueue = containerId.startsWith('queue-');
   el.innerHTML = items.map((p, i) => {
-    const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
+    const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">\u2B50 ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
     const tipoLabel = p.tipo_atendimento ? `<span style="font-size:11px;color:var(--gray-600);margin-left:4px;">(${p.tipo_atendimento})</span>` : '';
-    const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${p.profissional}</span>` : '';
+    const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">\uD83D\uDC68\u200D\u2695\uFE0F ${p.profissional}</span>` : '';
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
-    const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
-    const removeBtn = isAdmin ? `<div style="display:flex;gap:4px;">
-      <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Marcar como Desistência">🚶</button>
-      <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir Permanentemente">🔥</button>
-    </div>` : '';
-    /* === MELHORIA E: Badge de presença no setor + botão na recepção === */
+    const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">\uD83D\uDCF1</button>`;
+
+    /* === MELHORIA E: Badge de presen\u00e7a === */
     let presencaHtml = '';
     if (isSectorQueue && ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor)) {
-      // Nas filas dos setores: mostrar badge de presença
-      if (p.presenca_confirmada) {
-        presencaHtml = '<span class="presenca-badge presenca-confirmada">🟢 PRESENTE</span>';
-      } else {
-        presencaHtml = '<span class="presenca-badge presenca-aguardando">⚪ AGUARDANDO</span>';
-      }
+      presencaHtml = p.presenca_confirmada
+        ? '<span class="presenca-badge presenca-confirmada">\uD83D\uDFE2 PRESENTE</span>'
+        : '<span class="presenca-badge presenca-aguardando">\u26AA AGUARDANDO</span>';
     }
-    /* === FIM MELHORIA E === */
-    return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
+
+    /* === MELHORIA G: Controles Admin (RBAC) === */
+    const dragHandle = isAdmin
+      ? `<span class="drag-handle" title="Arraste para reordenar">\u2630</span>`
+      : '';
+    const adminControls = isAdmin ? `
+      <div class="queue-item-admin-controls">
+        <button class="btn-reorder-arrow" title="Subir uma posi\u00e7\u00e3o"
+          onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">\u2191</button>
+        <button class="btn-reorder-arrow" title="Descer uma posi\u00e7\u00e3o"
+          onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">\u2193</button>
+        <button class="btn-reorder-pos" title="Ir para posi\u00e7\u00e3o espec\u00edfica"
+          onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">\uD83D\uDD22</button>
+        <button class="btn-transfer-sector" title="Encaminhar para outro setor"
+          onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">
+          \u2197\uFE0F Enc.
+        </button>
+        <button class="btn-context-menu" title="Mais op\u00e7\u00f5es"
+          onclick="event.stopPropagation();openContextMenu(event,${p.id},'${safeNome}','${setor}')">
+          \u22EE
+        </button>
+      </div>` : '';
+
+    const removeBtn = isAdmin ? `<div style="display:flex;gap:4px;">
+      <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desist\u00eancia">\uD83D\uDEB6</button>
+      <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">\uD83D\uDD25</button>
+    </div>` : '';
+
+    return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}">
+      ${dragHandle}
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
       <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${presencaHtml}</div>
       <div class="queue-time">${p.horario}</div>
-      <div style="display:flex;gap:8px;align-items:center;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         ${qrBtn}
-        <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>
+        <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'\uD83D\uDCE2 Chamando':'Aguardando'}</span>
         ${removeBtn}
       </div>
+      ${adminControls}
     </div>`;
   }).join('');
+
+  // Inicializa D&D se for fila de setor e admin ativo
+  if (isSectorQueue && isAdmin) {
+    initSortable(containerId, setor);
+  } else if (_sortableInstances[containerId]) {
+    _sortableInstances[containerId].destroy();
+    delete _sortableInstances[containerId];
+  }
 }
 
 function updateQueues() {

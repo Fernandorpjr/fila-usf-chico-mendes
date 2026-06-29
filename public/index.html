@@ -43,6 +43,172 @@
   .admin-only { display: none !important; }
   .admin-active .admin-only { display: flex !important; }
 
+  /* ====== MELHORIA G: CONTROLES DE REORDENAÇÃO (ADMIN RBAC) ====== */
+
+  /* Drag & Drop: cursor e estado do item arrastado */
+  .queue-item[data-draggable="true"] { cursor: grab; }
+  .queue-item[data-draggable="true"]:active { cursor: grabbing; }
+  .sortable-ghost {
+    opacity: 0.35;
+    background: rgba(26,79,196,0.08) !important;
+    border: 2px dashed var(--blue) !important;
+    border-radius: var(--radius-sm) !important;
+    transform: scale(0.98);
+  }
+  .sortable-drag {
+    box-shadow: 0 12px 40px rgba(26,79,196,0.35) !important;
+    transform: scale(1.025) rotate(0.8deg);
+    transition: none !important;
+    z-index: 9999;
+  }
+  /* Drop indicator line */
+  .sortable-chosen { background: rgba(26,79,196,0.05) !important; }
+
+  /* Wrap dos controles admin dentro do queue-item */
+  .queue-item-admin-controls {
+    display: flex; align-items: center; gap: 4px;
+    margin-left: auto; flex-shrink: 0;
+  }
+
+  /* Botões de seta ↑↓ */
+  .btn-reorder-arrow {
+    background: rgba(26,79,196,0.1);
+    border: 1px solid rgba(26,79,196,0.25);
+    border-radius: 6px; width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 13px; font-weight: 900;
+    color: var(--blue); transition: all 0.15s;
+    font-family: 'Nunito', sans-serif; padding: 0;
+  }
+  .btn-reorder-arrow:hover { background: var(--blue); color: #fff; transform: scale(1.12); }
+  .btn-reorder-arrow:active { transform: scale(0.95); }
+
+  /* Botão de posição numérica (#) */
+  .btn-reorder-pos {
+    background: rgba(249,200,35,0.12);
+    border: 1px solid rgba(249,200,35,0.4);
+    border-radius: 6px; height: 26px; padding: 0 7px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 11px; font-weight: 900;
+    color: #8a6d00; transition: all 0.15s;
+    font-family: 'Nunito', sans-serif;
+  }
+  .btn-reorder-pos:hover { background: var(--yellow); color: #5d4000; transform: scale(1.08); }
+
+  /* Menu contextual (3 pontinhos) */
+  .btn-context-menu {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 6px; width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; font-weight: 900;
+    color: var(--gray-600); transition: all 0.15s;
+    font-family: 'Nunito', sans-serif; padding: 0;
+  }
+  .queue-item .btn-context-menu { border-color: rgba(90,106,140,0.3); }
+  .btn-context-menu:hover { background: var(--gray-200); color: var(--blue); transform: scale(1.08); }
+
+  /* Botão de transferência */
+  .btn-transfer-sector {
+    background: rgba(0,137,123,0.1);
+    border: 1px solid rgba(0,137,123,0.3);
+    border-radius: 6px; height: 26px; padding: 0 8px;
+    display: flex; align-items: center; gap: 3px;
+    cursor: pointer; font-size: 11px; font-weight: 800;
+    color: var(--teal-dark); transition: all 0.15s;
+    font-family: 'Nunito', sans-serif; white-space: nowrap;
+  }
+  .btn-transfer-sector:hover { background: var(--teal); color: #fff; transform: scale(1.05); }
+
+  /* Floating context menu */
+  .ctx-menu {
+    position: fixed;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(15,52,145,0.22);
+    min-width: 210px;
+    z-index: 9998;
+    overflow: hidden;
+    animation: ctxMenuIn 0.15s ease;
+    display: none;
+  }
+  .ctx-menu.visible { display: block; }
+  @keyframes ctxMenuIn {
+    from { opacity: 0; transform: scale(0.92) translateY(-6px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .ctx-menu-header {
+    padding: 10px 16px 6px;
+    font-size: 11px; font-weight: 800;
+    color: var(--gray-600); text-transform: uppercase;
+    letter-spacing: 0.6px; border-bottom: 1px solid var(--gray-200);
+  }
+  .ctx-menu-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 16px;
+    font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 700;
+    color: var(--gray-700); cursor: pointer;
+    transition: background 0.12s;
+    border: none; background: transparent; width: 100%; text-align: left;
+  }
+  .ctx-menu-item:hover { background: var(--gray-100); color: var(--blue); }
+  .ctx-menu-item.danger { color: var(--red); }
+  .ctx-menu-item.danger:hover { background: rgba(229,57,53,0.08); }
+  .ctx-menu-divider { height: 1px; background: var(--gray-200); margin: 4px 0; }
+
+  /* Modal genérico para transferência / posição */
+  .reorder-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(5,18,60,0.82);
+    z-index: 9990;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+    display: none;
+  }
+  .reorder-modal-overlay.show { display: flex; }
+  .reorder-modal {
+    background: var(--white); border-radius: 20px;
+    padding: 32px; max-width: 460px; width: 90%;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+    color: var(--gray-700);
+    animation: notifIn 0.3s ease;
+  }
+  .reorder-modal h3 {
+    font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 900;
+    color: var(--blue-dark); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .reorder-modal .patient-badge {
+    background: var(--gray-100); border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 20px;
+    font-weight: 700; font-size: 15px; color: var(--gray-700);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .reorder-modal select, .reorder-modal input[type="number"] {
+    width: 100%; padding: 14px 16px;
+    border: 2px solid var(--gray-200); border-radius: var(--radius-sm);
+    font-family: 'Nunito Sans', sans-serif; font-size: 15px; font-weight: 600;
+    color: var(--gray-700); background: var(--gray-100);
+    outline: none; transition: border-color 0.2s; margin-bottom: 16px;
+  }
+  .reorder-modal select:focus, .reorder-modal input[type="number"]:focus {
+    border-color: var(--blue); background: var(--white);
+    box-shadow: 0 0 0 3px rgba(26,79,196,0.12);
+  }
+  .reorder-modal-actions { display: flex; gap: 10px; margin-top: 4px; }
+  .reorder-modal-actions .btn { flex: 1; padding: 14px; font-size: 15px; }
+
+  /* Drag handle visível no modo admin */
+  .drag-handle {
+    cursor: grab; color: var(--gray-300); font-size: 16px;
+    padding: 0 4px; user-select: none; flex-shrink: 0;
+    transition: color 0.15s;
+  }
+  .drag-handle:hover { color: var(--blue); }
+
+  /* ====== FIM MELHORIA G ====== */
+
   .nav-tabs { background: var(--blue-dark); display: flex; padding: 0 16px; gap: 2px; border-bottom: 2px solid rgba(255,255,255,0.1); overflow-x: auto; scrollbar-width: none; }
   .nav-tabs::-webkit-scrollbar { display: none; }
   .nav-tab { padding: 12px 16px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; color: var(--gray-300); cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px; margin-bottom: -2px; white-space: nowrap; }
@@ -1246,6 +1412,78 @@
 </div>
 <!-- === FIM APP WRAPPER === -->
 
+<!-- ====== MELHORIA G: MODAIS DE REORDENAÇÃO (ADMIN RBAC) ====== -->
+
+<!-- Modal: Transferência de Setor -->
+<div class="reorder-modal-overlay" id="transfer-modal">
+  <div class="reorder-modal">
+    <h3>↗️ Encaminhar para outro Setor</h3>
+    <div class="patient-badge" id="transfer-patient-info">
+      <span style="font-size:20px;">&#x1F9D1;‍⚕️</span>
+      <span id="transfer-patient-name">—</span>
+    </div>
+    <input type="hidden" id="transfer-patient-id">
+    <input type="hidden" id="transfer-patient-setor-atual">
+    <div class="form-group" style="margin-bottom:0;">
+      <label style="color:var(--gray-600);">Setor de Destino</label>
+      <select id="transfer-setor-destino">
+        <option value="">&#x2014; Selecione o setor &#x2014;</option>
+        <option value="Acolhimento">💜 Acolhimento</option>
+        <option value="Farmácia">💊 Farmácia</option>
+        <option value="Regulação">📋 Regulação</option>
+        <option value="Médico">🩺 Médico</option>
+        <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
+        <option value="Odontologia">🦷 Odontologia</option>
+        <option value="Téc. Enfermagem">🩹 Téc. Enfermagem</option>
+      </select>
+    </div>
+    <p style="font-size:12px;color:var(--gray-600);margin-bottom:20px;line-height:1.5;">
+      O paciente será movido para o <strong>final da fila</strong> do setor de destino com horário atualizado.
+    </p>
+    <div class="reorder-modal-actions">
+      <button class="btn btn-primary" onclick="confirmTransfer()">✔️ Confirmar Transferência</button>
+      <button class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="closeTransferModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Posicionamento Numérico -->
+<div class="reorder-modal-overlay" id="position-modal">
+  <div class="reorder-modal">
+    <h3>🔢 Ir para posição</h3>
+    <div class="patient-badge" id="position-patient-info">
+      <span style="font-size:20px;">&#x1F9D1;‍⚕️</span>
+      <span id="position-patient-name">—</span>
+    </div>
+    <input type="hidden" id="position-patient-id">
+    <input type="hidden" id="position-patient-setor">
+    <div class="form-group" style="margin-bottom:0;">
+      <label style="color:var(--gray-600);">Nova Posição na Fila</label>
+      <input type="number" id="position-input" min="1" placeholder="Ex: 3" style="-moz-appearance:textfield;">
+    </div>
+    <p style="font-size:12px;color:var(--gray-600);margin-bottom:20px;line-height:1.5;">
+      Digite o número da posição desejada. Os demais pacientes serão ajustados automaticamente.
+    </p>
+    <div class="reorder-modal-actions">
+      <button class="btn btn-primary" onclick="confirmPosition()">✔️ Confirmar Posição</button>
+      <button class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="closePositionModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Context Menu -->
+<div class="ctx-menu" id="ctx-menu" role="menu">
+  <div class="ctx-menu-header" id="ctx-menu-patient-label">Paciente</div>
+  <button class="ctx-menu-item" onclick="ctxMoveToTop()">🔝 Mover para o Topo (Emergência)</button>
+  <button class="ctx-menu-item" onclick="ctxMoveToBottom()">⬇️ Mover para o Fim</button>
+  <button class="ctx-menu-item" onclick="ctxOpenPositionModal()">🔢 Ir para Posição...</button>
+  <div class="ctx-menu-divider"></div>
+  <button class="ctx-menu-item" onclick="ctxTransfer()">↗️ Encaminhar para Setor...</button>
+  <div class="ctx-menu-divider"></div>
+  <button class="ctx-menu-item danger" onclick="ctxRemove()">&#x2715; Marcar Desistência</button>
+</div>
+<!-- ====== FIM MELHORIA G: MODAIS ====== -->
+
 <div id="sound-modal" style="display:none;position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
   <div style="background:var(--white);border-radius:24px;padding:40px 48px;text-align:center;max-width:440px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.4);">
     <div style="font-size:56px;margin-bottom:16px;">🔊</div>
@@ -1293,6 +1531,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

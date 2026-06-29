@@ -216,6 +216,8 @@ async function initDB() {
       { table: 'call_history', column: 'risco_clinico', type: 'TEXT' },
       // Melhoria E: Confirmação de presença
       { table: 'patients', column: 'presenca_confirmada', type: 'BOOLEAN DEFAULT false' },
+      // Melhoria G: Posição manual da fila (RBAC Admin)
+      { table: 'patients', column: 'sort_order', type: 'INTEGER' },
     ];
     
     for (const col of columns) {
@@ -284,6 +286,7 @@ app.get('/api/queues', async (req, res) => {
       `SELECT * FROM patients WHERE status NOT IN ('atendido', 'desistencia')
        ORDER BY
          CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
+         COALESCE(sort_order, 2147483647) ASC,
          created_at AT TIME ZONE 'America/Sao_Paulo' ASC`
     );
 
@@ -342,6 +345,7 @@ app.get('/api/patients/:id/status', async (req, res) => {
        WHERE status = 'aguardando' AND setor = $1
        ORDER BY
          CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
+         COALESCE(sort_order, 2147483647) ASC,
          created_at AT TIME ZONE 'America/Sao_Paulo' ASC`,
       [p.setor]
     );
@@ -370,7 +374,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
       nextQuery += ` AND profissional = $2`;
       nextParams.push(filtro_profissional);
     }
-    nextQuery += ` ORDER BY CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC, created_at AT TIME ZONE 'America/Sao_Paulo' ASC LIMIT 1`;
+    nextQuery += ` ORDER BY CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC, COALESCE(sort_order, 2147483647) ASC, created_at AT TIME ZONE 'America/Sao_Paulo' ASC LIMIT 1`;
     const nextResult = await client.query(nextQuery, nextParams);
 
     if (nextResult.rows.length === 0) {
@@ -427,6 +431,108 @@ app.post('/api/call-next/:setor', async (req, res) => {
     client.release();
   }
 });
+
+// ====== MELHORIA G: REORDENAÇÃO E TRANSFERÊNCIA (Admin RBAC) ======
+
+// PUT /api/patients/:id/reorder — Reposicionar paciente na fila (requer senha admin)
+app.put('/api/patients/:id/reorder', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { setor, newPosition, senha } = req.body;
+
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    if (!setor || !newPosition || isNaN(parseInt(newPosition))) {
+      return res.status(400).json({ error: 'Setor e nova posição são obrigatórios' });
+    }
+
+    const pos = Math.max(1, parseInt(newPosition));
+
+    await client.query('BEGIN');
+
+    // Busca todos os pacientes aguardando neste setor em ordem atual
+    const queueResult = await client.query(
+      `SELECT id FROM patients
+       WHERE setor = $1 AND status = 'aguardando'
+       ORDER BY
+         CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
+         COALESCE(sort_order, 2147483647) ASC,
+         created_at AT TIME ZONE 'America/Sao_Paulo' ASC`,
+      [setor]
+    );
+
+    const ids = queueResult.rows.map(r => r.id);
+    const currentIdx = ids.indexOf(parseInt(id));
+    if (currentIdx === -1) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado na fila do setor informado' });
+    }
+
+    // Remove da posição atual e insere na nova
+    ids.splice(currentIdx, 1);
+    const targetIdx = Math.min(pos - 1, ids.length);
+    ids.splice(targetIdx, 0, parseInt(id));
+
+    // Reatribui sort_order sequencial para toda a fila
+    for (let i = 0; i < ids.length; i++) {
+      await client.query(
+        'UPDATE patients SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [i + 1, ids[i]]
+      );
+    }
+
+    await client.query('COMMIT');
+    io.emit('queueUpdate');
+    res.json({ message: 'Fila reordenada com sucesso', newOrder: ids });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// PUT /api/patients/:id/transfer — Transferir paciente para outro setor (requer senha admin)
+app.put('/api/patients/:id/transfer', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { novoSetor, senha } = req.body;
+
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    if (!novoSetor || !SETORES.includes(novoSetor)) {
+      return res.status(400).json({ error: 'Setor de destino inválido' });
+    }
+
+    // Transfere o paciente: muda setor, reseta sort_order (vai para o fim)
+    // e atualiza horário de chegada para este setor
+    const novoHorario = new Date().toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
+    });
+    const result = await pool.query(
+      `UPDATE patients
+       SET setor = $2, sort_order = NULL, horario = $3,
+           status = 'aguardando', updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status NOT IN ('atendido', 'desistencia')
+       RETURNING *`,
+      [id, novoSetor, novoHorario]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado ou já finalizado' });
+    }
+
+    io.emit('queueUpdate');
+    res.json({ message: `Paciente transferido para ${novoSetor}`, patient: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== FIM MELHORIA G ======
 
 // Remove patient (desistência) – requires admin password
 app.post('/api/remove-patient', async (req, res) => {
