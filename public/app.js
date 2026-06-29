@@ -2509,7 +2509,7 @@ function abrirModalEncaminhar(id, nome) {
   document.getElementById('acol-escuta-modal').classList.add('show');
 }
 
-async function chamarNoPainel(source) {
+async function chamarNoPainel(source, btn) {
   const prefix = source === 'escuta1' ? 'acol-modal' : 'acol-escuta2';
   const inputId = document.getElementById(`${prefix}-id`);
   const infoEl = document.getElementById(`${prefix}-patient-info`);
@@ -2533,6 +2533,14 @@ async function chamarNoPainel(source) {
     destino = profName ? `2ª Escuta - ${profName}` : '2ª Escuta';
   }
   
+  // Atualiza visualmente o botão (três pontinhos)
+  let originalHtml = '';
+  if (btn) {
+    originalHtml = btn.innerHTML;
+    btn.innerHTML = '⏳ Chamando...';
+    btn.disabled = true;
+  }
+  
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, { 
       method: 'POST',
@@ -2542,7 +2550,16 @@ async function chamarNoPainel(source) {
     if (!r.ok) throw new Error();
     showToast(`🔊 Chamando ${nome} no painel...`);
     // O áudio será tocado automaticamente pelo loadHistory() que escuta o banco de dados.
-  } catch (e) { showToast('Erro ao chamar no painel', true); }
+  } catch (e) { 
+    showToast('Erro ao chamar no painel', true); 
+  } finally {
+    if (btn) {
+      setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }, 3000);
+    }
+  }
 }
 
 function fecharEscutaModal() {

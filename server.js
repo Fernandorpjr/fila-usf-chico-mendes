@@ -1497,8 +1497,8 @@ app.post('/api/acolhimento/:id/chamar', async (req, res) => {
     
     // Insere no histórico para o painel (TV) buscar via polling e tocar o áudio correto
     await pool.query(
-      `INSERT INTO call_history (patient_id, nome, setor, medico) VALUES ($1, $2, $3, $4)`,
-      [patient.id, patient.nome, 'Acolhimento', destino || '2ª Escuta']
+      `INSERT INTO call_history (patient_id, nome, setor, medico, horario_chamada) VALUES ($1, $2, $3, $4, $5)`,
+      [patient.id, patient.nome, 'Acolhimento', destino || '2ª Escuta', new Date().toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit' })]
     );
 
     res.json({ message: 'Chamado disparado' });
