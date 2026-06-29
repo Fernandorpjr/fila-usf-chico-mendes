@@ -652,7 +652,10 @@ function openContextMenu(event, id, nome, setor) {
 
 function closeContextMenu() {
   const menu = document.getElementById('ctx-menu');
-  if (menu) menu.classList.remove('visible');
+  if (menu) {
+    menu.classList.remove('visible');
+    menu.style.display = '';
+  }
 }
 
 function ctxMoveToTop() { closeContextMenu(); moveToTop(_ctxPatientId, _ctxPatientSetor); }
