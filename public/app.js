@@ -376,7 +376,7 @@ let queues = {}; SETORES.forEach(s => queues[s] = []);
 let currentCalling = {}; SETORES.forEach(s => currentCalling[s] = null);
 let callHistory = [], attendedPatients = [], totalAtendidos = 0, totalDesistencias = 0;
 let lastSpokenCallId = null, chatMessages = [], unreadChatCount = 0;
-let isAdmin = false, alertedPatients = new Set();
+let isAdmin = false, adminPassword = null, alertedPatients = new Set();
 let sectorFilters = { medico: null, enfermagem: null };
 
 function safeDate(d) {
@@ -508,11 +508,11 @@ setInterval(updateClock, 1000); updateClock();
 
 // ====== ADMIN ======
 function toggleAdmin() {
-  if (isAdmin) { isAdmin = false; updateAdminUI(); return; }
+  if (isAdmin) { isAdmin = false; adminPassword = null; updateAdminUI(); return; }
   const senha = prompt('🔒 Digite a senha administrativa:');
   if (!senha) return;
   fetch(`${API_URL}/verify-admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha }) })
-    .then(r => { if (r.ok) { isAdmin = true; showToast('🔓 Modo administrador ativado!'); } else { showToast('❌ Senha incorreta!', true); } updateAdminUI(); })
+    .then(r => { if (r.ok) { isAdmin = true; adminPassword = senha; showToast('🔓 Modo administrador ativado!'); } else { showToast('❌ Senha incorreta!', true); } updateAdminUI(); })
     .catch(() => showToast('Erro de conexão', true));
 }
 
@@ -561,7 +561,7 @@ async function apiReorder(patientId, setor, newPosition) {
   const r = await fetch(`${API_URL}/patients/${patientId}/reorder`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ setor, newPosition })
+    body: JSON.stringify({ setor, newPosition, senha: adminPassword })
   });
   if (r.status === 403) { showToast('❌ Senha administrativa inválida!', true); throw new Error('Unauthorized'); }
   if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Erro ao reordenar'); }
@@ -717,7 +717,7 @@ async function confirmTransfer() {
       const r = await fetch(`${API_URL}/patients/${id}/transfer`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novoSetor })
+        body: JSON.stringify({ novoSetor, senha: adminPassword })
       });
       if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
       if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao transferir!', true); return; }
@@ -784,40 +784,6 @@ function initSortable(containerId, setor) {
 }
 
 // ====== FIM MELHORIA G ======
-
-function renderQueueItems(containerId, patientList, setor) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = patientList.map((p, idx) => `
-    <div class="queue-item ${p.prioridade === 'prioritario' ? 'prio' : ''}" data-id="${p.id}">
-      ${isAdmin ? `
-        <div class="drag-handle" style="cursor:grab;margin-right:8px;color:var(--gray-400);">☰</div>
-        <div class="admin-controls" style="margin-right:8px;display:flex;gap:4px;">
-          <button class="btn-sm btn-ghost" onclick="movePatientArrow(${p.id}, '${setor}', 'up')">⬆️</button>
-          <button class="btn-sm btn-ghost" onclick="movePatientArrow(${p.id}, '${setor}', 'down')">⬇️</button>
-          <button class="btn-sm btn-ghost btn-context-menu" onclick="openContextMenu(event, ${p.id}, '${p.nome}', '${setor}')">⚙️</button>
-        </div>` : ''}
-      <div class="qi-idx">${idx + 1}º</div>
-      <div class="qi-info">
-        <div class="qi-name">${p.nome} ${renderCondicoesBadges(p.condicoes_especiais)}</div>
-        ${p.tipo_atendimento ? `<div class="qi-tipo">${p.tipo_atendimento}</div>` : ''}
-      </div>
-    </div>
-  `).join('');
-}
-
-function updateQueues() {
-  SETORES.forEach(setor => {
-    const list = queues[setor] || [];
-    const aguardando = list.filter(p => p.status === 'aguardando');
-    const containerId = 'queue-' + SECTOR_CONFIG[setor].key;
-    renderQueueItems(containerId, aguardando, setor);
-    initSortable(containerId, setor);
-    
-    const cnt = document.getElementById('cnt2-' + SECTOR_CONFIG[setor].key);
-    if (cnt) cnt.textContent = aguardando.length;
-  });
-}
 
 // ====== SCREEN NAV ======
 function showScreen(name) {
