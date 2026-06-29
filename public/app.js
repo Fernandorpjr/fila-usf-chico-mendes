@@ -1170,8 +1170,18 @@ function speakViaSynthesis(nome, setor, medico) {
   
   const h = new Date().getHours();
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-  const destino = medico ? `ao ${medico}` : `à ${setor}`;
-  const texto = `${saudacao}. Usuário ${nome}, dirija-se ${destino}.`;
+  
+  let texto = '';
+  if (medico === '2ª Escuta (via 1ª Escuta)') {
+    texto = `${saudacao}. Usuário ${nome}, da primeira escuta, dirija-se à segunda escuta.`;
+  } else if (medico && medico.startsWith('2ª Escuta')) {
+    texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta.`;
+  } else if (setor === 'Acolhimento' && !medico) {
+    texto = `${saudacao}. Usuário ${nome}, dirija-se ao Acolhimento.`;
+  } else {
+    const destino = medico ? `ao ${medico}` : `à ${setor}`;
+    texto = `${saudacao}. Usuário ${nome}, dirija-se ${destino}.`;
+  }
   
   speechQueue.push({ texto });
   processSpeechQueue();
@@ -2494,22 +2504,27 @@ async function chamarNoPainel(source) {
   const id = inputId.value;
   const nome = infoEl ? infoEl.textContent.replace('👤 ', '') : 'Paciente';
   
-  // Determinar destino para a voz
+  // Determinar destino para a voz e para o painel
   let destino = 'Acolhimento';
   if (source === 'escuta1') {
-    destino = '1ª Escuta do Acolhimento';
+    destino = '2ª Escuta (via 1ª Escuta)';
   } else {
     // 2ª Escuta – tenta pegar profissional destino
-    const profEl = document.getElementById('acol-escuta2-patient-info');
     const patient = acolhimentoFluxo.segunda_escuta?.find(p => p.id == id);
-    destino = patient?.profissional_destino ? `${patient.profissional_destino}` : '2ª Escuta do Acolhimento';
+    const profName = patient?.profissional_destino ? patient.profissional_destino : '';
+    destino = profName ? `2ª Escuta - ${profName}` : '2ª Escuta';
   }
   
   try {
-    const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, { method: 'POST' });
+    const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ destino })
+    });
     if (!r.ok) throw new Error();
     showToast(`🔊 Chamando ${nome} no painel...`);
-    // Chamar em voz alta diretamente no navegador
+    // O painel via loadHistory vai pegar o insert no call_history e falar automaticamente.
+    // Tocamos localmente também para o médico ouvir.
     speakViaSynthesis(nome, 'Acolhimento', destino);
   } catch (e) { showToast('Erro ao chamar no painel', true); }
 }

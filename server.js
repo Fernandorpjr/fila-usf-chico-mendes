@@ -1490,17 +1490,17 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
 app.post('/api/acolhimento/:id/chamar', async (req, res) => {
   try {
     const { id } = req.params;
+    const { destino } = req.body || {};
     const result = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Paciente não encontrado' });
     const patient = result.rows[0];
     
-    // Formata o profissional para aparecer no painel
-    const displayPatient = { 
-      ...patient, 
-      medico: patient.profissional_destino ? `2ª Escuta (${patient.profissional_destino})` : '2ª Escuta' 
-    };
+    // Insere no histórico para o painel (TV) buscar via polling e tocar o áudio correto
+    await pool.query(
+      `INSERT INTO call_history (patient_id, nome, setor, medico) VALUES ($1, $2, $3, $4)`,
+      [patient.id, patient.nome, 'Acolhimento', destino || '2ª Escuta']
+    );
 
-    io.emit('callPatient', { patient: displayPatient, setor: 'Acolhimento', audioUrl: null });
     res.json({ message: 'Chamado disparado' });
   } catch (error) {
     res.status(500).json({ error: error.message });
