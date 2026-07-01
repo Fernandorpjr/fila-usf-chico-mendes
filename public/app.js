@@ -2901,13 +2901,21 @@ function validarDataAgend() {
 
 // ====== TELA ACS – 1ª ESCUTA ======
 const ACS_LIST = [
-  'Diana Camila',
-  'Jociara',
-  'Leandra',
-  'Maria das Graças',
-  'Ranilza',
-  'Roberta Lima',
-  'Vanessa Leite',
+  'Ana Paula - Eq 1 Chico Mendes',
+  'Ana Lúcia - Eq 1 Chico Mendes',
+  'Lenilda - Eq 1 Chico Mendes',
+  'Ceça Conceição - Eq 1 Chico Mendes',
+  'Joselita - Eq 1 Chico Mendes',
+  'Alda - Eq 1 Chico Mendes',
+  'Simone - Eq 2 Ximbore',
+  'Patrícia - Eq 2 Ximbore',
+  'Telma - Eq 2 Ximbore',
+  'Jeane - Eq 2 Ximbore',
+  'Josélia - Eq 3 Aurora',
+  'Arlinda - Eq 3 Aurora',
+  'Nena - Eq 3 Aurora',
+  'Rosilene - Eq 3 Aurora',
+  'Fátima - Eq 3 Aurora'
 ];
 
 function initAcsEscutaScreen() {
@@ -2961,6 +2969,7 @@ function renderAcsEscutaScreen() {
   container.innerHTML = ACS_LIST.map(acs => {
     const emAtendimento = primeiraEscuta.filter(p => p.acs_responsavel === acs);
     const emAtendCount = emAtendimento.length;
+    const acsNameDisplay = acs.split(' - ')[0];
 
     const patientsHtml = emAtendimento.length === 0
       ? '<div style="text-align:center;padding:16px;color:rgba(255,255,255,0.3);font-size:12px;font-weight:600;">Nenhum paciente em atendimento</div>'
@@ -2992,7 +3001,7 @@ function renderAcsEscutaScreen() {
 
     return `<div class="acs-col">
       <div class="acs-col-header">
-        <div class="acs-col-name">👤 ${acs} <span class="acs-col-badge">${emAtendCount} em atend.</span></div>
+        <div class="acs-col-name">👤 ${acsNameDisplay} <span class="acs-col-badge">${emAtendCount} em atend.</span></div>
         <button class="acs-call-btn" onclick="chamarProximoParaAcs('${acs}',this)" title="Chamar próximo da recepção">📢 Chamar Próximo</button>
       </div>
       <div class="acs-patient-list">${patientsHtml}</div>
