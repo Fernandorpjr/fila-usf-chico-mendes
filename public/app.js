@@ -967,10 +967,10 @@ function toggleChatSidebar() {
 // ====== ADD PATIENT ======
 async function addPatient(btn) {
   const nome = document.getElementById('input-nome').value.trim();
-  const setor = document.getElementById('input-setor').value;
+  let setor = document.getElementById('input-setor').value;
   const prioridade = document.getElementById('input-prioridade').value;
   const tipo_prioridade = prioridade === 'prioritario' ? document.getElementById('input-tipo-prioridade').value : null;
-  const tipo_atendimento = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? document.getElementById('input-tipo-atendimento').value : null;
+  let tipo_atendimento = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? document.getElementById('input-tipo-atendimento').value : null;
   const profissionalEl = document.getElementById('input-profissional');
   const profissional = ['Médico','Enfermagem','Téc. Enfermagem'].includes(setor) && profissionalEl ? profissionalEl.value || null : null;
   const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-recepcao');
@@ -979,9 +979,20 @@ async function addPatient(btn) {
   if (!setor) { showToast('Selecione o setor!', true); return; }
   if (['Médico','Enfermagem','Téc. Enfermagem'].includes(setor) && !profissional) { showToast('Selecione o profissional responsável!', true); return; }
 
+  // Mapear os novos subsetores do Acolhimento para manter o fluxo integrado
+  let etapa_fluxo = 'recepcao';
+  let nomeSetorOriginal = setor;
+  if (setor === 'Acolhimento ACS') {
+    setor = 'Acolhimento';
+    tipo_atendimento = '1ª Escuta (ACS)';
+  } else if (setor === 'Acolhimento 2ª Escuta') {
+    setor = 'Acolhimento';
+    tipo_atendimento = '2ª Escuta';
+  }
+
   if (btn) btn.disabled = true;
   try {
-    const r = await fetch(`${API_URL}/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais }) });
+    const r = await fetch(`${API_URL}/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo }) });
     if (!r.ok) throw new Error();
     const newPatient = await r.json();
     document.getElementById('input-nome').value = '';
@@ -992,7 +1003,7 @@ async function addPatient(btn) {
     togglePrioridadeDetalhes(); toggleTipoAtendimento();
     const prioLabel = prioridade === 'prioritario' ? ' ⭐ PRIORITÁRIO' : '';
     const profLabel = profissional ? ` (${profissional})` : '';
-    showToast(`${nome} adicionado à fila de ${setor}${profLabel}!${prioLabel}`);
+    showToast(`${nome} adicionado à fila de ${nomeSetorOriginal}${profLabel}!${prioLabel}`);
     await loadQueues();
     // showQrModal(newPatient); // 🚫 Desativado a pedido: Não mostrar modal de QR automático
   } catch { showToast('Erro ao adicionar paciente!', true); }
@@ -2447,7 +2458,11 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     if (etapa === 'recepcao') {
       actions = `<button class="acol-btn-action acol-btn-iniciar" onclick="iniciarEscuta(${p.id},'${nomeSafe}')">🟡 Iniciar 1ª Escuta</button>`;
     } else if (etapa === 'primeira_escuta') {
-      actions = `<button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>`;
+      actions = `
+        <button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>
+        <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
+        <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}')">📅 Fin. Agendado</button>
+      `;
     } else if (etapa === 'segunda_escuta') {
       actions = `<button class="acol-btn-action acol-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar</button>`;
     }
@@ -2671,6 +2686,24 @@ async function agendarEscuta1() {
     const nomeInput = document.getElementById('agend-nome');
     if(nomeInput) { nomeInput.value = nome; nomeInput.focus(); }
   } catch (e) { showToast(e.message || 'Erro ao agendar/finalizar', true); }
+}
+
+async function finalizarAcsDireto(id, agendar, nome) {
+  if (!confirm(`Deseja finalizar o atendimento de ${nome}?`)) return;
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar-escuta1`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agendamento_realizado: agendar })
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    showToast(agendar ? `📅 ${nome} finalizado para agendamento!` : `✅ Atendimento de ${nome} finalizado`);
+    loadAcolhimentoFluxo(); loadHistory(); loadAttended();
+    if (agendar) {
+      showScreen('agendamentos');
+      const nomeInput = document.getElementById('agend-nome');
+      if(nomeInput) { nomeInput.value = nome; nomeInput.focus(); }
+    }
+  } catch (e) { showToast(e.message || 'Erro ao finalizar', true); }
 }
 
 function finalizarAtendimento(id, nome) {
@@ -2994,6 +3027,8 @@ function renderAcsEscutaScreen() {
             <div class="acs-patient-actions">
               <button class="acs-btn-chamar" onclick="chamarAcsPaciente(${p.id},'${nomeSafe}','${acs}',this)">🔊 Chamar</button>
               <button class="acs-btn-enc" onclick="abrirModalEncaminharAcs(${p.id},'${nomeSafe}')">📤 Encaminhar 2ª</button>
+              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#4aab3c,#3a8a2e);" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
+              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#1976d2,#0d47a1);" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}')">📅 Fin. Agendado</button>
               ${adminBtns}
             </div>
           </div>`;
