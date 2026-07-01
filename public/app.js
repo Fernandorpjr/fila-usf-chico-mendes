@@ -2419,6 +2419,10 @@ function renderAcolhimentoFluxo() {
   if (badge) badge.textContent = totalAcol;
   const statAtivos = document.getElementById('acol-stat-ativos');
   if (statAtivos) statAtivos.textContent = totalAcol;
+
+  // Renderizar as novas telas dedicadas
+  renderAcsEscutaScreen();
+  renderSegundaEscutaScreen();
 }
 
 function renderAcolhimentoEtapa(etapa, pacientes) {
@@ -2895,9 +2899,298 @@ function validarDataAgend() {
 
 
 
+// ====== TELA ACS – 1ª ESCUTA ======
+const ACS_LIST = [
+  'Diana Camila',
+  'Jociara',
+  'Leandra',
+  'Maria das Graças',
+  'Ranilza',
+  'Roberta Lima',
+  'Vanessa Leite',
+];
+
+function initAcsEscutaScreen() {
+  const el = document.getElementById('screen-acs_escuta');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="acs-screen-header">
+      <div class="sector-icon-big" style="background:rgba(244,130,30,0.2);">🧡</div>
+      <div>
+        <div class="sector-page-title">Acolhimento ACS – 1ª Escuta</div>
+        <div class="sector-page-sub">Fila exclusiva dos Agentes Comunitários de Saúde</div>
+      </div>
+    </div>
+    <div class="acs-stat-bar">
+      <div class="acs-stat">
+        <div class="acs-stat-val" id="acs-stat-aguardando">0</div>
+        <div class="acs-stat-lbl">Aguardando<br>1ª Escuta</div>
+      </div>
+      <div class="acs-stat" style="background:rgba(74,171,60,0.12);border-color:rgba(74,171,60,0.3);">
+        <div class="acs-stat-val" id="acs-stat-em-atendimento" style="color:#4aab3c;">0</div>
+        <div class="acs-stat-lbl" style="color:rgba(255,255,255,0.7);">Em<br>Atendimento</div>
+      </div>
+    </div>
+    <div class="acs-grid" id="acs-grid-container"></div>
+  `;
+}
+
+function renderAcsEscutaScreen() {
+  const container = document.getElementById('acs-grid-container');
+  if (!container) return;
+
+  const recepcao = acolhimentoFluxo.recepcao || [];
+  const primeiraEscuta = acolhimentoFluxo.primeira_escuta || [];
+
+  // Update stats
+  const statAg = document.getElementById('acs-stat-aguardando');
+  const statEm = document.getElementById('acs-stat-em-atendimento');
+  if (statAg) statAg.textContent = recepcao.length;
+  if (statEm) statEm.textContent = primeiraEscuta.length;
+
+  // Update badge on tab
+  const totalAcs = recepcao.length + primeiraEscuta.length;
+  const badge = document.getElementById('badge-acs_escuta');
+  if (badge) {
+    badge.textContent = totalAcs;
+    badge.style.display = totalAcs > 0 ? 'inline-block' : 'none';
+    if (totalAcs > 0) badge.classList.add('badge-pulse');
+    else badge.classList.remove('badge-pulse');
+  }
+
+  container.innerHTML = ACS_LIST.map(acs => {
+    const emAtendimento = primeiraEscuta.filter(p => p.acs_responsavel === acs);
+    const emAtendCount = emAtendimento.length;
+
+    const patientsHtml = emAtendimento.length === 0
+      ? '<div style="text-align:center;padding:16px;color:rgba(255,255,255,0.3);font-size:12px;font-weight:600;">Nenhum paciente em atendimento</div>'
+      : emAtendimento.map(p => {
+          const nomeSafe = p.nome.replace(/'/g, "\\'");
+          const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIO'}</span>` : '';
+          const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde'
+            ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴' : p.risco_clinico === 'amarelo' ? '🟡' : '🟦'}</span>` : '';
+          const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
+          const condBadges = renderCondicoesBadges(p.condicoes_especiais);
+          const adminBtns = isAdmin ? `
+            <button class="btn-danger" style="font-size:11px;padding:3px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
+          ` : '';
+
+          return `<div class="acs-patient-card ${p.status === 'chamado' ? 'status-chamado' : ''}">
+            <div class="acs-patient-name">${p.nome}${prioBadge}${riscoBadge}${condBadges}</div>
+            <div class="acs-patient-meta">
+              <span>🕐 ${p.horario}</span>
+              <span class="acol-tempo-badge">⏱ ${tempoMin}m</span>
+              ${p.queixa ? `<span>💬 ${p.queixa}</span>` : ''}
+            </div>
+            <div class="acs-patient-actions">
+              <button class="acs-btn-chamar" onclick="chamarAcsPaciente(${p.id},'${nomeSafe}','${acs}',this)">🔊 Chamar</button>
+              <button class="acs-btn-enc" onclick="abrirModalEncaminharAcs(${p.id},'${nomeSafe}')">📤 Encaminhar 2ª</button>
+              ${adminBtns}
+            </div>
+          </div>`;
+        }).join('');
+
+    return `<div class="acs-col">
+      <div class="acs-col-header">
+        <div class="acs-col-name">👤 ${acs} <span class="acs-col-badge">${emAtendCount} em atend.</span></div>
+        <button class="acs-call-btn" onclick="chamarProximoParaAcs('${acs}',this)" title="Chamar próximo da recepção">📢 Chamar Próximo</button>
+      </div>
+      <div class="acs-patient-list">${patientsHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+async function chamarProximoParaAcs(acs, btn) {
+  const recepcao = acolhimentoFluxo.recepcao || [];
+  if (!recepcao.length) { showToast('Nenhum paciente aguardando na recepção!', true); return; }
+  const proximo = recepcao[0];
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Chamando...'; }
+  try {
+    const r = await fetch(`${API_URL}/acolhimento/${proximo.id}/iniciar-escuta`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acs_responsavel: acs })
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    showToast(`✅ ${proximo.nome} chamado para ${acs}`);
+    // Chamar no painel de voz
+    await fetch(`${API_URL}/acolhimento/${proximo.id}/chamar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ destino: `1ª Escuta - ${acs}` })
+    });
+    loadAcolhimentoFluxo();
+  } catch(e) { showToast(e.message || 'Erro ao chamar paciente!', true); }
+  finally {
+    if (btn) { setTimeout(() => { btn.disabled = false; btn.innerHTML = '📢 Chamar Próximo'; }, 3000); }
+  }
+}
+
+async function chamarAcsPaciente(id, nome, acs, btn) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳...'; }
+  try {
+    await fetch(`${API_URL}/acolhimento/${id}/chamar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ destino: `1ª Escuta - ${acs}` })
+    });
+    showToast(`🔊 Chamando ${nome}...`);
+    loadAcolhimentoFluxo();
+  } catch(e) { showToast('Erro ao chamar no painel', true); }
+  finally { if (btn) setTimeout(() => { btn.disabled = false; btn.innerHTML = '🔊 Chamar'; }, 2500); }
+}
+
+function abrirModalEncaminharAcs(id, nome) {
+  // Reutiliza modal existente do Acolhimento
+  abrirModalEncaminhar(id, nome);
+}
+
+// ====== TELA 2ª ESCUTA ======
+let segundaEscutaFilter = 'todos';
+
+const SEGUNDA_ESCUTA_PROFS = [
+  { tipo: 'medico', label: '🩺 Médico', profs: SECTOR_CONFIG['Médico']?.profissionais || [] },
+  { tipo: 'enfermagem', label: '👩‍⚕️ Enfermagem', profs: SECTOR_CONFIG['Enfermagem']?.profissionais || [] },
+  { tipo: 'odontologia', label: '🦷 Odontologia', profs: SECTOR_CONFIG['Odontologia']?.profissionais || [] },
+];
+
+function initSegundaEscutaScreen() {
+  const el = document.getElementById('screen-segunda_escuta');
+  if (!el) return;
+  const filterBtns = [
+    { key: 'todos', label: '📋 Todos' },
+    { key: 'medico', label: '🩺 Médico' },
+    { key: 'enfermagem', label: '👩‍⚕️ Enfermagem' },
+    { key: 'odontologia', label: '🦷 Odontologia' },
+  ].map(f => `<button class="seg-filter-btn${segundaEscutaFilter === f.key ? ' active' : ''}" data-seg-filter="${f.key}" onclick="filtrarSegundaEscuta('${f.key}')">${f.label}</button>`).join('');
+
+  el.innerHTML = `
+    <div class="seg-screen-header">
+      <div class="sector-icon-big" style="background:rgba(229,57,53,0.2);">🔴</div>
+      <div>
+        <div class="sector-page-title">Acolhimento – 2ª Escuta</div>
+        <div class="sector-page-sub">Médicos, Enfermeiros e Dentistas – Atendimento Final</div>
+      </div>
+    </div>
+    <div class="seg-stat-bar">
+      <div class="seg-stat">
+        <div class="seg-stat-val" id="seg-stat-aguardando">0</div>
+        <div class="seg-stat-lbl">Aguardando<br>2ª Escuta</div>
+      </div>
+    </div>
+    <div class="seg-filter-bar">
+      <label>Filtrar:</label>
+      ${filterBtns}
+    </div>
+    <div class="seg-grid" id="seg-grid-container"></div>
+  `;
+}
+
+function filtrarSegundaEscuta(filtro) {
+  segundaEscutaFilter = filtro;
+  document.querySelectorAll('.seg-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.segFilter === filtro);
+  });
+  renderSegundaEscutaScreen();
+}
+
+function renderSegundaEscutaScreen() {
+  const container = document.getElementById('seg-grid-container');
+  if (!container) return;
+
+  let pacientes = acolhimentoFluxo.segunda_escuta || [];
+
+  // Update stat
+  const statEl = document.getElementById('seg-stat-aguardando');
+  if (statEl) statEl.textContent = pacientes.length;
+
+  // Update badge
+  const badge = document.getElementById('badge-segunda_escuta');
+  if (badge) {
+    badge.textContent = pacientes.length;
+    badge.style.display = pacientes.length > 0 ? 'inline-block' : 'none';
+    if (pacientes.length > 0) badge.classList.add('badge-pulse');
+    else badge.classList.remove('badge-pulse');
+  }
+
+  // Apply filter
+  if (segundaEscutaFilter !== 'todos') {
+    pacientes = pacientes.filter(p => {
+      const tipo = (p.tipo_profissional_destino || '').toLowerCase();
+      return tipo === segundaEscutaFilter;
+    });
+  }
+
+  if (!pacientes.length) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(255,255,255,0.3);font-size:14px;font-weight:600;">Nenhum paciente aguardando 2ª escuta</div>';
+    return;
+  }
+
+  // Group by profissional_destino
+  const groups = {};
+  pacientes.forEach(p => {
+    const key = p.profissional_destino || `${p.tipo_profissional_destino || 'Profissional'} (sem designação)`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(p);
+  });
+
+  // Also add patients without specific profissional under "Sem Profissional Designado"
+  container.innerHTML = Object.entries(groups).map(([prof, list]) => {
+    const tipo = list[0]?.tipo_profissional_destino || '';
+    const tipoIcon = tipo === 'medico' ? '🩺' : tipo === 'enfermagem' ? '👩‍⚕️' : tipo === 'odontologia' ? '🦷' : '👨‍⚕️';
+
+    const patientsHtml = list.map(p => {
+      const nomeSafe = p.nome.replace(/'/g, "\\'");
+      const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIO'}</span>` : '';
+      const riscoBadge = p.risco_clinico
+        ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : p.risco_clinico === 'amarelo' ? '🟡 MOD.' : p.risco_clinico === 'azul' ? '🟦 SEM' : '🟢'}</span>` : '';
+      const condBadges = renderCondicoesBadges(p.condicoes_especiais);
+      const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
+      const acsLabel = p.acs_responsavel ? `<span>👤 ACS: ${p.acs_responsavel}</span>` : '';
+      const adminBtns = isAdmin ? `
+        <button class="btn-danger" style="font-size:11px;padding:3px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
+      ` : '';
+
+      return `<div class="seg-patient-card ${p.status === 'chamado' ? 'status-chamado' : ''}">
+        <div class="seg-patient-name">${p.nome}${prioBadge}${riscoBadge}${condBadges}</div>
+        <div class="seg-patient-meta">
+          <span>🕐 ${p.horario}</span>
+          <span class="acol-tempo-badge">⏱ ${tempoMin}m</span>
+          ${acsLabel}
+        </div>
+        ${p.queixa ? `<div class="seg-patient-queixa">"${p.queixa}"</div>` : ''}
+        <div class="seg-patient-actions">
+          <button class="seg-btn-chamar" onclick="chamarSegundaEscutaPaciente(${p.id},'${nomeSafe}','${prof.replace(/'/g,"\\'")}',this)">🔊 Chamar</button>
+          <button class="seg-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar Consulta</button>
+          ${adminBtns}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="seg-col">
+      <div class="seg-col-header">
+        <div class="seg-col-name">${tipoIcon} ${prof} <span class="seg-col-badge">${list.length}</span></div>
+      </div>
+      <div class="seg-patient-list">${patientsHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+async function chamarSegundaEscutaPaciente(id, nome, prof, btn) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳...'; }
+  try {
+    await fetch(`${API_URL}/acolhimento/${id}/chamar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ destino: `2ª Escuta - ${prof}` })
+    });
+    showToast(`🔊 Chamando ${nome}...`);
+    loadAcolhimentoFluxo();
+  } catch(e) { showToast('Erro ao chamar no painel', true); }
+  finally { if (btn) setTimeout(() => { btn.disabled = false; btn.innerHTML = '🔊 Chamar'; }, 2500); }
+}
+
 // ====== INIT ======
 initSectorScreens();
 initOverview();
+initAcsEscutaScreen();
+initSegundaEscutaScreen();
 renderCanalList();
 loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAllChannels();
 loadAcolhimentoFluxo();

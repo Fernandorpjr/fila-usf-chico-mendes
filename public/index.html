@@ -737,6 +737,60 @@
     }
     @keyframes pauseBtnPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,171,60,0.45); } 50% { box-shadow: 0 0 0 5px rgba(74,171,60,0); } }
     /* === FIM MELHORIA F (btn) === */
+
+    /* ====== TELA ACS – 1ª ESCUTA ====== */
+    .acs-screen-header { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
+    .acs-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:20px; }
+    .acs-col { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:20px; border-top:4px solid #f4821e; }
+    .acs-col-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); }
+    .acs-col-name { font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px; }
+    .acs-col-badge { background:#f4821e; color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px; }
+    .acs-call-btn { background:linear-gradient(135deg,#f4821e,#d46b10); color:#fff; border:none; border-radius:10px; padding:8px 16px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s; box-shadow:0 2px 8px rgba(244,130,30,0.4); }
+    .acs-call-btn:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(244,130,30,0.5); }
+    .acs-call-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .acs-patient-list { display:flex; flex-direction:column; gap:8px; max-height:360px; overflow-y:auto; scrollbar-width:thin; }
+    .acs-patient-card { background:var(--white); border-radius:10px; padding:12px 14px; color:var(--gray-700); border-left:4px solid #f4821e; box-shadow:0 2px 6px rgba(0,0,0,0.06); animation:slideIn 0.3s ease; }
+    .acs-patient-card.status-chamado { border-left-color:#b8860b; background:linear-gradient(135deg,#fff8e1,#fff3cd); }
+    .acs-patient-name { font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; color:var(--blue-dark); margin-bottom:4px; }
+    .acs-patient-meta { font-size:11px; color:var(--gray-600); font-weight:600; display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+    .acs-patient-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .acs-btn-enc { background:linear-gradient(135deg,#e53935,#c62828); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; }
+    .acs-btn-enc:hover { transform:scale(1.05); }
+    .acs-btn-chamar { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; }
+    .acs-btn-chamar:hover { transform:scale(1.05); }
+    .acs-stat-bar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+    .acs-stat { background:rgba(244,130,30,0.15); border:1px solid rgba(244,130,30,0.3); border-radius:12px; padding:12px 18px; display:flex; align-items:center; gap:10px; min-width:120px; }
+    .acs-stat-val { font-family:'Nunito',sans-serif; font-size:24px; font-weight:900; color:#f4821e; }
+    .acs-stat-lbl { font-size:11px; color:rgba(255,255,255,0.7); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+
+    /* ====== TELA 2ª ESCUTA ====== */
+    .seg-screen-header { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
+    .seg-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:20px; }
+    .seg-col { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:20px; border-top:4px solid #e53935; }
+    .seg-col-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); }
+    .seg-col-name { font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px; }
+    .seg-col-badge { background:#e53935; color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px; }
+    .seg-patient-list { display:flex; flex-direction:column; gap:8px; max-height:400px; overflow-y:auto; scrollbar-width:thin; }
+    .seg-patient-card { background:var(--white); border-radius:10px; padding:12px 14px; color:var(--gray-700); border-left:4px solid #e53935; box-shadow:0 2px 6px rgba(0,0,0,0.06); animation:slideIn 0.3s ease; }
+    .seg-patient-card.status-chamado { border-left-color:#b8860b; background:linear-gradient(135deg,#fff8e1,#fff3cd); }
+    .seg-patient-name { font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; color:var(--blue-dark); margin-bottom:4px; }
+    .seg-patient-meta { font-size:11px; color:var(--gray-600); font-weight:600; display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+    .seg-patient-queixa { font-size:11px; color:var(--gray-600); background:var(--gray-100); padding:5px 9px; border-radius:7px; margin-bottom:8px; font-style:italic; font-weight:600; }
+    .seg-patient-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .seg-btn-finalizar { background:linear-gradient(135deg,#4aab3c,#3a8a2e); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; }
+    .seg-btn-finalizar:hover { transform:scale(1.05); }
+    .seg-btn-chamar { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; }
+    .seg-btn-chamar:hover { transform:scale(1.05); }
+    .seg-stat-bar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+    .seg-stat { background:rgba(229,57,53,0.12); border:1px solid rgba(229,57,53,0.3); border-radius:12px; padding:12px 18px; display:flex; align-items:center; gap:10px; min-width:120px; }
+    .seg-stat-val { font-family:'Nunito',sans-serif; font-size:24px; font-weight:900; color:#e53935; }
+    .seg-stat-lbl { font-size:11px; color:rgba(255,255,255,0.7); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+    .seg-filter-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+    .seg-filter-bar label { font-size:12px; font-weight:700; color:rgba(255,255,255,0.6); text-transform:uppercase; }
+    .seg-filter-btn { padding:6px 14px; border:2px solid rgba(255,255,255,0.2); border-radius:20px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.7); transition:all 0.2s; }
+    .seg-filter-btn.active { background:rgba(229,57,53,0.35); color:#fff; border-color:#e53935; }
+    .seg-filter-btn:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
+    /* ====== FIM NOVAS TELAS ====== */
 </style>
 </head>
 <body>
@@ -826,6 +880,8 @@
 <nav class="nav-tabs">
   <button class="nav-tab active" onclick="showScreen('recepcao')" id="tab-recepcao">🏥 Recepção</button>
   <button class="nav-tab" onclick="showScreen('acolhimento')" id="tab-acolhimento">💜 Acolhimento <span class="tab-badge" style="background:var(--purple);" id="badge-acolhimento">0</span></button>
+  <button class="nav-tab" onclick="showScreen('acs_escuta')" id="tab-acs_escuta">🧡 ACS – 1ª Escuta <span class="tab-badge" style="background:#f4821e;display:none;" id="badge-acs_escuta">0</span></button>
+  <button class="nav-tab" onclick="showScreen('segunda_escuta')" id="tab-segunda_escuta">🔴 2ª Escuta <span class="tab-badge" style="background:#e53935;display:none;" id="badge-segunda_escuta">0</span></button>
   <button class="nav-tab" onclick="showScreen('farmacia')" id="tab-farmacia">💊 Farmácia <span class="tab-badge green" id="badge-farmacia">0</span></button>
   <button class="nav-tab" onclick="showScreen('regulacao')" id="tab-regulacao">📋 Regulação <span class="tab-badge blue" id="badge-regulacao">0</span></button>
   <button class="nav-tab" onclick="showScreen('medico')" id="tab-medico">🩺 Médico <span class="tab-badge" id="badge-medico">0</span></button>
@@ -1200,6 +1256,12 @@
       </div>
     </div>
   </div>
+  <!-- ============ ACS – 1ª ESCUTA ============ -->
+  <div class="screen" id="screen-acs_escuta"></div>
+
+  <!-- ============ 2ª ESCUTA ============ -->
+  <div class="screen" id="screen-segunda_escuta"></div>
+
   <div class="screen" id="screen-farmacia"></div>
   <div class="screen" id="screen-regulacao"></div>
   <div class="screen" id="screen-medico"></div>
@@ -1547,6 +1609,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="app.js?v=2.3"></script>
+<script src="app.js?v=2.4"></script>
 </body>
 </html>
