@@ -1533,12 +1533,20 @@ app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
     const patient = updtResult.rows[0];
 
     // Add to history
-    const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
-    await client.query(
-      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, agendamento_realizado, condicoes_especiais, queixa, risco_clinico)
-       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico]
-    );
+    const historyCheck = await client.query(`SELECT id FROM call_history WHERE patient_id = $1 AND setor = 'Acolhimento' ORDER BY created_at DESC LIMIT 1`, [patient.id]);
+    if (historyCheck.rows.length > 0) {
+      await client.query(
+        `UPDATE call_history SET profissional = $1, cpf = $2, cartao_sus = $3, acs_responsavel = $4, agendamento_realizado = $5, condicoes_especiais = $6, queixa = $7, risco_clinico = $8 WHERE id = $9`,
+        [patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico, historyCheck.rows[0].id]
+      );
+    } else {
+      const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+      await client.query(
+        `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, agendamento_realizado, condicoes_especiais, queixa, risco_clinico)
+         VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico]
+      );
+    }
     await client.query('COMMIT');
     io.emit('queueUpdate');
     io.emit('acolhimentoUpdate');
@@ -1590,12 +1598,20 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
     const patient = updtResult.rows[0];
 
     // Add to history
-    const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
-    await client.query(
-      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, gravidade_final, agendamento_realizado, condicoes_especiais, queixa, risco_clinico)
-       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-      [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.gravidade_final, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico]
-    );
+    const historyCheck = await client.query(`SELECT id FROM call_history WHERE patient_id = $1 AND setor = 'Acolhimento' ORDER BY created_at DESC LIMIT 1`, [patient.id]);
+    if (historyCheck.rows.length > 0) {
+      await client.query(
+        `UPDATE call_history SET profissional = $1, cpf = $2, cartao_sus = $3, acs_responsavel = $4, gravidade_final = $5, agendamento_realizado = $6, condicoes_especiais = $7, queixa = $8, risco_clinico = $9 WHERE id = $10`,
+        [patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.gravidade_final, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico, historyCheck.rows[0].id]
+      );
+    } else {
+      const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+      await client.query(
+        `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, gravidade_final, agendamento_realizado, condicoes_especiais, queixa, risco_clinico)
+         VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+        [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.gravidade_final, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico]
+      );
+    }
     await client.query('COMMIT');
     io.emit('queueUpdate');
     io.emit('acolhimentoUpdate');
