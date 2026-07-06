@@ -1393,14 +1393,16 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       </div>` : '';
 
     const removeBtn = isAdmin ? `<div style="display:flex;gap:4px;">
-      <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desist\u00eancia">\uD83D\uDEB6</button>
-      <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">\uD83D\uDD25</button>
+      <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência">🚶</button>
+      <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>
     </div>` : '';
+
+    const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
 
     return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}">
       ${dragHandle}
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
-      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${presencaHtml}</div>
+      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${presencaHtml} ${originBadge}</div>
       <div class="queue-time">${p.horario}</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         ${qrBtn}
@@ -1454,9 +1456,12 @@ function updateMiniQueues() {
           presencaBtn = `<button class="btn-confirmar-presenca" onclick="event.stopPropagation();confirmarPresenca(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Confirmar presença na recepção">✅ Confirmar Presença</button>`;
         }
       }
+      
+      const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
+      
       return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
         <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">${i+1}</div>
-        <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges}</div>
+        <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${originBadge}</div>
         <div class="queue-time">${p.horario}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           ${presencaBtn}
@@ -2482,9 +2487,11 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
       <button class="btn-danger" style="font-size:11px;padding:4px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
       <button class="btn-danger" style="font-size:11px;padding:4px 8px;background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${nomeSafe}')" title="Excluir">🔥</button>
     ` : '';
+    
+    const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
 
     return `<div class="acol-card etapa-${etapa}">
-      <div class="acol-card-name">${p.nome}${prioBadge}${riscoBadge}${condBadges}</div>
+      <div class="acol-card-name">${p.nome}${prioBadge}${riscoBadge}${condBadges} ${originBadge}</div>
       <div class="acol-card-meta">
         <span>🕐 ${p.horario}</span>
         ${tempoBadge}

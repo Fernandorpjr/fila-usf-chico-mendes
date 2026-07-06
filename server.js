@@ -218,6 +218,8 @@ async function initDB() {
       { table: 'patients', column: 'presenca_confirmada', type: 'BOOLEAN DEFAULT false' },
       // Melhoria G: Posição manual da fila (RBAC Admin)
       { table: 'patients', column: 'sort_order', type: 'INTEGER' },
+      // Histórico de origem
+      { table: 'patients', column: 'origem_transferencia', type: 'TEXT' },
     ];
     
     for (const col of columns) {
@@ -588,11 +590,11 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     const result = await client.query(
       `UPDATE patients
        SET setor = $2, sort_order = $6, horario = $3,
-           tipo_atendimento = $4, profissional = $5,
+           tipo_atendimento = $4, profissional = $5, origem_transferencia = $7,
            status = 'aguardando', updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
        RETURNING *`,
-      [id, novoSetor, novoHorario, tipo, prof, novoSortOrder]
+      [id, novoSetor, novoHorario, tipo, prof, novoSortOrder, patientAntes.setor]
     );
     const patient = result.rows[0];
 
