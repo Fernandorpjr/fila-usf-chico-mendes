@@ -14,7 +14,7 @@ const server = http.createServer(app);
 const io = { emit: () => {} };
 
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = '0177';
+const ADMIN_PASSWORD = 'chico123';
 
 // Middleware
 app.use(cors());
@@ -498,8 +498,35 @@ app.put('/api/patients/:id/reorder', async (req, res) => {
   }
 });
 
+// PUT /api/patients/:id/rename — Editar nome do paciente (requer senha admin)
+app.put('/api/patients/:id/rename', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { novoNome, senha } = req.body;
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    if (!novoNome || !novoNome.trim()) {
+      return res.status(400).json({ error: 'O novo nome é obrigatório' });
+    }
+    const result = await pool.query(
+      `UPDATE patients SET nome = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+      [id, novoNome.trim()]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    io.emit('queueUpdate');
+    io.emit('acolhimentoUpdate');
+    res.json({ message: 'Nome atualizado', patient: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PUT /api/patients/:id/transfer — Transferir paciente para outro setor (requer senha admin)
 app.put('/api/patients/:id/transfer', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { novoSetor, novoTipoAtendimento, novoProfissional, senha } = req.body;
@@ -511,35 +538,92 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       return res.status(400).json({ error: 'Setor de destino inválido' });
     }
 
-    // Transfere o paciente: muda setor, reseta sort_order (vai para o fim),
-    // atualiza tipo_atendimento e profissional (opcional)
+    await client.query('BEGIN');
+
+    // Busca o paciente atual antes de mover (para log de histórico)
+    const pResult = await client.query('SELECT * FROM patients WHERE id = $1', [id]);
+    if (pResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    const patientAntes = pResult.rows[0];
+    if (patientAntes.status === 'atendido' || patientAntes.status === 'desistencia') {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente já finalizado' });
+    }
+
     const novoHorario = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
     });
-    
-    // Se o frontend não enviar, manter os existentes usando COALESCE não funciona bem se quisermos apagar.
-    // O mais seguro é sobrescrever com o que vier (mesmo que seja nulo/vazio).
     const tipo = novoTipoAtendimento || null;
     const prof = novoProfissional || null;
 
-    const result = await pool.query(
-      `UPDATE patients
-       SET setor = $2, sort_order = NULL, horario = $3,
-           tipo_atendimento = $4, profissional = $5,
-           status = 'aguardando', updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status NOT IN ('atendido', 'desistencia')
-       RETURNING *`,
-      [id, novoSetor, novoHorario, tipo, prof]
+    // Calcular o sort_order para inserir na 3ª posição da fila destino
+    // Se a fila de destino tiver < 2 pacientes aguardando, o paciente vai ao final.
+    const filaResult = await client.query(
+      `SELECT sort_order FROM patients
+       WHERE setor = $1 AND status = 'aguardando'
+       ORDER BY COALESCE(sort_order, 999999) ASC`,
+      [novoSetor]
     );
+    const filaDestino = filaResult.rows;
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Paciente não encontrado ou já finalizado' });
+    let novoSortOrder = null; // NULL = vai para o final (default)
+    if (filaDestino.length >= 2) {
+      // Inserir após o 2º paciente (posição 3)
+      const pos2SortOrder = filaDestino[1].sort_order;
+      const pos3SortOrder = filaDestino.length >= 3 ? filaDestino[2].sort_order : null;
+
+      if (pos2SortOrder !== null) {
+        if (pos3SortOrder !== null) {
+          // Interpolação entre pos 2 e pos 3
+          novoSortOrder = pos2SortOrder + Math.floor((pos3SortOrder - pos2SortOrder) / 2);
+          if (novoSortOrder <= pos2SortOrder) novoSortOrder = pos2SortOrder + 1;
+        } else {
+          novoSortOrder = pos2SortOrder + 1;
+        }
+      }
     }
 
+    const result = await client.query(
+      `UPDATE patients
+       SET setor = $2, sort_order = $6, horario = $3,
+           tipo_atendimento = $4, profissional = $5,
+           status = 'aguardando', updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [id, novoSetor, novoHorario, tipo, prof, novoSortOrder]
+    );
+    const patient = result.rows[0];
+
+    // Registrar no histórico de chamadas (log de transferência)
+    const horarioLog = new Date().toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
+    });
+    await client.query(
+      `INSERT INTO call_history
+         (patient_id, nome, setor, medico, horario_chamada, profissional, prioridade, tipo_prioridade)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        patient.id,
+        patient.nome,
+        `Transferência → ${novoSetor}`,
+        patientAntes.setor,    // setor de origem como "medico" (destino da chamada)
+        horarioLog,
+        prof || null,
+        patient.prioridade || 'geral',
+        patient.tipo_prioridade || null
+      ]
+    );
+
+    await client.query('COMMIT');
     io.emit('queueUpdate');
-    res.json({ message: `Paciente transferido para ${novoSetor}`, patient: result.rows[0] });
+    res.json({ message: `Paciente transferido para ${novoSetor} (3ª posição)`, patient });
   } catch (error) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 });
 

@@ -2342,12 +2342,12 @@ function generatePDF() {
   const { jsPDF } = window.jspdf; const doc = new jsPDF('l'); // Landscape
   doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('Relatório de Atendimentos', 148, 15, { align: 'center' });
   doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.text(`USF Chico Mendes | Data: ${new Date().toLocaleDateString('pt-BR')}`, 148, 22, { align: 'center' });
-  const data = attendedPatients.map((p, i) => {
+  const data = [...attendedPatients].sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map((p, i) => {
     let condLabel = '-';
     try { const arr = JSON.parse(p.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'HAS':c==='diabetico'?'DM':c==='gestante'?'GEST':c).join(', ') || '-'; } catch {}
     const risco = p.gravidade_final || p.risco_clinico || '-';
     const agend = p.agendamento_realizado ? 'Sim' : 'Não';
-    return [attendedPatients.length - i, p.nome, p.cpf || '-', p.setor, safeDate(p.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}), p.queixa || '-', risco, p.profissional || p.medico || '-', agend, condLabel];
+    return [i + 1, p.nome, p.cpf || '-', p.setor, safeDate(p.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}), p.queixa || '-', risco, p.profissional || p.medico || '-', agend, condLabel];
   });
   doc.autoTable({ startY: 30, head: [['Nº','Nome','CPF/SUS','Setor','Data/Hora','Queixa','Risco','Profissional','Agendado?','Condições']], body: data, theme: 'grid', headStyles: { fillColor: [26,79,196], fontSize: 8 }, bodyStyles: { fontSize: 8 }, alternateRowStyles: { fillColor: [240,244,255] }, columnStyles: { 0:{cellWidth:10}, 1:{cellWidth:35}, 4:{cellWidth:28}, 5:{cellWidth:40} } });
   const ds = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date()).replace(/\//g, '-');
@@ -2456,7 +2456,11 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
 
     let actions = '';
     if (etapa === 'recepcao') {
-      actions = `<button class="acol-btn-action acol-btn-iniciar" onclick="iniciarEscuta(${p.id},'${nomeSafe}')">🟡 Iniciar 1ª Escuta</button>`;
+      actions = `
+        <button class="acol-btn-action acol-btn-iniciar" onclick="iniciarEscuta(${p.id},'${nomeSafe}')">🟡 Iniciar 1ª Escuta</button>
+        <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️ Editar Nome</button>
+        <button class="acol-btn-action" style="background:linear-gradient(135deg,#2e7d32,#1b5e20);color:white;" onclick="direcionarParaRecepcaoFisica(${p.id},'${nomeSafe}')">📋 Agendado (Recepção)</button>
+      `;
     } else if (etapa === 'primeira_escuta') {
       actions = `
         <button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>
@@ -2524,6 +2528,48 @@ async function confirmarIniciarEscuta() {
     loadAcolhimentoFluxo();
   } catch (e) { showToast(e.message || 'Erro ao iniciar escuta', true); }
 }
+
+// ====== EDITAR NOME DO PACIENTE (Acolhimento) ======
+async function editarNomeAcolhimento(id, nomeAtual) {
+  if (!isAdmin) { showToast('🔒 Apenas administradores podem editar nomes!', true); return; }
+  const novoNome = prompt(`✏️ Editar Nome do Paciente\n\nNome atual: "${nomeAtual}"\n\nDigite o novo nome:`, nomeAtual);
+  if (!novoNome || novoNome.trim() === nomeAtual) return;
+  try {
+    const r = await fetch(`${API_URL}/patients/${id}/rename`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ novoNome: novoNome.trim(), senha: adminPassword })
+    });
+    if (r.status === 403) { showToast('❌ Senha administrativa inválida!', true); return; }
+    if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao editar nome!', true); return; }
+    showToast(`✅ Nome alterado para "${novoNome.trim()}"!`);
+    loadAcolhimentoFluxo(); loadQueues();
+  } catch { showToast('Erro ao editar nome!', true); }
+}
+
+// ====== DIRECIONAR PARA RECEPÇÃO FÍSICA (Indicador de Agendado) ======
+async function direcionarParaRecepcaoFisica(id, nome) {
+  if (!isAdmin) { showToast('🔒 Apenas administradores podem realizar esta ação!', true); return; }
+  if (!confirm(`📋 Marcar "${nome}" como AGENDADO (Recepção)?\n\nO paciente será direcionado para a recepção para agendamento manual.`)) return;
+  try {
+    // Atualiza o tipo_atendimento para indicar que está aguardando agendamento na recepção
+    const r = await fetch(`${API_URL}/patients/${id}/transfer`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        novoSetor: 'Acolhimento',
+        novoTipoAtendimento: '📋 Agendado – Recepção',
+        novoProfissional: null,
+        senha: adminPassword
+      })
+    });
+    if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
+    if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro!', true); return; }
+    showToast(`📋 ${nome} marcado como Agendado – aguardando na Recepção!`);
+    loadAcolhimentoFluxo(); loadQueues();
+  } catch { showToast('Erro ao direcionar!', true); }
+}
+
 
 function abrirModalEncaminhar(id, nome) {
   document.getElementById('acol-modal-id').value = id;
