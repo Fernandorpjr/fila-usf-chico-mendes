@@ -2472,6 +2472,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
         <button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>
         <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
         <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}')">📅 Fin. Agendado</button>
+        <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;width:100%;margin-top:4px;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️ Editar Nome</button>
       `;
     } else if (etapa === 'segunda_escuta') {
       actions = `<button class="acol-btn-action acol-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar</button>`;
