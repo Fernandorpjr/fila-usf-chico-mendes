@@ -600,6 +600,11 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     const horarioLog = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
     });
+    
+    // O 'setor' recebe a origem para que os filtros do relatório funcionem.
+    // O 'profissional' recebe a string de destino para aparecer no PDF.
+    // Adicionamos um prefixo [Transf] no nome para evitar que toque no painel da TV de forma indesejada
+    // ou se tocar, ficar claro. Mas o melhor é o painel ignorar.
     await client.query(
       `INSERT INTO call_history
          (patient_id, nome, setor, medico, horario_chamada, profissional, prioridade, tipo_prioridade)
@@ -607,10 +612,10 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       [
         patient.id,
         patient.nome,
-        `Transferência → ${novoSetor}`,
-        patientAntes.setor,    // setor de origem como "medico" (destino da chamada)
+        patientAntes.setor, // Origem
+        prof || null,       // Se houver um profissional destino específico
         horarioLog,
-        prof || null,
+        `➡️ Encaminhado p/ ${novoSetor}`, // Aparece na coluna Profissional no PDF
         patient.prioridade || 'geral',
         patient.tipo_prioridade || null
       ]

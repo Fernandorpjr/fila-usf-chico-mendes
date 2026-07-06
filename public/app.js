@@ -800,6 +800,8 @@ async function confirmTransfer() {
       if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao transferir!', true); return; }
       showToast(`↗️ Paciente transferido para ${novoSetor}!`);
       await loadQueues();
+      loadHistory();
+      loadAttended();
     } catch(e) { showToast('Erro ao transferir paciente!', true); }
   });
 }
@@ -1497,8 +1499,12 @@ function updateBanners() {
 
 function updatePainel() {
   const main = document.getElementById('painel-main');
-  if (callHistory && callHistory.length) {
-    const l = callHistory[0]; const cfg = SECTOR_CONFIG[l.setor] || {};
+  
+  // Ignorar transferências no painel (para não tocar som nem mostrar como "chamada")
+  const callsOnly = (callHistory || []).filter(h => !(h.profissional || '').startsWith('➡️ Encaminhado'));
+
+  if (callsOnly.length) {
+    const l = callsOnly[0]; const cfg = SECTOR_CONFIG[l.setor] || {};
     const prioBadge = l.prioridade === 'prioritario' ? `<div class="priority-badge-tv">⭐ ${l.tipo_prioridade || 'PRIORITÁRIO'}</div>` : '';
     let details = '';
     if (l.consultorio) details += `<div style="font-size:18px;opacity:0.9;margin-top:6px;font-weight:700;">🏠 ${l.consultorio === 'Odontológico' ? 'Consultório Odontológico' : 'Consultório ' + l.consultorio}</div>`;
@@ -1508,8 +1514,8 @@ function updatePainel() {
   } else { main.innerHTML = '<div class="painel-empty">⏳ Aguardando chamadas...</div>'; }
 
   const histEl = document.getElementById('painel-history');
-  if (!callHistory || !callHistory.length) { histEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;">Nenhuma chamada registrada</div>'; return; }
-  histEl.innerHTML = callHistory.map((p, i) => {
+  if (!callsOnly.length) { histEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;">Nenhuma chamada registrada</div>'; return; }
+  histEl.innerHTML = callsOnly.map((p, i) => {
     const cfg = SECTOR_CONFIG[p.setor] || {};
     const prioBadge = p.prioridade === 'prioritario' ? ' <span style="color:#ff8f00;font-weight:800;">⭐</span>' : '';
     const profDisplay = p.profissional ? ` · <b>${p.profissional}</b>` : p.medico ? ` · <b>${p.medico}</b>` : '';
