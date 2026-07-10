@@ -188,7 +188,7 @@ async function initDB() {
         horario      TEXT NOT NULL,
         queixa       TEXT,
         equipe       TEXT,
-        cpf3         TEXT,
+        cpf6         TEXT,
         status       TEXT DEFAULT 'pendente',
         operador     TEXT DEFAULT 'Carlos',
         criado_em    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -198,7 +198,7 @@ async function initDB() {
     // Compat: garantir que colunas existam em tabelas já criadas
     await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS queixa TEXT`);
     await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS equipe TEXT`);
-    await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS cpf3 TEXT`);
+    await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS cpf6 TEXT`);
     // ====== FIM CTRL AGENDAMENTOS ======
     
     // Safe schema updates – ADD COLUMN IF NOT EXISTS for all new/existing columns
@@ -1305,14 +1305,14 @@ app.get('/api/ctrl-agendamentos', async (req, res) => {
 // POST /api/ctrl-agendamentos — Cria entrada (disparado pelo ACS ao finalizar com agendamento)
 app.post('/api/ctrl-agendamentos', async (req, res) => {
   try {
-    const { patient_id, nome, horario, queixa, equipe, cpf3 } = req.body;
+    const { patient_id, nome, horario, queixa, equipe, cpf6 } = req.body;
     if (!nome || !horario) {
       return res.status(400).json({ error: 'Nome e horário são obrigatórios' });
     }
     const result = await pool.query(
-      `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa, equipe, cpf3)
+      `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa, equipe, cpf6)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [patient_id || null, nome, horario, queixa || null, equipe || null, cpf3 || null]
+      [patient_id || null, nome, horario, queixa || null, equipe || null, cpf6 || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
