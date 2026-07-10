@@ -2780,7 +2780,7 @@ async function finalizarAcsDireto(id, agendar, nome, agendamentoData) {
             horario: horarioAtual, 
             queixa: dados.queixa || null,
             equipe: dados.equipe || null,
-            cpf3: dados.cpf3 || null
+            cpf6: dados.cpf6 || null
           })
         });
       } catch (e) {
@@ -2792,9 +2792,7 @@ async function finalizarAcsDireto(id, agendar, nome, agendamentoData) {
 
     showToast(agendar ? `🗂️ ${nome} encaminhado para Agendamento!` : `✅ Atendimento de ${nome} finalizado`);
     loadAcolhimentoFluxo(); loadHistory(); loadAttended();
-    if (agendar) {
-      showScreen('agendamentos'); // Mantém para retrocompatibilidade
-    }
+    // A pedido do usuário: Não muda de aba automaticamente. O ACS deve continuar na aba atual.
   } catch (e) { showToast(e.message || 'Erro ao finalizar', true); }
 }
 
@@ -2816,11 +2814,11 @@ function confirmarModalAgendamento() {
   const id = document.getElementById('agend-patient-id').value;
   const nome = document.getElementById('agend-patient-name').textContent;
   const queixa = document.getElementById('agend-modal-queixa').value.trim();
-  const equipe = document.getElementById('agend-modal-equipe').value.trim();
-  const cpf3 = document.getElementById('agend-modal-cpf').value.trim();
+  const equipe = document.getElementById('agend-modal-equipe').value;
+  const cpf6 = document.getElementById('agend-modal-cpf').value.trim();
 
   fecharModalAgendamento();
-  finalizarAcsDireto(id, true, nome, { queixa, equipe, cpf3 });
+  finalizarAcsDireto(id, true, nome, { queixa, equipe, cpf6 });
 }
 // ===============================================
 
@@ -3448,7 +3446,7 @@ function renderCtrlAgendamentos() {
     
     // Novo layout da coluna "Paciente / Equipe / CPF"
     const equipeTag = a.equipe ? `<span style="display:inline-block;background:#e3f2fd;color:#1565c0;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;margin-right:4px;font-weight:700;">🏥 ${a.equipe}</span>` : '';
-    const cpfTag = a.cpf3 ? `<span style="display:inline-block;background:#f5f5f5;color:#616161;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;border:1px solid #e0e0e0;font-weight:700;">🆔 ***.***.${a.cpf3}-**</span>` : '';
+    const cpfTag = a.cpf6 ? `<span style="display:inline-block;background:#f5f5f5;color:#616161;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;border:1px solid #e0e0e0;font-weight:700;">🆔 ${a.cpf6}.***.***-**</span>` : '';
     
     return `<tr class="ctrl-agend-row status-${a.status}">
       <td style="font-family:'Nunito',sans-serif;font-weight:700;color:var(--blue-dark);">${a.horario}</td>
