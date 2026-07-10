@@ -1341,6 +1341,19 @@ app.patch('/api/ctrl-agendamentos/:id/toggle', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// DELETE /api/ctrl-agendamentos/:id — Remove o registro (Desistência)
+app.delete('/api/ctrl-agendamentos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM ctrl_agendamentos WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Registro não encontrado' });
+    }
+    res.json({ success: true, message: 'Registro removido (Desistência)', deleted: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ====== FIM CTRL AGENDAMENTOS ======
 

@@ -3438,8 +3438,10 @@ function renderCtrlAgendamentos() {
       ? `<span class="ctrl-badge-pendente">⏳ Pendente</span>`
       : `<span class="ctrl-badge-agendado">✅ Agendado</span>`;
     const btn = isPendente
-      ? `<button class="ctrl-btn-toggle ctrl-btn-marcar" onclick="toggleCtrlAgendamento(${a.id}, this)">✅ Marcar Agendado</button>`
-      : `<button class="ctrl-btn-toggle ctrl-btn-desfazer" onclick="toggleCtrlAgendamento(${a.id}, this)">↩ Desfazer</button>`;
+      ? `<button class="ctrl-btn-toggle ctrl-btn-marcar" onclick="toggleCtrlAgendamento(${a.id}, this)">✅ Marcar Agendado</button>
+         <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`
+      : `<button class="ctrl-btn-toggle ctrl-btn-desfazer" onclick="toggleCtrlAgendamento(${a.id}, this)">↩ Desfazer</button>
+         <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`;
     const queixaCell = a.queixa
       ? `<span style="font-size:13px;color:var(--gray-700);">${a.queixa}</span>`
       : `<span style="font-size:12px;color:var(--gray-600);font-style:italic;">Não informada</span>`;
@@ -3482,6 +3484,91 @@ async function toggleCtrlAgendamento(id, btn) {
     showToast('Erro ao atualizar status', true);
     if (btn) { btn.disabled = false; btn.style.opacity = ''; }
   }
+}
+
+async function removerCtrlAgendamento(id, btn) {
+  if (!confirm('Deseja realmente marcar desistência/excluir este encaminhamento?')) return;
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+  try {
+    const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error('Erro ao excluir');
+    ctrlAgendamentos = ctrlAgendamentos.filter(a => a.id !== id);
+    renderCtrlAgendamentos();
+    updateCtrlAgendBadge();
+    showToast('🗑️ Registro removido (Desistência)');
+  } catch(e) {
+    showToast('Erro ao excluir registro', true);
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }
+}
+
+function exportarAgendamentosExcel() {
+  if (!ctrlAgendamentos || ctrlAgendamentos.length === 0) {
+    showToast('Nenhum agendamento para exportar', true);
+    return;
+  }
+  let csv = "Data,Hora,Paciente,Equipe,CPF,Motivo,Status\n";
+  const dataHoje = new Date().toLocaleDateString('pt-BR');
+  ctrlAgendamentos.forEach(a => {
+    const nome = `"${(a.nome || '').replace(/"/g, '""')}"`;
+    const equipe = `"${(a.equipe || '').replace(/"/g, '""')}"`;
+    const cpf = `"${a.cpf6 || ''}"`;
+    const queixa = `"${(a.queixa || '').replace(/"/g, '""')}"`;
+    const status = a.status === 'pendente' ? 'Pendente' : 'Agendado';
+    csv += `${dataHoje},${a.horario},${nome},${equipe},${cpf},${queixa},${status}\n`;
+  });
+  
+  const blob = new Blob(["\ufeff", csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Agendamentos_${dataHoje.replace(/\//g,'-')}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function exportarAgendamentosPDF() {
+  if (!ctrlAgendamentos || ctrlAgendamentos.length === 0) {
+    showToast('Nenhum agendamento para exportar', true);
+    return;
+  }
+  const dataHoje = new Date().toLocaleDateString('pt-BR');
+  let html = `
+    <html><head><title>Relatório de Agendamentos - ${dataHoje}</title>
+    <style>
+      body { font-family: sans-serif; padding: 20px; }
+      h2 { text-align: center; color: #333; margin-bottom: 24px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 13px; }
+      th { background-color: #f4f4f4; color: #333; }
+      .badge-pendente { color: #d32f2f; font-weight: bold; }
+      .badge-agendado { color: #2e7d32; font-weight: bold; }
+    </style></head><body>
+    <h2>Relatório de Agendamentos (PEC Recife) - ${dataHoje}</h2>
+    <table>
+      <thead><tr><th>Hora</th><th>Paciente</th><th>Equipe</th><th>CPF (6)</th><th>Motivo</th><th>Status</th></tr></thead>
+      <tbody>
+  `;
+  ctrlAgendamentos.forEach(a => {
+    const statusClass = a.status === 'pendente' ? 'badge-pendente' : 'badge-agendado';
+    const statusText = a.status === 'pendente' ? 'Pendente' : 'Agendado';
+    html += `<tr>
+      <td>${a.horario}</td>
+      <td>${a.nome}</td>
+      <td>${a.equipe || '-'}</td>
+      <td>${a.cpf6 || '-'}</td>
+      <td>${a.queixa || '-'}</td>
+      <td class="${statusClass}">${statusText}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></body></html>`;
+  
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 500);
 }
 
 // Polling dedicado para a aba de agendamento (8s foreground / 60s background)
