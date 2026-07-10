@@ -1516,7 +1516,7 @@
         <thead>
           <tr style="background:linear-gradient(135deg,#e67e22,#d35400);">
             <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">⏰ Hora</th>
-            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">👤 Paciente</th>
+            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">👤 Paciente / Equipe / CPF</th>
             <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">💬 Motivo / Queixa <span style="font-weight:400;text-transform:none;opacity:0.8;">(opcional)</span></th>
             <th style="padding:14px 16px;text-align:center;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
             <th style="padding:14px 16px;text-align:center;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">Ação</th>
@@ -1563,6 +1563,38 @@
 
 </div>
 <!-- === FIM APP WRAPPER === -->
+
+<!-- Modal: Encaminhar para Sala de Agendamento -->
+<div class="reorder-modal-overlay" id="modal-agendamento">
+  <div class="reorder-modal" style="text-align:left;">
+    <h3 style="margin-bottom:12px;">🗂️ Sala de Agendamento</h3>
+    <div class="patient-badge" id="agend-patient-info" style="margin-bottom:16px;">
+      <span style="font-size:20px;">👤</span>
+      <span id="agend-patient-name">—</span>
+    </div>
+    <input type="hidden" id="agend-patient-id">
+    
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">💬 Motivo / Queixa (Opcional):</label>
+      <textarea id="agend-modal-queixa" rows="2" placeholder="Ex: Renovação de receita, dor nas costas..." style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-200);font-family:'Nunito',sans-serif;resize:vertical;"></textarea>
+    </div>
+    
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">🏥 Equipe (Opcional):</label>
+      <input type="text" id="agend-modal-equipe" placeholder="Ex: Equipe 3" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-200);font-family:'Nunito',sans-serif;">
+    </div>
+    
+    <div class="form-group" style="margin-bottom:20px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">🆔 3 Números do CPF (Opcional):</label>
+      <input type="text" id="agend-modal-cpf" placeholder="Ex: 123" maxlength="3" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-200);font-family:'Nunito',sans-serif;">
+    </div>
+    
+    <div class="reorder-modal-actions">
+      <button class="btn btn-primary" onclick="confirmarModalAgendamento()" style="background:#1976d2;border-color:#1565c0;">✔️ Confirmar</button>
+      <button class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalAgendamento()">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ====== MELHORIA G: MODAIS DE REORDENAÇÃO (ADMIN RBAC) ====== -->
 

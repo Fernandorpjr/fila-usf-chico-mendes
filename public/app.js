@@ -2482,8 +2482,8 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     } else if (etapa === 'primeira_escuta') {
       actions = `
         <button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>
-        <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}', '')">✅ Finalizar</button>
-        <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">📅 Sala de Agendamento</button>
+        <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
+        <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="abrirModalAgendamento(${p.id}, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">🗂️ Sala de Agendamento</button>
         <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;width:100%;margin-top:4px;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️ Editar Nome</button>
       `;
     } else if (etapa === 'segunda_escuta') {
@@ -2755,8 +2755,7 @@ async function agendarEscuta1() {
   } catch (e) { showToast(e.message || 'Erro ao agendar/finalizar', true); }
 }
 
-async function finalizarAcsDireto(id, agendar, nome, queixa) {
-  queixa = queixa || '';
+async function finalizarAcsDireto(id, agendar, nome, agendamentoData) {
   if (!confirm(`Deseja finalizar o atendimento de ${nome}?`)) return;
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar-escuta1`, {
@@ -2770,11 +2769,19 @@ async function finalizarAcsDireto(id, agendar, nome, queixa) {
       const horarioAtual = new Date().toLocaleTimeString('pt-BR', {
         timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
       });
+      const dados = agendamentoData || {};
       try {
         await fetch(`${API_URL}/ctrl-agendamentos`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patient_id: id, nome, horario: horarioAtual, queixa: queixa || null })
+          body: JSON.stringify({ 
+            patient_id: id, 
+            nome, 
+            horario: horarioAtual, 
+            queixa: dados.queixa || null,
+            equipe: dados.equipe || null,
+            cpf3: dados.cpf3 || null
+          })
         });
       } catch (e) {
         // Falha silenciosa: não bloqueia o fluxo principal
@@ -2783,15 +2790,39 @@ async function finalizarAcsDireto(id, agendar, nome, queixa) {
     }
     // === FIM GATILHO ===
 
-    showToast(agendar ? `📅 ${nome} enviado para Sala de Agendamento!` : `✅ Atendimento de ${nome} finalizado`);
+    showToast(agendar ? `🗂️ ${nome} encaminhado para Agendamento!` : `✅ Atendimento de ${nome} finalizado`);
     loadAcolhimentoFluxo(); loadHistory(); loadAttended();
     if (agendar) {
-      showScreen('agendamentos');
-      const nomeInput = document.getElementById('agend-nome');
-      if(nomeInput) { nomeInput.value = nome; nomeInput.focus(); }
+      showScreen('agendamentos'); // Mantém para retrocompatibilidade
     }
   } catch (e) { showToast(e.message || 'Erro ao finalizar', true); }
 }
+
+// ==== NOVO FLUXO: MODAL SALA DE AGENDAMENTO ====
+function abrirModalAgendamento(id, nome, queixaPrevia) {
+  document.getElementById('agend-patient-id').value = id;
+  document.getElementById('agend-patient-name').textContent = nome;
+  document.getElementById('agend-modal-queixa').value = queixaPrevia || '';
+  document.getElementById('agend-modal-equipe').value = '';
+  document.getElementById('agend-modal-cpf').value = '';
+  document.getElementById('modal-agendamento').classList.add('show');
+}
+
+function fecharModalAgendamento() {
+  document.getElementById('modal-agendamento').classList.remove('show');
+}
+
+function confirmarModalAgendamento() {
+  const id = document.getElementById('agend-patient-id').value;
+  const nome = document.getElementById('agend-patient-name').textContent;
+  const queixa = document.getElementById('agend-modal-queixa').value.trim();
+  const equipe = document.getElementById('agend-modal-equipe').value.trim();
+  const cpf3 = document.getElementById('agend-modal-cpf').value.trim();
+
+  fecharModalAgendamento();
+  finalizarAcsDireto(id, true, nome, { queixa, equipe, cpf3 });
+}
+// ===============================================
 
 function finalizarAtendimento(id, nome) {
   const idNum = Number(id);
@@ -3114,8 +3145,8 @@ function renderAcsEscutaScreen() {
             <div class="acs-patient-actions">
               <button class="acs-btn-chamar" onclick="chamarAcsPaciente(${p.id},'${nomeSafe}','${acs}',this)">🔊 Chamar</button>
               <button class="acs-btn-enc" onclick="abrirModalEncaminharAcs(${p.id},'${nomeSafe}')">📤 Encaminhar 2ª</button>
-              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#4aab3c,#3a8a2e);" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}', '')">✅ Finalizar</button>
-              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#1976d2,#0d47a1);" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">🗂️ Sala Agendamento</button>
+              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#4aab3c,#3a8a2e);" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
+              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#1976d2,#0d47a1);" onclick="abrirModalAgendamento(${p.id}, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">🗂️ Sala Agendamento</button>
               ${adminBtns}
             </div>
           </div>`;
@@ -3414,9 +3445,17 @@ function renderCtrlAgendamentos() {
     const queixaCell = a.queixa
       ? `<span style="font-size:13px;color:var(--gray-700);">${a.queixa}</span>`
       : `<span style="font-size:12px;color:var(--gray-600);font-style:italic;">Não informada</span>`;
+    
+    // Novo layout da coluna "Paciente / Equipe / CPF"
+    const equipeTag = a.equipe ? `<span style="display:inline-block;background:#e3f2fd;color:#1565c0;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;margin-right:4px;font-weight:700;">🏥 ${a.equipe}</span>` : '';
+    const cpfTag = a.cpf3 ? `<span style="display:inline-block;background:#f5f5f5;color:#616161;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;border:1px solid #e0e0e0;font-weight:700;">🆔 ***.***.${a.cpf3}-**</span>` : '';
+    
     return `<tr class="ctrl-agend-row status-${a.status}">
       <td style="font-family:'Nunito',sans-serif;font-weight:700;color:var(--blue-dark);">${a.horario}</td>
-      <td style="font-weight:700;">${a.nome}</td>
+      <td>
+        <div style="font-weight:700;">${a.nome}</div>
+        ${equipeTag}${cpfTag}
+      </td>
       <td>${queixaCell}</td>
       <td style="text-align:center;">${badge}</td>
       <td style="text-align:center;">${btn}</td>
