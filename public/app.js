@@ -3535,7 +3535,7 @@ function exportarAgendamentosPDF() {
   }
   const dataHoje = new Date().toLocaleDateString('pt-BR');
   let html = `
-    <html><head><title>Relatório de Agendamentos - ${dataHoje}</title>
+    <html><head><title>Relatório de Agendamentos USF Chico Mendes - ${dataHoje}</title>
     <style>
       body { font-family: sans-serif; padding: 20px; }
       h2 { text-align: center; color: #333; margin-bottom: 24px; }
@@ -3545,7 +3545,7 @@ function exportarAgendamentosPDF() {
       .badge-pendente { color: #d32f2f; font-weight: bold; }
       .badge-agendado { color: #2e7d32; font-weight: bold; }
     </style></head><body>
-    <h2>Relatório de Agendamentos (PEC Recife) - ${dataHoje}</h2>
+    <h2>Relatório de Agendamentos USF Chico Mendes<br><span style="font-size:18px;color:#666;">Acolhimento (PEC Recife) - ${dataHoje}</span></h2>
     <table>
       <thead><tr><th>Hora</th><th>Paciente</th><th>Equipe</th><th>CPF (6)</th><th>Motivo</th><th>Status</th></tr></thead>
       <tbody>
