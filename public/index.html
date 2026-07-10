@@ -791,6 +791,26 @@
     .seg-filter-btn.active { background:rgba(229,57,53,0.35); color:#fff; border-color:#e53935; }
     .seg-filter-btn:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
     /* ====== FIM NOVAS TELAS ====== */
+
+    /* ====== CTRL AGENDAMENTOS (Checklist Interno) ====== */
+    .ctrl-agend-filter { padding:6px 14px; border:2px solid rgba(255,255,255,0.2); border-radius:20px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.7); transition:all 0.2s; }
+    .ctrl-agend-filter.active { background:rgba(230,126,34,0.35); color:#fff; border-color:#e67e22; }
+    .ctrl-agend-filter:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
+    .ctrl-agend-row { transition: background 0.2s; }
+    .ctrl-agend-row:hover { background: rgba(255,255,255,0.03); }
+    .ctrl-agend-row td { padding:14px 16px; border-bottom:1px solid var(--gray-200); font-size:14px; color:var(--gray-700); vertical-align:middle; }
+    .ctrl-agend-row.status-agendado td { opacity:0.55; }
+    .ctrl-agend-row.status-agendado td:first-child { text-decoration:none; }
+    .ctrl-badge-pendente { display:inline-flex; align-items:center; gap:4px; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:800; font-family:'Nunito',sans-serif; }
+    .ctrl-badge-agendado { display:inline-flex; align-items:center; gap:4px; background:#d1e7dd; color:#155724; border:1px solid #4aab3c; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:800; font-family:'Nunito',sans-serif; }
+    .ctrl-btn-toggle { padding:6px 14px; border:none; border-radius:8px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; cursor:pointer; transition:all 0.2s; }
+    .ctrl-btn-marcar { background:linear-gradient(135deg,#4aab3c,#3a8a2e); color:white; box-shadow:0 2px 8px rgba(74,171,60,0.3); }
+    .ctrl-btn-marcar:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(74,171,60,0.4); }
+    .ctrl-btn-desfazer { background:rgba(230,126,34,0.15); color:#d35400; border:1px solid rgba(230,126,34,0.4); }
+    .ctrl-btn-desfazer:hover { background:rgba(230,126,34,0.25); }
+    /* Ocultar aba de agendamento interno no modo TV */
+    body.modo-tv .ctrl-agend-tab { display:none !important; }
+    /* ====== FIM CTRL AGENDAMENTOS ====== */
 </style>
 </head>
 <body>
@@ -890,6 +910,7 @@
   <button class="nav-tab" onclick="showScreen('tec_enfermagem')" id="tab-tec_enfermagem">🩹 Tec. Enfermagem <span class="tab-badge" style="background:#0097a7;display:none;" id="badge-tec_enfermagem">0</span></button>
   <button class="nav-tab" onclick="showScreen('chat')" id="tab-chat">💬 Chat <span class="tab-badge badge-pulse" style="background:var(--red);display:none;" id="badge-chat">0</span></button>
   <button class="nav-tab admin-only" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
+  <button class="nav-tab ctrl-agend-tab" onclick="showScreen('ctrl_agendamentos')" id="tab-ctrl_agendamentos">🗂️ Sala de Agendamento <span class="tab-badge" style="background:#e67e22;display:none;" id="badge-ctrl_agendamentos">0</span></button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
   <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
@@ -1447,6 +1468,72 @@
       <button class="btn btn-ghost" style="width:100%;" onclick="closeAgendEditModal()">Cancelar</button>
     </div>
   </div>
+
+  <!-- ============ CTRL AGENDAMENTOS (Checklist Interno – Carlos) ============ -->
+  <div class="screen" id="screen-ctrl_agendamentos">
+    <div class="page-title">
+      <div class="icon" style="background:rgba(230,126,34,0.2);">🗂️</div>
+      Sala de Agendamento <span style="font-size:13px;font-weight:600;color:var(--gray-300);margin-left:8px;">(Uso Interno – PEC Recife)</span>
+    </div>
+
+    <!-- Header de estatísticas -->
+    <div class="stats-row" style="margin-bottom:20px;">
+      <div class="stat-card" id="ctrl-agend-stat-pendente" style="background:rgba(230,126,34,0.15);border-color:rgba(230,126,34,0.4);">
+        <div class="stat-icon" style="background:#e67e22;color:white;">⏳</div>
+        <div>
+          <div class="stat-value" id="ctrl-agend-count-pendente" style="color:#e67e22;">0</div>
+          <div class="stat-label">Pendentes</div>
+        </div>
+      </div>
+      <div class="stat-card" style="background:rgba(74,171,60,0.12);border-color:rgba(74,171,60,0.3);">
+        <div class="stat-icon" style="background:var(--green);color:white;">✅</div>
+        <div>
+          <div class="stat-value" id="ctrl-agend-count-agendado" style="color:var(--green);">0</div>
+          <div class="stat-label">Agendados</div>
+        </div>
+      </div>
+      <div class="stat-card" style="background:rgba(26,79,196,0.1);border-color:rgba(26,79,196,0.3);">
+        <div class="stat-icon" style="background:var(--blue);color:white;">👤</div>
+        <div>
+          <div class="stat-value" id="ctrl-agend-count-total" style="color:var(--blue);">0</div>
+          <div class="stat-label">Total do Dia</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros rápidos -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:13px;font-weight:700;color:var(--gray-300);text-transform:uppercase;letter-spacing:0.5px;">Filtrar:</span>
+      <button class="ctrl-agend-filter active" id="ctrl-filter-todos" onclick="filtrarCtrlAgendamentos('todos')">📋 Todos</button>
+      <button class="ctrl-agend-filter" id="ctrl-filter-pendente" onclick="filtrarCtrlAgendamentos('pendente')">⏳ Pendentes</button>
+      <button class="ctrl-agend-filter" id="ctrl-filter-agendado" onclick="filtrarCtrlAgendamentos('agendado')">✅ Agendados</button>
+      <span style="margin-left:auto;font-size:12px;color:var(--gray-300);">👤 Operador: <b style="color:var(--white);">Carlos</b></span>
+    </div>
+
+    <!-- Tabela checklist -->
+    <div class="card-white" style="padding:0;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:linear-gradient(135deg,#e67e22,#d35400);">
+            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">⏰ Hora</th>
+            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">👤 Paciente</th>
+            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">💬 Motivo / Queixa <span style="font-weight:400;text-transform:none;opacity:0.8;">(opcional)</span></th>
+            <th style="padding:14px 16px;text-align:center;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
+            <th style="padding:14px 16px;text-align:center;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="ctrl-agend-tbody">
+          <tr><td colspan="4" style="padding:40px;text-align:center;color:var(--gray-600);font-size:14px;">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:12px;padding:10px 16px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;gap:8px;">
+      <span style="font-size:18px;">ℹ️</span>
+      <span style="font-size:12px;color:var(--gray-300);font-weight:600;">Esta tela é um controle <b style="color:white;">interno</b> da Sala de Agendamento. O ACS encaminha o paciente e o operador agenda no <b style="color:white;">PEC Recife</b>. Não emite som, voz nem aparece no painel da TV.</span>
+    </div>
+  </div>
+  <!-- ============ FIM CTRL AGENDAMENTOS ============ -->
 
   <!-- ============ ATENDIDOS ============ -->
   <div class="screen" id="screen-atendidos">

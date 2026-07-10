@@ -884,6 +884,13 @@ function showScreen(name) {
   if (name === 'agendamentos') {
     loadAgendamentos();
   }
+  // === CTRL AGENDAMENTOS: carrega e ativa polling dedicado ao entrar na aba ===
+  if (name === 'ctrl_agendamentos') {
+    loadCtrlAgendamentos();
+    startCtrlAgendPolling();
+  } else {
+    stopCtrlAgendPolling();
+  }
 }
 
 // ====== FORM HELPERS ======
@@ -2475,8 +2482,8 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     } else if (etapa === 'primeira_escuta') {
       actions = `
         <button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>
-        <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
-        <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}')">📅 Fin. Agendado</button>
+        <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}', '')">✅ Finalizar</button>
+        <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">📅 Sala de Agendamento</button>
         <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;width:100%;margin-top:4px;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️ Editar Nome</button>
       `;
     } else if (etapa === 'segunda_escuta') {
@@ -2748,7 +2755,8 @@ async function agendarEscuta1() {
   } catch (e) { showToast(e.message || 'Erro ao agendar/finalizar', true); }
 }
 
-async function finalizarAcsDireto(id, agendar, nome) {
+async function finalizarAcsDireto(id, agendar, nome, queixa) {
+  queixa = queixa || '';
   if (!confirm(`Deseja finalizar o atendimento de ${nome}?`)) return;
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/finalizar-escuta1`, {
@@ -2756,7 +2764,26 @@ async function finalizarAcsDireto(id, agendar, nome) {
       body: JSON.stringify({ agendamento_realizado: agendar })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
-    showToast(agendar ? `📅 ${nome} finalizado para agendamento!` : `✅ Atendimento de ${nome} finalizado`);
+
+    // === GATILHO: Encaminhar para checklist interno do Carlos ===
+    if (agendar) {
+      const horarioAtual = new Date().toLocaleTimeString('pt-BR', {
+        timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
+      });
+      try {
+        await fetch(`${API_URL}/ctrl-agendamentos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patient_id: id, nome, horario: horarioAtual, queixa: queixa || null })
+        });
+      } catch (e) {
+        // Falha silenciosa: não bloqueia o fluxo principal
+        console.warn('[ctrl-agendamentos] Erro ao registrar:', e.message);
+      }
+    }
+    // === FIM GATILHO ===
+
+    showToast(agendar ? `📅 ${nome} enviado para Sala de Agendamento!` : `✅ Atendimento de ${nome} finalizado`);
     loadAcolhimentoFluxo(); loadHistory(); loadAttended();
     if (agendar) {
       showScreen('agendamentos');
@@ -3087,8 +3114,8 @@ function renderAcsEscutaScreen() {
             <div class="acs-patient-actions">
               <button class="acs-btn-chamar" onclick="chamarAcsPaciente(${p.id},'${nomeSafe}','${acs}',this)">🔊 Chamar</button>
               <button class="acs-btn-enc" onclick="abrirModalEncaminharAcs(${p.id},'${nomeSafe}')">📤 Encaminhar 2ª</button>
-              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#4aab3c,#3a8a2e);" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
-              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#1976d2,#0d47a1);" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}')">📅 Fin. Agendado</button>
+              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#4aab3c,#3a8a2e);" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}', '')">✅ Finalizar</button>
+              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#1976d2,#0d47a1);" onclick="finalizarAcsDireto(${p.id}, true, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">🗂️ Sala Agendamento</button>
               ${adminBtns}
             </div>
           </div>`;
@@ -3298,6 +3325,155 @@ initSegundaEscutaScreen();
 renderCanalList();
 loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAllChannels();
 loadAcolhimentoFluxo();
+
+// === CTRL AGENDAMENTOS — Ocultar aba em modo TV ===
+(function initCtrlAgendTab() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('modo') === 'tv') {
+    document.body.classList.add('modo-tv');
+    const tab = document.getElementById('tab-ctrl_agendamentos');
+    if (tab) tab.style.display = 'none';
+  }
+})();
+
+// ====== CTRL AGENDAMENTOS — Estado e funções ======
+let ctrlAgendamentos = [];
+let ctrlAgendFiltro = 'todos';
+let ctrlAgendPollingTimer = null;
+
+async function loadCtrlAgendamentos() {
+  try {
+    const r = await fetch(`${API_URL}/ctrl-agendamentos`);
+    if (!r.ok) return;
+    ctrlAgendamentos = await r.json();
+    renderCtrlAgendamentos();
+    updateCtrlAgendBadge();
+  } catch(e) {}
+}
+
+function updateCtrlAgendBadge() {
+  const pendentes = ctrlAgendamentos.filter(a => a.status === 'pendente').length;
+  const badge = document.getElementById('badge-ctrl_agendamentos');
+  const countPendente = document.getElementById('ctrl-agend-count-pendente');
+  const countAgendado = document.getElementById('ctrl-agend-count-agendado');
+  const countTotal = document.getElementById('ctrl-agend-count-total');
+  const statCard = document.getElementById('ctrl-agend-stat-pendente');
+
+  if (badge) {
+    badge.textContent = pendentes;
+    badge.style.display = pendentes > 0 ? 'inline-block' : 'none';
+    if (pendentes > 0) badge.classList.add('badge-pulse');
+    else badge.classList.remove('badge-pulse');
+  }
+  const agendados = ctrlAgendamentos.filter(a => a.status === 'agendado').length;
+  if (countPendente) countPendente.textContent = pendentes;
+  if (countAgendado) countAgendado.textContent = agendados;
+  if (countTotal) countTotal.textContent = ctrlAgendamentos.length;
+  // Pulsar card de pendentes se houver
+  if (statCard) {
+    if (pendentes > 0) statCard.style.animation = 'pulseCard 2s infinite';
+    else statCard.style.animation = '';
+  }
+}
+
+function filtrarCtrlAgendamentos(filtro) {
+  ctrlAgendFiltro = filtro;
+  document.querySelectorAll('.ctrl-agend-filter').forEach(btn => {
+    btn.classList.toggle('active', btn.id === 'ctrl-filter-' + filtro);
+  });
+  renderCtrlAgendamentos();
+}
+
+function renderCtrlAgendamentos() {
+  const tbody = document.getElementById('ctrl-agend-tbody');
+  if (!tbody) return;
+
+  let lista = ctrlAgendamentos;
+  if (ctrlAgendFiltro !== 'todos') {
+    lista = lista.filter(a => a.status === ctrlAgendFiltro);
+  }
+
+  if (!lista.length) {
+    const msg = ctrlAgendFiltro === 'pendente'
+      ? '✅ Nenhum paciente pendente! Tudo agendado.'
+      : ctrlAgendFiltro === 'agendado'
+        ? '⏳ Nenhum agendamento realizado ainda.'
+        : '📂 Nenhum paciente encaminhado para agendamento hoje.';
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--gray-600);font-size:14px;font-weight:600;">${msg}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(a => {
+    const isPendente = a.status === 'pendente';
+    const badge = isPendente
+      ? `<span class="ctrl-badge-pendente">⏳ Pendente</span>`
+      : `<span class="ctrl-badge-agendado">✅ Agendado</span>`;
+    const btn = isPendente
+      ? `<button class="ctrl-btn-toggle ctrl-btn-marcar" onclick="toggleCtrlAgendamento(${a.id}, this)">✅ Marcar Agendado</button>`
+      : `<button class="ctrl-btn-toggle ctrl-btn-desfazer" onclick="toggleCtrlAgendamento(${a.id}, this)">↩ Desfazer</button>`;
+    const queixaCell = a.queixa
+      ? `<span style="font-size:13px;color:var(--gray-700);">${a.queixa}</span>`
+      : `<span style="font-size:12px;color:var(--gray-600);font-style:italic;">Não informada</span>`;
+    return `<tr class="ctrl-agend-row status-${a.status}">
+      <td style="font-family:'Nunito',sans-serif;font-weight:700;color:var(--blue-dark);">${a.horario}</td>
+      <td style="font-weight:700;">${a.nome}</td>
+      <td>${queixaCell}</td>
+      <td style="text-align:center;">${badge}</td>
+      <td style="text-align:center;">${btn}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleCtrlAgendamento(id, btn) {
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+  try {
+    const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}/toggle`, { method: 'PATCH' });
+    if (!r.ok) throw new Error('Erro ao atualizar');
+    const updated = await r.json();
+    // Atualiza estado local imediatamente (optimistic-style)
+    const idx = ctrlAgendamentos.findIndex(a => a.id === id);
+    if (idx !== -1) ctrlAgendamentos[idx] = updated;
+    // Reordena: pendentes no topo
+    ctrlAgendamentos.sort((a, b) => {
+      if (a.status === b.status) return new Date(a.criado_em) - new Date(b.criado_em);
+      return a.status === 'pendente' ? -1 : 1;
+    });
+    renderCtrlAgendamentos();
+    updateCtrlAgendBadge();
+    showToast(updated.status === 'agendado' ? `✅ ${updated.nome} marcado como agendado!` : `↩ ${updated.nome} marcado como pendente`);
+  } catch(e) {
+    showToast('Erro ao atualizar status', true);
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }
+}
+
+// Polling dedicado para a aba de agendamento (8s foreground / 60s background)
+function startCtrlAgendPolling() {
+  stopCtrlAgendPolling();
+  if (isPausado || !isDentroDoHorario()) return;
+  const interval = document.hidden ? 60000 : 8000;
+  ctrlAgendPollingTimer = setTimeout(async () => {
+    const tela = document.getElementById('screen-ctrl_agendamentos');
+    if (tela && tela.classList.contains('active')) {
+      await loadCtrlAgendamentos().catch(() => {});
+      startCtrlAgendPolling(); // reagenda apenas se ainda ativo
+    }
+  }, interval);
+}
+
+function stopCtrlAgendPolling() {
+  if (ctrlAgendPollingTimer) {
+    clearTimeout(ctrlAgendPollingTimer);
+    ctrlAgendPollingTimer = null;
+  }
+}
+
+// Parar polling ao trocar de aba (visibility change já chama startAdaptivePolling)
+document.addEventListener('visibilitychange', () => {
+  const tela = document.getElementById('screen-ctrl_agendamentos');
+  if (tela && tela.classList.contains('active')) startCtrlAgendPolling();
+});
+// ====== FIM CTRL AGENDAMENTOS ======
 
 // Connection status indicator
 let socketConnected = false;

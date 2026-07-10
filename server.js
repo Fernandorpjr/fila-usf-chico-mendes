@@ -178,6 +178,24 @@ async function initDB() {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // ====== CTRL AGENDAMENTOS (Checklist interno – Sala de Agendamento) ======
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ctrl_agendamentos (
+        id SERIAL PRIMARY KEY,
+        patient_id   INTEGER,
+        nome         TEXT NOT NULL,
+        horario      TEXT NOT NULL,
+        queixa       TEXT,
+        status       TEXT DEFAULT 'pendente',
+        operador     TEXT DEFAULT 'Carlos',
+        criado_em    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // Compat: garantir que queixa exista em tabelas já criadas
+    await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS queixa TEXT`);
+    // ====== FIM CTRL AGENDAMENTOS ======
     
     // Safe schema updates – ADD COLUMN IF NOT EXISTS for all new/existing columns
     const columns = [
@@ -922,6 +940,11 @@ app.post('/api/reset', async (req, res) => {
     await pool.query('DELETE FROM chat_messages');
     await pool.query('DELETE FROM chat_channels');
     await pool.query('DELETE FROM chat_leituras');
+    // Limpar checklist interno do dia (ctrl_agendamentos)
+    await pool.query(
+      `DELETE FROM ctrl_agendamentos
+       WHERE DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
+    );
     await pool.query('ALTER SEQUENCE patients_id_seq RESTART WITH 1');
     await pool.query('ALTER SEQUENCE chat_messages_id_seq RESTART WITH 1');
     try { await pool.query('ALTER SEQUENCE chat_channels_id_seq RESTART WITH 1'); } catch(e) {}
@@ -1256,6 +1279,66 @@ app.post('/api/patients/:id/confirmar-presenca', async (req, res) => {
 });
 
 /* === FIM MELHORIA E: CONFIRMAÇÃO DE PRESENÇA === */
+
+// ====== CTRL AGENDAMENTOS (Checklist Interno – Sala de Agendamento) ======
+
+// GET /api/ctrl-agendamentos — Lista do dia, pendentes no topo
+app.get('/api/ctrl-agendamentos', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM ctrl_agendamentos
+       WHERE DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       ORDER BY
+         CASE WHEN status = 'pendente' THEN 0 ELSE 1 END ASC,
+         criado_em ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/ctrl-agendamentos — Cria entrada (disparado pelo ACS ao finalizar com agendamento)
+app.post('/api/ctrl-agendamentos', async (req, res) => {
+  try {
+    const { patient_id, nome, horario, queixa } = req.body;
+    if (!nome || !horario) {
+      return res.status(400).json({ error: 'Nome e horário são obrigatórios' });
+    }
+    const result = await pool.query(
+      `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [patient_id || null, nome, horario, queixa || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH /api/ctrl-agendamentos/:id/toggle — Alterna status pendente <-> agendado
+app.patch('/api/ctrl-agendamentos/:id/toggle', async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Busca status atual e inverte
+    const current = await pool.query('SELECT status FROM ctrl_agendamentos WHERE id = $1', [id]);
+    if (current.rows.length === 0) {
+      return res.status(404).json({ error: 'Registro não encontrado' });
+    }
+    const novoStatus = current.rows[0].status === 'pendente' ? 'agendado' : 'pendente';
+    const result = await pool.query(
+      `UPDATE ctrl_agendamentos
+       SET status = $2, atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $1 RETURNING *`,
+      [id, novoStatus]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== FIM CTRL AGENDAMENTOS ======
 
 // ====== AGENDAMENTOS ======
 
