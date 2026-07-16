@@ -1414,12 +1414,25 @@ app.get('/api/vagas-medicos', async (req, res) => {
     // Contar agendamentos realizados (status = 'agendado') no mês para cada médico
     // Cruza com ctrl_agendamentos usando o mês/ano do campo criado_em
     const usadosResult = await pool.query(
-      `SELECT equipe AS medico, COUNT(*) AS usados
+      `SELECT 
+         CASE 
+           WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
+           WHEN equipe IN ('Eq 2 Ximboré', 'Equipe 2 Ximboré', 'Equipe 2 Ximbore', 'Ximboré', 'Ximbore') THEN 'Dr. Joene Halan'
+           WHEN equipe IN ('Eq 3 Aurora', 'Equipe 3 Aurora', 'Aurora') THEN 'Dra. Mirela Mota'
+           ELSE equipe
+         END AS medico, 
+         COUNT(*) AS usados
        FROM ctrl_agendamentos
        WHERE status = 'agendado'
-       AND EXTRACT(MONTH FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $1
-       AND EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $2
-       GROUP BY equipe`,
+         AND EXTRACT(MONTH FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $1
+         AND EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $2
+       GROUP BY 
+         CASE 
+           WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
+           WHEN equipe IN ('Eq 2 Ximboré', 'Equipe 2 Ximboré', 'Equipe 2 Ximbore', 'Ximboré', 'Ximbore') THEN 'Dr. Joene Halan'
+           WHEN equipe IN ('Eq 3 Aurora', 'Equipe 3 Aurora', 'Aurora') THEN 'Dra. Mirela Mota'
+           ELSE equipe
+         END`,
       [mes, ano]
     );
 

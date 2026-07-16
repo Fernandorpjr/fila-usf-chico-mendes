@@ -1219,6 +1219,7 @@ function processSpeechQueue() {
     processSpeechQueue();
   };
   
+  window.speechSynthesis.resume();
   window.speechSynthesis.speak(utter);
 }
 
@@ -2526,6 +2527,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     if (etapa === 'recepcao') {
       actions = `
         <button class="acol-btn-action acol-btn-iniciar" onclick="iniciarEscuta(${p.id},'${nomeSafe}')">🟡 Iniciar 1ª Escuta</button>
+        <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')" style="width:100%;margin-top:4px;height:30px;justify-content:center;">↗️ Encaminhar para Setor</button>
         <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️ Editar Nome</button>
         <button class="acol-btn-action" style="background:linear-gradient(135deg,#2e7d32,#1b5e20);color:white;" onclick="direcionarParaRecepcaoFisica(${p.id},'${nomeSafe}')">📋 Agendado (Recepção)</button>
       `;
@@ -2534,10 +2536,14 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
         <button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>
         <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
         <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="abrirModalAgendamento(${p.id}, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">🗂️ Sala de Agendamento</button>
+        <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')" style="width:100%;margin-top:4px;height:30px;justify-content:center;">↗️ Encaminhar para Setor</button>
         <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;width:100%;margin-top:4px;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️ Editar Nome</button>
       `;
     } else if (etapa === 'segunda_escuta') {
-      actions = `<button class="acol-btn-action acol-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar</button>`;
+      actions = `
+        <button class="acol-btn-action acol-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar</button>
+        <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')" style="width:100%;margin-top:4px;height:30px;justify-content:center;">↗️ Encaminhar para Setor</button>
+      `;
     }
     // Admin: remove/delete buttons
     const adminBtns = isAdmin ? `
@@ -3823,6 +3829,17 @@ async function copyWaImageToClipboard() {
 // === MELHORIA 4: CHAMADAS DE VOZ LOCAIS ===
 function chamarPacienteVoz(nome) {
   if ('speechSynthesis' in window) {
+    // Garantir que o áudio não esteja silenciado
+    if (isMuted) {
+      isMuted = false;
+      const btn = document.getElementById('btn-mute');
+      if (btn) btn.innerHTML = '🔊';
+    }
+    // Cancelar qualquer chamada travada e reiniciar estado
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    window.speechSynthesis.resume();
+    
     speakViaSynthesis(nome, 'Agendamento', 'Sala de Agendamento');
     showToast(`📢 Chamando paciente: ${nome}`);
   } else {
