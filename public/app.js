@@ -1246,6 +1246,8 @@ function speakViaSynthesis(nome, setor, medico) {
     }
   } else if (setor === 'Acolhimento' && !medico) {
     texto = `${saudacao}. Usuário ${nome}, dirija-se ao Acolhimento.`;
+  } else if (setor === 'Agendamento') {
+    texto = `${saudacao}. Usuário ${nome}, dirija-se à Sala de Agendamento.`;
   } else {
     const destino = medico ? `ao ${medico}` : `à ${setor}`;
     texto = `${saudacao}. Usuário ${nome}, dirija-se ${destino}.`;
@@ -1423,6 +1425,10 @@ function renderQueueItems(containerId, setor, filterProfissional) {
 
     const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
 
+    const publicTransferBtn = !isAdmin
+      ? `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>`
+      : '';
+
     return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}">
       ${dragHandle}
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
@@ -1430,6 +1436,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       <div class="queue-time">${p.horario}</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         ${qrBtn}
+        ${publicTransferBtn}
         <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'\uD83D\uDCE2 Chamando':'Aguardando'}</span>
         ${removeBtn}
       </div>
@@ -1482,7 +1489,7 @@ function updateMiniQueues() {
       }
       
       // Botão de encaminhar para outro setor (Melhoria 5)
-      const transferBtn = `<button class="btn-transfer" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${s}')" title="Encaminhar para outro setor" style="background:rgba(26,79,196,0.1);color:var(--blue);border:1px solid rgba(26,79,196,0.3);border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer;">↗️ Encaminhar</button>`;
+      const transferBtn = `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>`;
       
       const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
       
@@ -3813,21 +3820,13 @@ async function copyWaImageToClipboard() {
   }
 }
 
-// === MELHORIA 4: CHAMADAS DE VOZ REMOTAS ===
-async function chamarPacienteVoz(nome) {
-  try {
-    const r = await fetch(`${API_URL}/voice-call`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, setor: 'Agendamento', destino: 'Sala de Agendamento' })
-    });
-    if (r.ok) {
-      showToast('📢 Chamada de voz enviada para a TV!');
-    } else {
-      showToast('Erro ao enviar chamada de voz', true);
-    }
-  } catch (e) {
-    showToast('Erro de conexão ao chamar paciente', true);
+// === MELHORIA 4: CHAMADAS DE VOZ LOCAIS ===
+function chamarPacienteVoz(nome) {
+  if ('speechSynthesis' in window) {
+    speakViaSynthesis(nome, 'Agendamento', 'Sala de Agendamento');
+    showToast(`📢 Chamando paciente: ${nome}`);
+  } else {
+    showToast('⚠️ Seu navegador não suporta síntese de voz!', true);
   }
 }
 
