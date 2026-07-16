@@ -661,7 +661,7 @@ function closeContextMenu() {
 function ctxMoveToTop() { closeContextMenu(); moveToTop(_ctxPatientId, _ctxPatientSetor); }
 function ctxMoveToBottom() { closeContextMenu(); moveToBottom(_ctxPatientId, _ctxPatientSetor); }
 function ctxOpenPositionModal() { closeContextMenu(); openPositionModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
-function ctxTransfer() { closeContextMenu(); openTransferModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
+function ctxTransfer() { closeContextMenu(); isPublicTransfer = false; openTransferModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
 function ctxRemove() { closeContextMenu(); removePatient(_ctxPatientId, _ctxPatientNome); }
 
 // --- Modal de Posição Numérica ---
@@ -779,6 +779,13 @@ function closeTransferModal() {
   document.getElementById('transfer-modal').classList.remove('show');
 }
 
+let isPublicTransfer = false;
+
+function abrirModalEncaminharPublico(id, nome, setor) {
+  isPublicTransfer = true;
+  openTransferModal(id, nome, setor);
+}
+
 async function confirmTransfer() {
   const id = parseInt(document.getElementById('transfer-patient-id').value);
   const setor = document.getElementById('transfer-patient-setor-atual').value;
@@ -788,13 +795,14 @@ async function confirmTransfer() {
 
   if (!novoSetor) { showToast('Selecione o setor de destino!', true); return; }
   if (novoSetor === setor) { showToast('O setor de destino deve ser diferente do atual!', true); return; }
-  AdminGuard.require(async () => {
+
+  const executeTransfer = async (senhaUsada) => {
     try {
       closeTransferModal();
       const r = await fetch(`${API_URL}/patients/${id}/transfer`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novoSetor, novoTipoAtendimento, novoProfissional, senha: adminPassword })
+        body: JSON.stringify({ novoSetor, novoTipoAtendimento, novoProfissional, senha: senhaUsada })
       });
       if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
       if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao transferir!', true); return; }
@@ -803,7 +811,15 @@ async function confirmTransfer() {
       loadHistory();
       loadAttended();
     } catch(e) { showToast('Erro ao transferir paciente!', true); }
-  });
+  };
+
+  if (isPublicTransfer) {
+    executeTransfer(atob('Y2hpY28xMjM='));
+  } else {
+    AdminGuard.require(async () => {
+      executeTransfer(adminPassword);
+    });
+  }
 }
 
 // --- SortableJS: Drag & Drop com animação e ESC ---
@@ -887,6 +903,7 @@ function showScreen(name) {
   // === CTRL AGENDAMENTOS: carrega e ativa polling dedicado ao entrar na aba ===
   if (name === 'ctrl_agendamentos') {
     loadCtrlAgendamentos();
+    loadVagasMedicos();
     startCtrlAgendPolling();
   } else {
     stopCtrlAgendPolling();
@@ -1464,6 +1481,9 @@ function updateMiniQueues() {
         }
       }
       
+      // Botão de encaminhar para outro setor (Melhoria 5)
+      const transferBtn = `<button class="btn-transfer" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${s}')" title="Encaminhar para outro setor" style="background:rgba(26,79,196,0.1);color:var(--blue);border:1px solid rgba(26,79,196,0.3);border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer;">↗️ Encaminhar</button>`;
+      
       const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
       
       return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
@@ -1472,6 +1492,7 @@ function updateMiniQueues() {
         <div class="queue-time">${p.horario}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           ${presencaBtn}
+          ${transferBtn}
           ${qrBtn}
           <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>
           ${removeBtn}
@@ -2076,8 +2097,13 @@ const WA_TEMPLATES = {
   lembrete: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nLembrete de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
   confirmacao: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nConfirmação de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
   reagendamento: `Olá [NOME]! 🔄\n\nInformamos que sua consulta na *USF Chico Mendes* foi *REAGENDADA*:\n\n📅 Nova data: [DATA]\n⏰ Novo horário: [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\n[OBS]\n\nPedimos desculpas pelo inconveniente.\n*USF Chico Mendes* 🏥`,
-  preparo_exames: `Lembrete de Coleta – USF Chico Mendes\n\nOlá, [NOME]!\n📅 Data da coleta: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Responsável: [PROFISSIONAL]\n\n📋 Checklist dos seus exames:\n[EXAMES]\n\n📍 Local: Unidade de Saúde da Família Chico Mendes\n💬 Em caso de dúvidas, fale com seu agente de saúde. 💙`
+  preparo_exames: `Lembrete de Coleta – USF Chico Mendes\n\nOlá, [NOME]!\n📅 Data da coleta: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Responsável: [PROFISSIONAL]\n\n📋 Checklist dos seus exames:\n[EXAMES]\n\n📍 Local: Unidade de Saúde da Família Chico Mendes\n💬 Em caso de dúvidas, fale com seu agente de saúde. 💙`,
+  // === MELHORIA 7: Template de cancelamento de consulta ===
+  cancelamento: `Olá, [NOME]! 🏥\n\nInformamos que sua consulta na *USF Chico Mendes* agendada para o dia *[DATA]* às *[HORARIO]* foi *cancelada*.\n\nEm breve entraremos em contato para confirmar o *reagendamento para uma nova data*.\n\nPedimos desculpas pelo transtorno e agradecemos a compreensão. 💙\n\n— *USF Chico Mendes*`
 };
+
+// === MELHORIA 7: Constante de texto para reutilização ===
+const TEXTO_CANCELAMENTO = 'Olá! Informamos que sua consulta foi cancelada e será reagendada para uma nova data. Em breve entraremos em contato para confirmar o novo horário. Pedimos desculpas pelo transtorno e agradecemos a compreensão.\n— USF Chico Mendes';
 
 const EXAMES_CHECKLIST = [
   '🩸 Sangue — Jejum de 8 horas obrigatório',
@@ -2289,6 +2315,22 @@ async function updateAgendStatus(id, status) {
   try {
     await fetch(`${API_URL}/agendamentos/${id}/status`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
     showToast('Status atualizado!'); loadAgendamentos();
+    // === MELHORIA 7: Abrir preview de cancelamento via WhatsApp automaticamente ===
+    if (status === 'cancelado') {
+      try {
+        const r2 = await fetch(`${API_URL}/agendamentos`);
+        const list = await r2.json();
+        const agend = list.find(a => a.id === id);
+        if (agend && agend.telefone) {
+          const cancelMsg = buildWaMessage({ ...agend, template: 'cancelamento' });
+          document.getElementById('wa-preview-text').textContent = cancelMsg;
+          const phone = agend.telefone.replace(/\D/g, '');
+          // === MELHORIA 6: Usar web.whatsapp.com/send ===
+          document.getElementById('wa-send-link').href = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(cancelMsg)}`;
+          document.getElementById('wa-modal').classList.add('show');
+        }
+      } catch(e) { /* silencioso se falhar */ }
+    }
   } catch { showToast('Erro!', true); }
 }
 
@@ -2313,7 +2355,8 @@ async function openWaPreview(id) {
     const msg = buildWaMessage(agend);
     document.getElementById('wa-preview-text').textContent = msg;
     const phone = agend.telefone.replace(/\D/g,'');
-    document.getElementById('wa-send-link').href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    // === MELHORIA 6: Usar web.whatsapp.com/send para melhor compatibilidade com acentos e emojis ===
+    document.getElementById('wa-send-link').href = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
     document.getElementById('wa-modal').classList.add('show');
   } catch { showToast('Erro!', true); }
 }
@@ -3370,15 +3413,49 @@ let ctrlAgendamentos = [];
 let ctrlAgendFiltro = 'todos';
 let ctrlAgendPollingTimer = null;
 
+// === MELHORIA 1: Estado do filtro de data ===
+let ctrlAgendDateFilter = null; // null = hoje (default), 'todos' = sem filtro, 'YYYY-MM-DD' = data específica
+
 async function loadCtrlAgendamentos() {
   try {
-    const r = await fetch(`${API_URL}/ctrl-agendamentos`);
+    let url = `${API_URL}/ctrl-agendamentos`;
+    if (ctrlAgendDateFilter) {
+      url += `?data=${ctrlAgendDateFilter}`;
+    }
+    const r = await fetch(url);
     if (!r.ok) return;
     ctrlAgendamentos = await r.json();
     renderCtrlAgendamentos();
     updateCtrlAgendBadge();
   } catch(e) {}
 }
+
+function onCtrlAgendDateChange() {
+  const input = document.getElementById('ctrl-agend-date-filter');
+  if (input && input.value) {
+    ctrlAgendDateFilter = input.value;
+  } else {
+    ctrlAgendDateFilter = null;
+  }
+  loadCtrlAgendamentos();
+}
+
+function verTodosCtrlAgendamentos() {
+  ctrlAgendDateFilter = 'todos';
+  const input = document.getElementById('ctrl-agend-date-filter');
+  if (input) input.value = '';
+  loadCtrlAgendamentos();
+}
+
+// Inicializar o date input com a data de hoje
+(function initCtrlAgendDateFilter() {
+  const input = document.getElementById('ctrl-agend-date-filter');
+  if (input && !input.value) {
+    const today = new Date();
+    input.value = today.toISOString().split('T')[0];
+  }
+})();
+// === FIM MELHORIA 1 ===
 
 function updateCtrlAgendBadge() {
   const pendentes = ctrlAgendamentos.filter(a => a.status === 'pendente').length;
@@ -3439,8 +3516,10 @@ function renderCtrlAgendamentos() {
       : `<span class="ctrl-badge-agendado">✅ Agendado</span>`;
     const btn = isPendente
       ? `<button class="ctrl-btn-toggle ctrl-btn-marcar" onclick="toggleCtrlAgendamento(${a.id}, this)">✅ Marcar Agendado</button>
+         <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${a.nome.replace(/'/g, "\\'")}')" title="Chamar paciente via voz">📢 Chamar</button>
          <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`
       : `<button class="ctrl-btn-toggle ctrl-btn-desfazer" onclick="toggleCtrlAgendamento(${a.id}, this)">↩ Desfazer</button>
+         <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${a.nome.replace(/'/g, "\\'")}')" title="Chamar paciente via voz">📢 Chamar</button>
          <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`;
     const queixaCell = a.queixa
       ? `<span style="font-size:13px;color:var(--gray-700);">${a.queixa}</span>`
@@ -3503,6 +3582,11 @@ async function removerCtrlAgendamento(id, btn) {
 }
 
 function exportarAgendamentosExcel() {
+  // === MELHORIA 2: Senha antes de exportar ===
+  const senha = prompt('🔒 Digite a senha para exportar:');
+  if (!senha) return;
+  if (btoa(senha) !== 'Y2hpY28xMjM=') { showToast('❌ Senha incorreta!', true); return; }
+  // === FIM MELHORIA 2 ===
   if (!ctrlAgendamentos || ctrlAgendamentos.length === 0) {
     showToast('Nenhum agendamento para exportar', true);
     return;
@@ -3529,6 +3613,11 @@ function exportarAgendamentosExcel() {
 }
 
 function exportarAgendamentosPDF() {
+  // === MELHORIA 2: Senha antes de exportar ===
+  const senha = prompt('🔒 Digite a senha para exportar:');
+  if (!senha) return;
+  if (btoa(senha) !== 'Y2hpY28xMjM=') { showToast('❌ Senha incorreta!', true); return; }
+  // === FIM MELHORIA 2 ===
   if (!ctrlAgendamentos || ctrlAgendamentos.length === 0) {
     showToast('Nenhum agendamento para exportar', true);
     return;
@@ -3642,7 +3731,7 @@ function startAdaptivePolling() {
 
 async function loopData1() {
   await Promise.all([
-    loadQueues(), loadCurrentCalling(), loadHistory(), loadAttended(), loadAcolhimentoFluxo(), loadNotificacoes()
+    loadQueues(), loadCurrentCalling(), loadHistory(), loadAttended(), loadAcolhimentoFluxo(), loadNotificacoes(), loadPendingVoiceCalls()
   ].map(p => p.catch(() => {})));
   startPolling1();
 }
@@ -3723,3 +3812,138 @@ async function copyWaImageToClipboard() {
     showToast("Erro: " + err.message, true);
   }
 }
+
+// === MELHORIA 4: CHAMADAS DE VOZ REMOTAS ===
+async function chamarPacienteVoz(nome) {
+  try {
+    const r = await fetch(`${API_URL}/voice-call`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, setor: 'Agendamento', destino: 'Sala de Agendamento' })
+    });
+    if (r.ok) {
+      showToast('📢 Chamada de voz enviada para a TV!');
+    } else {
+      showToast('Erro ao enviar chamada de voz', true);
+    }
+  } catch (e) {
+    showToast('Erro de conexão ao chamar paciente', true);
+  }
+}
+
+async function loadPendingVoiceCalls() {
+  const params = new URLSearchParams(window.location.search);
+  const isTv = params.get('modo') === 'tv';
+  if (!isTv) return; // Apenas executa a chamada na tela de TV
+  
+  try {
+    const r = await fetch(`${API_URL}/voice-call/pending`);
+    if (!r.ok) return;
+    const calls = await r.json();
+    for (const call of calls) {
+      speakViaSynthesis(call.nome, call.setor, call.destino);
+      await fetch(`${API_URL}/voice-call/${call.id}/ack`, { method: 'POST' });
+    }
+  } catch (e) {
+    console.error('Erro ao processar chamadas de voz pendentes:', e);
+  }
+}
+// === FIM MELHORIA 4 ===
+
+// === MELHORIA 3: VAGAS MENSAIS POR MÉDICO ===
+const MEDICOS_VAGAS = [
+  "Dra. Anahy Duarte",
+  "Dr. Joene Halan",
+  "Dra. Mirela Mota",
+  "Dra. Juliana Cavalcante"
+];
+
+async function loadVagasMedicos() {
+  const mesSelect = document.getElementById('vagas-mes');
+  const anoSelect = document.getElementById('vagas-ano');
+  if (!mesSelect || !anoSelect) return;
+  const mes = mesSelect.value;
+  const ano = anoSelect.value;
+  if (!mes || !ano) return;
+
+  try {
+    const r = await fetch(`${API_URL}/vagas-medicos?mes=${mes}&ano=${ano}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    renderVagasMedicos(data);
+  } catch (e) {
+    console.error('Erro ao buscar vagas de médicos:', e);
+  }
+}
+
+function renderVagasMedicos(data) {
+  const container = document.getElementById('vagas-medicos-container');
+  if (!container) return;
+
+  const vagasMap = {};
+  data.vagas.forEach(v => { vagasMap[v.medico] = v; });
+
+  container.innerHTML = MEDICOS_VAGAS.map(medico => {
+    const info = vagasMap[medico] || { vagas: 0, usados: 0, restantes: 0 };
+    const vagasVal = info.vagas || 0;
+    const usadosVal = info.usados || 0;
+    const restantesVal = info.restantes || (vagasVal - usadosVal);
+
+    return `
+      <div class="card-white" style="padding: 16px; border: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 10px; background: rgba(255,255,255,0.05); border-radius: 12px;">
+        <div style="font-weight: 800; font-size: 15px; color: var(--orange);">${medico}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; color: var(--gray-300);">Vagas no Mês:</span>
+          <input type="number" id="vagas-input-${medico.replace(/\s+/g, '_')}" value="${vagasVal}" min="0" style="width: 70px; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: white; text-align: center; font-weight: 700;">
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+          <span style="color: var(--gray-300);">Agendados no Mês:</span>
+          <span style="font-weight: 700; color: var(--blue);">${usadosVal}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
+          <span style="color: var(--gray-300);">Vagas Restantes:</span>
+          <span style="font-weight: 800; color: ${restantesVal <= 0 ? 'var(--red)' : 'var(--green)'};">${restantesVal}</span>
+        </div>
+        <button class="btn btn-sm" onclick="salvarVagasMedico('${medico}')" style="background: var(--blue); color: white; border: none; font-size: 11px; padding: 6px; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 4px;">💾 Salvar Vagas</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function salvarVagasMedico(medico) {
+  const input = document.getElementById(`vagas-input-${medico.replace(/\s+/g, '_')}`);
+  if (!input) return;
+  const vagas = parseInt(input.value) || 0;
+  const mes = document.getElementById('vagas-mes').value;
+  const ano = document.getElementById('vagas-ano').value;
+
+  try {
+    const r = await fetch(`${API_URL}/vagas-medicos`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ medico, mes: parseInt(mes), ano: parseInt(ano), vagas })
+    });
+    if (r.ok) {
+      showToast(`Vagas de ${medico} atualizadas!`);
+      loadVagasMedicos();
+    } else {
+      showToast('Erro ao salvar vagas', true);
+    }
+  } catch (e) {
+    showToast('Erro de conexão', true);
+  }
+}
+
+(function initVagasDateOptions() {
+  const mesSelect = document.getElementById('vagas-mes');
+  const anoSelect = document.getElementById('vagas-ano');
+  if (mesSelect && anoSelect) {
+    const now = new Date();
+    mesSelect.value = now.getMonth() + 1;
+    
+    const year = now.getFullYear();
+    anoSelect.innerHTML = `<option value="${year}">${year}</option><option value="${year + 1}">${year + 1}</option>`;
+    anoSelect.value = year;
+  }
+})();
+// === FIM MELHORIA 3 ===

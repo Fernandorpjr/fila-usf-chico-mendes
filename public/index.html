@@ -1501,6 +1501,14 @@
       </div>
     </div>
 
+    <!-- MELHORIA 1: Filtro de Data -->
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:700;color:var(--gray-300);text-transform:uppercase;letter-spacing:0.5px;">📅 Data:</span>
+      <input type="date" id="ctrl-agend-date-filter" onchange="onCtrlAgendDateChange()" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">
+      <button class="btn" style="background:rgba(255,255,255,0.1);color:var(--gray-300);border:1px solid rgba(255,255,255,0.15);font-size:12px;padding:6px 14px;border-radius:20px;font-weight:700;" onclick="verTodosCtrlAgendamentos()">📂 Ver Todos os Dias</button>
+    </div>
+    <!-- FIM MELHORIA 1 -->
+
     <!-- Filtros rápidos e Exportação -->
     <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -1537,6 +1545,25 @@
       <span style="font-size:18px;">ℹ️</span>
       <span style="font-size:12px;color:var(--gray-300);font-weight:600;">Esta tela é um controle <b style="color:white;">interno</b> da Sala de Agendamento. O ACS encaminha o paciente e o operador agenda no <b style="color:white;">PEC Recife</b>. Não emite som, voz nem aparece no painel da TV.</span>
     </div>
+
+    <!-- ============ MELHORIA 3: VAGAS MENSAIS POR MÉDICO ============ -->
+    <div style="margin-top:28px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <span style="font-size:20px;">🗓️</span>
+        <span style="font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:white;">Vagas Mensais por Médico</span>
+        <select id="vagas-mes" onchange="loadVagasMedicos()" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+          <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <select id="vagas-ano" onchange="loadVagasMedicos()" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">
+        </select>
+      </div>
+      <div id="vagas-medicos-container" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;"></div>
+    </div>
+    <!-- ============ FIM MELHORIA 3 ============ -->
+
   </div>
   <!-- ============ FIM CTRL AGENDAMENTOS ============ -->
 

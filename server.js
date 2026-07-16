@@ -279,6 +279,32 @@ async function initDB() {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // ====== MELHORIA 3: VAGAS MENSAIS POR MÉDICO ======
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vagas_medicos (
+        id SERIAL PRIMARY KEY,
+        medico TEXT NOT NULL,
+        mes INTEGER NOT NULL,
+        ano INTEGER NOT NULL,
+        vagas INTEGER DEFAULT 0,
+        UNIQUE(medico, mes, ano)
+      )
+    `);
+    // ====== FIM MELHORIA 3: TABELA ======
+
+    // ====== MELHORIA 4: CHAMADAS DE VOZ REMOTAS ======
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pending_voice_calls (
+        id SERIAL PRIMARY KEY,
+        nome TEXT NOT NULL,
+        setor TEXT DEFAULT 'Agendamento',
+        destino TEXT,
+        processed BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // ====== FIM MELHORIA 4: TABELA ======
     
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
@@ -1289,12 +1315,25 @@ app.post('/api/patients/:id/confirmar-presenca', async (req, res) => {
 // GET /api/ctrl-agendamentos — Lista do dia, pendentes no topo
 app.get('/api/ctrl-agendamentos', async (req, res) => {
   try {
+    // === MELHORIA 1: Filtro de data ===
+    const { data } = req.query;
+    let dateFilter;
+    let params = [];
+    if (data === 'todos') {
+      dateFilter = '1=1';
+    } else if (data) {
+      dateFilter = `DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = $1`;
+      params = [data];
+    } else {
+      dateFilter = `DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
+    }
     const result = await pool.query(
       `SELECT * FROM ctrl_agendamentos
-       WHERE DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       WHERE ${dateFilter}
        ORDER BY
          CASE WHEN status = 'pendente' THEN 0 ELSE 1 END ASC,
-         criado_em ASC`
+         criado_em ASC`,
+      params
     );
     res.json(result.rows);
   } catch (error) {
@@ -1356,6 +1395,120 @@ app.delete('/api/ctrl-agendamentos/:id', async (req, res) => {
 });
 
 // ====== FIM CTRL AGENDAMENTOS ======
+
+// ====== MELHORIA 3: VAGAS MENSAIS POR MÉDICO ======
+
+// GET /api/vagas-medicos — Lista vagas e contagem de agendamentos do mês
+app.get('/api/vagas-medicos', async (req, res) => {
+  try {
+    const now = new Date();
+    const mes = parseInt(req.query.mes) || (now.getMonth() + 1);
+    const ano = parseInt(req.query.ano) || now.getFullYear();
+
+    // Buscar vagas cadastradas
+    const vagasResult = await pool.query(
+      'SELECT * FROM vagas_medicos WHERE mes = $1 AND ano = $2',
+      [mes, ano]
+    );
+
+    // Contar agendamentos realizados (status = 'agendado') no mês para cada médico
+    // Cruza com ctrl_agendamentos usando o mês/ano do campo criado_em
+    const usadosResult = await pool.query(
+      `SELECT equipe AS medico, COUNT(*) AS usados
+       FROM ctrl_agendamentos
+       WHERE status = 'agendado'
+       AND EXTRACT(MONTH FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $1
+       AND EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $2
+       GROUP BY equipe`,
+      [mes, ano]
+    );
+
+    const usadosMap = {};
+    usadosResult.rows.forEach(r => { usadosMap[r.medico] = parseInt(r.usados); });
+
+    const vagas = vagasResult.rows.map(v => ({
+      ...v,
+      usados: usadosMap[v.medico] || 0,
+      restantes: v.vagas - (usadosMap[v.medico] || 0)
+    }));
+
+    res.json({ mes, ano, vagas });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/vagas-medicos — Criar/atualizar vagas de um médico
+app.put('/api/vagas-medicos', async (req, res) => {
+  try {
+    const { medico, mes, ano, vagas } = req.body;
+    if (!medico || !mes || !ano || vagas === undefined) {
+      return res.status(400).json({ error: 'medico, mes, ano e vagas são obrigatórios' });
+    }
+    const result = await pool.query(
+      `INSERT INTO vagas_medicos (medico, mes, ano, vagas)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (medico, mes, ano) DO UPDATE SET vagas = $4
+       RETURNING *`,
+      [medico, mes, ano, parseInt(vagas)]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== FIM MELHORIA 3 ======
+
+// ====== MELHORIA 4: CHAMADAS DE VOZ REMOTAS ======
+
+// POST /api/voice-call — Registrar chamada de voz pendente
+app.post('/api/voice-call', async (req, res) => {
+  try {
+    const { nome, setor, destino } = req.body;
+    if (!nome) {
+      return res.status(400).json({ error: 'Nome é obrigatório' });
+    }
+    const result = await pool.query(
+      `INSERT INTO pending_voice_calls (nome, setor, destino)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [nome, setor || 'Agendamento', destino || 'Sala de Agendamento']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/voice-call/pending — Listar chamadas não processadas
+app.get('/api/voice-call/pending', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM pending_voice_calls
+       WHERE processed = false
+       ORDER BY created_at ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/voice-call/:id/ack — Marcar chamada como processada
+app.post('/api/voice-call/:id/ack', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(
+      'UPDATE pending_voice_calls SET processed = true WHERE id = $1',
+      [id]
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== FIM MELHORIA 4 ======
 
 // ====== AGENDAMENTOS ======
 
