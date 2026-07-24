@@ -179,8 +179,7 @@ function resumeAllPolling() {
   startAdaptivePolling();
   if (!intervalChat) {
     intervalChat = setInterval(() => {
-      const at = document.querySelector('.nav-tab.active');
-      if (at && at.id === 'tab-chat') registerPresenca();
+      if (chatPanelOpen) registerPresenca();
       loadChatPresenca().then(() => renderCanalList());
     }, 30000);
   }
@@ -369,6 +368,19 @@ const SECTOR_CONFIG = {
     profissionais: ['Dra. Juliana Cavalcante'], defaultConsultorios: ['Odontológico'] },
   'Téc. Enfermagem': { icon: '🩹', color: '#0097a7', colorDark: '#006064', btnClass: 'btn-teal', tagClass: 'tag-enfermagem', key: 'tec_enfermagem',
     profissionais: ['Viviane', 'Vilma', 'Fernando'], defaultConsultorios: ['Sala de Procedimentos'] }
+};
+
+// Structure of forwarding permissions per user sector profile
+const PERMISSOES_ENCAMINHAMENTO = {
+  'Médico': null, // null = can forward to all sectors
+  'Enfermagem': null,
+  'Segunda Escuta': null,
+  'Acolhimento': null,
+  'Recepção': null,
+  'Odontologia': null,
+  'Téc. Enfermagem': null,
+  'Regulação': ['Farmácia', 'Sala de Agendamento'],
+  'Farmácia': ['Regulação', 'Sala de Agendamento']
 };
 
 // ====== STATE ======
@@ -707,18 +719,28 @@ function openTransferModal(id, nome, setor) {
   document.getElementById('transfer-patient-id').value = id;
   document.getElementById('transfer-patient-setor-atual').value = setor;
   document.getElementById('transfer-patient-name').textContent = nome;
-  // Remover o setor atual das opções
+
+  // Filtrar setores permitidos conforme a hierarquia de permissões do setor logado/origem
+  const permitidos = PERMISSOES_ENCAMINHAMENTO[setor];
   const sel = document.getElementById('transfer-setor-destino');
   if (sel) {
     Array.from(sel.options).forEach(opt => {
-      opt.disabled = (opt.value === setor);
-      if (opt.value === setor) opt.style.color = 'var(--gray-300)';
-      else opt.style.color = '';
+      if (!opt.value) return; // ignora a opção padrão "Selecione o setor"
+      const isSetorAtual = (opt.value === setor);
+      const isPermitido = permitidos === null || permitidos.includes(opt.value);
+      opt.disabled = isSetorAtual || !isPermitido;
+      if (isSetorAtual || !isPermitido) {
+        opt.style.color = 'var(--gray-300)';
+      } else {
+        opt.style.color = '';
+      }
     });
     sel.value = '';
   }
   
   // Resetar campos dinâmicos
+  const motivoGrupo = document.getElementById('transfer-motivo-agendamento-grupo');
+  if (motivoGrupo) motivoGrupo.style.display = 'none';
   document.getElementById('transfer-tipo-atendimento-grupo').style.display = 'none';
   document.getElementById('transfer-profissional-grupo').style.display = 'none';
   document.getElementById('transfer-tipo-atendimento').value = '';
@@ -729,8 +751,18 @@ function openTransferModal(id, nome, setor) {
 
 function toggleTransferTipoAtendimento() {
   const setor = document.getElementById('transfer-setor-destino').value;
+  const motivoGrupo = document.getElementById('transfer-motivo-agendamento-grupo');
   const tipoGrupo = document.getElementById('transfer-tipo-atendimento-grupo');
   const profGrupo = document.getElementById('transfer-profissional-grupo');
+
+  if (setor === 'Sala de Agendamento') {
+    if (motivoGrupo) motivoGrupo.style.display = 'block';
+    tipoGrupo.style.display = 'none';
+    profGrupo.style.display = 'none';
+    return;
+  } else {
+    if (motivoGrupo) motivoGrupo.style.display = 'none';
+  }
   
   tipoGrupo.style.display = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? 'block' : 'none';
   
@@ -792,6 +824,7 @@ async function confirmTransfer() {
   const novoSetor = document.getElementById('transfer-setor-destino').value;
   const novoTipoAtendimento = document.getElementById('transfer-tipo-atendimento').value;
   const novoProfissional = document.getElementById('transfer-profissional').value;
+  const motivoAgendamento = document.getElementById('transfer-motivo-agendamento')?.value;
 
   if (!novoSetor) { showToast('Selecione o setor de destino!', true); return; }
   if (novoSetor === setor) { showToast('O setor de destino deve ser diferente do atual!', true); return; }
@@ -799,6 +832,23 @@ async function confirmTransfer() {
   const executeTransfer = async (senhaUsada) => {
     try {
       closeTransferModal();
+
+      if (novoSetor === 'Sala de Agendamento') {
+        const r = await fetch(`${API_URL}/patients/${id}/encaminhar-agendamento`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motivo: motivoAgendamento || 'Agendar Consulta', senha: senhaUsada })
+        });
+        if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
+        if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao encaminhar!', true); return; }
+        showToast(`🗂️ Paciente encaminhado para Sala de Agendamento!`);
+        await loadQueues();
+        loadHistory();
+        loadAttended();
+        if (typeof loadCtrlAgendamentos === 'function') loadCtrlAgendamentos();
+        return;
+      }
+
       const r = await fetch(`${API_URL}/patients/${id}/transfer`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -888,15 +938,6 @@ function showScreen(name) {
   const tabEl = document.getElementById('tab-' + name);
   if (screenEl) screenEl.classList.add('active');
   if (tabEl) tabEl.classList.add('active');
-  if (name === 'chat') {
-    unreadChatCount = 0;
-    updateChatBadge();
-    /* === MELHORIA C: Marcar canal como lido e registrar presença === */
-    markCanalAsRead(activeCanal);
-    registerPresenca();
-    /* === FIM MELHORIA C === */
-    setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
-  }
   if (name === 'agendamentos') {
     loadAgendamentos();
   }
@@ -1688,6 +1729,32 @@ const CANAIS = [
   { id:'odontologia', nome:'🦷 Odontologia', desc:'Canal da Odontologia' },
   { id:'gerencia', nome:'🏛️ Gerência', desc:'Canal da Gerência' }
 ];
+let chatPanelOpen = false;
+
+function toggleChatPanel() {
+  const overlay = document.getElementById('chat-drawer-overlay');
+  if (!overlay) return;
+  chatPanelOpen = !chatPanelOpen;
+  if (chatPanelOpen) {
+    overlay.classList.remove('chat-drawer-hidden');
+    markCanalAsRead(activeCanal);
+    registerPresenca();
+    updateChatBadge();
+    setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
+  } else {
+    overlay.classList.add('chat-drawer-hidden');
+  }
+}
+
+function updateChatBadge() {
+  const totalUnread = Object.values(channelUnread).reduce((sum, val) => sum + (val || 0), 0);
+  const badge = document.getElementById('badge-chat');
+  if (badge) {
+    badge.textContent = totalUnread;
+    badge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+  }
+}
+
 let activeCanal = 'geral';
 let channelMessages = {};
 let channelUnread = {};
@@ -3541,12 +3608,14 @@ function renderCtrlAgendamentos() {
     // Novo layout da coluna "Paciente / Equipe / CPF"
     const equipeTag = a.equipe ? `<span style="display:inline-block;background:#e3f2fd;color:#1565c0;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;margin-right:4px;font-weight:700;">🏥 ${a.equipe}</span>` : '';
     const cpfTag = a.cpf6 ? `<span style="display:inline-block;background:#f5f5f5;color:#616161;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;border:1px solid #e0e0e0;font-weight:700;">🆔 ${a.cpf6}.***.***-**</span>` : '';
+    const origemTag = a.setor_origem ? `<span style="display:inline-block;background:#f3e5f5;color:#7b1fa2;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;margin-right:4px;font-weight:700;">📋 de: ${a.setor_origem}</span>` : '';
+    const motivoTag = a.motivo ? `<span style="display:inline-block;background:#e8f5e9;color:#2e7d32;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;margin-right:4px;font-weight:700;">📌 ${a.motivo}</span>` : '';
     
     return `<tr class="ctrl-agend-row status-${a.status}">
       <td style="font-family:'Nunito',sans-serif;font-weight:700;color:var(--blue-dark);">${a.horario}</td>
       <td>
         <div style="font-weight:700;">${a.nome}</div>
-        ${equipeTag}${cpfTag}
+        ${origemTag}${motivoTag}${equipeTag}${cpfTag}
       </td>
       <td>${queixaCell}</td>
       <td style="text-align:center;">${badge}</td>
@@ -3768,8 +3837,7 @@ setTimeout(() => {
 
 /* === MELHORIA C: Presença periódica === */
 intervalChat = setInterval(() => {
-  const at = document.querySelector('.nav-tab.active');
-  if (at && at.id === 'tab-chat') registerPresenca();
+  if (chatPanelOpen) registerPresenca();
   loadChatPresenca().then(() => renderCanalList());
 }, 30000); // A cada 30s
 loadChatPresenca();
@@ -3900,10 +3968,14 @@ function renderVagasMedicos(data) {
   data.vagas.forEach(v => { vagasMap[v.medico] = v; });
 
   container.innerHTML = MEDICOS_VAGAS.map(medico => {
-    const info = vagasMap[medico] || { vagas: 0, usados: 0, restantes: 0 };
+    const info = vagasMap[medico] || { vagas: 0, usados: 0, restantes: 0, id: null };
     const vagasVal = info.vagas || 0;
     const usadosVal = info.usados || 0;
     const restantesVal = info.restantes || (vagasVal - usadosVal);
+    // Botão de excluir: só aparece se houver registro salvo (id existe)
+    const deleteBtn = info.id
+      ? `<button class="btn btn-sm" onclick="excluirVagaMedico(${info.id}, '${medico}')" style="background: rgba(229,57,53,0.15); color: var(--red); border: 1px solid rgba(229,57,53,0.3); font-size: 11px; padding: 6px; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 4px;" title="Excluir registro de vagas (permite refazer)">🗑️ Excluir Vagas</button>`
+      : '';
 
     return `
       <div class="card-white" style="padding: 16px; border: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 10px; background: rgba(255,255,255,0.05); border-radius: 12px;">
@@ -3921,9 +3993,26 @@ function renderVagasMedicos(data) {
           <span style="font-weight: 800; color: ${restantesVal <= 0 ? 'var(--red)' : 'var(--green)'};">${restantesVal}</span>
         </div>
         <button class="btn btn-sm" onclick="salvarVagasMedico('${medico}')" style="background: var(--blue); color: white; border: none; font-size: 11px; padding: 6px; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 4px;">💾 Salvar Vagas</button>
+        ${deleteBtn}
       </div>
     `;
   }).join('');
+}
+
+async function excluirVagaMedico(id, medico) {
+  if (!confirm(`Deseja excluir o registro de vagas de ${medico}? Isso permite refazer o cadastro de vagas.`)) return;
+  try {
+    const r = await fetch(`${API_URL}/vagas-medicos/${id}`, { method: 'DELETE' });
+    if (r.ok) {
+      showToast(`🗑️ Vagas de ${medico} excluídas!`);
+      loadVagasMedicos();
+    } else {
+      const d = await r.json();
+      showToast(d.error || 'Erro ao excluir vagas', true);
+    }
+  } catch (e) {
+    showToast('Erro de conexão', true);
+  }
 }
 
 async function salvarVagasMedico(medico) {
@@ -3932,6 +4021,15 @@ async function salvarVagasMedico(medico) {
   const vagas = parseInt(input.value) || 0;
   const mes = document.getElementById('vagas-mes').value;
   const ano = document.getElementById('vagas-ano').value;
+
+  // Validação frontend: não permitir mês retroativo
+  const now = new Date();
+  const mesAtual = now.getMonth() + 1;
+  const anoAtual = now.getFullYear();
+  if (parseInt(ano) < anoAtual || (parseInt(ano) === anoAtual && parseInt(mes) < mesAtual)) {
+    showToast('❌ Não é permitido cadastrar vagas para meses anteriores ao atual.', true);
+    return;
+  }
 
   try {
     const r = await fetch(`${API_URL}/vagas-medicos`, {
@@ -3943,7 +4041,8 @@ async function salvarVagasMedico(medico) {
       showToast(`Vagas de ${medico} atualizadas!`);
       loadVagasMedicos();
     } else {
-      showToast('Erro ao salvar vagas', true);
+      const d = await r.json();
+      showToast(d.error || 'Erro ao salvar vagas', true);
     }
   } catch (e) {
     showToast('Erro de conexão', true);

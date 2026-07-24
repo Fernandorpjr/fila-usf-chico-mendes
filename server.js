@@ -199,6 +199,9 @@ async function initDB() {
     await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS queixa TEXT`);
     await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS equipe TEXT`);
     await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS cpf6 TEXT`);
+    // Melhoria 3: colunas para encaminhamentos de outros setores
+    await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS setor_origem TEXT`);
+    await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS motivo TEXT`);
     // ====== FIM CTRL AGENDAMENTOS ======
     
     // Safe schema updates – ADD COLUMN IF NOT EXISTS for all new/existing columns
@@ -1396,6 +1399,92 @@ app.delete('/api/ctrl-agendamentos/:id', async (req, res) => {
 
 // ====== FIM CTRL AGENDAMENTOS ======
 
+// ====== ENCAMINHAMENTO PARA SALA DE AGENDAMENTO ======
+
+// POST /api/patients/:id/encaminhar-agendamento — Encaminhar paciente da fila para a Sala de Agendamento
+app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { motivo, senha } = req.body;
+
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    if (!motivo) {
+      return res.status(400).json({ error: 'O motivo do encaminhamento é obrigatório (Consulta ou Coleta de Sangue)' });
+    }
+
+    await client.query('BEGIN');
+
+    // Buscar paciente atual
+    const pResult = await client.query('SELECT * FROM patients WHERE id = $1', [id]);
+    if (pResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    const patient = pResult.rows[0];
+    if (patient.status === 'atendido' || patient.status === 'desistencia') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Paciente já finalizado' });
+    }
+
+    const setorOrigem = patient.setor;
+    const horarioAtual = new Date().toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
+    });
+
+    // 1. Criar registro na checklist da Sala de Agendamento
+    await client.query(
+      `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa, equipe, cpf6, setor_origem, motivo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        patient.id,
+        patient.nome,
+        horarioAtual,
+        patient.queixa || null,
+        null, // equipe será preenchida pelo operador da Sala de Agendamento
+        null, // cpf6 idem
+        setorOrigem,
+        motivo
+      ]
+    );
+
+    // 2. Marcar paciente como atendido (saiu da fila do setor original)
+    await client.query(
+      `UPDATE patients SET status = 'atendido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+
+    // 3. Registrar no histórico de chamadas (log de transferência)
+    await client.query(
+      `INSERT INTO call_history
+         (patient_id, nome, setor, horario_chamada, profissional, prioridade, tipo_prioridade)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        patient.id,
+        patient.nome,
+        setorOrigem,
+        horarioAtual,
+        `➡️ Enc. p/ Sala de Agendamento (${motivo})`,
+        patient.prioridade || 'geral',
+        patient.tipo_prioridade || null
+      ]
+    );
+
+    await client.query('COMMIT');
+    io.emit('queueUpdate');
+    res.json({ message: `Paciente encaminhado para Sala de Agendamento (${motivo})`, patient });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ====== FIM ENCAMINHAMENTO PARA SALA DE AGENDAMENTO ======
+
 // ====== MELHORIA 3: VAGAS MENSAIS POR MÉDICO ======
 
 // GET /api/vagas-medicos — Lista vagas e contagem de agendamentos do mês
@@ -1458,6 +1547,15 @@ app.put('/api/vagas-medicos', async (req, res) => {
     if (!medico || !mes || !ano || vagas === undefined) {
       return res.status(400).json({ error: 'medico, mes, ano e vagas são obrigatórios' });
     }
+
+    // Validação: não permitir mês/ano retroativo
+    const now = new Date();
+    const mesAtual = now.getMonth() + 1;
+    const anoAtual = now.getFullYear();
+    if (parseInt(ano) < anoAtual || (parseInt(ano) === anoAtual && parseInt(mes) < mesAtual)) {
+      return res.status(400).json({ error: 'Não é permitido cadastrar vagas para meses anteriores ao atual.' });
+    }
+
     const result = await pool.query(
       `INSERT INTO vagas_medicos (medico, mes, ano, vagas)
        VALUES ($1, $2, $3, $4)
@@ -1466,6 +1564,20 @@ app.put('/api/vagas-medicos', async (req, res) => {
       [medico, mes, ano, parseInt(vagas)]
     );
     res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/vagas-medicos/:id — Excluir registro de vaga (permite refazer)
+app.delete('/api/vagas-medicos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM vagas_medicos WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Registro de vaga não encontrado' });
+    }
+    res.json({ message: 'Vaga excluída com sucesso', deleted: result.rows[0] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
