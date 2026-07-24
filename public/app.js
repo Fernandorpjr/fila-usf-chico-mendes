@@ -553,6 +553,20 @@ const AdminGuard = {
   }
 };
 
+// Helper centralizado para ações que exigem a senha 'chico123'
+function pedirSenhaAdmin(acaoNome, callback) {
+  if (isAdmin && adminPassword === 'chico123') {
+    return callback('chico123');
+  }
+  const senha = prompt(`🔒 Confirmação requerida para ${acaoNome}:\n\nDigite a senha de administrador:`);
+  if (!senha) return;
+  if (senha !== 'chico123') {
+    showToast('❌ Senha incorreta! Ação cancelada.', true);
+    return;
+  }
+  callback(senha);
+}
+
 // --- ESC fecha context menu e modais ---
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
@@ -828,6 +842,14 @@ async function confirmTransfer() {
 
   if (!novoSetor) { showToast('Selecione o setor de destino!', true); return; }
   if (novoSetor === setor) { showToast('O setor de destino deve ser diferente do atual!', true); return; }
+
+  // Ajuste 2: Regulação e Farmácia só podem encaminhar "Fazer exame de coleta" para a Sala de Agendamento
+  if ((setor === 'Regulação' || setor === 'Farmácia') && novoSetor === 'Sala de Agendamento') {
+    if (motivoAgendamento !== 'Fazer exame de coleta') {
+      showToast('⛔ Encaminhamento bloqueado: A Regulação/Farmácia só permite encaminhar exames do tipo "Fazer exame de coleta" para a Sala de Agendamento.', true);
+      return;
+    }
+  }
 
   const executeTransfer = async (senhaUsada) => {
     try {
@@ -3594,11 +3616,14 @@ function renderCtrlAgendamentos() {
     const badge = isPendente
       ? `<span class="ctrl-badge-pendente">⏳ Pendente</span>`
       : `<span class="ctrl-badge-agendado">✅ Agendado</span>`;
+    const editBtn = `<button class="ctrl-btn-toggle" style="background:rgba(230,126,34,0.12);color:#d35400;border:1px solid rgba(230,126,34,0.4);margin-left:4px;padding:6px 10px;" onclick="abrirEditarCtrlAgendamento(${a.id})" title="Editar registro">✏️ Editar</button>`;
     const btn = isPendente
       ? `<button class="ctrl-btn-toggle ctrl-btn-marcar" onclick="toggleCtrlAgendamento(${a.id}, this)">✅ Marcar Agendado</button>
+         ${editBtn}
          <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${a.nome.replace(/'/g, "\\'")}')" title="Chamar paciente via voz">📢 Chamar</button>
          <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`
       : `<button class="ctrl-btn-toggle ctrl-btn-desfazer" onclick="toggleCtrlAgendamento(${a.id}, this)">↩ Desfazer</button>
+         ${editBtn}
          <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${a.nome.replace(/'/g, "\\'")}')" title="Chamar paciente via voz">📢 Chamar</button>
          <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`;
     const queixaCell = a.queixa
@@ -3622,6 +3647,65 @@ function renderCtrlAgendamentos() {
       <td style="text-align:center;">${btn}</td>
     </tr>`;
   }).join('');
+}
+
+function abrirEditarCtrlAgendamento(id) {
+  const item = ctrlAgendamentos.find(a => a.id === id);
+  if (!item) return;
+  document.getElementById('edit-ctrl-id').value = item.id;
+  document.getElementById('edit-ctrl-nome').value = item.nome || '';
+  document.getElementById('edit-ctrl-horario').value = item.horario || '';
+  document.getElementById('edit-ctrl-motivo').value = item.motivo || '';
+  document.getElementById('edit-ctrl-queixa').value = item.queixa || '';
+  document.getElementById('edit-ctrl-equipe').value = item.equipe || '';
+  document.getElementById('edit-ctrl-cpf6').value = item.cpf6 || '';
+  document.getElementById('edit-ctrl-status').value = item.status || 'pendente';
+  document.getElementById('edit-ctrl-modal').classList.add('show');
+}
+
+function fecharModalEditarCtrlAgendamento() {
+  document.getElementById('edit-ctrl-modal').classList.remove('show');
+}
+
+function salvarEditarCtrlAgendamento() {
+  const id = parseInt(document.getElementById('edit-ctrl-id').value);
+  const nome = document.getElementById('edit-ctrl-nome').value.trim();
+  const horario = document.getElementById('edit-ctrl-horario').value.trim();
+  const motivo = document.getElementById('edit-ctrl-motivo').value;
+  const queixa = document.getElementById('edit-ctrl-queixa').value.trim();
+  const equipe = document.getElementById('edit-ctrl-equipe').value;
+  const cpf6 = document.getElementById('edit-ctrl-cpf6').value.trim();
+  const status = document.getElementById('edit-ctrl-status').value;
+
+  if (!nome || !horario) {
+    showToast('Nome e horário são obrigatórios!', true);
+    return;
+  }
+
+  pedirSenhaAdmin('Editar Registro na Sala de Agendamento', async (senhaUsada) => {
+    try {
+      const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, horario, motivo, queixa, equipe, cpf6, status, senha: senhaUsada })
+      });
+      if (!r.ok) {
+        const d = await r.json();
+        showToast(d.error || 'Erro ao editar registro', true);
+        return;
+      }
+      const updated = await r.json();
+      const idx = ctrlAgendamentos.findIndex(a => a.id === id);
+      if (idx !== -1) ctrlAgendamentos[idx] = updated;
+
+      fecharModalEditarCtrlAgendamento();
+      renderCtrlAgendamentos();
+      updateCtrlAgendBadge();
+      showToast('✏️ Registro atualizado com sucesso!');
+    } catch(e) {
+      showToast('Erro ao atualizar registro', true);
+    }
+  });
 }
 
 async function toggleCtrlAgendamento(id, btn) {
@@ -3648,19 +3732,21 @@ async function toggleCtrlAgendamento(id, btn) {
 }
 
 async function removerCtrlAgendamento(id, btn) {
-  if (!confirm('Deseja realmente marcar desistência/excluir este encaminhamento?')) return;
-  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
-  try {
-    const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}`, { method: 'DELETE' });
-    if (!r.ok) throw new Error('Erro ao excluir');
-    ctrlAgendamentos = ctrlAgendamentos.filter(a => a.id !== id);
-    renderCtrlAgendamentos();
-    updateCtrlAgendBadge();
-    showToast('🗑️ Registro removido (Desistência)');
-  } catch(e) {
-    showToast('Erro ao excluir registro', true);
-    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
-  }
+  pedirSenhaAdmin('Excluir Registro da Sala de Agendamento', async (senhaUsada) => {
+    if (!confirm('Deseja realmente marcar desistência/excluir este encaminhamento?')) return;
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+    try {
+      const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('Erro ao excluir');
+      ctrlAgendamentos = ctrlAgendamentos.filter(a => a.id !== id);
+      renderCtrlAgendamentos();
+      updateCtrlAgendBadge();
+      showToast('🗑️ Registro removido (Desistência)');
+    } catch(e) {
+      showToast('Erro ao excluir registro', true);
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    }
+  });
 }
 
 function exportarAgendamentosExcel() {
@@ -3942,10 +4028,31 @@ const MEDICOS_VAGAS = [
   "Dra. Juliana Cavalcante"
 ];
 
+let vagasInitialized = false;
+
 async function loadVagasMedicos() {
   const mesSelect = document.getElementById('vagas-mes');
   const anoSelect = document.getElementById('vagas-ano');
   if (!mesSelect || !anoSelect) return;
+
+  // Se o mês atual estiver sem vagas na primeira carga, auto-detectar o próximo mês com vagas disponíveis
+  if (!vagasInitialized) {
+    vagasInitialized = true;
+    try {
+      const rPr = await fetch(`${API_URL}/vagas-medicos/primeiro-disponivel`);
+      if (rPr.ok) {
+        const pr = await rPr.json();
+        if (pr.encontrado && (pr.mes !== parseInt(mesSelect.value) || pr.ano !== parseInt(anoSelect.value))) {
+          mesSelect.value = pr.mes;
+          anoSelect.value = pr.ano;
+          const nomesMeses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+          const mesNome = nomesMeses[pr.mes - 1] || pr.mes;
+          showToast(`💡 Mês corrente sem vagas restantes. Exibindo ${mesNome}/${pr.ano}`);
+        }
+      }
+    } catch(e) {}
+  }
+
   const mes = mesSelect.value;
   const ano = anoSelect.value;
   if (!mes || !ano) return;
@@ -4000,19 +4107,21 @@ function renderVagasMedicos(data) {
 }
 
 async function excluirVagaMedico(id, medico) {
-  if (!confirm(`Deseja excluir o registro de vagas de ${medico}? Isso permite refazer o cadastro de vagas.`)) return;
-  try {
-    const r = await fetch(`${API_URL}/vagas-medicos/${id}`, { method: 'DELETE' });
-    if (r.ok) {
-      showToast(`🗑️ Vagas de ${medico} excluídas!`);
-      loadVagasMedicos();
-    } else {
-      const d = await r.json();
-      showToast(d.error || 'Erro ao excluir vagas', true);
+  pedirSenhaAdmin(`Excluir Vagas de ${medico}`, async (senhaUsada) => {
+    if (!confirm(`Deseja excluir o registro de vagas de ${medico}? Isso permite refazer o cadastro de vagas.`)) return;
+    try {
+      const r = await fetch(`${API_URL}/vagas-medicos/${id}`, { method: 'DELETE' });
+      if (r.ok) {
+        showToast(`🗑️ Vagas de ${medico} excluídas!`);
+        loadVagasMedicos();
+      } else {
+        const d = await r.json();
+        showToast(d.error || 'Erro ao excluir vagas', true);
+      }
+    } catch (e) {
+      showToast('Erro de conexão', true);
     }
-  } catch (e) {
-    showToast('Erro de conexão', true);
-  }
+  });
 }
 
 async function salvarVagasMedico(medico) {
@@ -4031,22 +4140,24 @@ async function salvarVagasMedico(medico) {
     return;
   }
 
-  try {
-    const r = await fetch(`${API_URL}/vagas-medicos`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ medico, mes: parseInt(mes), ano: parseInt(ano), vagas })
-    });
-    if (r.ok) {
-      showToast(`Vagas de ${medico} atualizadas!`);
-      loadVagasMedicos();
-    } else {
-      const d = await r.json();
-      showToast(d.error || 'Erro ao salvar vagas', true);
+  pedirSenhaAdmin(`Salvar Vagas de ${medico}`, async (senhaUsada) => {
+    try {
+      const r = await fetch(`${API_URL}/vagas-medicos`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ medico, mes: parseInt(mes), ano: parseInt(ano), vagas })
+      });
+      if (r.ok) {
+        showToast(`Vagas de ${medico} atualizadas!`);
+        loadVagasMedicos();
+      } else {
+        const d = await r.json();
+        showToast(d.error || 'Erro ao salvar vagas', true);
+      }
+    } catch (e) {
+      showToast('Erro de conexão', true);
     }
-  } catch (e) {
-    showToast('Erro de conexão', true);
-  }
+  });
 }
 
 (function initVagasDateOptions() {
@@ -4057,7 +4168,7 @@ async function salvarVagasMedico(medico) {
     mesSelect.value = now.getMonth() + 1;
     
     const year = now.getFullYear();
-    anoSelect.innerHTML = `<option value="${year}">${year}</option><option value="${year + 1}">${year + 1}</option>`;
+    anoSelect.innerHTML = `<option value="${year}">${year}</option><option value="${year + 1}">${year + 1}</option><option value="${year + 2}">${year + 2}</option>`;
     anoSelect.value = year;
   }
 })();

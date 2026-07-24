@@ -1397,6 +1397,37 @@ app.delete('/api/ctrl-agendamentos/:id', async (req, res) => {
   }
 });
 
+// PUT /api/ctrl-agendamentos/:id — Editar registro na Sala de Agendamento
+app.put('/api/ctrl-agendamentos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, horario, queixa, equipe, cpf6, status, motivo, senha } = req.body;
+
+    if (senha !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    if (!nome || !horario) {
+      return res.status(400).json({ error: 'Nome e horário são obrigatórios' });
+    }
+
+    const result = await pool.query(
+      `UPDATE ctrl_agendamentos
+       SET nome = $1, horario = $2, queixa = $3, equipe = $4, cpf6 = $5,
+           status = COALESCE($6, status), motivo = COALESCE($7, motivo),
+           atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $8 RETURNING *`,
+      [nome, horario, queixa || null, equipe || null, cpf6 || null, status || null, motivo || null, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Registro não encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ====== FIM CTRL AGENDAMENTOS ======
 
 // ====== ENCAMINHAMENTO PARA SALA DE AGENDAMENTO ======
@@ -1430,6 +1461,14 @@ app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
     }
 
     const setorOrigem = patient.setor;
+
+    // Regra de Negócio (Ajuste 2): Regulação e Farmácia só podem encaminhar "Fazer exame de coleta"
+    if ((setorOrigem === 'Regulação' || setorOrigem === 'Farmácia') && motivo !== 'Fazer exame de coleta') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: `⛔ Encaminhamento bloqueado: A ${setorOrigem} só permite encaminhar exames do tipo 'Fazer exame de coleta' para a Sala de Agendamento.`
+      });
+    }
     const horarioAtual = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
     });
@@ -1485,7 +1524,65 @@ app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
 
 // ====== FIM ENCAMINHAMENTO PARA SALA DE AGENDAMENTO ======
 
-// ====== MELHORIA 3: VAGAS MENSAIS POR MÉDICO ======
+// GET /api/vagas-medicos/primeiro-disponivel — Varrer meses futuros e encontrar o primeiro com vagas restantes
+app.get('/api/vagas-medicos/primeiro-disponivel', async (req, res) => {
+  try {
+    const now = new Date();
+    let currentMonth = now.getMonth() + 1;
+    let currentYear = now.getFullYear();
+
+    for (let i = 0; i < 12; i++) {
+      let m = currentMonth + i;
+      let y = currentYear;
+      while (m > 12) {
+        m -= 12;
+        y += 1;
+      }
+
+      const vagasResult = await pool.query(
+        'SELECT * FROM vagas_medicos WHERE mes = $1 AND ano = $2',
+        [m, y]
+      );
+
+      if (vagasResult.rows.length > 0) {
+        const usadosResult = await pool.query(
+          `SELECT 
+             CASE 
+               WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
+               WHEN equipe IN ('Eq 2 Ximboré', 'Equipe 2 Ximboré', 'Equipe 2 Ximbore', 'Ximboré', 'Ximbore') THEN 'Dr. Joene Halan'
+               WHEN equipe IN ('Eq 3 Aurora', 'Equipe 3 Aurora', 'Aurora') THEN 'Dra. Mirela Mota'
+               ELSE equipe
+             END AS medico, 
+             COUNT(*) AS usados
+           FROM ctrl_agendamentos
+           WHERE status = 'agendado'
+             AND EXTRACT(MONTH FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $1
+             AND EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $2
+           GROUP BY 
+             CASE 
+               WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
+               WHEN equipe IN ('Eq 2 Ximboré', 'Equipe 2 Ximboré', 'Equipe 2 Ximbore', 'Ximboré', 'Ximbore') THEN 'Dr. Joene Halan'
+               WHEN equipe IN ('Eq 3 Aurora', 'Equipe 3 Aurora', 'Aurora') THEN 'Dra. Mirela Mota'
+               ELSE equipe
+             END`,
+          [m, y]
+        );
+
+        const usadosMap = {};
+        usadosResult.rows.forEach(r => { usadosMap[r.medico] = parseInt(r.usados); });
+
+        const temVagas = vagasResult.rows.some(v => (v.vagas - (usadosMap[v.medico] || 0)) > 0);
+        if (temVagas) {
+          return res.json({ mes: m, ano: y, encontrado: true });
+        }
+      }
+    }
+
+    res.json({ mes: currentMonth, ano: currentYear, encontrado: false });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // GET /api/vagas-medicos — Lista vagas e contagem de agendamentos do mês
 app.get('/api/vagas-medicos', async (req, res) => {

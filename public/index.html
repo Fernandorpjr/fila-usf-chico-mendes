@@ -1648,6 +1648,66 @@
   </div>
 </div>
 
+<!-- Modal: Editar Agendamento Interno (Sala de Agendamento) -->
+<div class="reorder-modal-overlay" id="edit-ctrl-modal">
+  <div class="reorder-modal" style="max-width: 440px;">
+    <h3>✏️ Editar Registro na Sala de Agendamento</h3>
+    <input type="hidden" id="edit-ctrl-id">
+    
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Nome do Paciente <span style="color:var(--red);">*</span></label>
+      <input type="text" id="edit-ctrl-nome" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Horário <span style="color:var(--red);">*</span></label>
+      <input type="text" id="edit-ctrl-horario" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);" placeholder="Ex: 08:30">
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Motivo do Encaminhamento</label>
+      <select id="edit-ctrl-motivo" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+        <option value="">— Não especificado —</option>
+        <option value="Agendar Consulta">🩺 Agendar Consulta</option>
+        <option value="Fazer exame de coleta">🩸 Fazer exame de coleta</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Queixa / Observações</label>
+      <input type="text" id="edit-ctrl-queixa" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Equipe Responsável</label>
+      <select id="edit-ctrl-equipe" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+        <option value="">— Selecione a equipe —</option>
+        <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
+        <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
+        <option value="Eq 3 Aurora">Equipe 3 Aurora</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">CPF (6 primeiros dígitos)</label>
+      <input type="text" id="edit-ctrl-cpf6" maxlength="6" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);" placeholder="Ex: 123456">
+    </div>
+
+    <div class="form-group" style="margin-bottom:20px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Status</label>
+      <select id="edit-ctrl-status" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+        <option value="pendente">⏳ Pendente</option>
+        <option value="agendado">✅ Agendado</option>
+      </select>
+    </div>
+
+    <div class="reorder-modal-actions">
+      <button class="btn btn-primary" onclick="salvarEditarCtrlAgendamento()" style="background:#e67e22;border-color:#d35400;">💾 Salvar Alterações</button>
+      <button class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalEditarCtrlAgendamento()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ====== MELHORIA G: MODAIS DE REORDENAÇÃO (ADMIN RBAC) ====== -->
 
 <!-- Modal: Transferência de Setor -->
