@@ -202,6 +202,8 @@ async function initDB() {
     // Melhoria 3: colunas para encaminhamentos de outros setores
     await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS setor_origem TEXT`);
     await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS motivo TEXT`);
+    await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS mes_agendamento INTEGER`);
+    await pool.query(`ALTER TABLE ctrl_agendamentos ADD COLUMN IF NOT EXISTS ano_agendamento INTEGER`);
     // ====== FIM CTRL AGENDAMENTOS ======
     
     // Safe schema updates – ADD COLUMN IF NOT EXISTS for all new/existing columns
@@ -1366,6 +1368,7 @@ app.post('/api/ctrl-agendamentos', async (req, res) => {
 app.patch('/api/ctrl-agendamentos/:id/toggle', async (req, res) => {
   try {
     const { id } = req.params;
+    const { mes_agendamento, ano_agendamento } = req.body || {};
     // Busca status atual e inverte
     const current = await pool.query('SELECT status FROM ctrl_agendamentos WHERE id = $1', [id]);
     if (current.rows.length === 0) {
@@ -1374,9 +1377,12 @@ app.patch('/api/ctrl-agendamentos/:id/toggle', async (req, res) => {
     const novoStatus = current.rows[0].status === 'pendente' ? 'agendado' : 'pendente';
     const result = await pool.query(
       `UPDATE ctrl_agendamentos
-       SET status = $2, atualizado_em = CURRENT_TIMESTAMP
+       SET status = $2,
+           mes_agendamento = COALESCE($3, mes_agendamento),
+           ano_agendamento = COALESCE($4, ano_agendamento),
+           atualizado_em = CURRENT_TIMESTAMP
        WHERE id = $1 RETURNING *`,
-      [id, novoStatus]
+      [id, novoStatus, mes_agendamento ? parseInt(mes_agendamento) : null, ano_agendamento ? parseInt(ano_agendamento) : null]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -1401,7 +1407,7 @@ app.delete('/api/ctrl-agendamentos/:id', async (req, res) => {
 app.put('/api/ctrl-agendamentos/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, horario, queixa, equipe, cpf6, status, motivo, senha } = req.body;
+    const { nome, horario, queixa, equipe, cpf6, status, motivo, senha, mes_agendamento, ano_agendamento } = req.body;
 
     if (senha !== ADMIN_PASSWORD) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
@@ -1414,9 +1420,15 @@ app.put('/api/ctrl-agendamentos/:id', async (req, res) => {
       `UPDATE ctrl_agendamentos
        SET nome = $1, horario = $2, queixa = $3, equipe = $4, cpf6 = $5,
            status = COALESCE($6, status), motivo = COALESCE($7, motivo),
+           mes_agendamento = COALESCE($9, mes_agendamento),
+           ano_agendamento = COALESCE($10, ano_agendamento),
            atualizado_em = CURRENT_TIMESTAMP
        WHERE id = $8 RETURNING *`,
-      [nome, horario, queixa || null, equipe || null, cpf6 || null, status || null, motivo || null, id]
+      [
+        nome, horario, queixa || null, equipe || null, cpf6 || null, status || null, motivo || null, id,
+        mes_agendamento ? parseInt(mes_agendamento) : null,
+        ano_agendamento ? parseInt(ano_agendamento) : null
+      ]
     );
 
     if (result.rows.length === 0) {
@@ -1437,7 +1449,7 @@ app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { motivo, senha } = req.body;
+    const { motivo, senha, mes_agendamento, ano_agendamento } = req.body;
 
     if (senha !== ADMIN_PASSWORD) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
@@ -1473,10 +1485,14 @@ app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
     });
 
-    // 1. Criar registro na checklist da Sala de Agendamento
+    const now = new Date();
+    const targetMes = parseInt(mes_agendamento) || (now.getMonth() + 1);
+    const targetAno = parseInt(ano_agendamento) || now.getFullYear();
+
+    // 1. Criar registro na checklist da Sala de Agendamento com o mês/ano de destino
     await client.query(
-      `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa, equipe, cpf6, setor_origem, motivo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa, equipe, cpf6, setor_origem, motivo, mes_agendamento, ano_agendamento)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         patient.id,
         patient.nome,
@@ -1485,7 +1501,9 @@ app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
         null, // equipe será preenchida pelo operador da Sala de Agendamento
         null, // cpf6 idem
         setorOrigem,
-        motivo
+        motivo,
+        targetMes,
+        targetAno
       ]
     );
 
@@ -1556,8 +1574,8 @@ app.get('/api/vagas-medicos/primeiro-disponivel', async (req, res) => {
              COUNT(*) AS usados
            FROM ctrl_agendamentos
            WHERE status = 'agendado'
-             AND EXTRACT(MONTH FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $1
-             AND EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $2
+             AND COALESCE(mes_agendamento, EXTRACT(MONTH FROM criado_em AT TIME ZONE 'America/Sao_Paulo')) = $1
+             AND COALESCE(ano_agendamento, EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo')) = $2
            GROUP BY 
              CASE 
                WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
@@ -1598,7 +1616,7 @@ app.get('/api/vagas-medicos', async (req, res) => {
     );
 
     // Contar agendamentos realizados (status = 'agendado') no mês para cada médico
-    // Cruza com ctrl_agendamentos usando o mês/ano do campo criado_em
+    // Cruza com ctrl_agendamentos usando mes_agendamento/ano_agendamento (ou criado_em como fallback)
     const usadosResult = await pool.query(
       `SELECT 
          CASE 
@@ -1610,8 +1628,8 @@ app.get('/api/vagas-medicos', async (req, res) => {
          COUNT(*) AS usados
        FROM ctrl_agendamentos
        WHERE status = 'agendado'
-         AND EXTRACT(MONTH FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $1
-         AND EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo') = $2
+         AND COALESCE(mes_agendamento, EXTRACT(MONTH FROM criado_em AT TIME ZONE 'America/Sao_Paulo')) = $1
+         AND COALESCE(ano_agendamento, EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo')) = $2
        GROUP BY 
          CASE 
            WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'

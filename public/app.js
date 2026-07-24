@@ -856,10 +856,17 @@ async function confirmTransfer() {
       closeTransferModal();
 
       if (novoSetor === 'Sala de Agendamento') {
+        const mesSel = document.getElementById('vagas-mes')?.value;
+        const anoSel = document.getElementById('vagas-ano')?.value;
         const r = await fetch(`${API_URL}/patients/${id}/encaminhar-agendamento`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ motivo: motivoAgendamento || 'Agendar Consulta', senha: senhaUsada })
+          body: JSON.stringify({
+            motivo: motivoAgendamento || 'Agendar Consulta',
+            senha: senhaUsada,
+            mes_agendamento: mesSel ? parseInt(mesSel) : null,
+            ano_agendamento: anoSel ? parseInt(anoSel) : null
+          })
         });
         if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
         if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao encaminhar!', true); return; }
@@ -868,6 +875,7 @@ async function confirmTransfer() {
         loadHistory();
         loadAttended();
         if (typeof loadCtrlAgendamentos === 'function') loadCtrlAgendamentos();
+        if (typeof loadVagasMedicos === 'function') loadVagasMedicos();
         return;
       }
 
@@ -2114,13 +2122,21 @@ function insertEmoji(emoji) {
 }
 
 async function clearChatCanal() {
-  const senha = prompt('Limpar canal? Digite a senha administrativa:');
-  if (!senha) return;
-  try {
-    const r = await fetch(`${API_URL}/chat/canais/${activeCanal}/clear`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({senha}) });
-    if (r.status === 403) { showToast('Senha incorreta!', true); return; }
-    if (r.ok) { channelMessages[activeCanal] = []; renderChannelChat(); showToast('Canal limpo!'); }
-  } catch { showToast('Erro!', true); }
+  pedirSenhaAdmin('Limpar Canal de Chat', async (senhaUsada) => {
+    try {
+      const r = await fetch(`${API_URL}/chat/canais/${activeCanal}/clear`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senha: senhaUsada })
+      });
+      if (r.status === 403) { showToast('❌ Senha incorreta!', true); return; }
+      if (r.ok) {
+        channelMessages[activeCanal] = [];
+        renderChannelChat();
+        showToast('🗑️ Canal limpo com sucesso!');
+      }
+    } catch { showToast('Erro ao limpar canal!', true); }
+  });
 }
 
 function updateChatBadge() {
@@ -3676,6 +3692,8 @@ function salvarEditarCtrlAgendamento() {
   const equipe = document.getElementById('edit-ctrl-equipe').value;
   const cpf6 = document.getElementById('edit-ctrl-cpf6').value.trim();
   const status = document.getElementById('edit-ctrl-status').value;
+  const mesSel = document.getElementById('vagas-mes')?.value;
+  const anoSel = document.getElementById('vagas-ano')?.value;
 
   if (!nome || !horario) {
     showToast('Nome e horário são obrigatórios!', true);
@@ -3687,7 +3705,11 @@ function salvarEditarCtrlAgendamento() {
       const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, horario, motivo, queixa, equipe, cpf6, status, senha: senhaUsada })
+        body: JSON.stringify({
+          nome, horario, motivo, queixa, equipe, cpf6, status, senha: senhaUsada,
+          mes_agendamento: mesSel ? parseInt(mesSel) : null,
+          ano_agendamento: anoSel ? parseInt(anoSel) : null
+        })
       });
       if (!r.ok) {
         const d = await r.json();
@@ -3701,6 +3723,7 @@ function salvarEditarCtrlAgendamento() {
       fecharModalEditarCtrlAgendamento();
       renderCtrlAgendamentos();
       updateCtrlAgendBadge();
+      if (typeof loadVagasMedicos === 'function') loadVagasMedicos();
       showToast('✏️ Registro atualizado com sucesso!');
     } catch(e) {
       showToast('Erro ao atualizar registro', true);
@@ -3710,8 +3733,17 @@ function salvarEditarCtrlAgendamento() {
 
 async function toggleCtrlAgendamento(id, btn) {
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+  const mesSel = document.getElementById('vagas-mes')?.value;
+  const anoSel = document.getElementById('vagas-ano')?.value;
   try {
-    const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}/toggle`, { method: 'PATCH' });
+    const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}/toggle`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mes_agendamento: mesSel ? parseInt(mesSel) : null,
+        ano_agendamento: anoSel ? parseInt(anoSel) : null
+      })
+    });
     if (!r.ok) throw new Error('Erro ao atualizar');
     const updated = await r.json();
     // Atualiza estado local imediatamente (optimistic-style)
@@ -3724,6 +3756,7 @@ async function toggleCtrlAgendamento(id, btn) {
     });
     renderCtrlAgendamentos();
     updateCtrlAgendBadge();
+    if (typeof loadVagasMedicos === 'function') loadVagasMedicos();
     showToast(updated.status === 'agendado' ? `✅ ${updated.nome} marcado como agendado!` : `↩ ${updated.nome} marcado como pendente`);
   } catch(e) {
     showToast('Erro ao atualizar status', true);

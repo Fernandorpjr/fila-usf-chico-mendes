@@ -771,6 +771,11 @@
     .acs-stat-val { font-family:'Nunito',sans-serif; font-size:24px; font-weight:900; color:#f4821e; }
     .acs-stat-lbl { font-size:11px; color:rgba(255,255,255,0.7); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
 
+    /* Modal com Scroll e Tamanho Ajustado */
+    .reorder-modal-overlay { position: fixed; inset: 0; background: rgba(5,18,60,0.85); z-index: 9900; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; backdrop-filter: blur(4px); }
+    .reorder-modal-overlay.show { opacity: 1; pointer-events: auto; }
+    .reorder-modal { background: white; border-radius: 16px; padding: 24px; max-width: 440px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 16px 40px rgba(0,0,0,0.4); scrollbar-width: thin; }
+
     /* ====== TELA 2ª ESCUTA ====== */
     .seg-screen-header { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
     .seg-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:20px; }
@@ -1351,7 +1356,7 @@
           </div>
 
           <div class="ch-actions">
-            <button class="btn btn-ghost btn-sm admin-only" onclick="clearChatCanal()" title="Limpar canal">🗑️</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearChatCanal()" title="Limpar conversa do canal (requer senha)">🗑️</button>
           </div>
         </div>
         <!-- === MELHORIA C: PIN BANNER === -->
