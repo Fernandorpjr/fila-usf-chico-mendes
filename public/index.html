@@ -1332,11 +1332,16 @@
         <span style="font-size:20px;">💬</span>
         <span style="font-weight:800; font-size:15px; color:white;">Chat Interno USF</span>
       </div>
-      <button onclick="toggleChatPanel()" style="background:transparent; border:none; color:white; font-size:18px; cursor:pointer; padding:4px;" title="Fechar Chat">✕</button>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button onclick="clearChatCanal()" style="background:rgba(229,57,53,0.25); border:1px solid rgba(255,255,255,0.35); color:white; font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:4px; font-family:'Nunito',sans-serif; transition:background 0.2s;" title="Limpar conversa do canal ativo (requer senha chico123)">
+          🗑️ Limpar Chat
+        </button>
+        <button onclick="toggleChatPanel()" style="background:transparent; border:none; color:white; font-size:20px; cursor:pointer; padding:4px; line-height:1;" title="Fechar Chat">✕</button>
+      </div>
     </div>
     <div class="chat-layout" style="grid-template-columns: 1fr; height: 100%; border-radius: 0; box-shadow: none;">
       <div class="chat-main">
-        <div class="chat-main-header">
+        <div class="chat-main-header" style="flex-wrap:wrap; gap:8px;">
           <div style="font-size:22px;" id="chat-canal-icon">📢</div>
           <div><div class="ch-title" id="chat-canal-title">Chat da Unidade</div><div class="ch-sub" id="chat-canal-sub">Todos os setores e profissionais</div></div>
           
@@ -1356,7 +1361,7 @@
           </div>
 
           <div class="ch-actions">
-            <button class="btn btn-ghost btn-sm" onclick="clearChatCanal()" title="Limpar conversa do canal (requer senha)">🗑️</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearChatCanal()" style="background:rgba(255,255,255,0.15); color:white; padding:4px 8px; border-radius:6px;" title="Limpar conversa do canal (requer senha)">🗑️</button>
           </div>
         </div>
         <!-- === MELHORIA C: PIN BANNER === -->
