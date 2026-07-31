@@ -45,6 +45,8 @@
   .btn-pdf:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(229,57,53,0.4); }
   .btn-quick-date { background:rgba(255,255,255,0.12); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; }
   .btn-quick-date:hover { background:rgba(255,255,255,0.25); }
+  .btn-day-shortcut { background:rgba(244,130,30,0.18); color:var(--orange); border:1px solid rgba(244,130,30,0.4); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; transition:all 0.2s; }
+  .btn-day-shortcut:hover { background:rgba(244,130,30,0.35); }
   .lock-overlay { position:fixed; inset:0; background:rgba(5,18,60,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
   .lock-box { background:var(--white); border-radius:24px; padding:40px 48px; text-align:center; max-width:400px; width:90%; color:var(--blue-dark); }
   .lock-box input { padding:14px 16px; border:2px solid #dde5f8; border-radius:10px; font-size:18px; width:100%; text-align:center; font-weight:700; font-family:'Nunito',sans-serif; margin:16px 0; outline:none; letter-spacing:4px; }
@@ -73,6 +75,8 @@
   .tag-ok { background:rgba(74,171,60,0.2); color:#6ddb5a; border:1px solid rgba(74,171,60,0.3); }
   .tag-warning { background:rgba(249,200,35,0.2); color:#f9c823; border:1px solid rgba(249,200,35,0.3); }
   .tag-danger { background:rgba(229,57,53,0.2); color:#ff6b68; border:1px solid rgba(229,57,53,0.3); }
+  .tag-dia-padrao { background:rgba(26,79,196,0.2); color:#76a0ff; border:1px solid rgba(26,79,196,0.4); padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700; }
+  .tag-dia-extra { background:rgba(142,36,170,0.2); color:#d08cff; border:1px solid rgba(142,36,170,0.4); padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700; }
 
   @media(max-width:800px){ .charts{grid-template-columns:1fr;} .metrics{grid-template-columns:1fr 1fr;} .main{padding:16px;} .coleta-form .form-row{flex-direction:column;} .coletas-metrics{grid-template-columns:1fr 1fr;} }
 </style>
@@ -186,9 +190,18 @@
     <div class="coleta-metric"><div class="cm-icon">📊</div><div class="cm-value" id="kpiEficacia" style="color:var(--green);">0%</div><div class="cm-label">Eficácia (%)</div></div>
   </div>
 
-  <!-- Formulário de Lançamento Manual -->
+  <!-- Formulário de Lançamento Manual com Atalhos dos Dias Padrão (Quarta, Quinta, Sexta) -->
   <div class="coleta-form">
-    <div class="chart-title" style="margin-bottom:14px;">📝 Lançar Registro de Coleta do Dia</div>
+    <div class="chart-title" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <span>📝 Lançar Registro de Coleta de Sangue</span>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <span style="font-size:12px; color:var(--gray-300); font-weight:700;">Atalhos Dias de Coleta:</span>
+        <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('quarta')">🟢 Quarta-feira</button>
+        <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('quinta')">🟢 Quinta-feira</button>
+        <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('sexta')">🟢 Sexta-feira</button>
+      </div>
+    </div>
+    
     <div class="form-row">
       <div class="form-group">
         <label>Data da Coleta</label>
@@ -196,21 +209,21 @@
       </div>
       <div class="form-group">
         <label>Agendados</label>
-        <input type="number" id="coleta-agendados" min="0" max="30" value="12" placeholder="12">
+        <input type="number" id="coleta-agendados" min="0" max="30" value="12" placeholder="12" oninput="calcFaltasAuto()">
       </div>
       <div class="form-group">
         <label>Realizados</label>
-        <input type="number" id="coleta-realizados" min="0" max="30" value="12" placeholder="12">
+        <input type="number" id="coleta-realizados" min="0" max="30" value="12" placeholder="12" oninput="calcFaltasAuto()">
       </div>
       <div class="form-group">
-        <label>Faltas</label>
+        <label>Faltas (Auto)</label>
         <input type="number" id="coleta-faltas" min="0" max="30" value="0" placeholder="0">
       </div>
       <div class="form-group">
         <label>Observações</label>
         <input type="text" id="coleta-obs" placeholder="Ex: Faltou insumo..." style="width:200px;">
       </div>
-      <button class="btn-add-coleta" onclick="salvarColeta()">💾 Salvar</button>
+      <button class="btn-add-coleta" onclick="salvarColeta()">💾 Salvar Registro</button>
     </div>
   </div>
 
@@ -232,12 +245,13 @@
 
   <!-- Tabela de Registros -->
   <div class="table-card">
-    <div class="chart-title" style="margin-bottom:16px;">📋 Registros de Coletas Lançados no Mês</div>
+    <div class="chart-title" style="margin-bottom:16px;">📋 Registros de Coletas Lançados no Mês (Dias Padrão & Extras)</div>
     <table>
       <thead>
         <tr>
           <th>Data (DD/MM/AAAA)</th>
-          <th>Dia</th>
+          <th>Dia da Semana</th>
+          <th>Tipo</th>
           <th>Agendados</th>
           <th>Realizados</th>
           <th>Faltas</th>
@@ -273,6 +287,27 @@ function formatDateBR(dateStr) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
   return dateStr;
+}
+
+function calcFaltasAuto() {
+  const agendados = parseInt(document.getElementById('coleta-agendados').value) || 0;
+  const realizados = parseInt(document.getElementById('coleta-realizados').value) || 0;
+  document.getElementById('coleta-faltas').value = Math.max(0, agendados - realizados);
+}
+
+function setColetaDiaShortcut(dia) {
+  const targetMap = { 'quarta': 3, 'quinta': 4, 'sexta': 5 };
+  const targetDay = targetMap[dia];
+  if (targetDay === undefined) return;
+
+  const now = new Date();
+  const currentDay = now.getDay();
+  let diff = targetDay - currentDay;
+  
+  const targetDate = new Date(now);
+  targetDate.setDate(now.getDate() + diff);
+
+  document.getElementById('coleta-data').value = targetDate.toISOString().split('T')[0];
 }
 
 function setQuickDate(tipo) {
@@ -369,9 +404,6 @@ function renderMetrics() {
     const sortedSetor = [...d.attendedBySetor].sort((a, b) => parseInt(b.total) - parseInt(a.total));
     if (sortedSetor[0]) topSetorStr = `${sortedSetor[0].setor} (${sortedSetor[0].total})`;
   }
-
-  // Taxa de Atendimento
-  const atendEfic = totalEntries > 0 ? Math.round((d.totalAttended / totalEntries) * 100) : 100;
 
   document.getElementById('metricsGrid').innerHTML = `
     <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${d.totalAttended}</div><div class="metric-label">Atendidos</div></div>
@@ -512,7 +544,7 @@ function renderWaitTable() {
   }).join('');
 }
 
-// ====== COLETAS DE SANGUE (COM FILTRO MÊS E VISÃO POR SEMANA) ======
+// ====== COLETAS DE SANGUE (COM DIA PADRÃO E LIVRE SELEÇÃO) ======
 
 async function loadColetasManual() {
   try {
@@ -591,7 +623,7 @@ function renderColetasKPIs(monthData) {
 function renderColetasTable(monthData) {
   const tbody = document.getElementById('coletasTable');
   if (!monthData.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray-300);padding:24px;">Nenhum registro para este mês. Lance os dados no formulário ☝️</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray-300);padding:24px;">Nenhum registro para este mês. Lance os dados no formulário ☝️</td></tr>';
     return;
   }
 
@@ -599,11 +631,17 @@ function renderColetasTable(monthData) {
   
   tbody.innerHTML = sorted.map(c => {
     const dt = new Date(c.data_coleta + 'T12:00:00');
-    const diaSemana = DIAS_SEMANA[dt.getDay()];
+    const dayOfWeekNum = dt.getDay(); // 3 = Quarta, 4 = Quinta, 5 = Sexta
+    const diaSemana = DIAS_SEMANA[dayOfWeekNum];
     const dataBR = formatDateBR(c.data_coleta);
     const atingiuMeta = c.realizados >= META_DIARIA;
     const pctMeta = Math.round((c.realizados / META_DIARIA) * 100);
     
+    const isDiaPadrao = [3, 4, 5].includes(dayOfWeekNum);
+    const tipoTag = isDiaPadrao 
+      ? '<span class="tag-dia-padrao">🟢 Dia Padrão</span>' 
+      : '<span class="tag-dia-extra">🟣 Dia Livre/Extra</span>';
+
     let statusTag;
     if (pctMeta >= 100) statusTag = '<span class="tag-meta tag-ok">✅ Meta Atingida</span>';
     else if (pctMeta >= 80) statusTag = '<span class="tag-meta tag-warning">⚠️ ' + pctMeta + '%</span>';
@@ -612,6 +650,7 @@ function renderColetasTable(monthData) {
     return `<tr>
       <td style="font-weight:700;">${dataBR}</td>
       <td>${diaSemana}</td>
+      <td>${tipoTag}</td>
       <td style="font-weight:800;color:var(--blue);">${c.agendados}</td>
       <td style="font-weight:800;color:${atingiuMeta ? 'var(--green)' : 'var(--orange)'};">${c.realizados}</td>
       <td style="font-weight:800;color:${c.faltas > 0 ? 'var(--red)' : 'var(--gray-300)'};">${c.faltas}</td>
@@ -652,7 +691,7 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
   const realizadosData = semanasMap.map(s => s.realizados);
   const faltasData = semanasMap.map(s => s.faltas);
 
-  document.getElementById('chartPrincipalTitle').textContent = `📊 Desempenho por Semana em ${MESES_NOME[month-1]}/${year} (Meta: 36 coletas/semana)`;
+  document.getElementById('chartPrincipalTitle').textContent = `📊 Desempenho por Semana em ${MESES_NOME[month-1]}/${year} (Dias Padrão: Quarta, Quinta e Sexta - Meta: 36 coletas/semana)`;
   document.getElementById('chartComparativoTitle').textContent = `📈 Realizados vs Faltas por Semana em ${MESES_NOME[month-1]}/${year}`;
 
   if (coletasPrincipalChart) coletasPrincipalChart.destroy();
@@ -834,7 +873,7 @@ async function exportColetasPDF() {
     doc.text('Controle de Coletas de Sangue', pageWidth / 2, 15, { align: 'center' });
     doc.setFontSize(14);
     doc.setFont('helvetica', 'normal');
-    doc.text(`USF Chico Mendes — Mês de Referência: ${nomeMesAno}`, pageWidth / 2, 22, { align: 'center' });
+    doc.text(`USF Chico Mendes — Mês de Referência: ${nomeMesAno} (Dias Padrão: Quarta, Quinta, Sexta)`, pageWidth / 2, 22, { align: 'center' });
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 28, { align: 'center' });
 
@@ -845,7 +884,7 @@ async function exportColetasPDF() {
     doc.setFontSize(10);
     const kpiTexts = [
       `Meta Diária: ${META_DIARIA} coletas`,
-      `Meta Semanal: ${META_SEMANAL} coletas`,
+      `Meta Semanal: ${META_SEMANAL} coletas (3 dias × 12)`,
       `Agendados: ${document.getElementById('kpiAgendados').textContent}`,
       `Realizados: ${document.getElementById('kpiRealizados').textContent}`,
       `Faltas: ${document.getElementById('kpiFaltas').textContent}`,
@@ -878,11 +917,14 @@ async function exportColetasPDF() {
     if (sorted.length > 0) {
       const rows = sorted.map(c => {
         const dt = new Date(c.data_coleta + 'T12:00:00');
+        const dayOfWeekNum = dt.getDay();
+        const isDiaPadrao = [3, 4, 5].includes(dayOfWeekNum);
         const dataBR = formatDateBR(c.data_coleta);
         const pct = Math.round((c.realizados / META_DIARIA) * 100);
         return [
           dataBR,
-          DIAS_SEMANA[dt.getDay()],
+          DIAS_SEMANA[dayOfWeekNum],
+          isDiaPadrao ? 'Dia Padrão' : 'Dia Extra',
           c.agendados.toString(),
           c.realizados.toString(),
           c.faltas.toString(),
@@ -894,18 +936,18 @@ async function exportColetasPDF() {
 
       doc.autoTable({
         startY: 110,
-        head: [['Data (DD/MM/AAAA)', 'Dia', 'Agend.', 'Realiz.', 'Faltas', 'Meta', 'Eficácia', 'Obs']],
+        head: [['Data (DD/MM/AAAA)', 'Dia', 'Tipo', 'Agend.', 'Realiz.', 'Faltas', 'Meta', 'Eficácia', 'Obs']],
         body: rows,
         theme: 'grid',
         headStyles: { fillColor: [26, 79, 196], fontSize: 9 },
         bodyStyles: { fontSize: 8 },
         columnStyles: {
           0: { halign: 'center', fontStyle: 'bold' },
-          2: { halign: 'center' },
           3: { halign: 'center' },
           4: { halign: 'center' },
           5: { halign: 'center' },
-          6: { halign: 'center' }
+          6: { halign: 'center' },
+          7: { halign: 'center' }
         }
       });
     }
@@ -960,7 +1002,6 @@ async function exportDailyReport() {
     doc.setFontSize(10); doc.setFont('helvetica', 'normal');
     doc.text(`Atendidos: ${d.totalAttended}   |   Aguardando Agora: ${totalWaiting}   |   Desistências: ${d.totalDesist} (${d.dropoutRate}%)`, 14, 38);
 
-    // Capturar Gráfico 1: Ocupação da Recepção
     const chartOccupancyEl = document.getElementById('chartOccupancy');
     const canvasOcc = await html2canvas(chartOccupancyEl, { backgroundColor: '#0a1e5c', scale: 2 });
     const imgOcc = canvasOcc.toDataURL('image/png');
@@ -969,7 +1010,6 @@ async function exportDailyReport() {
     doc.text('1. Ocupação da Recepção (Pacientes no Local):', 14, 46);
     doc.addImage(imgOcc, 'PNG', 14, 50, pageWidth - 28, 65);
 
-    // Capturar Gráficos 2 e 3
     const chartHourlyEl = document.getElementById('chartHourly');
     const canvasHourly = await html2canvas(chartHourlyEl, { backgroundColor: '#0a1e5c', scale: 2 });
     const imgHourly = canvasHourly.toDataURL('image/png');
@@ -983,7 +1023,6 @@ async function exportDailyReport() {
     doc.addImage(imgHourly, 'PNG', 14, 126, (pageWidth - 34) / 2, 55);
     doc.addImage(imgFlow, 'PNG', (pageWidth + 6) / 2, 126, (pageWidth - 34) / 2, 55);
 
-    // Capturar Gráficos 4 e 5 na página 2
     doc.addPage();
     const chartDonutEl = document.getElementById('chartSetoresDonut');
     const canvasDonut = await html2canvas(chartDonutEl, { backgroundColor: '#0a1e5c', scale: 2 });
@@ -998,7 +1037,6 @@ async function exportDailyReport() {
     doc.addImage(imgDonut, 'PNG', 14, 20, (pageWidth - 34) / 2, 60);
     doc.addImage(imgTempoBar, 'PNG', (pageWidth + 6) / 2, 20, (pageWidth - 34) / 2, 60);
 
-    // Tabela de Setores e Tempo Médio
     doc.setFontSize(12); doc.setFont('helvetica', 'bold');
     doc.text(`Detalhamento por Setor (${dataFiltroFormatada})`, 14, 88);
 
@@ -1026,7 +1064,6 @@ async function exportDailyReport() {
       bodyStyles: { fontSize: 9 }
     });
 
-    // Rodapé
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
