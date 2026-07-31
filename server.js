@@ -1767,6 +1767,139 @@ app.get('/api/agendamentos/coletas/stats', async (req, res) => {
   }
 });
 
+// GET - Dashboard semanal de Coletas de Sangue (agendado vs realizado)
+app.get('/api/dashboard/coletas-semanal', async (req, res) => {
+  try {
+    const { semanas } = req.query;
+    const numSemanas = parseInt(semanas) || 4;
+    
+    // Buscar dados diários de coletas das últimas N semanas
+    const result = await pool.query(
+      `SELECT 
+         data_agendamento,
+         COUNT(*) as agendados,
+         COUNT(*) FILTER (WHERE status IN ('confirmado', 'realizado', 'lembrete_enviado')) as realizados,
+         COUNT(*) FILTER (WHERE status = 'faltou') as faltas,
+         COUNT(*) FILTER (WHERE status = 'pendente') as pendentes,
+         COUNT(*) FILTER (WHERE status = 'cancelado') as cancelados
+       FROM agendamentos 
+       WHERE tipo_atendimento = 'Coleta de Sangue'
+         AND data_agendamento >= (CURRENT_DATE - ($1 * 7 || ' days')::interval)
+         AND data_agendamento <= CURRENT_DATE
+       GROUP BY data_agendamento
+       ORDER BY data_agendamento ASC`,
+      [numSemanas]
+    );
+    
+    // Agrupar por semana
+    const semanaMap = {};
+    result.rows.forEach(row => {
+      const date = new Date(row.data_agendamento);
+      // Calcular o início da semana (segunda-feira)
+      const dayOfWeek = date.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(date);
+      monday.setDate(date.getDate() + mondayOffset);
+      const weekKey = monday.toISOString().split('T')[0];
+      
+      if (!semanaMap[weekKey]) {
+        semanaMap[weekKey] = { 
+          inicio: weekKey, 
+          dias: [],
+          totalAgendados: 0, 
+          totalRealizados: 0, 
+          totalFaltas: 0,
+          totalPendentes: 0,
+          totalCancelados: 0
+        };
+      }
+      
+      const dia = {
+        data: row.data_agendamento,
+        agendados: parseInt(row.agendados),
+        realizados: parseInt(row.realizados),
+        faltas: parseInt(row.faltas),
+        pendentes: parseInt(row.pendentes),
+        cancelados: parseInt(row.cancelados)
+      };
+      semanaMap[weekKey].dias.push(dia);
+      semanaMap[weekKey].totalAgendados += dia.agendados;
+      semanaMap[weekKey].totalRealizados += dia.realizados;
+      semanaMap[weekKey].totalFaltas += dia.faltas;
+      semanaMap[weekKey].totalPendentes += dia.pendentes;
+      semanaMap[weekKey].totalCancelados += dia.cancelados;
+    });
+    
+    res.json({
+      metaDiaria: 12,
+      metaSemanal: 36,
+      diasColetaPorSemana: 3,
+      semanas: Object.values(semanaMap)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET - Dashboard de Coletas para controle manual (entrada manual de dados)
+app.get('/api/dashboard/coletas-manual', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM coletas_controle ORDER BY data_coleta ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    // Tabela pode não existir ainda
+    res.json([]);
+  }
+});
+
+// POST - Salvar registro manual de coleta
+app.post('/api/dashboard/coletas-manual', async (req, res) => {
+  try {
+    // Criar tabela se não existir
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coletas_controle (
+        id SERIAL PRIMARY KEY,
+        data_coleta DATE NOT NULL,
+        agendados INTEGER NOT NULL DEFAULT 0,
+        realizados INTEGER NOT NULL DEFAULT 0,
+        faltas INTEGER NOT NULL DEFAULT 0,
+        observacoes TEXT,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(data_coleta)
+      )
+    `);
+    
+    const { data_coleta, agendados, realizados, faltas, observacoes } = req.body;
+    if (!data_coleta) return res.status(400).json({ error: 'Data é obrigatória' });
+    
+    const result = await pool.query(
+      `INSERT INTO coletas_controle (data_coleta, agendados, realizados, faltas, observacoes)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (data_coleta) 
+       DO UPDATE SET agendados = $2, realizados = $3, faltas = $4, observacoes = $5, created_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [data_coleta, agendados || 0, realizados || 0, faltas || 0, observacoes || null]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE - Remover registro manual de coleta
+app.delete('/api/dashboard/coletas-manual/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM coletas_controle WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET – listar agendamentos com filtros
 app.get('/api/agendamentos', async (req, res) => {
   try {
