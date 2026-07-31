@@ -274,10 +274,36 @@ let metricsData = null, hourlyData = null;
 let coletasPrincipalChart = null, coletasComparativoChart = null, coletasEficaciaChart = null;
 let coletasData = [];
 
-const DIAS_SEMANA = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const META_DIARIA = 12;
 const META_SEMANAL = 36;
+
+function parseDateParts(dateStr) {
+  if (!dateStr) return null;
+  const cleanStr = dateStr.split('T')[0];
+  const parts = cleanStr.split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1;
+    const day = parseInt(parts[2]);
+    return new Date(year, month, day, 12, 0, 0);
+  }
+  return new Date(dateStr);
+}
+
+function getDayOfWeekFromDateString(dateStr) {
+  const dt = parseDateParts(dateStr);
+  if (dt && !isNaN(dt.getTime())) {
+    return DIAS_SEMANA[dt.getDay()] || 'Sexta-feira';
+  }
+  return 'Sexta-feira';
+}
+
+function getDayOfWeekNumFromDateString(dateStr) {
+  const dt = parseDateParts(dateStr);
+  return (dt && !isNaN(dt.getTime())) ? dt.getDay() : 5;
+}
 
 function formatDateBR(dateStr) {
   if (!dateStr) return '';
@@ -360,9 +386,10 @@ async function loadDashboard() {
   try {
     const data = document.getElementById('dashDateFilter').value;
     if (data) {
-        const dateObj = new Date(data + 'T12:00:00');
-        const dataBR = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-        document.getElementById('dashDate').textContent = `(${formatDateBR(data)} — ${dataBR})`;
+        const dt = parseDateParts(data);
+        const diaSemanaStr = dt ? DIAS_SEMANA[dt.getDay()] : '';
+        const dataBR = dt ? dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : data;
+        document.getElementById('dashDate').textContent = `(${formatDateBR(data)} — ${diaSemanaStr}, ${dataBR})`;
     }
     const [mRes, hRes] = await Promise.all([
         fetch(`${API_URL}/dashboard/metrics?data=${data}`),
@@ -391,14 +418,12 @@ function renderMetrics() {
   if (totalWaiting >= 40) occupancyColor = 'var(--red)';
   else if (totalWaiting >= 30) occupancyColor = 'var(--orange)';
 
-  // Horário de Pico
   let peakHourStr = '—';
   if (hourlyData.calls && hourlyData.calls.length > 0) {
     const sorted = [...hourlyData.calls].sort((a, b) => parseInt(b.total) - parseInt(a.total));
     if (sorted[0]) peakHourStr = `${sorted[0].hour}:00 (${sorted[0].total})`;
   }
 
-  // Setor mais demandado
   let topSetorStr = '—';
   if (d.attendedBySetor && d.attendedBySetor.length > 0) {
     const sortedSetor = [...d.attendedBySetor].sort((a, b) => parseInt(b.total) - parseInt(a.total));
@@ -430,14 +455,12 @@ function renderCharts() {
   const entriesByHour = hours.map(h => { const r = hourlyData.entries.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
   const desistByHour = hours.map(h => { const r = hourlyData.desistencias.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
 
-  // 1. Atendimentos por Hora
   if (hourlyChart) hourlyChart.destroy();
   hourlyChart = new Chart(document.getElementById('chartHourly'), {
     type: 'bar', data: { labels, datasets: [{ label: 'Atendimentos', data: callsByHour, backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 6 }] },
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
-  // 2. Entradas vs Atendimentos
   if (flowChart) flowChart.destroy();
   flowChart = new Chart(document.getElementById('chartFlow'), {
     type: 'line', data: { labels, datasets: [
@@ -448,7 +471,6 @@ function renderCharts() {
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
-  // 3. Ocupação da Recepção
   let currentWaiting = 0;
   const waitingOverTime = hours.map(h => {
     const entries = entriesByHour[hours.indexOf(h)] || 0;
@@ -472,7 +494,6 @@ function renderCharts() {
     }
   });
 
-  // 4. Donut: Distribuição por Setor
   const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
   const setoresColors = ['#8e24aa','#4aab3c','#1a4fc4','#f4821e','#009688','#e91e63','#00bcd4'];
   const dataSetores = setores.map(s => {
@@ -500,7 +521,6 @@ function renderCharts() {
     }
   });
 
-  // 5. Barras Horizontais: Tempo de Espera Médio por Setor
   const dataTempos = setores.map(s => {
     const r = metricsData.avgWaitBySetor.find(w => w.setor === s);
     return r ? parseFloat(r.avg_minutes).toFixed(0) : 0;
@@ -630,9 +650,8 @@ function renderColetasTable(monthData) {
   const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
   
   tbody.innerHTML = sorted.map(c => {
-    const dt = new Date(c.data_coleta + 'T12:00:00');
-    const dayOfWeekNum = dt.getDay(); // 3 = Quarta, 4 = Quinta, 5 = Sexta
-    const diaSemana = DIAS_SEMANA[dayOfWeekNum];
+    const dayOfWeekNum = getDayOfWeekNumFromDateString(c.data_coleta);
+    const diaSemana = getDayOfWeekFromDateString(c.data_coleta);
     const dataBR = formatDateBR(c.data_coleta);
     const atingiuMeta = c.realizados >= META_DIARIA;
     const pctMeta = Math.round((c.realizados / META_DIARIA) * 100);
@@ -649,7 +668,7 @@ function renderColetasTable(monthData) {
     
     return `<tr>
       <td style="font-weight:700;">${dataBR}</td>
-      <td>${diaSemana}</td>
+      <td style="font-weight:700; color:var(--yellow);">${diaSemana}</td>
       <td>${tipoTag}</td>
       <td style="font-weight:800;color:var(--blue);">${c.agendados}</td>
       <td style="font-weight:800;color:${atingiuMeta ? 'var(--green)' : 'var(--orange)'};">${c.realizados}</td>
@@ -754,7 +773,11 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
 
 function renderColetasGraficoDiario(monthData) {
   const sorted = [...monthData].sort((a, b) => new Date(a.data_coleta) - new Date(b.data_coleta));
-  const labels = sorted.map(c => formatDateBR(c.data_coleta).substring(0, 5));
+  const labels = sorted.map(c => {
+    const dataBR = formatDateBR(c.data_coleta).substring(0, 5);
+    const diaSemana = getDayOfWeekFromDateString(c.data_coleta);
+    return `${dataBR} (${diaSemana})`;
+  });
 
   document.getElementById('chartPrincipalTitle').textContent = `📊 Coletas por Dia (Detalhamento Diário)`;
   document.getElementById('chartComparativoTitle').textContent = `📈 Realizados vs Faltas por Dia`;
@@ -916,14 +939,14 @@ async function exportColetasPDF() {
     const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
     if (sorted.length > 0) {
       const rows = sorted.map(c => {
-        const dt = new Date(c.data_coleta + 'T12:00:00');
-        const dayOfWeekNum = dt.getDay();
+        const dayOfWeekNum = getDayOfWeekNumFromDateString(c.data_coleta);
+        const diaSemana = getDayOfWeekFromDateString(c.data_coleta);
         const isDiaPadrao = [3, 4, 5].includes(dayOfWeekNum);
         const dataBR = formatDateBR(c.data_coleta);
         const pct = Math.round((c.realizados / META_DIARIA) * 100);
         return [
           dataBR,
-          DIAS_SEMANA[dayOfWeekNum],
+          diaSemana,
           isDiaPadrao ? 'Dia Padrão' : 'Dia Extra',
           c.agendados.toString(),
           c.realizados.toString(),
