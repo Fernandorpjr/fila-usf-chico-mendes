@@ -108,12 +108,20 @@
 </header>
 
 <div class="main" id="dashContent" style="display:none;">
-  <div class="title">📊 Métricas em Tempo Real <span style="font-size:14px;color:var(--gray-300);font-weight:600;margin-left:12px;" id="dashDate"></span></div>
+  <div class="title" style="justify-content:space-between;">
+    <span>📊 Métricas em Tempo Real <span style="font-size:14px;color:var(--gray-300);font-weight:600;margin-left:12px;" id="dashDate"></span></span>
+    <button class="btn-pdf" id="btnExportTopPDF" onclick="exportDailyReport()">📄 Exportar Gráficos em PDF</button>
+  </div>
 
   <div class="metrics" id="metricsGrid"></div>
 
   <div class="charts">
-    <div class="chart-card" style="grid-column: span 2;"><div class="chart-title">🛋️ Ocupação da Recepção (Pacientes no Local)</div><canvas id="chartOccupancy" style="max-height:300px;"></canvas></div>
+    <div class="chart-card" style="grid-column: span 2;">
+      <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>🛋️ Ocupação da Recepção (Pacientes no Local)</span>
+      </div>
+      <canvas id="chartOccupancy" style="max-height:300px;"></canvas>
+    </div>
     <div class="chart-card"><div class="chart-title">📈 Atendimentos por Hora</div><canvas id="chartHourly"></canvas></div>
     <div class="chart-card"><div class="chart-title">🔄 Entradas vs Atendimentos</div><canvas id="chartFlow"></canvas></div>
   </div>
@@ -121,7 +129,7 @@
   <div class="table-card">
     <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
       <span>⏱️ Tempo Médio de Espera por Setor</span>
-      <button class="btn-export" onclick="exportDailyReport()">📄 Exportar Relatório do Dia</button>
+      <button class="btn-export" onclick="exportDailyReport()">📄 Exportar Relatório em PDF</button>
     </div>
     <table><thead><tr><th>Setor</th><th>Tempo Médio</th><th>Aguardando</th><th>Atendidos</th><th>Gargalo</th></tr></thead><tbody id="waitTable"></tbody></table>
   </div>
@@ -132,7 +140,7 @@
   <div class="title" style="justify-content:space-between;">
     <span>🩸 Controle de Coletas de Sangue</span>
     <div style="display:flex;gap:10px;">
-      <button class="btn-pdf" onclick="exportColetasPDF()">📄 Exportar Gráficos em PDF</button>
+      <button class="btn-pdf" onclick="exportColetasPDF()">📄 Exportar Gráficos de Coleta em PDF</button>
     </div>
   </div>
 
@@ -624,11 +632,12 @@ function renderColetasCharts() {
   });
 }
 
-// ====== EXPORTAR GRÁFICOS EM PDF ======
+// ====== EXPORTAR GRÁFICOS DE COLETAS EM PDF ======
 async function exportColetasPDF() {
   if (!window.jspdf || !window.html2canvas) { alert('Aguarde o carregamento dos scripts...'); return; }
   
   const btn = document.querySelector('.btn-pdf');
+  const origText = btn.textContent;
   btn.textContent = '⏳ Gerando PDF...';
   btn.disabled = true;
 
@@ -736,36 +745,110 @@ async function exportColetasPDF() {
     alert('Erro ao gerar PDF. Tente novamente.');
   }
 
-  btn.textContent = '📄 Exportar Gráficos em PDF';
+  btn.textContent = origText;
   btn.disabled = false;
 }
 
-function exportDailyReport() {
-  if (!window.jspdf) { alert('Carregando...'); return; }
-  const { jsPDF } = window.jspdf; const doc = new jsPDF();
-  doc.setFont('helvetica','bold'); doc.setFontSize(18);
-  doc.text('Dashboard Diário – USF Chico Mendes', 105, 20, { align: 'center' });
-  doc.setFontSize(12); doc.setFont('helvetica','normal');
-  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')} | Gerado: ${new Date().toLocaleTimeString('pt-BR')}`, 105, 28, { align: 'center' });
+// ====== EXPORTAR RELATÓRIO DO DIA COM GRÁFICOS (OCUPAÇÃO DA RECEPÇÃO) EM PDF ======
+async function exportDailyReport() {
+  if (!window.jspdf || !window.html2canvas) { alert('Aguarde o carregamento dos scripts...'); return; }
+  
+  const btn = document.getElementById('btnExportTopPDF') || document.querySelector('.btn-export');
+  const originalText = btn.textContent;
+  btn.textContent = '⏳ Gerando PDF...';
+  btn.disabled = true;
 
-  const d = metricsData;
-  const totalWaiting = d.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
-  doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.text('Resumo', 14, 45);
-  doc.setFontSize(11); doc.setFont('helvetica','normal');
-  doc.text(`Total Atendidos: ${d.totalAttended}`, 14, 55);
-  doc.text(`Aguardando: ${totalWaiting}`, 14, 62);
-  doc.text(`Desistências: ${d.totalDesist} (${d.dropoutRate}%)`, 14, 69);
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
 
-  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
-  const rows = setores.map(s => {
-    const w = d.avgWaitBySetor.find(r => r.setor === s);
-    const wt = d.waitingBySetor.find(r => r.setor === s);
-    const at = d.attendedBySetor.find(r => r.setor === s);
-    return [s, w ? parseFloat(w.avg_minutes).toFixed(0)+' min' : '-', wt ? wt.total : '0', at ? at.total : '0'];
-  });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('Dashboard Diário – USF Chico Mendes', pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const dataFiltro = document.getElementById('dashDateFilter').value || new Date().toISOString().split('T')[0];
+    doc.text(`Data: ${dataFiltro} | Gerado: ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 22, { align: 'center' });
 
-  doc.autoTable({ startY: 80, head: [['Setor','Tempo Médio','Aguardando','Atendidos']], body: rows, theme: 'grid', headStyles: { fillColor: [26,79,196] } });
-  doc.save(`dashboard_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+    const d = metricsData || { waitingBySetor: [], totalAttended: 0, totalDesist: 0, dropoutRate: 0, avgWaitBySetor: [], bottleneckBySetor: [] };
+    const totalWaiting = d.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
+
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('Resumo do Atendimento', 14, 32);
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    doc.text(`Atendidos: ${d.totalAttended}   |   Aguardando Agora: ${totalWaiting}   |   Desistências: ${d.totalDesist} (${d.dropoutRate}%)`, 14, 38);
+
+    // Capturar Gráfico 1: Ocupação da Recepção
+    const chartOccupancyEl = document.getElementById('chartOccupancy');
+    const canvasOcc = await html2canvas(chartOccupancyEl, { backgroundColor: '#0a1e5c', scale: 2 });
+    const imgOcc = canvasOcc.toDataURL('image/png');
+
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text('1. Ocupação da Recepção (Pacientes no Local):', 14, 46);
+    doc.addImage(imgOcc, 'PNG', 14, 50, pageWidth - 28, 65);
+
+    // Capturar Gráficos 2 e 3: Atendimentos por Hora + Entradas vs Atendimentos
+    const chartHourlyEl = document.getElementById('chartHourly');
+    const canvasHourly = await html2canvas(chartHourlyEl, { backgroundColor: '#0a1e5c', scale: 2 });
+    const imgHourly = canvasHourly.toDataURL('image/png');
+
+    const chartFlowEl = document.getElementById('chartFlow');
+    const canvasFlow = await html2canvas(chartFlowEl, { backgroundColor: '#0a1e5c', scale: 2 });
+    const imgFlow = canvasFlow.toDataURL('image/png');
+
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text('2. Atendimentos por Hora e Fluxo de Entradas:', 14, 122);
+    doc.addImage(imgHourly, 'PNG', 14, 126, (pageWidth - 34) / 2, 55);
+    doc.addImage(imgFlow, 'PNG', (pageWidth + 6) / 2, 126, (pageWidth - 34) / 2, 55);
+
+    // Página 2: Tabela de Setores e Tempo Médio
+    doc.addPage();
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Tempo Médio de Espera e Detalhamento por Setor', pageWidth / 2, 15, { align: 'center' });
+
+    const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
+    const rows = setores.map(s => {
+      const w = d.avgWaitBySetor.find(r => r.setor === s);
+      const wt = d.waitingBySetor.find(r => r.setor === s);
+      const at = d.attendedBySetor.find(r => r.setor === s);
+      const bn = d.bottleneckBySetor.find(r => r.setor === s);
+      return [
+        s,
+        w ? parseFloat(w.avg_minutes).toFixed(0) + ' min' : '-',
+        wt ? wt.total : '0',
+        at ? at.total : '0',
+        bn && parseInt(bn.total) > 0 ? `ALERTA (${bn.total} >30m)` : 'Normal'
+      ];
+    });
+
+    doc.autoTable({
+      startY: 22,
+      head: [['Setor', 'Tempo Médio', 'Aguardando', 'Atendidos', 'Status Gargalo']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [26, 79, 196], fontSize: 10 },
+      bodyStyles: { fontSize: 9 }
+    });
+
+    // Rodapé
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`USF Chico Mendes — Dashboard de Recepção e Atendimento | Página ${i}/${totalPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+    }
+
+    doc.save(`dashboard_recepcao_${dataFiltro}.pdf`);
+  } catch(e) {
+    console.error('Erro ao gerar PDF do Dashboard:', e);
+    alert('Erro ao gerar PDF do Dashboard.');
+  }
+
+  btn.textContent = originalText;
+  btn.disabled = false;
 }
 </script>
 </body>
