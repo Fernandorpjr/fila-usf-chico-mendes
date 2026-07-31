@@ -279,6 +279,79 @@ const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho
 const META_DIARIA = 12;
 const META_SEMANAL = 36;
 
+// ====== PLUGIN CUSTOMIZADO CHART.JS: VALORES E NÚMEROS NOS GRÁFICOS ======
+const customDataLabelsPlugin = {
+  id: 'customDataLabels',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (!meta || meta.hidden) return;
+
+      const isMetaLine = dataset.label && (dataset.label.includes('Meta') || dataset.label.includes('Capacidade') || dataset.label.includes('Lotação'));
+
+      meta.data.forEach((element, index) => {
+        const val = dataset.data[index];
+        if (val === undefined || val === null) return;
+        
+        // Esconder 0 em gráficos de barra para não poluir
+        if (typeof val === 'number' && val === 0 && chart.config.type !== 'doughnut') return;
+
+        ctx.save();
+        ctx.font = 'bold 11px "Nunito Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+
+        const pos = element.tooltipPosition();
+        let yPos = pos.y - 4;
+        let xPos = pos.x;
+
+        if (dataset.type === 'line' || chart.config.type === 'line') {
+          if (isMetaLine) {
+            // Desenhar valor da meta no final ou início da linha
+            if (index !== meta.data.length - 1 && index !== 0) {
+              ctx.restore();
+              return;
+            }
+            ctx.fillStyle = dataset.borderColor || '#f4821e';
+            ctx.textAlign = 'left';
+            xPos = pos.x + 4;
+            yPos = pos.y + 4;
+          } else {
+            ctx.fillStyle = dataset.borderColor || '#f9c823';
+            yPos = pos.y - 6;
+          }
+        } else if (chart.config.type === 'doughnut') {
+          ctx.fillStyle = '#ffffff';
+          yPos = pos.y + 4;
+        } else if (chart.config.options?.indexAxis === 'y') {
+          // Barra Horizontal
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'left';
+          xPos = pos.x + 6;
+          yPos = pos.y + 4;
+        } else {
+          // Barra Vertical
+          ctx.fillStyle = '#ffffff';
+          yPos = pos.y - 3;
+        }
+
+        const text = typeof val === 'number' && val % 1 !== 0 ? val.toFixed(0) : val;
+
+        // Sombreamento para leitura perfeita
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1;
+
+        ctx.fillText(text, xPos, yPos);
+        ctx.restore();
+      });
+    });
+  }
+};
+Chart.register(customDataLabelsPlugin);
+
 function parseDateParts(dateStr) {
   if (!dateStr) return null;
   const cleanStr = dateStr.split('T')[0];
@@ -776,7 +849,7 @@ function renderColetasGraficoDiario(monthData) {
   const labels = sorted.map(c => {
     const dataBR = formatDateBR(c.data_coleta).substring(0, 5);
     const diaSemana = getDayOfWeekFromDateString(c.data_coleta);
-    return `${dataBR} (${diaSemana})`;
+    return `${dataBR} (${diaSemana.substring(0, 3)})`;
   });
 
   document.getElementById('chartPrincipalTitle').textContent = `📊 Coletas por Dia (Detalhamento Diário)`;
