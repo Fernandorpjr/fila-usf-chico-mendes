@@ -790,6 +790,14 @@ function toggleTransferTipoAtendimento() {
         <option value="Curativo">🩹 Curativo</option>
         <option value="Procedimento">🔬 Procedimento</option>
       `;
+    } else if (setor === 'Odontologia') {
+      selectTipo.innerHTML = `
+        <option value="">— Opcional —</option>
+        <option value="Consulta">🩺 Consulta</option>
+        <option value="Acolhimento">💜 Acolhimento</option>
+        <option value="Urgência">🚨 Urgência</option>
+        <option value="Retorno">🔄 Retorno</option>
+      `;
     } else if (tipoGrupo.style.display === 'block') {
       selectTipo.innerHTML = `
         <option value="">— Opcional —</option>
@@ -999,6 +1007,13 @@ function toggleTipoAtendimento() {
         <option value="Curativo">🩹 Curativo</option>
         <option value="Procedimento">🔬 Procedimento</option>
       `;
+    } else if (setor === 'Odontologia') {
+      selectTipo.innerHTML = `
+        <option value="Consulta">🩺 Consulta</option>
+        <option value="Acolhimento">💜 Acolhimento</option>
+        <option value="Urgência">🚨 Urgência</option>
+        <option value="Retorno">🔄 Retorno</option>
+      `;
     } else {
       selectTipo.innerHTML = `
         <option value="Consulta">🩺 Consulta</option>
@@ -1085,6 +1100,11 @@ async function addPatient(btn) {
   } else if (setor === 'Acolhimento 2ª Escuta') {
     setor = 'Acolhimento';
     tipo_atendimento = '2ª Escuta';
+  } else if (setor === 'Odontologia' && tipo_atendimento === 'Acolhimento') {
+    // Acolhimento Odontológico: pula 1ª escuta, vai direto para 2ª escuta
+    setor = 'Acolhimento';
+    tipo_atendimento = 'Acolhimento Odontológico';
+    etapa_fluxo = 'segunda_escuta';
   }
 
   if (btn) btn.disabled = true;
@@ -1750,14 +1770,10 @@ async function applyFilters() {
 
 // ====== CHAT AVANÇADO COM CANAIS ======
 const CANAIS = [
-  { id:'geral', nome:'📢 Geral', desc:'Todos os setores' },
-  { id:'acolhimento', nome:'💜 Acolhimento', desc:'Canal do Acolhimento' },
-  { id:'farmacia', nome:'💊 Farmácia', desc:'Canal da Farmácia' },
-  { id:'regulacao', nome:'📋 Regulação', desc:'Canal da Regulação' },
-  { id:'medico', nome:'🩺 Médico', desc:'Canal Médico' },
-  { id:'enfermagem', nome:'👩‍⚕️ Enfermagem', desc:'Canal da Enfermagem' },
-  { id:'odontologia', nome:'🦷 Odontologia', desc:'Canal da Odontologia' },
-  { id:'gerencia', nome:'🏛️ Gerência', desc:'Canal da Gerência' }
+  { id:'geral', nome:'📢 Canal Geral', desc:'Todos os setores e profissionais' },
+  { id:'medico', nome:'🩺 Canal Médico', desc:'Comunicação da equipe médica' },
+  { id:'enfermagem', nome:'👩‍⚕️ Canal Enfermagem', desc:'Comunicação da equipe de enfermagem' },
+  { id:'odontologia', nome:'🦷 Canal Odontologia', desc:'Comunicação da equipe de odontologia' }
 ];
 let chatPanelOpen = false;
 
@@ -1804,10 +1820,8 @@ function onChatSetorChange() {
 }
 
 function getVisibleCanais() {
-  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
-  if (setor === 'Gerência') return CANAIS;
-  const setorKey = setor.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'');
-  return CANAIS.filter(c => c.id === 'geral' || c.id === 'gerencia' || c.id === setorKey);
+  // Todos os 4 canais são visíveis para todos os setores
+  return CANAIS;
 }
 
 /* === MELHORIA C: PRESENÇA E PREVIEW NO CHAT === */
