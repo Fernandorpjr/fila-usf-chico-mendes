@@ -14,19 +14,20 @@
   :root { --blue:#1a4fc4; --blue-dark:#0f3491; --blue-bg:#0a1e5c; --green:#4aab3c; --orange:#f4821e; --red:#e53935; --yellow:#f9c823; --white:#fff; --gray-100:#f0f4ff; --gray-300:#b8c8f0; --gray-600:#5a6a8c; --radius:16px; --purple:#8e24aa; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Nunito Sans',sans-serif; background:var(--blue-bg); min-height:100vh; color:var(--white); }
-  .header { background:linear-gradient(135deg,var(--blue-dark),var(--blue)); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:64px; border-bottom:3px solid var(--orange); }
+  .header { background:linear-gradient(135deg,var(--blue-dark),var(--blue)); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:64px; border-bottom:3px solid var(--orange); flex-wrap:wrap; }
   .logo { font-family:'Nunito',sans-serif; font-size:22px; font-weight:900; }
   .header a { color:var(--gray-300); text-decoration:none; font-weight:700; font-size:14px; }
   .header a:hover { color:var(--white); }
   .main { max-width:1300px; margin:0 auto; padding:28px 32px; }
   .title { font-family:'Nunito',sans-serif; font-size:24px; font-weight:900; margin-bottom:24px; display:flex; align-items:center; gap:12px; }
-  .metrics { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; margin-bottom:32px; }
-  .metric-card { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:24px; }
+  .metrics { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin-bottom:32px; }
+  .metric-card { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:20px; transition:transform 0.2s, box-shadow 0.2s; }
+  .metric-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.2); }
   .metric-card.alert { border-color:var(--red); background:rgba(229,57,53,0.1); animation:pulseCard 1.5s infinite; }
   @keyframes pulseCard { 0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.4);} 50%{box-shadow:0 0 0 8px rgba(229,57,53,0);} }
-  .metric-value { font-family:'Nunito',sans-serif; font-size:36px; font-weight:900; line-height:1; }
-  .metric-label { font-size:13px; color:var(--gray-300); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; }
-  .metric-icon { font-size:28px; margin-bottom:8px; }
+  .metric-value { font-family:'Nunito',sans-serif; font-size:32px; font-weight:900; line-height:1; }
+  .metric-label { font-size:12px; color:var(--gray-300); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; }
+  .metric-icon { font-size:26px; margin-bottom:6px; }
   .charts { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:32px; }
   .chart-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:24px; }
   .chart-title { font-family:'Nunito',sans-serif; font-size:16px; font-weight:800; margin-bottom:16px; }
@@ -42,6 +43,8 @@
   .btn-export:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(74,171,60,0.4); }
   .btn-pdf { background:linear-gradient(135deg,#e53935,#b71c1c); color:white; border:none; border-radius:12px; padding:12px 24px; font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
   .btn-pdf:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(229,57,53,0.4); }
+  .btn-quick-date { background:rgba(255,255,255,0.12); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; }
+  .btn-quick-date:hover { background:rgba(255,255,255,0.25); }
   .lock-overlay { position:fixed; inset:0; background:rgba(5,18,60,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
   .lock-box { background:var(--white); border-radius:24px; padding:40px 48px; text-align:center; max-width:400px; width:90%; color:var(--blue-dark); }
   .lock-box input { padding:14px 16px; border:2px solid #dde5f8; border-radius:10px; font-size:18px; width:100%; text-align:center; font-weight:700; font-family:'Nunito',sans-serif; margin:16px 0; outline:none; letter-spacing:4px; }
@@ -95,9 +98,11 @@
       <span style="color:var(--green);font-weight:800;" id="dashActiveUsers">?</span> <span style="color:var(--gray-300);">Conectados</span>
     </div>
   </div>
-  <div style="display:flex;gap:20px;align-items:center;">
+  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
     <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);padding:6px 12px;border-radius:10px;">
-      <label for="dashDateFilter" style="font-size:12px;font-weight:800;color:var(--gray-300);text-transform:uppercase;">Filtrar Data:</label>
+      <button class="btn-quick-date" onclick="setQuickDate('hoje')">Hoje</button>
+      <button class="btn-quick-date" onclick="setQuickDate('ontem')">Ontem</button>
+      <label for="dashDateFilter" style="font-size:12px;font-weight:800;color:var(--gray-300);text-transform:uppercase;margin-left:4px;">Data:</label>
       <input type="date" id="dashDateFilter" onchange="loadDashboard()" style="background:transparent;border:none;color:white;font-family:'Nunito',sans-serif;font-weight:700;outline:none;cursor:pointer;">
     </div>
     <span id="dashClock" style="font-family:'Nunito',sans-serif;font-weight:800;color:var(--yellow);font-size:18px;"></span>
@@ -106,27 +111,41 @@
 </header>
 
 <div class="main" id="dashContent" style="display:none;">
-  <div class="title" style="justify-content:space-between;">
-    <span>📊 Métricas em Tempo Real <span style="font-size:14px;color:var(--gray-300);font-weight:600;margin-left:12px;" id="dashDate"></span></span>
-    <button class="btn-pdf" id="btnExportTopPDF" onclick="exportDailyReport()">📄 Exportar Gráficos em PDF</button>
+  <!-- ====== SEÇÃO DE MÉTRICAS EM TEMPO REAL ====== -->
+  <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:16px;">
+    <span>
+      ⚡ Métricas em Tempo Real
+      <span style="font-size:14px;color:var(--gray-300);font-weight:600;margin-left:12px;" id="dashDate"></span>
+    </span>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <span style="font-size:12px; color:var(--green); font-weight:700; background:rgba(74,171,60,0.15); padding:4px 10px; border-radius:12px; border:1px solid rgba(74,171,60,0.3);" id="lastRefreshTime">
+        🟢 Atualização Automática (10s)
+      </span>
+      <button class="btn-pdf" id="btnExportTopPDF" onclick="exportDailyReport()">📄 Exportar Gráficos em PDF</button>
+    </div>
   </div>
 
+  <!-- Cards de KPIs Expandidos em Tempo Real -->
   <div class="metrics" id="metricsGrid"></div>
 
+  <!-- Gráficos Principais de Atendimento em Tempo Real -->
   <div class="charts">
     <div class="chart-card" style="grid-column: span 2;">
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>🛋️ Ocupação da Recepção (Pacientes no Local)</span>
+        <span>🛋️ Ocupação da Recepção (Pacientes no Local em Tempo Real)</span>
       </div>
       <canvas id="chartOccupancy" style="max-height:300px;"></canvas>
     </div>
     <div class="chart-card"><div class="chart-title">📈 Atendimentos por Hora</div><canvas id="chartHourly"></canvas></div>
     <div class="chart-card"><div class="chart-title">🔄 Entradas vs Atendimentos</div><canvas id="chartFlow"></canvas></div>
+    <div class="chart-card"><div class="chart-title">📊 Distribuição de Atendimentos por Setor</div><canvas id="chartSetoresDonut"></canvas></div>
+    <div class="chart-card"><div class="chart-title">⏱️ Tempo Médio de Espera Comparativo por Setor (min)</div><canvas id="chartTempoEsperaBar"></canvas></div>
   </div>
 
+  <!-- Tabela de Setores -->
   <div class="table-card">
     <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
-      <span>⏱️ Tempo Médio de Espera por Setor</span>
+      <span>⏱️ Detalhamento do Tempo Médio de Espera e Gargalos por Setor</span>
       <button class="btn-export" onclick="exportDailyReport()">📄 Exportar Relatório em PDF</button>
     </div>
     <table><thead><tr><th>Setor</th><th>Tempo Médio</th><th>Aguardando</th><th>Atendidos</th><th>Gargalo</th></tr></thead><tbody id="waitTable"></tbody></table>
@@ -236,7 +255,8 @@
 <script>
 // @ts-nocheck
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-let hourlyChart = null, flowChart = null, occupancyChart = null, metricsData = null, hourlyData = null;
+let hourlyChart = null, flowChart = null, occupancyChart = null, setoresDonutChart = null, tempoEsperaBarChart = null;
+let metricsData = null, hourlyData = null;
 let coletasPrincipalChart = null, coletasComparativoChart = null, coletasEficaciaChart = null;
 let coletasData = [];
 
@@ -253,6 +273,19 @@ function formatDateBR(dateStr) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
   return dateStr;
+}
+
+function setQuickDate(tipo) {
+  const input = document.getElementById('dashDateFilter');
+  const now = new Date();
+  if (tipo === 'hoje') {
+    input.value = now.toISOString().split('T')[0];
+  } else if (tipo === 'ontem') {
+    const ontem = new Date(now);
+    ontem.setDate(now.getDate() - 1);
+    input.value = ontem.toISOString().split('T')[0];
+  }
+  loadDashboard();
 }
 
 function verifyDashboardAccess() {
@@ -278,7 +311,8 @@ function updateDashClock() {
   const now = new Date();
   document.getElementById('dashClock').textContent = now.toLocaleTimeString('pt-BR');
   if (!document.getElementById('dashDateFilter').value) {
-    document.getElementById('dashDate').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    const dataBR = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    document.getElementById('dashDate').textContent = dataBR;
   }
 }
 setInterval(updateDashClock, 1000); updateDashClock();
@@ -292,7 +326,8 @@ async function loadDashboard() {
     const data = document.getElementById('dashDateFilter').value;
     if (data) {
         const dateObj = new Date(data + 'T12:00:00');
-        document.getElementById('dashDate').textContent = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+        const dataBR = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+        document.getElementById('dashDate').textContent = `(${formatDateBR(data)} — ${dataBR})`;
     }
     const [mRes, hRes] = await Promise.all([
         fetch(`${API_URL}/dashboard/metrics?data=${data}`),
@@ -303,12 +338,16 @@ async function loadDashboard() {
     renderMetrics();
     renderCharts();
     renderWaitTable();
+
+    const lastRef = document.getElementById('lastRefreshTime');
+    if (lastRef) lastRef.textContent = `🟢 Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
   } catch (e) { console.error('Dashboard error:', e); }
 }
 
 function renderMetrics() {
   const d = metricsData;
   const totalWaiting = d.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
+  const totalEntries = hourlyData.entries ? hourlyData.entries.reduce((s, r) => s + parseInt(r.total), 0) : 0;
   const hasBottleneck = d.bottleneckBySetor.length > 0;
   const avgWaitAll = d.avgWaitBySetor.length ? (d.avgWaitBySetor.reduce((s, r) => s + parseFloat(r.avg_minutes || 0), 0) / d.avgWaitBySetor.length).toFixed(0) : '0';
 
@@ -317,8 +356,26 @@ function renderMetrics() {
   if (totalWaiting >= 40) occupancyColor = 'var(--red)';
   else if (totalWaiting >= 30) occupancyColor = 'var(--orange)';
 
+  // Horário de Pico
+  let peakHourStr = '—';
+  if (hourlyData.calls && hourlyData.calls.length > 0) {
+    const sorted = [...hourlyData.calls].sort((a, b) => parseInt(b.total) - parseInt(a.total));
+    if (sorted[0]) peakHourStr = `${sorted[0].hour}:00 (${sorted[0].total})`;
+  }
+
+  // Setor mais demandado
+  let topSetorStr = '—';
+  if (d.attendedBySetor && d.attendedBySetor.length > 0) {
+    const sortedSetor = [...d.attendedBySetor].sort((a, b) => parseInt(b.total) - parseInt(a.total));
+    if (sortedSetor[0]) topSetorStr = `${sortedSetor[0].setor} (${sortedSetor[0].total})`;
+  }
+
+  // Taxa de Atendimento
+  const atendEfic = totalEntries > 0 ? Math.round((d.totalAttended / totalEntries) * 100) : 100;
+
   document.getElementById('metricsGrid').innerHTML = `
-    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${d.totalAttended}</div><div class="metric-label">Atendidos Hoje</div></div>
+    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${d.totalAttended}</div><div class="metric-label">Atendidos</div></div>
+    <div class="metric-card"><div class="metric-icon">📥</div><div class="metric-value" style="color:var(--blue);">${totalEntries}</div><div class="metric-label">Entradas Registradas</div></div>
     <div class="metric-card ${totalWaiting >= 40 ? 'occupancy-alert' : ''}">
       <div class="metric-icon">🛋️</div>
       <div class="metric-value" style="color:${occupancyColor};">${totalWaiting} / 40</div>
@@ -326,6 +383,8 @@ function renderMetrics() {
       <div class="occupancy-bar-container"><div class="occupancy-bar" style="width:${occupancyPercent}%; background-color:${occupancyColor};"></div></div>
     </div>
     <div class="metric-card"><div class="metric-icon">⏱️</div><div class="metric-value" style="color:var(--yellow);">${avgWaitAll} min</div><div class="metric-label">Tempo Médio Espera</div></div>
+    <div class="metric-card"><div class="metric-icon">⚡</div><div class="metric-value" style="color:var(--orange); font-size:22px; margin-top:4px;">${peakHourStr}</div><div class="metric-label">Horário de Pico</div></div>
+    <div class="metric-card"><div class="metric-icon">🏆</div><div class="metric-value" style="color:var(--purple); font-size:20px; margin-top:4px;">${topSetorStr}</div><div class="metric-label">Setor Maior Demanda</div></div>
     <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" style="color:var(--red);">${d.dropoutRate}%</div><div class="metric-label">Taxa Desistência</div></div>
     <div class="metric-card ${hasBottleneck ? 'alert' : ''}"><div class="metric-icon">${hasBottleneck ? '🔴' : '🟢'}</div><div class="metric-value" style="color:${hasBottleneck ? 'var(--red)' : 'var(--green)'};">${hasBottleneck ? 'ALERTA' : 'OK'}</div><div class="metric-label">Gargalo (>30min)</div></div>
   `;
@@ -339,12 +398,14 @@ function renderCharts() {
   const entriesByHour = hours.map(h => { const r = hourlyData.entries.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
   const desistByHour = hours.map(h => { const r = hourlyData.desistencias.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
 
+  // 1. Atendimentos por Hora
   if (hourlyChart) hourlyChart.destroy();
   hourlyChart = new Chart(document.getElementById('chartHourly'), {
     type: 'bar', data: { labels, datasets: [{ label: 'Atendimentos', data: callsByHour, backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 6 }] },
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
+  // 2. Entradas vs Atendimentos
   if (flowChart) flowChart.destroy();
   flowChart = new Chart(document.getElementById('chartFlow'), {
     type: 'line', data: { labels, datasets: [
@@ -355,6 +416,7 @@ function renderCharts() {
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
+  // 3. Ocupação da Recepção
   let currentWaiting = 0;
   const waitingOverTime = hours.map(h => {
     const entries = entriesByHour[hours.indexOf(h)] || 0;
@@ -377,6 +439,60 @@ function renderCharts() {
       scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } } 
     }
   });
+
+  // 4. Donut: Distribuição por Setor
+  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
+  const setoresColors = ['#8e24aa','#4aab3c','#1a4fc4','#f4821e','#009688','#e91e63','#00bcd4'];
+  const dataSetores = setores.map(s => {
+    const r = metricsData.attendedBySetor.find(a => a.setor === s);
+    return r ? parseInt(r.total) : 0;
+  });
+
+  if (setoresDonutChart) setoresDonutChart.destroy();
+  setoresDonutChart = new Chart(document.getElementById('chartSetoresDonut'), {
+    type: 'doughnut',
+    data: {
+      labels: setores,
+      datasets: [{
+        data: dataSetores,
+        backgroundColor: setoresColors,
+        borderWidth: 2,
+        borderColor: '#0a1e5c'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#b8c8f0', font: { weight: 700, size: 11 } } }
+      }
+    }
+  });
+
+  // 5. Barras Horizontais: Tempo de Espera Médio por Setor
+  const dataTempos = setores.map(s => {
+    const r = metricsData.avgWaitBySetor.find(w => w.setor === s);
+    return r ? parseFloat(r.avg_minutes).toFixed(0) : 0;
+  });
+
+  if (tempoEsperaBarChart) tempoEsperaBarChart.destroy();
+  tempoEsperaBarChart = new Chart(document.getElementById('chartTempoEsperaBar'), {
+    type: 'bar',
+    data: {
+      labels: setores,
+      datasets: [{
+        label: 'Minutos de Espera',
+        data: dataTempos,
+        backgroundColor: dataTempos.map(v => v >= 30 ? 'rgba(229,57,53,0.8)' : v >= 15 ? 'rgba(244,130,30,0.8)' : 'rgba(74,171,60,0.8)'),
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 35 }, y: { ticks: { color: '#b8c8f0' } } }
+    }
+  });
 }
 
 function renderWaitTable() {
@@ -391,7 +507,7 @@ function renderWaitTable() {
     const avgMin = wait ? parseFloat(wait.avg_minutes).toFixed(0) : '-';
     const isBottleneck = bottleneck && parseInt(bottleneck.total) > 0;
     return `<tr style="${isBottleneck ? 'color:var(--red);font-weight:800;' : ''}">
-      <td>${s}</td><td>${avgMin === '-' ? '-' : avgMin + ' min'}</td><td>${waiting ? waiting.total : 0}</td><td>${attended ? attended.total : 0}</td>
+      <td style="font-weight:700;">${s}</td><td>${avgMin === '-' ? '-' : avgMin + ' min'}</td><td>${waiting ? waiting.total : 0}</td><td>${attended ? attended.total : 0}</td>
       <td>${isBottleneck ? '🔴 ' + bottleneck.total + ' pacientes' : '🟢 Normal'}</td></tr>`;
   }).join('');
 }
@@ -444,16 +560,11 @@ function renderColetasSection() {
   const monthKey = document.getElementById('coletaMesFilter')?.value || new Date().toISOString().substring(0, 7);
   const visao = document.getElementById('coletaVisaoFilter')?.value || 'semanal';
 
-  // Filtrar coletas pelo mês selecionado
   const monthData = coletasData.filter(c => c.data_coleta && c.data_coleta.startsWith(monthKey));
 
-  // Renderizar KPIs do Mês
   renderColetasKPIs(monthData);
-
-  // Renderizar Tabela do Mês
   renderColetasTable(monthData);
 
-  // Renderizar Gráficos ajustados
   if (visao === 'semanal') {
     renderColetasGraficoSemanal(monthKey, monthData);
   } else {
@@ -466,7 +577,6 @@ function renderColetasKPIs(monthData) {
   const totalRealizados = monthData.reduce((s, c) => s + (c.realizados || 0), 0);
   const totalFaltas = monthData.reduce((s, c) => s + (c.faltas || 0), 0);
   
-  // Eficácia em relação aos agendados
   const eficacia = totalAgendados > 0 ? Math.round((totalRealizados / totalAgendados) * 100) : 0;
 
   document.getElementById('kpiAgendados').textContent = totalAgendados;
@@ -485,7 +595,6 @@ function renderColetasTable(monthData) {
     return;
   }
 
-  // Ordenar por data DESC
   const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
   
   tbody.innerHTML = sorted.map(c => {
@@ -514,13 +623,11 @@ function renderColetasTable(monthData) {
   }).join('');
 }
 
-// ====== AGRUPAMENTO POR SEMANA DO MÊS SELECIONADO ======
 function renderColetasGraficoSemanal(monthKey, monthData) {
   const [yearStr, monthStr] = monthKey.split('-');
   const year = parseInt(yearStr);
   const month = parseInt(monthStr);
 
-  // Dividir o mês em semanas (Semana 1: 01-07, Semana 2: 08-14, Semana 3: 15-21, Semana 4: 22-28, Semana 5: 29-31)
   const semanasMap = [
     { nome: 'Semana 1 (01-07)', start: 1, end: 7, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
     { nome: 'Semana 2 (08-14)', start: 8, end: 14, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
@@ -545,11 +652,9 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
   const realizadosData = semanasMap.map(s => s.realizados);
   const faltasData = semanasMap.map(s => s.faltas);
 
-  // Titulos dos cards
   document.getElementById('chartPrincipalTitle').textContent = `📊 Desempenho por Semana em ${MESES_NOME[month-1]}/${year} (Meta: 36 coletas/semana)`;
   document.getElementById('chartComparativoTitle').textContent = `📈 Realizados vs Faltas por Semana em ${MESES_NOME[month-1]}/${year}`;
 
-  // Gráfico 1 (Principal): Agendados vs Realizados vs Meta Semanal (36)
   if (coletasPrincipalChart) coletasPrincipalChart.destroy();
   coletasPrincipalChart = new Chart(document.getElementById('chartColetasPrincipal'), {
     type: 'bar',
@@ -568,7 +673,6 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
     }
   });
 
-  // Gráfico 2 (Comparativo): Realizados + Faltas por semana
   if (coletasComparativoChart) coletasComparativoChart.destroy();
   coletasComparativoChart = new Chart(document.getElementById('chartColetasComparativo'), {
     type: 'bar',
@@ -587,7 +691,6 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
     }
   });
 
-  // Gráfico 3: Eficácia e Absenteísmo por Semana
   const efData = semanasMap.map(s => s.agendados > 0 ? Math.round((s.realizados / s.agendados) * 100) : 0);
   const absData = semanasMap.map(s => s.agendados > 0 ? Math.round((s.faltas / s.agendados) * 100) : 0);
 
@@ -668,7 +771,7 @@ function renderColetasGraficoDiario(monthData) {
     options: {
       responsive: true,
       plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true } }
+      scales: { x: { ticks: { color: '#b8c8f0' }, beginAtZero: true }, y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true } }
     }
   });
 }
@@ -707,7 +810,7 @@ async function deletarColeta(id) {
   }
 }
 
-// ====== EXPORTAR GRÁFICOS DE COLETAS EM PDF (COM FORMATO DD/MM/AAAA) ======
+// ====== EXPORTAR GRÁFICOS DE COLETAS EM PDF ======
 async function exportColetasPDF() {
   if (!window.jspdf || !window.html2canvas) { alert('Aguarde o carregamento dos scripts...'); return; }
   
@@ -726,7 +829,6 @@ async function exportColetasPDF() {
     const [y, m] = monthKey.split('-');
     const nomeMesAno = `${MESES_NOME[parseInt(m)-1]} / ${y}`;
 
-    // ====== PÁGINA 1: Cabeçalho + KPIs + Gráfico Principal ======
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
     doc.text('Controle de Coletas de Sangue', pageWidth / 2, 15, { align: 'center' });
@@ -736,7 +838,6 @@ async function exportColetasPDF() {
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 28, { align: 'center' });
 
-    // KPIs
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text(`Resumo do Mês (${nomeMesAno}):`, 14, 38);
@@ -752,13 +853,11 @@ async function exportColetasPDF() {
     ];
     kpiTexts.forEach((t, i) => doc.text(t, 14 + (i % 3) * 90, 44 + Math.floor(i / 3) * 6));
 
-    // Capturar gráfico principal
     const chartPrincipal = document.getElementById('chartColetasPrincipal');
     const canvasPrincipal = await html2canvas(chartPrincipal, { backgroundColor: '#0a1e5c', scale: 2 });
     const imgPrincipal = canvasPrincipal.toDataURL('image/png');
     doc.addImage(imgPrincipal, 'PNG', 14, 55, pageWidth - 28, 120);
 
-    // ====== PÁGINA 2: Gráficos Comparativo e Eficácia ======
     doc.addPage();
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
@@ -774,7 +873,6 @@ async function exportColetasPDF() {
     const imgEficacia = canvasEficacia.toDataURL('image/png');
     doc.addImage(imgEficacia, 'PNG', (pageWidth + 7) / 2, 22, (pageWidth - 35) / 2, 80);
 
-    // Tabela de registros formatada em DD/MM/AAAA
     const monthData = coletasData.filter(c => c.data_coleta && c.data_coleta.startsWith(monthKey));
     const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
     if (sorted.length > 0) {
@@ -812,7 +910,6 @@ async function exportColetasPDF() {
       });
     }
 
-    // Rodapé
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
@@ -831,7 +928,7 @@ async function exportColetasPDF() {
   btn.disabled = false;
 }
 
-// ====== EXPORTAR RELATÓRIO DO DIA COM GRÁFICOS EM PDF (DD/MM/AAAA) ======
+// ====== EXPORTAR RELATÓRIO DO DIA COM GRÁFICOS EM PDF ======
 async function exportDailyReport() {
   if (!window.jspdf || !window.html2canvas) { alert('Aguarde o carregamento dos scripts...'); return; }
   
@@ -886,11 +983,24 @@ async function exportDailyReport() {
     doc.addImage(imgHourly, 'PNG', 14, 126, (pageWidth - 34) / 2, 55);
     doc.addImage(imgFlow, 'PNG', (pageWidth + 6) / 2, 126, (pageWidth - 34) / 2, 55);
 
-    // Página 2: Tabela de Setores e Tempo Médio
+    // Capturar Gráficos 4 e 5 na página 2
     doc.addPage();
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text(`Detalhamento por Setor (${dataFiltroFormatada})`, pageWidth / 2, 15, { align: 'center' });
+    const chartDonutEl = document.getElementById('chartSetoresDonut');
+    const canvasDonut = await html2canvas(chartDonutEl, { backgroundColor: '#0a1e5c', scale: 2 });
+    const imgDonut = canvasDonut.toDataURL('image/png');
+
+    const chartTempoBarEl = document.getElementById('chartTempoEsperaBar');
+    const canvasTempoBar = await html2canvas(chartTempoBarEl, { backgroundColor: '#0a1e5c', scale: 2 });
+    const imgTempoBar = canvasTempoBar.toDataURL('image/png');
+
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text('3. Distribuição por Setor e Tempo de Espera Médio:', 14, 15);
+    doc.addImage(imgDonut, 'PNG', 14, 20, (pageWidth - 34) / 2, 60);
+    doc.addImage(imgTempoBar, 'PNG', (pageWidth + 6) / 2, 20, (pageWidth - 34) / 2, 60);
+
+    // Tabela de Setores e Tempo Médio
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+    doc.text(`Detalhamento por Setor (${dataFiltroFormatada})`, 14, 88);
 
     const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
     const rows = setores.map(s => {
@@ -908,7 +1018,7 @@ async function exportDailyReport() {
     });
 
     doc.autoTable({
-      startY: 22,
+      startY: 94,
       head: [['Setor', 'Tempo Médio', 'Aguardando', 'Atendidos', 'Status Gargalo']],
       body: rows,
       theme: 'grid',
