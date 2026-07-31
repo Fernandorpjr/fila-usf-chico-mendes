@@ -66,8 +66,6 @@
   .btn-add-coleta:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(244,130,30,0.4); }
   .btn-delete { background:rgba(229,57,53,0.2); color:var(--red); border:1px solid rgba(229,57,53,0.3); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; }
   .btn-delete:hover { background:rgba(229,57,53,0.4); }
-  .progress-bar-bg { width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; margin-top:6px; }
-  .progress-bar-fill { height:100%; border-radius:3px; transition:width 0.4s ease; }
   .tag-meta { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:800; }
   .tag-ok { background:rgba(74,171,60,0.2); color:#6ddb5a; border:1px solid rgba(74,171,60,0.3); }
   .tag-warning { background:rgba(249,200,35,0.2); color:#f9c823; border:1px solid rgba(249,200,35,0.3); }
@@ -137,20 +135,35 @@
   <!-- ====== SEÇÃO DE COLETAS DE SANGUE ====== -->
   <hr class="section-divider">
   
-  <div class="title" style="justify-content:space-between;">
+  <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:16px;">
     <span>🩸 Controle de Coletas de Sangue</span>
     <div style="display:flex;gap:10px;">
       <button class="btn-pdf" onclick="exportColetasPDF()">📄 Exportar Gráficos de Coleta em PDF</button>
     </div>
   </div>
 
+  <!-- Filtros do Gráfico por Mês e por Semana -->
+  <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:24px; background:rgba(255,255,255,0.06); padding:16px 20px; border-radius:14px; border:1px solid rgba(255,255,255,0.1);">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <label style="font-size:12px; font-weight:800; color:var(--gray-300); text-transform:uppercase;">🗓️ Selecionar Mês:</label>
+      <select id="coletaMesFilter" onchange="renderColetasSection()" style="padding:8px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:#0a1e5c; color:white; font-family:'Nunito',sans-serif; font-weight:700; outline:none; cursor:pointer;"></select>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <label style="font-size:12px; font-weight:800; color:var(--gray-300); text-transform:uppercase;">📊 Visão dos Gráficos:</label>
+      <select id="coletaVisaoFilter" onchange="renderColetasSection()" style="padding:8px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:#0a1e5c; color:white; font-family:'Nunito',sans-serif; font-weight:700; outline:none; cursor:pointer;">
+        <option value="semanal">📈 Por Semana (Agrupado por Semanas do Mês)</option>
+        <option value="diario">📆 Por Dia (Detalhamento Diário)</option>
+      </select>
+    </div>
+  </div>
+
   <!-- KPIs de Coletas -->
   <div class="coletas-metrics" id="coletasMetrics">
     <div class="coleta-metric"><div class="cm-icon">🎯</div><div class="cm-value" style="color:var(--orange);">12</div><div class="cm-label">Meta Diária</div></div>
-    <div class="coleta-metric"><div class="cm-icon">📅</div><div class="cm-value" style="color:var(--yellow);">36</div><div class="cm-label">Meta Semanal (3 dias)</div></div>
-    <div class="coleta-metric"><div class="cm-icon">✅</div><div class="cm-value" style="color:var(--green);" id="kpiRealizados">0</div><div class="cm-label">Realizados (Semana)</div></div>
-    <div class="coleta-metric"><div class="cm-icon">📋</div><div class="cm-value" style="color:var(--blue);" id="kpiAgendados">0</div><div class="cm-label">Agendados (Semana)</div></div>
-    <div class="coleta-metric"><div class="cm-icon">❌</div><div class="cm-value" style="color:var(--red);" id="kpiFaltas">0</div><div class="cm-label">Faltas (Semana)</div></div>
+    <div class="coleta-metric"><div class="cm-icon">📅</div><div class="cm-value" style="color:var(--yellow);" id="kpiMetaMes">36</div><div class="cm-label">Meta Semanal (3 dias)</div></div>
+    <div class="coleta-metric"><div class="cm-icon">✅</div><div class="cm-value" style="color:var(--green);" id="kpiRealizados">0</div><div class="cm-label">Realizados no Mês</div></div>
+    <div class="coleta-metric"><div class="cm-icon">📋</div><div class="cm-value" style="color:var(--blue);" id="kpiAgendados">0</div><div class="cm-label">Agendados no Mês</div></div>
+    <div class="coleta-metric"><div class="cm-icon">❌</div><div class="cm-value" style="color:var(--red);" id="kpiFaltas">0</div><div class="cm-label">Faltas no Mês</div></div>
     <div class="coleta-metric"><div class="cm-icon">📊</div><div class="cm-value" id="kpiEficacia" style="color:var(--green);">0%</div><div class="cm-label">Eficácia (%)</div></div>
   </div>
 
@@ -184,27 +197,27 @@
 
   <!-- Gráficos de Coletas -->
   <div class="charts" id="coletasChartsArea">
-    <div class="chart-card" style="grid-column: span 2;" id="chartColetasDiariosCard">
-      <div class="chart-title">📊 Agendado vs Realizado vs Meta (por dia de coleta)</div>
-      <canvas id="chartColetasDiarios" style="max-height:350px;"></canvas>
+    <div class="chart-card" style="grid-column: span 2;" id="chartColetasPrincipalCard">
+      <div class="chart-title" id="chartPrincipalTitle">📊 Desempenho por Semana no Mês Selecionado (Meta: 36 coletas/semana)</div>
+      <canvas id="chartColetasPrincipal" style="max-height:350px;"></canvas>
     </div>
-    <div class="chart-card" id="chartColetasSemanalCard">
-      <div class="chart-title">📈 Desempenho Semanal (Meta: 36 coletas/semana)</div>
-      <canvas id="chartColetasSemanal"></canvas>
+    <div class="chart-card" id="chartColetasComparativoCard">
+      <div class="chart-title" id="chartComparativoTitle">📈 Realizados vs Faltas por Semana</div>
+      <canvas id="chartColetasComparativo"></canvas>
     </div>
     <div class="chart-card" id="chartColetasEficaciaCard">
-      <div class="chart-title">🎯 Taxa de Eficácia e Absenteísmo</div>
+      <div class="chart-title">🎯 Taxa de Eficácia e Absenteísmo no Mês</div>
       <canvas id="chartColetasEficacia"></canvas>
     </div>
   </div>
 
   <!-- Tabela de Registros -->
   <div class="table-card">
-    <div class="chart-title" style="margin-bottom:16px;">📋 Registros de Coletas Lançados</div>
+    <div class="chart-title" style="margin-bottom:16px;">📋 Registros de Coletas Lançados no Mês</div>
     <table>
       <thead>
         <tr>
-          <th>Data</th>
+          <th>Data (DD/MM/AAAA)</th>
           <th>Dia</th>
           <th>Agendados</th>
           <th>Realizados</th>
@@ -224,8 +237,23 @@
 // @ts-nocheck
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 let hourlyChart = null, flowChart = null, occupancyChart = null, metricsData = null, hourlyData = null;
-let coletasDiariosChart = null, coletasSemanalChart = null, coletasEficaciaChart = null;
+let coletasPrincipalChart = null, coletasComparativoChart = null, coletasEficaciaChart = null;
 let coletasData = [];
+
+const DIAS_SEMANA = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const META_DIARIA = 12;
+const META_SEMANAL = 36;
+
+function formatDateBR(dateStr) {
+  if (!dateStr) return '';
+  if (dateStr.includes('/')) return dateStr;
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
 
 function verifyDashboardAccess() {
   const pwd = document.getElementById('lockPassword').value;
@@ -238,7 +266,6 @@ function verifyDashboardAccess() {
             loadColetasManual();
             setInterval(loadDashboard, 10000);
             
-            // Contagem ao vivo agora é estática ou pode ser atualizada via API se necessário
             document.getElementById('dashActiveUsers').textContent = "API";
         } else { 
             alert('Senha incorreta!'); 
@@ -328,7 +355,6 @@ function renderCharts() {
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
-  // Calculate Waiting over time
   let currentWaiting = 0;
   const waitingOverTime = hours.map(h => {
     const entries = entriesByHour[hours.indexOf(h)] || 0;
@@ -370,26 +396,281 @@ function renderWaitTable() {
   }).join('');
 }
 
-// ====== COLETAS DE SANGUE ======
-
-const DIAS_SEMANA = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-const META_DIARIA = 12;
-const META_SEMANAL = 36;
+// ====== COLETAS DE SANGUE (COM FILTRO MÊS E VISÃO POR SEMANA) ======
 
 async function loadColetasManual() {
   try {
     const r = await fetch(`${API_URL}/dashboard/coletas-manual`);
     coletasData = await r.json();
-    renderColetasTable();
-    renderColetasCharts();
-    renderColetasKPIs();
+    populateMesFilter();
+    renderColetasSection();
   } catch(e) {
     console.error('Erro ao carregar coletas:', e);
     coletasData = [];
-    renderColetasTable();
-    renderColetasCharts();
-    renderColetasKPIs();
+    populateMesFilter();
+    renderColetasSection();
   }
+}
+
+function populateMesFilter() {
+  const select = document.getElementById('coletaMesFilter');
+  if (!select) return;
+
+  const monthsSet = new Set();
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  monthsSet.add(currentMonthKey);
+
+  coletasData.forEach(c => {
+    if (c.data_coleta) {
+      const monthKey = c.data_coleta.substring(0, 7);
+      monthsSet.add(monthKey);
+    }
+  });
+
+  const sortedMonths = Array.from(monthsSet).sort().reverse();
+  const prevVal = select.value || currentMonthKey;
+
+  select.innerHTML = sortedMonths.map(mKey => {
+    const [year, month] = mKey.split('-');
+    const label = `${MESES_NOME[parseInt(month) - 1]} / ${year}`;
+    return `<option value="${mKey}">${label}</option>`;
+  }).join('');
+
+  select.value = sortedMonths.includes(prevVal) ? prevVal : sortedMonths[0];
+}
+
+function renderColetasSection() {
+  const monthKey = document.getElementById('coletaMesFilter')?.value || new Date().toISOString().substring(0, 7);
+  const visao = document.getElementById('coletaVisaoFilter')?.value || 'semanal';
+
+  // Filtrar coletas pelo mês selecionado
+  const monthData = coletasData.filter(c => c.data_coleta && c.data_coleta.startsWith(monthKey));
+
+  // Renderizar KPIs do Mês
+  renderColetasKPIs(monthData);
+
+  // Renderizar Tabela do Mês
+  renderColetasTable(monthData);
+
+  // Renderizar Gráficos ajustados
+  if (visao === 'semanal') {
+    renderColetasGraficoSemanal(monthKey, monthData);
+  } else {
+    renderColetasGraficoDiario(monthData);
+  }
+}
+
+function renderColetasKPIs(monthData) {
+  const totalAgendados = monthData.reduce((s, c) => s + (c.agendados || 0), 0);
+  const totalRealizados = monthData.reduce((s, c) => s + (c.realizados || 0), 0);
+  const totalFaltas = monthData.reduce((s, c) => s + (c.faltas || 0), 0);
+  
+  // Eficácia em relação aos agendados
+  const eficacia = totalAgendados > 0 ? Math.round((totalRealizados / totalAgendados) * 100) : 0;
+
+  document.getElementById('kpiAgendados').textContent = totalAgendados;
+  document.getElementById('kpiRealizados').textContent = totalRealizados;
+  document.getElementById('kpiFaltas').textContent = totalFaltas;
+  
+  const kpiEfEl = document.getElementById('kpiEficacia');
+  kpiEfEl.textContent = eficacia + '%';
+  kpiEfEl.style.color = eficacia >= 100 ? 'var(--green)' : eficacia >= 80 ? 'var(--yellow)' : 'var(--red)';
+}
+
+function renderColetasTable(monthData) {
+  const tbody = document.getElementById('coletasTable');
+  if (!monthData.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray-300);padding:24px;">Nenhum registro para este mês. Lance os dados no formulário ☝️</td></tr>';
+    return;
+  }
+
+  // Ordenar por data DESC
+  const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
+  
+  tbody.innerHTML = sorted.map(c => {
+    const dt = new Date(c.data_coleta + 'T12:00:00');
+    const diaSemana = DIAS_SEMANA[dt.getDay()];
+    const dataBR = formatDateBR(c.data_coleta);
+    const atingiuMeta = c.realizados >= META_DIARIA;
+    const pctMeta = Math.round((c.realizados / META_DIARIA) * 100);
+    
+    let statusTag;
+    if (pctMeta >= 100) statusTag = '<span class="tag-meta tag-ok">✅ Meta Atingida</span>';
+    else if (pctMeta >= 80) statusTag = '<span class="tag-meta tag-warning">⚠️ ' + pctMeta + '%</span>';
+    else statusTag = '<span class="tag-meta tag-danger">❌ ' + pctMeta + '%</span>';
+    
+    return `<tr>
+      <td style="font-weight:700;">${dataBR}</td>
+      <td>${diaSemana}</td>
+      <td style="font-weight:800;color:var(--blue);">${c.agendados}</td>
+      <td style="font-weight:800;color:${atingiuMeta ? 'var(--green)' : 'var(--orange)'};">${c.realizados}</td>
+      <td style="font-weight:800;color:${c.faltas > 0 ? 'var(--red)' : 'var(--gray-300)'};">${c.faltas}</td>
+      <td>${META_DIARIA}</td>
+      <td>${statusTag}</td>
+      <td style="font-size:12px;color:var(--gray-300);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.observacoes||''}">${c.observacoes || '—'}</td>
+      <td><button class="btn-delete" onclick="deletarColeta(${c.id})">🗑️</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ====== AGRUPAMENTO POR SEMANA DO MÊS SELECIONADO ======
+function renderColetasGraficoSemanal(monthKey, monthData) {
+  const [yearStr, monthStr] = monthKey.split('-');
+  const year = parseInt(yearStr);
+  const month = parseInt(monthStr);
+
+  // Dividir o mês em semanas (Semana 1: 01-07, Semana 2: 08-14, Semana 3: 15-21, Semana 4: 22-28, Semana 5: 29-31)
+  const semanasMap = [
+    { nome: 'Semana 1 (01-07)', start: 1, end: 7, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
+    { nome: 'Semana 2 (08-14)', start: 8, end: 14, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
+    { nome: 'Semana 3 (15-21)', start: 15, end: 21, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
+    { nome: 'Semana 4 (22-28)', start: 22, end: 28, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
+    { nome: 'Semana 5 (29-31)', start: 29, end: 31, agendados: 0, realizados: 0, faltas: 0, dias: 0 }
+  ];
+
+  monthData.forEach(c => {
+    const day = parseInt(c.data_coleta.split('-')[2]);
+    const sem = semanasMap.find(s => day >= s.start && day <= s.end);
+    if (sem) {
+      sem.agendados += c.agendados || 0;
+      sem.realizados += c.realizados || 0;
+      sem.faltas += c.faltas || 0;
+      sem.dias += 1;
+    }
+  });
+
+  const labels = semanasMap.map(s => s.nome);
+  const agendadosData = semanasMap.map(s => s.agendados);
+  const realizadosData = semanasMap.map(s => s.realizados);
+  const faltasData = semanasMap.map(s => s.faltas);
+
+  // Titulos dos cards
+  document.getElementById('chartPrincipalTitle').textContent = `📊 Desempenho por Semana em ${MESES_NOME[month-1]}/${year} (Meta: 36 coletas/semana)`;
+  document.getElementById('chartComparativoTitle').textContent = `📈 Realizados vs Faltas por Semana em ${MESES_NOME[month-1]}/${year}`;
+
+  // Gráfico 1 (Principal): Agendados vs Realizados vs Meta Semanal (36)
+  if (coletasPrincipalChart) coletasPrincipalChart.destroy();
+  coletasPrincipalChart = new Chart(document.getElementById('chartColetasPrincipal'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Agendados', data: agendadosData, backgroundColor: 'rgba(26,79,196,0.6)', borderColor: 'rgba(26,79,196,0.9)', borderWidth: 1, borderRadius: 6 },
+        { label: 'Realizados', data: realizadosData, backgroundColor: 'rgba(74,171,60,0.7)', borderColor: 'rgba(74,171,60,0.9)', borderWidth: 1, borderRadius: 6 },
+        { label: 'Meta Semanal (36)', data: Array(5).fill(META_SEMANAL), type: 'line', borderColor: '#f4821e', borderDash: [6, 3], pointRadius: 0, borderWidth: 2, fill: false }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
+      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } }
+    }
+  });
+
+  // Gráfico 2 (Comparativo): Realizados + Faltas por semana
+  if (coletasComparativoChart) coletasComparativoChart.destroy();
+  coletasComparativoChart = new Chart(document.getElementById('chartColetasComparativo'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Realizados', data: realizadosData, backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 6 },
+        { label: 'Faltas', data: faltasData, backgroundColor: 'rgba(229,57,53,0.6)', borderRadius: 6 },
+        { label: 'Meta Semanal (36)', type: 'line', data: Array(5).fill(META_SEMANAL), borderColor: '#f4821e', borderDash: [6,3], pointRadius: 0, borderWidth: 2, fill: false }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
+      scales: { x: { stacked: true, ticks: { color: '#b8c8f0' } }, y: { stacked: true, ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } }
+    }
+  });
+
+  // Gráfico 3: Eficácia e Absenteísmo por Semana
+  const efData = semanasMap.map(s => s.agendados > 0 ? Math.round((s.realizados / s.agendados) * 100) : 0);
+  const absData = semanasMap.map(s => s.agendados > 0 ? Math.round((s.faltas / s.agendados) * 100) : 0);
+
+  if (coletasEficaciaChart) coletasEficaciaChart.destroy();
+  coletasEficaciaChart = new Chart(document.getElementById('chartColetasEficacia'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Eficácia (%)', data: efData, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3, pointRadius: 4 },
+        { label: 'Absenteísmo (%)', data: absData, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,0.1)', fill: true, tension: 0.3, pointRadius: 4 },
+        { label: 'Meta 100%', data: Array(5).fill(100), borderColor: 'rgba(249,200,35,0.5)', borderDash: [4,4], pointRadius: 0, fill: false }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
+      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true, suggestedMax: 110 } }
+    }
+  });
+}
+
+function renderColetasGraficoDiario(monthData) {
+  const sorted = [...monthData].sort((a, b) => new Date(a.data_coleta) - new Date(b.data_coleta));
+  const labels = sorted.map(c => formatDateBR(c.data_coleta).substring(0, 5));
+
+  document.getElementById('chartPrincipalTitle').textContent = `📊 Coletas por Dia (Detalhamento Diário)`;
+  document.getElementById('chartComparativoTitle').textContent = `📈 Realizados vs Faltas por Dia`;
+
+  if (coletasPrincipalChart) coletasPrincipalChart.destroy();
+  coletasPrincipalChart = new Chart(document.getElementById('chartColetasPrincipal'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Agendados', data: sorted.map(c => c.agendados), backgroundColor: 'rgba(26,79,196,0.6)', borderRadius: 4 },
+        { label: 'Realizados', data: sorted.map(c => c.realizados), backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 4 },
+        { label: 'Meta Diária (12)', data: sorted.map(() => META_DIARIA), type: 'line', borderColor: '#f4821e', borderDash: [6, 3], pointRadius: 0, borderWidth: 2, fill: false }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
+      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 18 } }
+    }
+  });
+
+  if (coletasComparativoChart) coletasComparativoChart.destroy();
+  coletasComparativoChart = new Chart(document.getElementById('chartColetasComparativo'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Realizados', data: sorted.map(c => c.realizados), backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 4 },
+        { label: 'Faltas', data: sorted.map(c => c.faltas), backgroundColor: 'rgba(229,57,53,0.6)', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
+      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } }
+    }
+  });
+
+  const efData = sorted.map(c => c.agendados > 0 ? Math.round((c.realizados / c.agendados) * 100) : 0);
+  const absData = sorted.map(c => c.agendados > 0 ? Math.round((c.faltas / c.agendados) * 100) : 0);
+
+  if (coletasEficaciaChart) coletasEficaciaChart.destroy();
+  coletasEficaciaChart = new Chart(document.getElementById('chartColetasEficacia'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Eficácia (%)', data: efData, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3 },
+        { label: 'Absenteísmo (%)', data: absData, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,0.1)', fill: true, tension: 0.3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
+      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true } }
+    }
+  });
 }
 
 async function salvarColeta() {
@@ -426,213 +707,7 @@ async function deletarColeta(id) {
   }
 }
 
-function renderColetasKPIs() {
-  // Calcular KPIs da semana atual
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + mondayOffset);
-  monday.setHours(0,0,0,0);
-
-  const semanaAtual = coletasData.filter(c => {
-    const d = new Date(c.data_coleta + 'T12:00:00');
-    return d >= monday && d <= now;
-  });
-
-  const totalAgendados = semanaAtual.reduce((s, c) => s + (c.agendados || 0), 0);
-  const totalRealizados = semanaAtual.reduce((s, c) => s + (c.realizados || 0), 0);
-  const totalFaltas = semanaAtual.reduce((s, c) => s + (c.faltas || 0), 0);
-  const eficacia = totalAgendados > 0 ? Math.round((totalRealizados / META_SEMANAL) * 100) : 0;
-
-  document.getElementById('kpiAgendados').textContent = totalAgendados;
-  document.getElementById('kpiRealizados').textContent = totalRealizados;
-  document.getElementById('kpiFaltas').textContent = totalFaltas;
-  
-  const kpiEfEl = document.getElementById('kpiEficacia');
-  kpiEfEl.textContent = eficacia + '%';
-  kpiEfEl.style.color = eficacia >= 100 ? 'var(--green)' : eficacia >= 80 ? 'var(--yellow)' : 'var(--red)';
-}
-
-function renderColetasTable() {
-  const tbody = document.getElementById('coletasTable');
-  if (!coletasData.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray-300);padding:24px;">Nenhum registro. Lance os dados acima ☝️</td></tr>';
-    return;
-  }
-
-  // Ordenar por data DESC
-  const sorted = [...coletasData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
-  
-  tbody.innerHTML = sorted.map(c => {
-    const dt = new Date(c.data_coleta + 'T12:00:00');
-    const dia = DIAS_SEMANA[dt.getDay()];
-    const dataFormatada = dt.toLocaleDateString('pt-BR');
-    const atingiuMeta = c.realizados >= META_DIARIA;
-    const pctMeta = Math.round((c.realizados / META_DIARIA) * 100);
-    
-    let statusTag;
-    if (pctMeta >= 100) statusTag = '<span class="tag-meta tag-ok">✅ Meta Atingida</span>';
-    else if (pctMeta >= 80) statusTag = '<span class="tag-meta tag-warning">⚠️ ' + pctMeta + '%</span>';
-    else statusTag = '<span class="tag-meta tag-danger">❌ ' + pctMeta + '%</span>';
-    
-    return `<tr>
-      <td>${dataFormatada}</td>
-      <td>${dia}</td>
-      <td style="font-weight:800;color:var(--blue);">${c.agendados}</td>
-      <td style="font-weight:800;color:${atingiuMeta ? 'var(--green)' : 'var(--orange)'};">${c.realizados}</td>
-      <td style="font-weight:800;color:${c.faltas > 0 ? 'var(--red)' : 'var(--gray-300)'};">${c.faltas}</td>
-      <td>${META_DIARIA}</td>
-      <td>${statusTag}</td>
-      <td style="font-size:12px;color:var(--gray-300);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.observacoes||''}">${c.observacoes || '—'}</td>
-      <td><button class="btn-delete" onclick="deletarColeta(${c.id})">🗑️</button></td>
-    </tr>`;
-  }).join('');
-}
-
-function renderColetasCharts() {
-  // Ordenar por data
-  const sorted = [...coletasData].sort((a, b) => new Date(a.data_coleta) - new Date(b.data_coleta));
-  
-  // Pegar os últimos 15 registros para o gráfico diário
-  const ultimos = sorted.slice(-15);
-  
-  const labels = ultimos.map(c => {
-    const dt = new Date(c.data_coleta + 'T12:00:00');
-    return dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
-  });
-
-  // ====== Gráfico 1: Agendado vs Realizado vs Meta (diário) ======
-  if (coletasDiariosChart) coletasDiariosChart.destroy();
-  coletasDiariosChart = new Chart(document.getElementById('chartColetasDiarios'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { 
-          label: 'Agendados', 
-          data: ultimos.map(c => c.agendados), 
-          backgroundColor: 'rgba(26,79,196,0.6)', 
-          borderColor: 'rgba(26,79,196,0.9)',
-          borderWidth: 1,
-          borderRadius: 4,
-          order: 2
-        },
-        { 
-          label: 'Realizados', 
-          data: ultimos.map(c => c.realizados), 
-          backgroundColor: 'rgba(74,171,60,0.7)', 
-          borderColor: 'rgba(74,171,60,0.9)',
-          borderWidth: 1,
-          borderRadius: 4,
-          order: 1
-        },
-        { 
-          label: 'Meta (12)', 
-          data: ultimos.map(() => META_DIARIA), 
-          type: 'line',
-          borderColor: '#f4821e', 
-          backgroundColor: 'transparent',
-          borderDash: [6, 3],
-          pointRadius: 0,
-          borderWidth: 2,
-          order: 0
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { 
-        legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } },
-        tooltip: {
-          callbacks: {
-            afterBody: function(context) {
-              const idx = context[0].dataIndex;
-              const c = ultimos[idx];
-              return `Faltas: ${c.faltas}`;
-            }
-          }
-        }
-      },
-      scales: { 
-        x: { ticks: { color: '#b8c8f0' } }, 
-        y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 18 } 
-      }
-    }
-  });
-
-  // ====== Gráfico 2: Desempenho Semanal ======
-  // Agrupar por semana
-  const semanas = {};
-  sorted.forEach(c => {
-    const dt = new Date(c.data_coleta + 'T12:00:00');
-    const dayOfWeek = dt.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(dt);
-    monday.setDate(dt.getDate() + mondayOffset);
-    const weekKey = monday.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
-    
-    if (!semanas[weekKey]) semanas[weekKey] = { agendados: 0, realizados: 0, faltas: 0 };
-    semanas[weekKey].agendados += c.agendados || 0;
-    semanas[weekKey].realizados += c.realizados || 0;
-    semanas[weekKey].faltas += c.faltas || 0;
-  });
-
-  const semLabels = Object.keys(semanas).slice(-6);
-  const semData = semLabels.map(k => semanas[k]);
-
-  if (coletasSemanalChart) coletasSemanalChart.destroy();
-  coletasSemanalChart = new Chart(document.getElementById('chartColetasSemanal'), {
-    type: 'bar',
-    data: {
-      labels: semLabels.map(l => 'Sem. ' + l),
-      datasets: [
-        { label: 'Realizados', data: semData.map(s => s.realizados), backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 6 },
-        { label: 'Faltas', data: semData.map(s => s.faltas), backgroundColor: 'rgba(229,57,53,0.6)', borderRadius: 6 },
-        { label: 'Meta (36)', type: 'line', data: semData.map(() => META_SEMANAL), borderColor: '#f4821e', borderDash: [6,3], pointRadius: 0, borderWidth: 2, fill: false }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { 
-        x: { stacked: true, ticks: { color: '#b8c8f0' } }, 
-        y: { stacked: true, ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } 
-      }
-    }
-  });
-
-  // ====== Gráfico 3: Eficácia e Absenteísmo ======
-  const efLabels = ultimos.map(c => {
-    const dt = new Date(c.data_coleta + 'T12:00:00');
-    return dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
-  });
-  const eficaciaData = ultimos.map(c => c.agendados > 0 ? Math.round((c.realizados / c.agendados) * 100) : 0);
-  const absData = ultimos.map(c => c.agendados > 0 ? Math.round((c.faltas / c.agendados) * 100) : 0);
-
-  if (coletasEficaciaChart) coletasEficaciaChart.destroy();
-  coletasEficaciaChart = new Chart(document.getElementById('chartColetasEficacia'), {
-    type: 'line',
-    data: {
-      labels: efLabels,
-      datasets: [
-        { label: 'Eficácia (%)', data: eficaciaData, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: '#4aab3c' },
-        { label: 'Absenteísmo (%)', data: absData, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,0.1)', fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: '#e53935' },
-        { label: 'Meta 100%', data: efLabels.map(() => 100), borderColor: 'rgba(249,200,35,0.5)', borderDash: [4,4], pointRadius: 0, borderWidth: 1, fill: false }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { 
-        x: { ticks: { color: '#b8c8f0' } }, 
-        y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true, suggestedMax: 110 } 
-      }
-    }
-  });
-}
-
-// ====== EXPORTAR GRÁFICOS DE COLETAS EM PDF ======
+// ====== EXPORTAR GRÁFICOS DE COLETAS EM PDF (COM FORMATO DD/MM/AAAA) ======
 async function exportColetasPDF() {
   if (!window.jspdf || !window.html2canvas) { alert('Aguarde o carregamento dos scripts...'); return; }
   
@@ -647,62 +722,68 @@ async function exportColetasPDF() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // ====== PÁGINA 1: Cabeçalho + KPIs + Gráfico Diário ======
+    const monthKey = document.getElementById('coletaMesFilter')?.value || new Date().toISOString().substring(0, 7);
+    const [y, m] = monthKey.split('-');
+    const nomeMesAno = `${MESES_NOME[parseInt(m)-1]} / ${y}`;
+
+    // ====== PÁGINA 1: Cabeçalho + KPIs + Gráfico Principal ======
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
     doc.text('Controle de Coletas de Sangue', pageWidth / 2, 15, { align: 'center' });
     doc.setFontSize(14);
     doc.setFont('helvetica', 'normal');
-    doc.text('USF Chico Mendes', pageWidth / 2, 22, { align: 'center' });
+    doc.text(`USF Chico Mendes — Mês de Referência: ${nomeMesAno}`, pageWidth / 2, 22, { align: 'center' });
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 28, { align: 'center' });
 
     // KPIs
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('Indicadores da Semana Atual:', 14, 38);
+    doc.text(`Resumo do Mês (${nomeMesAno}):`, 14, 38);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     const kpiTexts = [
       `Meta Diária: ${META_DIARIA} coletas`,
-      `Meta Semanal: ${META_SEMANAL} coletas (3 dias × 12)`,
+      `Meta Semanal: ${META_SEMANAL} coletas`,
       `Agendados: ${document.getElementById('kpiAgendados').textContent}`,
       `Realizados: ${document.getElementById('kpiRealizados').textContent}`,
       `Faltas: ${document.getElementById('kpiFaltas').textContent}`,
-      `Eficácia: ${document.getElementById('kpiEficacia').textContent}`
+      `Eficácia Mês: ${document.getElementById('kpiEficacia').textContent}`
     ];
     kpiTexts.forEach((t, i) => doc.text(t, 14 + (i % 3) * 90, 44 + Math.floor(i / 3) * 6));
 
-    // Capturar gráfico diário
-    const chartDiario = document.getElementById('chartColetasDiarios');
-    const canvasDiario = await html2canvas(chartDiario, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgDiario = canvasDiario.toDataURL('image/png');
-    doc.addImage(imgDiario, 'PNG', 14, 55, pageWidth - 28, 120);
+    // Capturar gráfico principal
+    const chartPrincipal = document.getElementById('chartColetasPrincipal');
+    const canvasPrincipal = await html2canvas(chartPrincipal, { backgroundColor: '#0a1e5c', scale: 2 });
+    const imgPrincipal = canvasPrincipal.toDataURL('image/png');
+    doc.addImage(imgPrincipal, 'PNG', 14, 55, pageWidth - 28, 120);
 
-    // ====== PÁGINA 2: Gráficos Semanal e Eficácia ======
+    // ====== PÁGINA 2: Gráficos Comparativo e Eficácia ======
     doc.addPage();
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('Desempenho Semanal e Taxa de Eficácia', pageWidth / 2, 15, { align: 'center' });
+    doc.text(`Desempenho Semanal e Taxa de Eficácia — ${nomeMesAno}`, pageWidth / 2, 15, { align: 'center' });
 
-    const chartSemanal = document.getElementById('chartColetasSemanal');
-    const canvasSemanal = await html2canvas(chartSemanal, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgSemanal = canvasSemanal.toDataURL('image/png');
-    doc.addImage(imgSemanal, 'PNG', 14, 22, (pageWidth - 35) / 2, 80);
+    const chartComparativo = document.getElementById('chartColetasComparativo');
+    const canvasComparativo = await html2canvas(chartComparativo, { backgroundColor: '#0a1e5c', scale: 2 });
+    const imgComparativo = canvasComparativo.toDataURL('image/png');
+    doc.addImage(imgComparativo, 'PNG', 14, 22, (pageWidth - 35) / 2, 80);
 
     const chartEficacia = document.getElementById('chartColetasEficacia');
     const canvasEficacia = await html2canvas(chartEficacia, { backgroundColor: '#0a1e5c', scale: 2 });
     const imgEficacia = canvasEficacia.toDataURL('image/png');
     doc.addImage(imgEficacia, 'PNG', (pageWidth + 7) / 2, 22, (pageWidth - 35) / 2, 80);
 
-    // Tabela de registros
-    const sorted = [...coletasData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
+    // Tabela de registros formatada em DD/MM/AAAA
+    const monthData = coletasData.filter(c => c.data_coleta && c.data_coleta.startsWith(monthKey));
+    const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
     if (sorted.length > 0) {
       const rows = sorted.map(c => {
         const dt = new Date(c.data_coleta + 'T12:00:00');
+        const dataBR = formatDateBR(c.data_coleta);
         const pct = Math.round((c.realizados / META_DIARIA) * 100);
         return [
-          dt.toLocaleDateString('pt-BR'),
+          dataBR,
           DIAS_SEMANA[dt.getDay()],
           c.agendados.toString(),
           c.realizados.toString(),
@@ -715,12 +796,13 @@ async function exportColetasPDF() {
 
       doc.autoTable({
         startY: 110,
-        head: [['Data', 'Dia', 'Agend.', 'Realiz.', 'Faltas', 'Meta', 'Eficácia', 'Obs']],
+        head: [['Data (DD/MM/AAAA)', 'Dia', 'Agend.', 'Realiz.', 'Faltas', 'Meta', 'Eficácia', 'Obs']],
         body: rows,
         theme: 'grid',
         headStyles: { fillColor: [26, 79, 196], fontSize: 9 },
         bodyStyles: { fontSize: 8 },
         columnStyles: {
+          0: { halign: 'center', fontStyle: 'bold' },
           2: { halign: 'center' },
           3: { halign: 'center' },
           4: { halign: 'center' },
@@ -739,7 +821,7 @@ async function exportColetasPDF() {
       doc.text(`USF Chico Mendes — Controle de Coletas de Sangue | Página ${i}/${totalPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
     }
 
-    doc.save(`coletas_sangue_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+    doc.save(`coletas_sangue_${monthKey}.pdf`);
   } catch(e) {
     console.error('Erro ao gerar PDF:', e);
     alert('Erro ao gerar PDF. Tente novamente.');
@@ -749,7 +831,7 @@ async function exportColetasPDF() {
   btn.disabled = false;
 }
 
-// ====== EXPORTAR RELATÓRIO DO DIA COM GRÁFICOS (OCUPAÇÃO DA RECEPÇÃO) EM PDF ======
+// ====== EXPORTAR RELATÓRIO DO DIA COM GRÁFICOS EM PDF (DD/MM/AAAA) ======
 async function exportDailyReport() {
   if (!window.jspdf || !window.html2canvas) { alert('Aguarde o carregamento dos scripts...'); return; }
   
@@ -764,13 +846,15 @@ async function exportDailyReport() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
+    const dataFiltroRaw = document.getElementById('dashDateFilter').value || new Date().toISOString().split('T')[0];
+    const dataFiltroFormatada = formatDateBR(dataFiltroRaw);
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.text('Dashboard Diário – USF Chico Mendes', pageWidth / 2, 15, { align: 'center' });
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    const dataFiltro = document.getElementById('dashDateFilter').value || new Date().toISOString().split('T')[0];
-    doc.text(`Data: ${dataFiltro} | Gerado: ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 22, { align: 'center' });
+    doc.text(`Data: ${dataFiltroFormatada} | Gerado em: ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 22, { align: 'center' });
 
     const d = metricsData || { waitingBySetor: [], totalAttended: 0, totalDesist: 0, dropoutRate: 0, avgWaitBySetor: [], bottleneckBySetor: [] };
     const totalWaiting = d.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
@@ -788,7 +872,7 @@ async function exportDailyReport() {
     doc.text('1. Ocupação da Recepção (Pacientes no Local):', 14, 46);
     doc.addImage(imgOcc, 'PNG', 14, 50, pageWidth - 28, 65);
 
-    // Capturar Gráficos 2 e 3: Atendimentos por Hora + Entradas vs Atendimentos
+    // Capturar Gráficos 2 e 3
     const chartHourlyEl = document.getElementById('chartHourly');
     const canvasHourly = await html2canvas(chartHourlyEl, { backgroundColor: '#0a1e5c', scale: 2 });
     const imgHourly = canvasHourly.toDataURL('image/png');
@@ -806,7 +890,7 @@ async function exportDailyReport() {
     doc.addPage();
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('Tempo Médio de Espera e Detalhamento por Setor', pageWidth / 2, 15, { align: 'center' });
+    doc.text(`Detalhamento por Setor (${dataFiltroFormatada})`, pageWidth / 2, 15, { align: 'center' });
 
     const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
     const rows = setores.map(s => {
@@ -838,10 +922,10 @@ async function exportDailyReport() {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
-      doc.text(`USF Chico Mendes — Dashboard de Recepção e Atendimento | Página ${i}/${totalPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+      doc.text(`USF Chico Mendes — Dashboard de Recepção | Página ${i}/${totalPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
     }
 
-    doc.save(`dashboard_recepcao_${dataFiltro}.pdf`);
+    doc.save(`dashboard_recepcao_${dataFiltroFormatada.replace(/\//g,'-')}.pdf`);
   } catch(e) {
     console.error('Erro ao gerar PDF do Dashboard:', e);
     alert('Erro ao gerar PDF do Dashboard.');
