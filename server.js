@@ -1566,7 +1566,7 @@ app.get('/api/vagas-medicos/primeiro-disponivel', async (req, res) => {
         const usadosResult = await pool.query(
           `SELECT 
              CASE 
-               WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
+               WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dr. Israel Christian'
                WHEN equipe IN ('Eq 2 Ximboré', 'Equipe 2 Ximboré', 'Equipe 2 Ximbore', 'Ximboré', 'Ximbore') THEN 'Dr. Joene Halan'
                WHEN equipe IN ('Eq 3 Aurora', 'Equipe 3 Aurora', 'Aurora') THEN 'Dra. Mirela Mota'
                ELSE equipe
@@ -1578,7 +1578,7 @@ app.get('/api/vagas-medicos/primeiro-disponivel', async (req, res) => {
              AND COALESCE(ano_agendamento, EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo')) = $2
            GROUP BY 
              CASE 
-               WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
+               WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dr. Israel Christian'
                WHEN equipe IN ('Eq 2 Ximboré', 'Equipe 2 Ximboré', 'Equipe 2 Ximbore', 'Ximboré', 'Ximbore') THEN 'Dr. Joene Halan'
                WHEN equipe IN ('Eq 3 Aurora', 'Equipe 3 Aurora', 'Aurora') THEN 'Dra. Mirela Mota'
                ELSE equipe
@@ -1620,7 +1620,7 @@ app.get('/api/vagas-medicos', async (req, res) => {
     const usadosResult = await pool.query(
       `SELECT 
          CASE 
-           WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
+           WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dr. Israel Christian'
            WHEN equipe IN ('Eq 2 Ximboré', 'Equipe 2 Ximboré', 'Equipe 2 Ximbore', 'Ximboré', 'Ximbore') THEN 'Dr. Joene Halan'
            WHEN equipe IN ('Eq 3 Aurora', 'Equipe 3 Aurora', 'Aurora') THEN 'Dra. Mirela Mota'
            ELSE equipe
@@ -1632,7 +1632,7 @@ app.get('/api/vagas-medicos', async (req, res) => {
          AND COALESCE(ano_agendamento, EXTRACT(YEAR FROM criado_em AT TIME ZONE 'America/Sao_Paulo')) = $2
        GROUP BY 
          CASE 
-           WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dra. Anahy Duarte'
+           WHEN equipe IN ('Eq 1 Chico Mendes', 'Equipe 1 Chico Mendes', 'Chico Mendes') THEN 'Dr. Israel Christian'
            WHEN equipe IN ('Eq 2 Ximboré', 'Equipe 2 Ximboré', 'Equipe 2 Ximbore', 'Ximboré', 'Ximbore') THEN 'Dr. Joene Halan'
            WHEN equipe IN ('Eq 3 Aurora', 'Equipe 3 Aurora', 'Aurora') THEN 'Dra. Mirela Mota'
            ELSE equipe
