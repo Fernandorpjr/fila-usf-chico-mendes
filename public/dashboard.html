@@ -155,6 +155,43 @@
     <table><thead><tr><th>Setor</th><th>Tempo Médio</th><th>Aguardando</th><th>Atendidos</th><th>Gargalo</th></tr></thead><tbody id="waitTable"></tbody></table>
   </div>
 
+  <!-- ====== SEÇÃO DE FECHAMENTO DIÁRIO DO EXPEDIENTE ====== -->
+  <hr class="section-divider">
+  
+  <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:16px;" id="secFechamentoDia">
+    <span>📋 Fechamento Diário do Expediente</span>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn-export" style="background:#25d366;" onclick="copiarFechamentoWhatsAppDash()">📲 Copiar p/ WhatsApp da Gerência</button>
+      <button class="btn-pdf" onclick="imprimirFechamentoDash()">🖨️ Imprimir Fechamento Diário</button>
+    </div>
+  </div>
+
+  <!-- Cards de Fechamento -->
+  <div class="metrics" id="fechamentoMetrics">
+    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" id="fchAtendidos" style="color:var(--green);">0</div><div class="metric-label">Total Atendidos</div></div>
+    <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" id="fchDesistencias" style="color:var(--red);">0</div><div class="metric-label">Desistências</div></div>
+    <div class="metric-card"><div class="metric-icon">🚨</div><div class="metric-value" id="fchUrgencias" style="color:var(--orange);">0</div><div class="metric-label">Intercorrências / Urgências</div></div>
+    <div class="metric-card"><div class="metric-icon">🗂️</div><div class="metric-value" id="fchAgendamentos" style="color:var(--yellow);">0</div><div class="metric-label">Encaminhados Agendamento</div></div>
+  </div>
+
+  <!-- Tabelas lado a lado de Fechamento -->
+  <div class="charts" style="margin-bottom:32px;">
+    <div class="table-card" style="margin-bottom:0;">
+      <div class="chart-title">📊 Atendimentos por Setor</div>
+      <table>
+        <thead><tr><th>Setor</th><th>Atendidos</th><th>% do Total</th></tr></thead>
+        <tbody id="fchSetorTbody"></tbody>
+      </table>
+    </div>
+    <div class="table-card" style="margin-bottom:0;">
+      <div class="chart-title">👨‍⚕️ Atendimentos por Profissional</div>
+      <table>
+        <thead><tr><th>Profissional</th><th>Setor</th><th>Atendidos</th></tr></thead>
+        <tbody id="fchProfTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ====== SEÇÃO DE COLETAS DE SANGUE ====== -->
   <hr class="section-divider">
   
@@ -473,6 +510,7 @@ async function loadDashboard() {
     renderMetrics();
     renderCharts();
     renderWaitTable();
+    loadFechamentoDiario();
 
     const lastRef = document.getElementById('lastRefreshTime');
     if (lastRef) lastRef.textContent = `🟢 Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
@@ -635,6 +673,155 @@ function renderWaitTable() {
       <td style="font-weight:700;">${s}</td><td>${avgMin === '-' ? '-' : avgMin + ' min'}</td><td>${waiting ? waiting.total : 0}</td><td>${attended ? attended.total : 0}</td>
       <td>${isBottleneck ? '🔴 ' + bottleneck.total + ' pacientes' : '🟢 Normal'}</td></tr>`;
   }).join('');
+}
+
+// ====== FECHAMENTO DIÁRIO DO EXPEDIENTE (DASHBOARD) ======
+let fechamentoData = null;
+
+async function loadFechamentoDiario() {
+  const dateInput = document.getElementById('dashDateFilter');
+  const data = dateInput?.value || new Date().toISOString().split('T')[0];
+  try {
+    const res = await fetch(`${API_URL}/relatorio-diario?data=${data}`);
+    if (!res.ok) return;
+    fechamentoData = await res.json();
+    renderFechamentoDiario();
+  } catch(e) {
+    console.error('Erro ao carregar fechamento diário:', e);
+  }
+}
+
+function renderFechamentoDiario() {
+  if (!fechamentoData) return;
+  const d = fechamentoData;
+  
+  const elAtend = document.getElementById('fchAtendidos');
+  const elDesist = document.getElementById('fchDesistencias');
+  const elUrg = document.getElementById('fchUrgencias');
+  const elAgend = document.getElementById('fchAgendamentos');
+
+  if (elAtend) elAtend.textContent = d.totalAtendidos || 0;
+  if (elDesist) elDesist.textContent = d.desistencias || 0;
+
+  // Total urgências / intercorrências
+  const urgenciasCount = (d.porTipo || [])
+    .filter(t => t.tipo_atendimento && (t.tipo_atendimento.includes('Intercorrência') || t.tipo_atendimento.includes('Urgência')))
+    .reduce((acc, t) => acc + parseInt(t.total, 10), 0);
+  if (elUrg) elUrg.textContent = urgenciasCount;
+
+  // Agendamentos total
+  const agendTotal = (d.agendamentos || []).reduce((acc, a) => acc + parseInt(a.total, 10), 0);
+  if (elAgend) elAgend.textContent = agendTotal;
+
+  // Tabela por setor
+  const setorTbody = document.getElementById('fchSetorTbody');
+  if (setorTbody) {
+    if (!d.porSetor || d.porSetor.length === 0) {
+      setorTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum atendimento no dia selecionado.</td></tr>';
+    } else {
+      setorTbody.innerHTML = d.porSetor.map(s => {
+        const pct = d.totalAtendidos > 0 ? ((parseInt(s.total, 10) / d.totalAtendidos) * 100).toFixed(1) : 0;
+        return `<tr>
+          <td style="font-weight:700;color:var(--white);">🏥 ${s.setor}</td>
+          <td style="font-weight:800;color:var(--green);">${s.total}</td>
+          <td style="color:var(--gray-300);">${pct}%</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  // Tabela por profissional
+  const profTbody = document.getElementById('fchProfTbody');
+  if (profTbody) {
+    if (!d.porProfissional || d.porProfissional.length === 0) {
+      profTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum profissional com chamadas.</td></tr>';
+    } else {
+      profTbody.innerHTML = d.porProfissional.map(p => `<tr>
+        <td style="font-weight:700;color:var(--white);">👨‍⚕️ ${p.profissional}</td>
+        <td><span style="display:inline-block;padding:2px 8px;border-radius:6px;background:rgba(26,79,196,0.25);color:var(--gray-100);font-size:12px;font-weight:700;">${p.setor}</span></td>
+        <td style="font-weight:800;color:var(--green);">${p.total}</td>
+      </tr>`).join('');
+    }
+  }
+}
+
+function copiarFechamentoWhatsAppDash() {
+  if (!fechamentoData) {
+    alert('Aguarde os dados serem carregados.');
+    return;
+  }
+  const rep = fechamentoData;
+  const dataFmt = formatDateBR(rep.data);
+  
+  let txt = `📋 *FECHAMENTO DIÁRIO DO EXPEDIENTE*\n🏥 *USF Chico Mendes*\n📅 Data: *${dataFmt}*\n\n`;
+  txt += `✅ *Total de Atendidos:* ${rep.totalAtendidos}\n`;
+  txt += `🚶 *Desistências:* ${rep.desistencias}\n`;
+  
+  const urgCount = (rep.porTipo || [])
+    .filter(t => t.tipo_atendimento && (t.tipo_atendimento.includes('Intercorrência') || t.tipo_atendimento.includes('Urgência')))
+    .reduce((acc, t) => acc + parseInt(t.total, 10), 0);
+  if (urgCount > 0) {
+    txt += `🚨 *Intercorrências / Urgências:* ${urgCount}\n`;
+  }
+  
+  txt += `\n📊 *ATENDIMENTOS POR SETOR:*\n`;
+  (rep.porSetor || []).forEach(s => {
+    const pct = rep.totalAtendidos > 0 ? ((parseInt(s.total, 10) / rep.totalAtendidos) * 100).toFixed(0) : 0;
+    txt += `• ${s.setor}: *${s.total}* (${pct}%)\n`;
+  });
+  
+  txt += `\n👨‍⚕️ *ATENDIMENTOS POR PROFISSIONAL:*\n`;
+  (rep.porProfissional || []).forEach(p => {
+    txt += `• ${p.profissional} (${p.setor}): *${p.total}*\n`;
+  });
+
+  txt += `\n— *Sistema de Gestão USF Chico Mendes* 💙`;
+
+  navigator.clipboard.writeText(txt).then(() => {
+    alert('📋 Relatório copiado para o WhatsApp com sucesso!');
+  }).catch(() => {
+    prompt('Copie o texto para enviar no WhatsApp:', txt);
+  });
+}
+
+function imprimirFechamentoDash() {
+  if (!fechamentoData) return;
+  const rep = fechamentoData;
+  const dataFmt = formatDateBR(rep.data);
+  const win = window.open('', '_blank');
+  let html = `
+    <html><head><title>Relatório de Fechamento - ${dataFmt}</title>
+    <style>
+      body { font-family: sans-serif; padding: 24px; color: #222; }
+      h2 { text-align: center; color: #0f3491; margin-bottom: 4px; }
+      .sub { text-align: center; color: #666; font-size: 14px; margin-bottom: 20px; }
+      .kpi-row { display: flex; gap: 16px; margin-bottom: 20px; }
+      .kpi-box { flex: 1; border: 1px solid #ccc; border-radius: 8px; padding: 12px; text-align: center; }
+      .kpi-val { font-size: 24px; font-weight: bold; color: #1a4fc4; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; margin-bottom: 24px; }
+      th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 13px; }
+      th { background: #f0f4ff; color: #0f3491; font-weight: bold; }
+    </style></head><body>
+    <h2>Relatório de Fechamento do Expediente</h2>
+    <div class="sub">USF Chico Mendes — ${dataFmt}</div>
+    <div class="kpi-row">
+      <div class="kpi-box"><div>Total de Atendidos</div><div class="kpi-val">${rep.totalAtendidos}</div></div>
+      <div class="kpi-box"><div>Desistências</div><div class="kpi-val" style="color:#e53935;">${rep.desistencias}</div></div>
+    </div>
+    <h3>Atendimentos por Setor</h3>
+    <table><thead><tr><th>Setor</th><th>Total</th></tr></thead><tbody>
+    ${(rep.porSetor || []).map(s => `<tr><td>${s.setor}</td><td><b>${s.total}</b></td></tr>`).join('')}
+    </tbody></table>
+    <h3>Atendimentos por Profissional</h3>
+    <table><thead><tr><th>Profissional</th><th>Setor</th><th>Total</th></tr></thead><tbody>
+    ${(rep.porProfissional || []).map(p => `<tr><td>${p.profissional}</td><td>${p.setor}</td><td><b>${p.total}</b></td></tr>`).join('')}
+    </tbody></table>
+    </body></html>
+  `;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 400);
 }
 
 // ====== COLETAS DE SANGUE (COM DIA PADRÃO E LIVRE SELEÇÃO) ======
