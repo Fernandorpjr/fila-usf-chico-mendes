@@ -357,6 +357,120 @@ app.get('/api/queues', async (req, res) => {
   }
 });
 
+// Autocomplete de pacientes (busca no histórico por nome, CPF ou Cartão SUS)
+app.get('/api/patients/autocomplete', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q || q.length < 2) {
+      return res.json([]);
+    }
+
+    const searchParam = `%${q}%`;
+    const result = await pool.query(
+      `SELECT DISTINCT ON (nome) nome, cpf, cartao_sus, condicoes_especiais
+       FROM (
+         SELECT nome, cpf, cartao_sus, condicoes_especiais, created_at FROM call_history WHERE nome ILIKE $1 OR cpf ILIKE $1 OR cartao_sus ILIKE $1
+         UNION ALL
+         SELECT nome, cpf, cartao_sus, condicoes_especiais, created_at FROM patients WHERE nome ILIKE $1 OR cpf ILIKE $1 OR cartao_sus ILIKE $1
+       ) AS historico_unificado
+       ORDER BY nome, created_at DESC
+       LIMIT 8`,
+      [searchParam]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Iniciar consulta (marca paciente como em_consulta)
+app.post('/api/patients/:id/iniciar-consulta', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE patients SET status = 'em_consulta', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    io.emit('queueUpdate');
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Relatório diário de fechamento do expediente
+app.get('/api/relatorio-diario', async (req, res) => {
+  try {
+    const dataFiltro = req.query.data || new Date().toISOString().split('T')[0];
+
+    // Atendimentos por setor no dia
+    const porSetor = await pool.query(
+      `SELECT setor, COUNT(*) as total
+       FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+       GROUP BY setor
+       ORDER BY total DESC`,
+      [dataFiltro]
+    );
+
+    // Atendimentos por profissional no dia
+    const porProf = await pool.query(
+      `SELECT COALESCE(profissional, medico, 'Não especificado') as profissional, setor, COUNT(*) as total
+       FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+       GROUP BY COALESCE(profissional, medico, 'Não especificado'), setor
+       ORDER BY total DESC`,
+      [dataFiltro]
+    );
+
+    // Tipos de atendimento especiais (Intercorrências, Urgências, etc.)
+    const porTipo = await pool.query(
+      `SELECT tipo_atendimento, COUNT(*) as total
+       FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date AND tipo_atendimento IS NOT NULL
+       GROUP BY tipo_atendimento
+       ORDER BY total DESC`,
+      [dataFiltro]
+    );
+
+    // Total de desistências no dia
+    const desistencias = await pool.query(
+      `SELECT COUNT(*) as total
+       FROM patients
+       WHERE status = 'desistencia' AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date`,
+      [dataFiltro]
+    );
+
+    // Total na sala de agendamentos no dia
+    const agendamentos = await pool.query(
+      `SELECT status, COUNT(*) as total
+       FROM ctrl_agendamentos
+       WHERE DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = $1::date
+       GROUP BY status`,
+      [dataFiltro]
+    );
+
+    // Total geral de atendidos
+    const totalGeral = porSetor.rows.reduce((acc, row) => acc + parseInt(row.total, 10), 0);
+
+    res.json({
+      data: dataFiltro,
+      totalAtendidos: totalGeral,
+      porSetor: porSetor.rows,
+      porProfissional: porProf.rows,
+      porTipo: porTipo.rows,
+      desistencias: parseInt(desistencias.rows[0]?.total || 0, 10),
+      agendamentos: agendamentos.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Add patient
 app.post('/api/patients', async (req, res) => {
   try {

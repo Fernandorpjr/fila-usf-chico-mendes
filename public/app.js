@@ -1280,44 +1280,90 @@ function speakAgain(setor, btnElement) {
 let speechQueue = [];
 let isSpeaking = false;
 
+function playChime() {
+  return new Promise((resolve) => {
+    if (isMuted || (typeof audioUnlocked !== 'undefined' && !audioUnlocked)) {
+      return resolve();
+    }
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return resolve();
+      const ctx = new AudioCtx();
+      
+      // Nota 1 (Ding - 587.33Hz / D5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+      gain1.gain.setValueAtTime(0.22, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.45);
+      
+      // Nota 2 (Dong - 880Hz / A5)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.18);
+      gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.18);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.75);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(ctx.currentTime + 0.18);
+      osc2.stop(ctx.currentTime + 0.75);
+      
+      setTimeout(resolve, 750);
+    } catch(e) {
+      resolve();
+    }
+  });
+}
+
 function processSpeechQueue() {
   if (isSpeaking || speechQueue.length === 0) return;
   if (!('speechSynthesis' in window)) return;
   
   isSpeaking = true;
-  const { texto } = speechQueue.shift();
-  const utter = new SpeechSynthesisUtterance(texto);
-  utter.lang = 'pt-BR'; utter.rate = 0.95; utter.pitch = 1;
-  const voices = window.speechSynthesis.getVoices();
-  const pv = voices.find(v => v.name.includes('Francisca') || v.name.includes('Antonio') || v.name.includes('Google português do Brasil') || v.name.includes('Luciana') || v.name.includes('Daniel'));
-  const fv = voices.find(v => v.lang.startsWith('pt'));
-  if (pv) utter.voice = pv; else if (fv) utter.voice = fv;
+  playChime().then(() => {
+    if (speechQueue.length === 0) {
+      isSpeaking = false;
+      return;
+    }
+    const { texto } = speechQueue.shift();
+    const utter = new SpeechSynthesisUtterance(texto);
+    utter.lang = 'pt-BR'; utter.rate = 0.95; utter.pitch = 1;
+    const voices = window.speechSynthesis.getVoices();
+    const pv = voices.find(v => v.name.includes('Francisca') || v.name.includes('Antonio') || v.name.includes('Google português do Brasil') || v.name.includes('Luciana') || v.name.includes('Daniel'));
+    const fv = voices.find(v => v.lang.startsWith('pt'));
+    if (pv) utter.voice = pv; else if (fv) utter.voice = fv;
 
-  // Safety timeout: bug do Chrome onde onend não dispara quando aba perde foco.
-  // Estimativa: ~3 palavras/segundo + 3s de margem de segurança.
-  const wordCount = texto.split(/\s+/).length;
-  const estimatedDuration = Math.ceil(wordCount / 3) * 1000;
-  const safetyTimeout = setTimeout(() => {
-    console.warn('⚠️ Speech onend não disparou (aba minimizada?). Continuando fila...');
-    isSpeaking = false;
-    processSpeechQueue();
-  }, estimatedDuration + 3000);
+    // Safety timeout: bug do Chrome onde onend não dispara quando aba perde foco.
+    const wordCount = texto.split(/\s+/).length;
+    const estimatedDuration = Math.ceil(wordCount / 3) * 1000;
+    const safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ Speech onend não disparou (aba minimizada?). Continuando fila...');
+      isSpeaking = false;
+      processSpeechQueue();
+    }, estimatedDuration + 3000);
 
-  utter.onend = () => {
-    clearTimeout(safetyTimeout); // Cancelar timeout se onend disparou normalmente
-    isSpeaking = false;
-    setTimeout(processSpeechQueue, 500); // pequeno delay entre áudios
-  };
-  
-  utter.onerror = (e) => {
-    clearTimeout(safetyTimeout); // Cancelar timeout também em caso de erro
-    console.error("SpeechSynthesis erro", e);
-    isSpeaking = false;
-    processSpeechQueue();
-  };
-  
-  window.speechSynthesis.resume();
-  window.speechSynthesis.speak(utter);
+    utter.onend = () => {
+      clearTimeout(safetyTimeout);
+      isSpeaking = false;
+      setTimeout(processSpeechQueue, 500);
+    };
+    
+    utter.onerror = (e) => {
+      clearTimeout(safetyTimeout);
+      console.error("SpeechSynthesis erro", e);
+      isSpeaking = false;
+      processSpeechQueue();
+    };
+    
+    window.speechSynthesis.resume();
+    window.speechSynthesis.speak(utter);
+  });
 }
 
 function speakViaSynthesis(nome, setor, medico) {
@@ -1503,6 +1549,17 @@ function getTipoAtendimentoBadge(tipo) {
   return `<span class="tipo-atendimento-badge" style="background:${cfg.bg};color:${cfg.color};">${safe}</span>`;
 }
 
+async function iniciarConsulta(id, nome) {
+  try {
+    const r = await fetch(`${API_URL}/patients/${id}/iniciar-consulta`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    showToast(`🚪 ${nome} entrou na consulta!`);
+    loadQueues();
+  } catch (e) {
+    showToast('Erro ao registrar início da consulta!', true);
+  }
+}
+
 function getColor(setor) { return SECTOR_CONFIG[setor]?.color || 'var(--blue)'; }
 
 function renderQueueItems(containerId, setor, filterProfissional) {
@@ -1521,7 +1578,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
     const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">\uD83D\uDCF1</button>`;
 
-    /* === MELHORIA E: Badge de presen\u00e7a === */
+    /* === MELHORIA E: Badge de presença === */
     let presencaHtml = '';
     if (isSectorQueue && ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor)) {
       presencaHtml = p.presenca_confirmada
@@ -1535,17 +1592,17 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       : '';
     const adminControls = isAdmin ? `
       <div class="queue-item-admin-controls">
-        <button class="btn-reorder-arrow" title="Subir uma posi\u00e7\u00e3o"
+        <button class="btn-reorder-arrow" title="Subir uma posição"
           onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">\u2191</button>
-        <button class="btn-reorder-arrow" title="Descer uma posi\u00e7\u00e3o"
+        <button class="btn-reorder-arrow" title="Descer uma posição"
           onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">\u2193</button>
-        <button class="btn-reorder-pos" title="Ir para posi\u00e7\u00e3o espec\u00edfica"
+        <button class="btn-reorder-pos" title="Ir para posição específica"
           onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">\uD83D\uDD22</button>
         <button class="btn-transfer-sector" title="Encaminhar para outro setor"
           onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">
           \u2197\uFE0F Enc.
         </button>
-        <button class="btn-context-menu" title="Mais op\u00e7\u00f5es"
+        <button class="btn-context-menu" title="Mais opções"
           onclick="event.stopPropagation();openContextMenu(event,${p.id},'${safeNome}','${setor}')">
           \u22EE
         </button>
@@ -1562,15 +1619,26 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       ? `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>`
       : '';
 
-    return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}">
+    const inConsultationBtn = (p.status === 'chamado' && ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor))
+      ? `<button class="btn-em-consulta" onclick="event.stopPropagation();iniciarConsulta(${p.id},'${safeNome}')" title="Marcar que o paciente entrou no consultório">🚪 Entrou</button>`
+      : '';
+
+    const statusDisplay = p.status === 'em_consulta'
+      ? `<span class="queue-status status-in-consultation">🚪 Em Consulta</span>`
+      : `<span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'\uD83D\uDCE2 Chamando':'Aguardando'}</span>`;
+
+    const isCallingOrInConsult = p.status === 'chamado' ? 'calling' : p.status === 'em_consulta' ? 'in-consultation' : '';
+
+    return `<div class="queue-item ${isCallingOrInConsult}" data-id="${p.id}" data-draggable="${isAdmin}">
       ${dragHandle}
-      <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
+      <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':p.status==='em_consulta'?'#0288d1':getColor(setor)}">${i+1}</div>
       <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${presencaHtml} ${originBadge}</div>
       <div class="queue-time">${p.horario}</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        ${inConsultationBtn}
         ${qrBtn}
         ${publicTransferBtn}
-        <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'\uD83D\uDCE2 Chamando':'Aguardando'}</span>
+        ${statusDisplay}
         ${removeBtn}
       </div>
       ${adminControls}
@@ -1602,6 +1670,7 @@ function updateMiniQueues() {
     const items = (queues[s] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
     if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
     el.innerHTML = items.map((p, i) => {
+      const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
       const tipoLabel = getTipoAtendimentoBadge(p.tipo_atendimento);
       const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${p.profissional}</span>` : '';
@@ -1621,20 +1690,31 @@ function updateMiniQueues() {
         }
       }
       
-      // Botão de encaminhar para outro setor (Melhoria 5)
+      // Botão de encaminhar para outro setor
       const transferBtn = `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>`;
       
+      const inConsultationBtn = (p.status === 'chamado' && ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(s))
+        ? `<button class="btn-em-consulta" onclick="event.stopPropagation();iniciarConsulta(${p.id},'${safeNome}')" title="Marcar que o paciente entrou no consultório">🚪 Entrou</button>`
+        : '';
+
+      const statusDisplay = p.status === 'em_consulta'
+        ? `<span class="queue-status status-in-consultation">🚪 Em Consulta</span>`
+        : `<span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>`;
+
       const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
       
-      return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
-        <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">${i+1}</div>
+      const isCallingOrInConsult = p.status === 'chamado' ? 'calling' : p.status === 'em_consulta' ? 'in-consultation' : '';
+
+      return `<div class="queue-item ${isCallingOrInConsult}">
+        <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':p.status==='em_consulta'?'#0288d1':getColor(s)}">${i+1}</div>
         <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${originBadge}</div>
         <div class="queue-time">${p.horario}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          ${inConsultationBtn}
           ${presencaBtn}
           ${transferBtn}
           ${qrBtn}
-          <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>
+          ${statusDisplay}
           ${removeBtn}
         </div>
       </div>`;
@@ -3688,14 +3768,21 @@ function renderCtrlAgendamentos() {
       ? `<span class="ctrl-badge-pendente">⏳ Pendente</span>`
       : `<span class="ctrl-badge-agendado">✅ Agendado</span>`;
     const editBtn = `<button class="ctrl-btn-toggle" style="background:rgba(230,126,34,0.12);color:#d35400;border:1px solid rgba(230,126,34,0.4);margin-left:4px;padding:6px 10px;" onclick="abrirEditarCtrlAgendamento(${a.id})" title="Editar registro">✏️ Editar</button>`;
+    const safeNome = (a.nome || '').replace(/'/g, "\\'");
+    const safeEquipe = (a.equipe || '').replace(/'/g, "\\'");
+    const safeMotivo = (a.motivo || a.queixa || 'Consulta').replace(/'/g, "\\'");
+    const waBtn = `<button class="ctrl-btn-toggle" style="background:#25d366;color:#fff;border:none;margin-left:4px;padding:6px 10px;font-weight:700;" onclick="enviarWhatsAppCtrlAgendamento('${safeNome}', '${safeEquipe}', '${safeMotivo}')" title="Enviar WhatsApp de Confirmação em 1 Clique">📲 WhatsApp</button>`;
+
     const btn = isPendente
       ? `<button class="ctrl-btn-toggle ctrl-btn-marcar" onclick="toggleCtrlAgendamento(${a.id}, this)">✅ Marcar Agendado</button>
          ${editBtn}
-         <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${a.nome.replace(/'/g, "\\'")}')" title="Chamar paciente via voz">📢 Chamar</button>
+         ${waBtn}
+         <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${safeNome}')" title="Chamar paciente via voz">📢 Chamar</button>
          <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`
       : `<button class="ctrl-btn-toggle ctrl-btn-desfazer" onclick="toggleCtrlAgendamento(${a.id}, this)">↩ Desfazer</button>
          ${editBtn}
-         <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${a.nome.replace(/'/g, "\\'")}')" title="Chamar paciente via voz">📢 Chamar</button>
+         ${waBtn}
+         <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${safeNome}')" title="Chamar paciente via voz">📢 Chamar</button>
          <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`;
     const queixaCell = a.queixa
       ? `<span style="font-size:13px;color:var(--gray-700);">${a.queixa}</span>`
@@ -3718,6 +3805,15 @@ function renderCtrlAgendamentos() {
       <td style="text-align:center;">${btn}</td>
     </tr>`;
   }).join('');
+}
+
+function enviarWhatsAppCtrlAgendamento(nome, equipe, motivo) {
+  const fone = prompt(`📲 Enviar confirmação no WhatsApp para "${nome}"\n\nDigite o número de telefone do paciente (com DDD):`, '55');
+  if (!fone) return;
+  const numLimpo = fone.replace(/\D/g, '');
+  const dataHoje = new Date().toLocaleDateString('pt-BR');
+  const msg = `Olá, *${nome}*! 🏥\n\nConfirmamos seu agendamento/encaminhamento na *USF Chico Mendes*:\n📅 Data do registro: *${dataHoje}*\n🏥 Equipe/Setor: *${equipe || 'USF Chico Mendes'}*\n📌 Motivo: *${motivo || 'Consulta'}*\n\nPor favor, compareça com documento com foto e Cartão do SUS.\n— *USF Chico Mendes* 💙`;
+  window.open(`https://web.whatsapp.com/send?phone=${numLimpo}&text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function abrirEditarCtrlAgendamento(id) {
@@ -4261,3 +4357,201 @@ async function salvarVagasMedico(medico) {
   }
 })();
 // === FIM MELHORIA 3 ===
+
+// ====== AUTOCOMPLETE DA RECEPÇÃO ======
+function setupAutocompleteRecepcao() {
+  const inputNome = document.getElementById('input-nome');
+  const dropdown = document.getElementById('autocomplete-sugestoes');
+  if (!inputNome || !dropdown) return;
+
+  let debounceTimer = null;
+  inputNome.addEventListener('input', (e) => {
+    const val = e.target.value.trim();
+    clearTimeout(debounceTimer);
+    if (val.length < 2) {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      return;
+    }
+    debounceTimer = setTimeout(async () => {
+      try {
+        const r = await fetch(`${API_URL}/patients/autocomplete?q=${encodeURIComponent(val)}`);
+        if (!r.ok) return;
+        const list = await r.json();
+        if (!list || list.length === 0) {
+          dropdown.style.display = 'none';
+          dropdown.innerHTML = '';
+          return;
+        }
+        dropdown.innerHTML = list.map(item => {
+          const docInfo = item.cpf ? `CPF: ${item.cpf}` : item.cartao_sus ? `SUS: ${item.cartao_sus}` : '';
+          const safeItemNome = (item.nome || '').replace(/'/g, "\\'");
+          const condSafe = item.condicoes_especiais ? String(item.condicoes_especiais).replace(/'/g, "\\'") : '';
+          return `<div class="autocomplete-item" onclick="selecionarPacienteAutocomplete('${safeItemNome}', '${condSafe}')">
+            <div>
+              <div class="autocomplete-item-name">👤 ${item.nome}</div>
+              <div class="autocomplete-item-meta">${docInfo || 'Histórico recente da unidade'}</div>
+            </div>
+            <span style="font-size:12px;color:var(--blue);font-weight:700;">Preencher ➔</span>
+          </div>`;
+        }).join('');
+        dropdown.style.display = 'block';
+      } catch (err) {}
+    }, 250);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== inputNome) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function selecionarPacienteAutocomplete(nome, condicoesStr) {
+  const inputNome = document.getElementById('input-nome');
+  const dropdown = document.getElementById('autocomplete-sugestoes');
+  if (inputNome) inputNome.value = nome;
+  if (dropdown) dropdown.style.display = 'none';
+  if (condicoesStr) {
+    setCondicoesCheckboxes('condicoes-especiais-recepcao', condicoesStr);
+  }
+  showToast(`✅ Paciente "${nome}" selecionado do histórico!`);
+}
+
+// Inicializa autocomplete
+setupAutocompleteRecepcao();
+
+// ====== FECHAMENTO DIÁRIO DO EXPEDIENTE ======
+let relatorioFechamentoAtual = null;
+
+async function abrirModalFechamentoDia() {
+  const modal = document.getElementById('modal-fechamento-dia');
+  const dateInput = document.getElementById('fechamento-data-input');
+  if (!modal) return;
+  const hoje = new Date().toISOString().split('T')[0];
+  if (dateInput) dateInput.value = hoje;
+  modal.classList.add('show');
+  await carregarFechamentoDia();
+}
+
+function fecharModalFechamentoDia() {
+  const modal = document.getElementById('modal-fechamento-dia');
+  if (modal) modal.classList.remove('show');
+}
+
+async function carregarFechamentoDia() {
+  const container = document.getElementById('fechamento-conteudo-relatorio');
+  const dateInput = document.getElementById('fechamento-data-input');
+  const data = dateInput?.value || new Date().toISOString().split('T')[0];
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--gray-600);">Carregando métricas...</div>';
+
+  try {
+    const r = await fetch(`${API_URL}/relatorio-diario?data=${data}`);
+    if (!r.ok) throw new Error();
+    const rep = await r.json();
+    relatorioFechamentoAtual = rep;
+
+    const setoresHtml = (rep.porSetor || []).map(s => `
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-100);">
+        <span style="font-weight:700;color:var(--gray-700);">${s.setor}</span>
+        <span style="font-weight:800;color:var(--blue);">${s.total}</span>
+      </div>
+    `).join('') || '<div style="color:var(--gray-500);font-size:12px;">Nenhum atendimento registrado.</div>';
+
+    const profsHtml = (rep.porProfissional || []).map(p => `
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-100);">
+        <span><b>${p.profissional}</b> <small style="color:var(--gray-500);">(${p.setor})</small></span>
+        <span style="font-weight:800;color:var(--green);">${p.total}</span>
+      </div>
+    `).join('') || '<div style="color:var(--gray-500);font-size:12px;">Nenhum profissional com chamada.</div>';
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;margin-bottom:16px;">
+        <div style="background:rgba(74,171,60,0.1);padding:12px;border-radius:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--green);font-weight:800;text-transform:uppercase;">Atendidos</div>
+          <div style="font-size:24px;font-weight:900;color:var(--green);">${rep.totalAtendidos}</div>
+        </div>
+        <div style="background:rgba(229,57,53,0.1);padding:12px;border-radius:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--red);font-weight:800;text-transform:uppercase;">Desistências</div>
+          <div style="font-size:24px;font-weight:900;color:var(--red);">${rep.desistencias}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="background:var(--gray-100);padding:14px;border-radius:10px;">
+          <div style="font-size:12px;font-weight:800;color:var(--blue-dark);margin-bottom:8px;text-transform:uppercase;">📊 Atendimentos por Setor</div>
+          ${setoresHtml}
+        </div>
+        <div style="background:var(--gray-100);padding:14px;border-radius:10px;">
+          <div style="font-size:12px;font-weight:800;color:var(--blue-dark);margin-bottom:8px;text-transform:uppercase;">👨‍⚕️ Atendimentos por Profissional</div>
+          ${profsHtml}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = '<div style="color:var(--red);text-align:center;padding:20px;">Erro ao carregar dados do relatório.</div>';
+  }
+}
+
+function copiarRelatorioWhatsApp() {
+  if (!relatorioFechamentoAtual) {
+    showToast('Carregue o relatório antes de copiar!', true);
+    return;
+  }
+  const rep = relatorioFechamentoAtual;
+  const dataFmt = new Date(rep.data + 'T12:00:00').toLocaleDateString('pt-BR');
+  
+  let txt = `📋 *FECHAMENTO DIÁRIO — USF CHICO MENDES*\n📅 Data: *${dataFmt}*\n\n`;
+  txt += `✅ *Total de Atendidos:* ${rep.totalAtendidos}\n`;
+  txt += `🚶 *Desistências:* ${rep.desistencias}\n\n`;
+  
+  txt += `📊 *ATENDIMENTOS POR SETOR:*\n`;
+  (rep.porSetor || []).forEach(s => {
+    txt += `• ${s.setor}: *${s.total}*\n`;
+  });
+  
+  txt += `\n👨‍⚕️ *ATENDIMENTOS POR PROFISSIONAL:*\n`;
+  (rep.porProfissional || []).forEach(p => {
+    txt += `• ${p.profissional} (${p.setor}): *${p.total}*\n`;
+  });
+
+  txt += `\n— *Sistema de Gestão USF Chico Mendes* 🏥`;
+
+  navigator.clipboard.writeText(txt).then(() => {
+    showToast('📋 Relatório copiado para o WhatsApp!');
+  }).catch(() => {
+    prompt('Copie o texto abaixo para enviar no WhatsApp:', txt);
+  });
+}
+
+function imprimirFechamentoDia() {
+  if (!relatorioFechamentoAtual) return;
+  const rep = relatorioFechamentoAtual;
+  const dataFmt = new Date(rep.data + 'T12:00:00').toLocaleDateString('pt-BR');
+  const win = window.open('', '_blank');
+  let html = `
+    <html><head><title>Relatório de Fechamento - ${dataFmt}</title>
+    <style>
+      body { font-family: sans-serif; padding: 20px; color: #333; }
+      h2 { text-align: center; color: #1a4fc4; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 13px; }
+      th { background: #f4f4f4; }
+    </style></head><body>
+    <h2>Relatório de Fechamento do Expediente<br><span style="font-size:16px;color:#666;">USF Chico Mendes — ${dataFmt}</span></h2>
+    <p><b>Total de Atendidos:</b> ${rep.totalAtendidos} | <b>Desistências:</b> ${rep.desistencias}</p>
+    <h3>Atendimentos por Setor</h3>
+    <table><thead><tr><th>Setor</th><th>Total</th></tr></thead><tbody>
+    ${(rep.porSetor || []).map(s => `<tr><td>${s.setor}</td><td>${s.total}</td></tr>`).join('')}
+    </tbody></table>
+    <h3 style="margin-top:20px;">Atendimentos por Profissional</h3>
+    <table><thead><tr><th>Profissional</th><th>Setor</th><th>Total</th></tr></thead><tbody>
+    ${(rep.porProfissional || []).map(p => `<tr><td>${p.profissional}</td><td>${p.setor}</td><td>${p.total}</td></tr>`).join('')}
+    </tbody></table>
+    </body></html>
+  `;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 500);
+}

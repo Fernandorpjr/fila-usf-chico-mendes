@@ -207,6 +207,7 @@
         }
     }
 
+    let lastCountAhead = null;
     function updatePosition(pos, setor) {
         const posEl = document.getElementById('posicao');
         const countAhead = Math.max(0, pos - 1);
@@ -214,6 +215,27 @@
         
         let minTime = (pos * 5); // Ex: 5 min por pessoa (estimated)
         if (setor === 'Médico' || setor === 'Odontologia') minTime = pos * 15;
+
+        // Proximidade alert banner
+        let proxEl = document.getElementById('proximidadeAlert');
+        if (!proxEl) {
+            proxEl = document.createElement('div');
+            proxEl.id = 'proximidadeAlert';
+            proxEl.style.cssText = 'margin-top:16px;background:rgba(244,130,30,0.15);border:2px solid var(--orange);border-radius:12px;padding:12px;font-weight:800;color:#d35400;animation:pulseAlert 2s infinite;';
+            document.getElementById('waitingCard').appendChild(proxEl);
+        }
+
+        if (countAhead <= 2 && countAhead > 0) {
+            proxEl.style.display = 'block';
+            proxEl.innerHTML = `🔔 <strong>Atenção:</strong> Faltam apenas <strong>${countAhead} ${countAhead === 1 ? 'pessoa' : 'pessoas'}</strong> na sua frente!<br><span style="font-size:13px;font-weight:700;color:#666;">Fique próximo(a) à sala de atendimento.</span>`;
+            if (lastCountAhead === null || lastCountAhead > 2) {
+                if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+            }
+        } else {
+            proxEl.style.display = 'none';
+        }
+        lastCountAhead = countAhead;
+
         if (countAhead === 0) {
             document.getElementById('tempo').textContent = "A qualquer momento!";
             document.getElementById('badgeWait').style.background = 'rgba(74,171,60,0.1)';
