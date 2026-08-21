@@ -796,6 +796,7 @@ function toggleTransferTipoAtendimento() {
         <option value="Consulta">🩺 Consulta</option>
         <option value="Acolhimento">💜 Acolhimento</option>
         <option value="Urgência">🚨 Urgência</option>
+        <option value="Intercorrência">⚠️ Intercorrência</option>
         <option value="Retorno">🔄 Retorno</option>
       `;
     } else if (tipoGrupo.style.display === 'block') {
@@ -808,6 +809,8 @@ function toggleTransferTipoAtendimento() {
         <option value="Saúde da Mulher">🩷 Saúde da Mulher</option>
         <option value="Prevenção">🛡️ Prevenção</option>
         <option value="Pré-Natal">🤰 Pré-Natal</option>
+        <option value="Intercorrência (Acolhimento)">🚨 Intercorrência (Acolhimento)</option>
+        <option value="Renovação de Receita Controlada">💊 Renovação de Receita Controlada</option>
         <option value="Retorno">🔄 Retorno</option>
         <option value="Exame Citopatológico">🔬 Exame Citopatológico</option>
       `;
@@ -1012,6 +1015,7 @@ function toggleTipoAtendimento() {
         <option value="Consulta">🩺 Consulta</option>
         <option value="Acolhimento">💜 Acolhimento</option>
         <option value="Urgência">🚨 Urgência</option>
+        <option value="Intercorrência">⚠️ Intercorrência</option>
         <option value="Retorno">🔄 Retorno</option>
       `;
     } else {
@@ -1023,6 +1027,8 @@ function toggleTipoAtendimento() {
         <option value="Saúde da Mulher">🩷 Saúde da Mulher</option>
         <option value="Prevenção">🛡️ Prevenção</option>
         <option value="Pré-Natal">🤰 Pré-Natal</option>
+        <option value="Intercorrência (Acolhimento)">🚨 Intercorrência (Acolhimento)</option>
+        <option value="Renovação de Receita Controlada">💊 Renovação de Receita Controlada</option>
         <option value="Retorno">🔄 Retorno</option>
         <option value="Exame Citopatológico">🔬 Exame Citopatológico</option>
       `;
@@ -1462,6 +1468,41 @@ function updateBadges() {
   /* === FIM MELHORIA B === */
 }
 
+// ====== MAPEAMENTO DE CORES POR TIPO DE ATENDIMENTO ======
+const TIPO_ATENDIMENTO_CORES = {
+  'Consulta':                      { bg: 'rgba(96,165,250,0.18)',  color: '#1e40af' },
+  'Renovação de Receita':          { bg: 'rgba(52,211,153,0.18)',  color: '#065f46' },
+  'Renovação de Receita Controlada': { bg: 'rgba(139,92,246,0.18)', color: '#5b21b6' },
+  'Hiperdia':                      { bg: 'rgba(251,146,60,0.18)',  color: '#9a3412' },
+  'Puericultura':                  { bg: 'rgba(253,224,71,0.18)',  color: '#854d0e' },
+  'Saúde da Mulher':               { bg: 'rgba(244,114,182,0.18)', color: '#9d174d' },
+  'Prevenção':                     { bg: 'rgba(34,197,94,0.18)',   color: '#166534' },
+  'Pré-Natal':                     { bg: 'rgba(192,132,252,0.18)', color: '#6b21a8' },
+  'Retorno':                       { bg: 'rgba(148,163,184,0.18)', color: '#334155' },
+  'Exame Citopatológico':          { bg: 'rgba(45,212,191,0.18)',  color: '#115e59' },
+  'Intercorrência (Acolhimento)':  { bg: 'rgba(239,68,68,0.18)',   color: '#991b1b' },
+  // Odontologia
+  'Acolhimento':                   { bg: 'rgba(142,36,170,0.15)',  color: '#7b1fa2' },
+  'Acolhimento Odontológico':      { bg: 'rgba(142,36,170,0.15)',  color: '#7b1fa2' },
+  'Urgência':                      { bg: 'rgba(245,158,11,0.20)',  color: '#92400e' },
+  'Intercorrência':                { bg: 'rgba(239,68,68,0.18)',   color: '#991b1b' },
+  // Téc. Enfermagem
+  'Coleta':                        { bg: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
+  'Vacina':                        { bg: 'rgba(59,130,246,0.15)',  color: '#1e40af' },
+  'Curativo':                      { bg: 'rgba(251,146,60,0.15)',  color: '#9a3412' },
+  'Procedimento':                  { bg: 'rgba(45,212,191,0.15)',  color: '#115e59' },
+  // Fluxo interno
+  '1ª Escuta (ACS)':               { bg: 'rgba(251,146,60,0.15)',  color: '#9a3412' },
+  '2ª Escuta':                     { bg: 'rgba(239,68,68,0.15)',   color: '#991b1b' },
+};
+
+function getTipoAtendimentoBadge(tipo) {
+  if (!tipo) return '';
+  const cfg = TIPO_ATENDIMENTO_CORES[tipo] || { bg: 'rgba(148,163,184,0.15)', color: '#475569' };
+  const safe = String(tipo).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return `<span class="tipo-atendimento-badge" style="background:${cfg.bg};color:${cfg.color};">${safe}</span>`;
+}
+
 function getColor(setor) { return SECTOR_CONFIG[setor]?.color || 'var(--blue)'; }
 
 function renderQueueItems(containerId, setor, filterProfissional) {
@@ -1475,7 +1516,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
   el.innerHTML = items.map((p, i) => {
     const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">\u2B50 ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
-    const tipoLabel = p.tipo_atendimento ? `<span style="font-size:11px;color:var(--gray-600);margin-left:4px;">(${p.tipo_atendimento})</span>` : '';
+    const tipoLabel = getTipoAtendimentoBadge(p.tipo_atendimento);
     const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">\uD83D\uDC68\u200D\u2695\uFE0F ${p.profissional}</span>` : '';
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
     const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">\uD83D\uDCF1</button>`;
@@ -1562,7 +1603,7 @@ function updateMiniQueues() {
     if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
     el.innerHTML = items.map((p, i) => {
       const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
-      const tipoLabel = p.tipo_atendimento ? `<span style="font-size:11px;color:var(--gray-600);margin-left:4px;">(${p.tipo_atendimento})</span>` : '';
+      const tipoLabel = getTipoAtendimentoBadge(p.tipo_atendimento);
       const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${p.profissional}</span>` : '';
       const condBadges = renderCondicoesBadges(p.condicoes_especiais);
       const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
