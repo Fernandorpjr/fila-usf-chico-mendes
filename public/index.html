@@ -938,8 +938,6 @@
     <!-- === MELHORIA A: BOTÃO LOGOUT === -->
     <button class="btn-logout-gate" id="btn-logout-gate" onclick="logoutGate()" title="Encerrar sessão do portão de entrada">🚪 Encerrar sessão</button>
     <!-- === FIM MELHORIA A === -->
-    <!-- === BOTÃO FECHAMENTO DO DIA (MODO ADMIN) === -->
-    <button class="btn-reset admin-only" onclick="abrirModalFechamentoDia()" style="background:rgba(74,171,60,0.15);color:var(--green);border:1px solid rgba(74,171,60,0.3);font-weight:700;" title="Relatório de Fechamento do Dia">📋 Fechamento do Dia</button>
     <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
     <button id="btn-palestra" class="btn-palestra admin-only" onclick="togglePausaPalestra()" title="Pausar sistema para palestra da gestora">🎙️ Pausar para Palestra</button>
     <!-- === FIM MELHORIA F === -->
@@ -1851,33 +1849,6 @@
   <button class="ctx-menu-item" style="color:var(--gray-600);" onclick="closeContextMenu()">❌ Fechar Menu</button>
 </div>
 <!-- ====== FIM MELHORIA G: MODAIS ====== -->
-
-<!-- Modal: Fechamento Diário da Unidade -->
-<div class="transfer-modal-overlay" id="modal-fechamento-dia">
-  <div class="transfer-modal" style="max-width:650px;width:95%;max-height:90vh;overflow-y:auto;">
-    <div class="transfer-modal-header" style="background:linear-gradient(135deg,var(--blue-dark),var(--blue));">
-      <div>
-        <h3>📋 Fechamento Diário do Expediente</h3>
-        <p style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:2px;">USF Chico Mendes — Resumo Consolidado</p>
-      </div>
-      <button class="transfer-modal-close" onclick="fecharModalFechamentoDia()">✕</button>
-    </div>
-    <div class="transfer-modal-body" style="padding:20px;">
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
-        <label style="font-weight:700;font-size:13px;color:var(--gray-700);">Data do Relatório:</label>
-        <input type="date" id="fechamento-data-input" onchange="carregarFechamentoDia()" style="padding:6px 12px;border:1px solid var(--gray-300);border-radius:8px;font-weight:700;font-family:'Nunito',sans-serif;">
-      </div>
-      <div id="fechamento-conteudo-relatorio">
-        <div style="text-align:center;padding:30px;color:var(--gray-600);">Carregando métricas...</div>
-      </div>
-    </div>
-    <div class="transfer-modal-footer" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-      <button class="btn" style="background:#25d366;color:#fff;font-weight:800;border:none;" onclick="copiarRelatorioWhatsApp()">📲 Copiar p/ WhatsApp</button>
-      <button class="btn btn-primary" onclick="imprimirFechamentoDia()">🖨️ Imprimir PDF</button>
-      <button class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalFechamentoDia()">Fechar</button>
-    </div>
-  </div>
-</div>
 
 <div id="sound-modal" style="display:none;position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
   <div style="background:var(--white);border-radius:24px;padding:40px 48px;text-align:center;max-width:440px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.4);">
