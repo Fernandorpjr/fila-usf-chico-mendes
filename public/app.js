@@ -1549,17 +1549,6 @@ function getTipoAtendimentoBadge(tipo) {
   return `<span class="tipo-atendimento-badge" style="background:${cfg.bg};color:${cfg.color};">${safe}</span>`;
 }
 
-async function iniciarConsulta(id, nome) {
-  try {
-    const r = await fetch(`${API_URL}/patients/${id}/iniciar-consulta`, { method: 'POST' });
-    if (!r.ok) throw new Error();
-    showToast(`🚪 ${nome} entrou na consulta!`);
-    loadQueues();
-  } catch (e) {
-    showToast('Erro ao registrar início da consulta!', true);
-  }
-}
-
 function getColor(setor) { return SECTOR_CONFIG[setor]?.color || 'var(--blue)'; }
 
 function renderQueueItems(containerId, setor, filterProfissional) {
@@ -1619,26 +1608,15 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       ? `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>`
       : '';
 
-    const inConsultationBtn = (p.status === 'chamado' && ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor))
-      ? `<button class="btn-em-consulta" onclick="event.stopPropagation();iniciarConsulta(${p.id},'${safeNome}')" title="Marcar que o paciente entrou no consultório">🚪 Entrou</button>`
-      : '';
-
-    const statusDisplay = p.status === 'em_consulta'
-      ? `<span class="queue-status status-in-consultation">🚪 Em Consulta</span>`
-      : `<span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'\uD83D\uDCE2 Chamando':'Aguardando'}</span>`;
-
-    const isCallingOrInConsult = p.status === 'chamado' ? 'calling' : p.status === 'em_consulta' ? 'in-consultation' : '';
-
-    return `<div class="queue-item ${isCallingOrInConsult}" data-id="${p.id}" data-draggable="${isAdmin}">
+    return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}">
       ${dragHandle}
-      <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':p.status==='em_consulta'?'#0288d1':getColor(setor)}">${i+1}</div>
+      <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
       <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${presencaHtml} ${originBadge}</div>
       <div class="queue-time">${p.horario}</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        ${inConsultationBtn}
         ${qrBtn}
         ${publicTransferBtn}
-        ${statusDisplay}
+        <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'\uD83D\uDCE2 Chamando':'Aguardando'}</span>
         ${removeBtn}
       </div>
       ${adminControls}
@@ -1693,28 +1671,17 @@ function updateMiniQueues() {
       // Botão de encaminhar para outro setor
       const transferBtn = `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>`;
       
-      const inConsultationBtn = (p.status === 'chamado' && ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(s))
-        ? `<button class="btn-em-consulta" onclick="event.stopPropagation();iniciarConsulta(${p.id},'${safeNome}')" title="Marcar que o paciente entrou no consultório">🚪 Entrou</button>`
-        : '';
-
-      const statusDisplay = p.status === 'em_consulta'
-        ? `<span class="queue-status status-in-consultation">🚪 Em Consulta</span>`
-        : `<span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>`;
-
       const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
-      
-      const isCallingOrInConsult = p.status === 'chamado' ? 'calling' : p.status === 'em_consulta' ? 'in-consultation' : '';
 
-      return `<div class="queue-item ${isCallingOrInConsult}">
-        <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':p.status==='em_consulta'?'#0288d1':getColor(s)}">${i+1}</div>
+      return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
+        <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">${i+1}</div>
         <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${originBadge}</div>
         <div class="queue-time">${p.horario}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          ${inConsultationBtn}
           ${presencaBtn}
           ${transferBtn}
           ${qrBtn}
-          ${statusDisplay}
+          <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>
           ${removeBtn}
         </div>
       </div>`;
