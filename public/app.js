@@ -2309,7 +2309,24 @@ async function sendChatMessage() { await sendChatChannelMessage(); }
 
 // ====== AGENDAMENTOS ======
 
-// ====== CACHE DE PROFISSIONAIS (com profissão) ======
+// ====== DICIONÁRIO E CACHE DE PROFISSIONAIS (com profissão garantida) ======
+const PROFISSOES_DEFAULT = {
+  'dra. juliana cavalcante': 'Cirurgiã-Dentista – Estratégia Saúde da Família (ESF)',
+  'juliana cavalcante': 'Cirurgiã-Dentista – Estratégia Saúde da Família (ESF)',
+  'dra. mirela mota': 'Clínica Geral – Médica da Estratégia Saúde da Família (ESF)',
+  'mirela mota': 'Clínica Geral – Médica da Estratégia Saúde da Família (ESF)',
+  'dr. israel christian': 'Médico – Estratégia Saúde da Família (ESF)',
+  'israel christian': 'Médico – Estratégia Saúde da Família (ESF)',
+  'dr. joene halan': 'Médico – Estratégia Saúde da Família (ESF)',
+  'joene halan': 'Médico – Estratégia Saúde da Família (ESF)',
+  'jorge marcio': 'Enfermeiro – Estratégia Saúde da Família (ESF)',
+  'mariana vaz': 'Enfermeira – Estratégia Saúde da Família (ESF)',
+  'lucelia de abreu': 'Enfermeira – Estratégia Saúde da Família (ESF)',
+  'viviane': 'Técnica de Enfermagem',
+  'vilma': 'Técnica de Enfermagem',
+  'fernando': 'Técnico de Enfermagem'
+};
+
 let profissionaisCache = new Map(); // nome -> profissao
 async function carregarProfissionaisCache() {
   try {
@@ -2317,10 +2334,54 @@ async function carregarProfissionaisCache() {
     if (!r.ok) return;
     const list = await r.json();
     profissionaisCache.clear();
-    list.forEach(p => profissionaisCache.set(p.nome, p.profissao || ''));
+    list.forEach(p => {
+      if (p.nome && p.profissao) {
+        profissionaisCache.set(p.nome.trim(), p.profissao.trim());
+      }
+    });
   } catch(e) { /* silencioso */ }
 }
 carregarProfissionaisCache();
+
+function getProfissaoProfissional(nome) {
+  if (!nome) return '';
+  const raw = String(nome).trim();
+  if (!raw || raw.toLowerCase() === 'a definir') return '';
+  
+  // Se o próprio nome já tiver a profissão (ex: "Nome – Cargo"), não duplica
+  if (raw.includes('–') || raw.includes(' - ')) {
+    return '';
+  }
+
+  // 1. Busca no cache dinâmico da API
+  if (profissionaisCache.has(raw) && profissionaisCache.get(raw)) {
+    return profissionaisCache.get(raw);
+  }
+
+  // 2. Busca no dicionário garantido (case-insensitive e sem prefixos)
+  const norm = raw.toLowerCase();
+  if (PROFISSOES_DEFAULT[norm]) {
+    return PROFISSOES_DEFAULT[norm];
+  }
+
+  const semPrefixo = norm.replace(/^(dr\.|dra\.|enf\.|tec\.|dr|dra)\s*/i, '').trim();
+  for (const [k, v] of Object.entries(PROFISSOES_DEFAULT)) {
+    const kSem = k.replace(/^(dr\.|dra\.|enf\.|tec\.|dr|dra)\s*/i, '').trim();
+    if (kSem === semPrefixo || (semPrefixo.length >= 4 && (kSem.includes(semPrefixo) || semPrefixo.includes(kSem)))) {
+      return v;
+    }
+  }
+
+  // 3. Busca parcial no cache dinâmico
+  for (const [k, v] of profissionaisCache.entries()) {
+    const kNorm = k.toLowerCase().replace(/^(dr\.|dra\.|enf\.|tec\.|dr|dra)\s*/i, '').trim();
+    if (kNorm === semPrefixo || (semPrefixo.length >= 4 && (kNorm.includes(semPrefixo) || semPrefixo.includes(kNorm)))) {
+      return v;
+    }
+  }
+
+  return '';
+}
 
 // ====== PERÍODO DO DIA ======
 function getPeriodoDia(horario) {
@@ -2344,8 +2405,9 @@ function getOrientacaoTipo(tipoAtendimento, profissionalNome) {
     return ORIENTACOES_TIPO[tipoAtendimento];
   }
   // Depois verifica pela profissão do profissional (se é dentista)
-  const profissao = profissionaisCache.get(profissionalNome) || '';
-  if (profissao.toLowerCase().includes('dentista')) {
+  const profissao = getProfissaoProfissional(profissionalNome) || '';
+  const nomeLower = (profissionalNome || '').toLowerCase();
+  if (profissao.toLowerCase().includes('dentista') || nomeLower.includes('juliana')) {
     return ORIENTACOES_TIPO['Cirurgiã-Dentista'];
   }
   return ORIENTACOES_TIPO['_default'];
@@ -2361,7 +2423,6 @@ const WA_TEMPLATES = {
   // === MELHORIA 7: Template de cancelamento de consulta ===
   cancelamento: `Olá, [NOME]! 🏥\n\nInformamos que sua consulta na *USF Chico Mendes* agendada para o dia *[DATA]* às *[HORARIO]* foi *cancelada*.\n\nEm breve entraremos em contato para confirmar o *reagendamento para uma nova data*.\n\nPedimos desculpas pelo transtorno e agradecemos a compreensão. 💙\n\n— *USF Chico Mendes*`
 };
-
 
 // === MELHORIA 7: Constante de texto para reutilização ===
 const TEXTO_CANCELAMENTO = 'Olá! Informamos que sua consulta foi cancelada e será reagendada para uma nova data. Em breve entraremos em contato para confirmar o novo horário. Pedimos desculpas pelo transtorno e agradecemos a compreensão.\n— USF Chico Mendes';
@@ -2394,9 +2455,14 @@ function buildWaMessage(agend) {
     try { const arr = JSON.parse(agend.checklist_exames); exames = arr.map(e => `* ${e}`).join('\n'); } catch(e) { exames = agend.checklist_exames; }
   }
   // Profissional com profissão
-  const profNome = agend.profissional || 'A definir';
-  const profissao = profissionaisCache.get(agend.profissional) || '';
-  const profCompleto = profissao ? `${profNome} – ${profissao}` : profNome;
+  const profNome = (agend.profissional || '').trim() || 'A definir';
+  let profCompleto = profNome;
+  if (profNome !== 'A definir') {
+    const profissao = getProfissaoProfissional(profNome);
+    if (profissao && !profNome.includes(profissao)) {
+      profCompleto = `${profNome} – ${profissao}`;
+    }
+  }
   // Horário com período do dia
   const periodo = getPeriodoDia(agend.horario);
   const horarioCompleto = periodo ? `${agend.horario} – ${periodo}` : agend.horario;
