@@ -2619,6 +2619,16 @@ app.delete('/api/responsaveis-setor/:id', async (req, res) => {
 // POST – registrar envio de mensagem
 app.post('/api/mensagens-enviadas', async (req, res) => {
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mensagens_enviadas (
+        id SERIAL PRIMARY KEY,
+        agendamento_id INTEGER,
+        profissional TEXT,
+        paciente TEXT NOT NULL,
+        template TEXT,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
     const { agendamento_id, profissional, paciente, template } = req.body;
     if (!paciente) {
       return res.status(400).json({ error: 'Paciente é obrigatório' });
@@ -2629,6 +2639,7 @@ app.post('/api/mensagens-enviadas', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error('Erro ao salvar mensagem enviada:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2636,30 +2647,40 @@ app.post('/api/mensagens-enviadas', async (req, res) => {
 // GET – relatório de mensagens por dia
 app.get('/api/mensagens-enviadas/relatorio', async (req, res) => {
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mensagens_enviadas (
+        id SERIAL PRIMARY KEY,
+        agendamento_id INTEGER,
+        profissional TEXT,
+        paciente TEXT NOT NULL,
+        template TEXT,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
     const { data } = req.query;
-    if (!data) {
-      return res.status(400).json({ error: 'Parâmetro data é obrigatório (YYYY-MM-DD)' });
-    }
+    const targetDate = data || new Date().toISOString().split('T')[0];
+
     const porProfissional = await pool.query(
-      `SELECT profissional, COUNT(*) as total
+      `SELECT COALESCE(NULLIF(TRIM(profissional), ''), 'Sem profissional') as profissional, COUNT(*) as total
        FROM mensagens_enviadas
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1
-       GROUP BY profissional
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+       GROUP BY COALESCE(NULLIF(TRIM(profissional), ''), 'Sem profissional')
        ORDER BY total DESC`,
-      [data]
+      [targetDate]
     );
     const totalResult = await pool.query(
       `SELECT COUNT(*) as total
        FROM mensagens_enviadas
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1`,
-      [data]
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date`,
+      [targetDate]
     );
     res.json({
-      data,
-      total: parseInt(totalResult.rows[0].total),
-      porProfissional: porProfissional.rows.map(r => ({ profissional: r.profissional || 'Sem profissional', total: parseInt(r.total) }))
+      data: targetDate,
+      total: parseInt(totalResult.rows[0].total) || 0,
+      porProfissional: porProfissional.rows.map(r => ({ profissional: r.profissional, total: parseInt(r.total) }))
     });
   } catch (error) {
+    console.error('Erro ao obter relatorio de mensagens:', error);
     res.status(500).json({ error: error.message });
   }
 });

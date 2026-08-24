@@ -981,6 +981,8 @@ function showScreen(name) {
   if (tabEl) tabEl.classList.add('active');
   if (name === 'agendamentos') {
     loadAgendamentos();
+    loadRelatorioMensagens();
+    loadResponsaveisSetor();
   }
   // === CTRL AGENDAMENTOS: carrega e ativa polling dedicado ao entrar na aba ===
   if (name === 'ctrl_agendamentos') {
@@ -2612,6 +2614,7 @@ async function loadAgendamentos() {
     const list = await r.json();
     renderAgendamentos(list);
     loadColetasStats();
+    loadRelatorioMensagens();
   } catch { showToast('Erro ao carregar agendamentos', true); }
 }
 
@@ -2666,9 +2669,7 @@ async function updateAgendStatus(id, status) {
           document.getElementById('wa-preview-text').textContent = cancelMsg;
           const phone = agend.telefone.replace(/\D/g, '');
           // === MELHORIA 6: Usar web.whatsapp.com/send ===
-          const waLink = document.getElementById('wa-send-link');
-          waLink.href = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(cancelMsg)}`;
-          waLink.onclick = function() { registrarMensagemEnviada({ ...agend, template: 'cancelamento' }); };
+          _waCurrentUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(cancelMsg)}`;
           _waModalAgendAtual = { ...agend, template: 'cancelamento' };
           document.getElementById('wa-modal').classList.add('show');
         }
@@ -2691,6 +2692,7 @@ async function deleteAgendamento(id) {
 
 // Variável para rastrear agendamento atual no modal WA (para registro de envio)
 let _waModalAgendAtual = null;
+let _waCurrentUrl = '';
 
 async function openWaPreview(id) {
   try {
@@ -2702,26 +2704,37 @@ async function openWaPreview(id) {
     const msg = buildWaMessage(agend);
     document.getElementById('wa-preview-text').textContent = msg;
     const phone = agend.telefone.replace(/\D/g,'');
-    // === MELHORIA 6: Usar web.whatsapp.com/send para melhor compatibilidade com acentos e emojis ===
-    const waLink = document.getElementById('wa-send-link');
-    waLink.href = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
-    waLink.onclick = function() { registrarMensagemEnviada(agend); };
+    _waCurrentUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
     document.getElementById('wa-modal').classList.add('show');
   } catch { showToast('Erro!', true); }
 }
 
+async function abrirWhatsAppEEnviar() {
+  if (!_waCurrentUrl) return;
+  if (_waModalAgendAtual) {
+    await registrarMensagemEnviada(_waModalAgendAtual);
+    loadRelatorioMensagens();
+  }
+  window.open(_waCurrentUrl, '_blank');
+}
+
 // Registra o envio de mensagem no backend
-function registrarMensagemEnviada(agend) {
-  fetch(`${API_URL}/mensagens-enviadas`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      agendamento_id: agend.id,
-      profissional: agend.profissional || null,
-      paciente: agend.nome,
-      template: agend.template || 'lembrete'
-    })
-  }).catch(() => {}); // fire-and-forget
+async function registrarMensagemEnviada(agend) {
+  if (!agend) return;
+  try {
+    await fetch(`${API_URL}/mensagens-enviadas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agendamento_id: agend.id || null,
+        profissional: agend.profissional || null,
+        paciente: agend.nome || 'Paciente',
+        template: agend.template || 'lembrete'
+      })
+    });
+  } catch (e) {
+    console.error('Erro ao registrar envio de mensagem:', e);
+  }
 }
 
 function closeWaModal() { document.getElementById('wa-modal').classList.remove('show'); }
