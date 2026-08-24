@@ -310,7 +310,72 @@ async function initDB() {
       )
     `);
     // ====== FIM MELHORIA 4: TABELA ======
-    
+
+    // ====== CADASTRO DE PROFISSIONAIS (com profissão/cargo) ======
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS profissionais_cadastro (
+        id SERIAL PRIMARY KEY,
+        nome TEXT NOT NULL UNIQUE,
+        profissao TEXT,
+        ativo BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // Seed idempotente – preenche profissionais com profissão
+    const profSeed = [
+      ['Dra. Juliana Cavalcante', 'Cirurgiã-Dentista – Estratégia Saúde da Família (ESF)'],
+      ['Dra. Mirela Mota', 'Clínica Geral – Médica da Estratégia Saúde da Família (ESF)'],
+      ['Dr. Israel Christian', 'Médico – Estratégia Saúde da Família (ESF)'],
+      ['Dr. Joene Halan', 'Médico – Estratégia Saúde da Família (ESF)'],
+      ['Jorge Marcio', 'Enfermeiro – Estratégia Saúde da Família (ESF)'],
+      ['Mariana Vaz', 'Enfermeira – Estratégia Saúde da Família (ESF)'],
+      ['Lucelia de Abreu', 'Enfermeira – Estratégia Saúde da Família (ESF)']
+    ];
+    for (const [nome, profissao] of profSeed) {
+      await pool.query(
+        `INSERT INTO profissionais_cadastro (nome, profissao) VALUES ($1, $2)
+         ON CONFLICT (nome) DO UPDATE SET profissao = COALESCE(profissionais_cadastro.profissao, $2)`,
+        [nome, profissao]
+      );
+    }
+    // ====== FIM CADASTRO DE PROFISSIONAIS ======
+
+    // ====== RESPONSÁVEIS DE SETORES DE APOIO ======
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS responsaveis_setor (
+        id SERIAL PRIMARY KEY,
+        nome TEXT NOT NULL,
+        setor TEXT NOT NULL,
+        cargo TEXT,
+        ativo BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(nome, setor)
+      )
+    `);
+    // Seed: Viviane (Regulação) e Leandra (Farmácia)
+    await pool.query(
+      `INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES ('Viviane', 'Regulação', 'Responsável pela Regulação')
+       ON CONFLICT (nome, setor) DO NOTHING`
+    );
+    await pool.query(
+      `INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES ('Leandra', 'Farmácia', 'Responsável pela Farmácia')
+       ON CONFLICT (nome, setor) DO NOTHING`
+    );
+    // ====== FIM RESPONSÁVEIS DE SETORES ======
+
+    // ====== MENSAGENS ENVIADAS (Relatório) ======
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mensagens_enviadas (
+        id SERIAL PRIMARY KEY,
+        agendamento_id INTEGER,
+        profissional TEXT,
+        paciente TEXT NOT NULL,
+        template TEXT,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // ====== FIM MENSAGENS ENVIADAS ======
+
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao inicializar banco de dados:', error.message);
@@ -2452,6 +2517,150 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
+  }
+});
+
+// ====== API: PROFISSIONAIS CADASTRO ======
+
+// GET – listar profissionais com profissão
+app.get('/api/profissionais', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM profissionais_cadastro WHERE ativo = true ORDER BY nome ASC');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT – atualizar profissão de um profissional
+app.put('/api/profissionais/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { profissao } = req.body;
+    const result = await pool.query(
+      'UPDATE profissionais_cadastro SET profissao = $2 WHERE id = $1 RETURNING *',
+      [id, profissao || null]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Profissional não encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== API: RESPONSÁVEIS DE SETORES DE APOIO ======
+
+// GET – listar responsáveis
+app.get('/api/responsaveis-setor', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST – criar responsável
+app.post('/api/responsaveis-setor', async (req, res) => {
+  try {
+    const { nome, setor, cargo } = req.body;
+    if (!nome || !setor) {
+      return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
+    }
+    const result = await pool.query(
+      'INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES ($1, $2, $3) RETURNING *',
+      [nome, setor, cargo || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Responsável já cadastrado nesse setor' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT – editar responsável
+app.put('/api/responsaveis-setor/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, setor, cargo } = req.body;
+    const result = await pool.query(
+      'UPDATE responsaveis_setor SET nome = COALESCE($2, nome), setor = COALESCE($3, setor), cargo = COALESCE($4, cargo) WHERE id = $1 RETURNING *',
+      [id, nome || null, setor || null, cargo || null]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Responsável não encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE – remover responsável
+app.delete('/api/responsaveis-setor/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM responsaveis_setor WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Responsável não encontrado' });
+    }
+    res.json({ message: 'Responsável removido', responsavel: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== API: MENSAGENS ENVIADAS (Relatório) ======
+
+// POST – registrar envio de mensagem
+app.post('/api/mensagens-enviadas', async (req, res) => {
+  try {
+    const { agendamento_id, profissional, paciente, template } = req.body;
+    if (!paciente) {
+      return res.status(400).json({ error: 'Paciente é obrigatório' });
+    }
+    const result = await pool.query(
+      'INSERT INTO mensagens_enviadas (agendamento_id, profissional, paciente, template) VALUES ($1, $2, $3, $4) RETURNING *',
+      [agendamento_id || null, profissional || null, paciente, template || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET – relatório de mensagens por dia
+app.get('/api/mensagens-enviadas/relatorio', async (req, res) => {
+  try {
+    const { data } = req.query;
+    if (!data) {
+      return res.status(400).json({ error: 'Parâmetro data é obrigatório (YYYY-MM-DD)' });
+    }
+    const porProfissional = await pool.query(
+      `SELECT profissional, COUNT(*) as total
+       FROM mensagens_enviadas
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1
+       GROUP BY profissional
+       ORDER BY total DESC`,
+      [data]
+    );
+    const totalResult = await pool.query(
+      `SELECT COUNT(*) as total
+       FROM mensagens_enviadas
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1`,
+      [data]
+    );
+    res.json({
+      data,
+      total: parseInt(totalResult.rows[0].total),
+      porProfissional: porProfissional.rows.map(r => ({ profissional: r.profissional || 'Sem profissional', total: parseInt(r.total) }))
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

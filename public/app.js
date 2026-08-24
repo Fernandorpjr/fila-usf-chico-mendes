@@ -2308,14 +2308,60 @@ async function sendChatMessage() { await sendChatChannelMessage(); }
 // 🤖 Mensagens automáticas desativadas a pedido do cliente
 
 // ====== AGENDAMENTOS ======
+
+// ====== CACHE DE PROFISSIONAIS (com profissão) ======
+let profissionaisCache = new Map(); // nome -> profissao
+async function carregarProfissionaisCache() {
+  try {
+    const r = await fetch(`${API_URL}/profissionais`);
+    if (!r.ok) return;
+    const list = await r.json();
+    profissionaisCache.clear();
+    list.forEach(p => profissionaisCache.set(p.nome, p.profissao || ''));
+  } catch(e) { /* silencioso */ }
+}
+carregarProfissionaisCache();
+
+// ====== PERÍODO DO DIA ======
+function getPeriodoDia(horario) {
+  const h = parseInt((horario || '').split(':')[0], 10);
+  if (isNaN(h)) return '';
+  if (h >= 5 && h < 12) return 'de manhã ☀️';
+  if (h >= 12 && h < 18) return 'à tarde 🌤️';
+  return 'à noite 🌙';
+}
+
+// ====== ORIENTAÇÃO POR TIPO DE ATENDIMENTO ======
+const ORIENTACOES_TIPO = {
+  'Odontologia': '* Faça a higiene bucal antes da consulta.',
+  'Cirurgiã-Dentista': '* Faça a higiene bucal antes da consulta.',
+  '_default': '* Leve exames recentes, se houver, e a lista de medicamentos em uso.'
+};
+
+function getOrientacaoTipo(tipoAtendimento, profissionalNome) {
+  // Primeiro tenta pelo tipo de atendimento
+  if (tipoAtendimento && ORIENTACOES_TIPO[tipoAtendimento]) {
+    return ORIENTACOES_TIPO[tipoAtendimento];
+  }
+  // Depois verifica pela profissão do profissional (se é dentista)
+  const profissao = profissionaisCache.get(profissionalNome) || '';
+  if (profissao.toLowerCase().includes('dentista')) {
+    return ORIENTACOES_TIPO['Cirurgiã-Dentista'];
+  }
+  return ORIENTACOES_TIPO['_default'];
+}
+
+const MAPS_LINK_USF = 'https://maps.google.com/?q=USF+Chico+Mendes+Recife';
+
 const WA_TEMPLATES = {
-  lembrete: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nLembrete de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
-  confirmacao: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nConfirmação de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO] – Atendimento por ordem de chegada\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
+  lembrete: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nLembrete de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n🗺️ Localização: [MAPS_LINK]\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n[ORIENTACAO_TIPO]\n[OBS]\n\n📲 Confirme sua presença respondendo esta mensagem:\n✅ CONFIRMAR – Estarei presente\n🔄 REMARCAR – Preciso de nova data\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
+  confirmacao: `https://raw.githubusercontent.com/Fernandorpjr/fila-usf-chico-mendes/main/public/img/confirmacao.jpg\n\nConfirmação de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n🗺️ Localização: [MAPS_LINK]\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n[ORIENTACAO_TIPO]\n[OBS]\n\n📲 Confirme sua presença respondendo esta mensagem:\n✅ CONFIRMAR – Estarei presente\n🔄 REMARCAR – Preciso de nova data\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
   reagendamento: `Olá [NOME]! 🔄\n\nInformamos que sua consulta na *USF Chico Mendes* foi *REAGENDADA*:\n\n📅 Nova data: [DATA]\n⏰ Novo horário: [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\n[OBS]\n\nPedimos desculpas pelo inconveniente.\n*USF Chico Mendes* 🏥`,
   preparo_exames: `Lembrete de Coleta – USF Chico Mendes\n\nOlá, [NOME]!\n📅 Data da coleta: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Responsável: [PROFISSIONAL]\n\n📋 Checklist dos seus exames:\n[EXAMES]\n\n📍 Local: Unidade de Saúde da Família Chico Mendes\n💬 Em caso de dúvidas, fale com seu agente de saúde. 💙`,
   // === MELHORIA 7: Template de cancelamento de consulta ===
   cancelamento: `Olá, [NOME]! 🏥\n\nInformamos que sua consulta na *USF Chico Mendes* agendada para o dia *[DATA]* às *[HORARIO]* foi *cancelada*.\n\nEm breve entraremos em contato para confirmar o *reagendamento para uma nova data*.\n\nPedimos desculpas pelo transtorno e agradecemos a compreensão. 💙\n\n— *USF Chico Mendes*`
 };
+
 
 // === MELHORIA 7: Constante de texto para reutilização ===
 const TEXTO_CANCELAMENTO = 'Olá! Informamos que sua consulta foi cancelada e será reagendada para uma nova data. Em breve entraremos em contato para confirmar o novo horário. Pedimos desculpas pelo transtorno e agradecemos a compreensão.\n— USF Chico Mendes';
@@ -2347,9 +2393,22 @@ function buildWaMessage(agend) {
   if (agend.checklist_exames) {
     try { const arr = JSON.parse(agend.checklist_exames); exames = arr.map(e => `* ${e}`).join('\n'); } catch(e) { exames = agend.checklist_exames; }
   }
-  return tpl.replace(/\[NOME\]/g, agend.nome).replace(/\[DATA\]/g, dataFmt).replace(/\[HORARIO\]/g, agend.horario)
-    .replace(/\[PROFISSIONAL\]/g, agend.profissional||'A definir').replace(/\[TIPO\]/g, agend.tipo_atendimento||'Consulta')
-    .replace(/\[OBS\]/g, agend.observacoes ? `📝 Obs: ${agend.observacoes}` : '').replace(/\[EXAMES\]/g, exames||'Consulte a unidade');
+  // Profissional com profissão
+  const profNome = agend.profissional || 'A definir';
+  const profissao = profissionaisCache.get(agend.profissional) || '';
+  const profCompleto = profissao ? `${profNome} – ${profissao}` : profNome;
+  // Horário com período do dia
+  const periodo = getPeriodoDia(agend.horario);
+  const horarioCompleto = periodo ? `${agend.horario} – ${periodo}` : agend.horario;
+  // Orientação por tipo
+  const orientacao = getOrientacaoTipo(agend.tipo_atendimento, agend.profissional);
+  // Observação
+  const obsTexto = agend.observacoes ? `📝 Obs: ${agend.observacoes}` : '';
+  return tpl.replace(/\[NOME\]/g, agend.nome).replace(/\[DATA\]/g, dataFmt).replace(/\[HORARIO\]/g, horarioCompleto)
+    .replace(/\[PROFISSIONAL\]/g, profCompleto).replace(/\[TIPO\]/g, agend.tipo_atendimento||'Consulta')
+    .replace(/\[OBS\]/g, obsTexto).replace(/\[EXAMES\]/g, exames||'Consulte a unidade')
+    .replace(/\[MAPS_LINK\]/g, MAPS_LINK_USF)
+    .replace(/\[ORIENTACAO_TIPO\]/g, orientacao);
 }
 
 function handleAgendTipoChange() {
@@ -2541,7 +2600,10 @@ async function updateAgendStatus(id, status) {
           document.getElementById('wa-preview-text').textContent = cancelMsg;
           const phone = agend.telefone.replace(/\D/g, '');
           // === MELHORIA 6: Usar web.whatsapp.com/send ===
-          document.getElementById('wa-send-link').href = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(cancelMsg)}`;
+          const waLink = document.getElementById('wa-send-link');
+          waLink.href = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(cancelMsg)}`;
+          waLink.onclick = function() { registrarMensagemEnviada({ ...agend, template: 'cancelamento' }); };
+          _waModalAgendAtual = { ...agend, template: 'cancelamento' };
           document.getElementById('wa-modal').classList.add('show');
         }
       } catch(e) { /* silencioso se falhar */ }
@@ -2561,19 +2623,39 @@ async function deleteAgendamento(id) {
   } catch { showToast('Erro de conexão ao tentar apagar!', true); }
 }
 
+// Variável para rastrear agendamento atual no modal WA (para registro de envio)
+let _waModalAgendAtual = null;
+
 async function openWaPreview(id) {
   try {
     const r = await fetch(`${API_URL}/agendamentos`);
     const list = await r.json();
     const agend = list.find(a => a.id === id);
     if (!agend) return;
+    _waModalAgendAtual = agend;
     const msg = buildWaMessage(agend);
     document.getElementById('wa-preview-text').textContent = msg;
     const phone = agend.telefone.replace(/\D/g,'');
     // === MELHORIA 6: Usar web.whatsapp.com/send para melhor compatibilidade com acentos e emojis ===
-    document.getElementById('wa-send-link').href = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+    const waLink = document.getElementById('wa-send-link');
+    waLink.href = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+    waLink.onclick = function() { registrarMensagemEnviada(agend); };
     document.getElementById('wa-modal').classList.add('show');
   } catch { showToast('Erro!', true); }
+}
+
+// Registra o envio de mensagem no backend
+function registrarMensagemEnviada(agend) {
+  fetch(`${API_URL}/mensagens-enviadas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      agendamento_id: agend.id,
+      profissional: agend.profissional || null,
+      paciente: agend.nome,
+      template: agend.template || 'lembrete'
+    })
+  }).catch(() => {}); // fire-and-forget
 }
 
 function closeWaModal() { document.getElementById('wa-modal').classList.remove('show'); }
@@ -4324,6 +4406,112 @@ async function salvarVagasMedico(medico) {
   }
 })();
 // === FIM MELHORIA 3 ===
+
+// ====== RELATÓRIO DE MENSAGENS ENVIADAS ======
+async function loadRelatorioMensagens() {
+  const dataInput = document.getElementById('rel-msg-data');
+  const content = document.getElementById('rel-msg-content');
+  if (!dataInput || !content) return;
+  const data = dataInput.value;
+  if (!data) { showToast('⚠️ Selecione uma data para consultar!', true); return; }
+  try {
+    const r = await fetch(`${API_URL}/mensagens-enviadas/relatorio?data=${data}`);
+    if (!r.ok) throw new Error();
+    const rel = await r.json();
+    renderRelatorioMensagens(rel, content);
+  } catch { showToast('Erro ao carregar relatório!', true); }
+}
+
+function renderRelatorioMensagens(rel, container) {
+  const dataFmt = new Date(rel.data + 'T12:00:00').toLocaleDateString('pt-BR');
+  if (rel.total === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--gray-600);">Nenhuma mensagem registrada em ${dataFmt}</div>`;
+    return;
+  }
+  let rows = rel.porProfissional.map(p => {
+    const profDisplay = document.createTextNode(p.profissional).textContent;
+    return `<tr><td style="font-weight:700;">👨‍⚕️ ${profDisplay}</td><td style="text-align:center;font-weight:800;font-size:16px;color:var(--blue);">${p.total}</td></tr>`;
+  }).join('');
+  container.innerHTML = `
+    <div style="background:var(--gray-100);padding:12px;border-radius:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:700;color:var(--gray-600);">📊 Total de mensagens em ${dataFmt}:</span>
+      <span style="font-size:22px;font-weight:900;color:var(--blue);">${rel.total}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="border-bottom:2px solid var(--gray-200);"><th style="text-align:left;padding:8px;color:var(--gray-600);font-size:12px;text-transform:uppercase;">Profissional</th><th style="text-align:center;padding:8px;color:var(--gray-600);font-size:12px;text-transform:uppercase;">Mensagens</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:12px;padding:8px;background:rgba(255,193,7,0.1);border-radius:8px;font-size:11px;color:var(--gray-600);text-align:center;">
+      ⚠️ Contagem reflete mensagens geradas/disparadas pelo sistema, não confirmação de leitura/entrega pelo WhatsApp.
+    </div>
+  `;
+}
+
+// Inicializar data do relatório com hoje
+(function initRelatorioData() {
+  const el = document.getElementById('rel-msg-data');
+  if (el) el.value = new Date().toISOString().split('T')[0];
+})();
+
+// ====== RESPONSÁVEIS DE SETORES DE APOIO ======
+async function loadResponsaveisSetor() {
+  const container = document.getElementById('resp-setor-list');
+  if (!container) return;
+  try {
+    const r = await fetch(`${API_URL}/responsaveis-setor`);
+    if (!r.ok) throw new Error();
+    const list = await r.json();
+    if (!list.length) {
+      container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-600);">Nenhum responsável cadastrado</div>';
+      return;
+    }
+    container.innerHTML = list.map(r => {
+      const nomeDisplay = document.createTextNode(r.nome).textContent;
+      const setorDisplay = document.createTextNode(r.setor).textContent;
+      const cargoDisplay = document.createTextNode(r.cargo || '').textContent;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--gray-100);border-radius:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:700;font-size:14px;">${nomeDisplay}</div>
+          <div style="font-size:12px;color:var(--gray-600);">${setorDisplay}${cargoDisplay ? ' – ' + cargoDisplay : ''}</div>
+        </div>
+        <button onclick="excluirResponsavelSetor(${r.id}, '${nomeDisplay}')" title="Remover" style="background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--red);">🗑️</button>
+      </div>`;
+    }).join('');
+  } catch { container.innerHTML = '<div style="color:var(--red);padding:12px;">Erro ao carregar</div>'; }
+}
+
+async function criarResponsavelSetor() {
+  const nome = document.getElementById('resp-setor-nome')?.value.trim();
+  const setor = document.getElementById('resp-setor-setor')?.value.trim();
+  const cargo = document.getElementById('resp-setor-cargo')?.value.trim();
+  if (!nome || !setor) { showToast('⚠️ Preencha nome e setor!', true); return; }
+  try {
+    const r = await fetch(`${API_URL}/responsaveis-setor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, setor, cargo })
+    });
+    if (r.status === 409) { showToast('⚠️ Responsável já cadastrado nesse setor!', true); return; }
+    if (!r.ok) throw new Error();
+    showToast(`✅ ${nome} cadastrado como responsável!`);
+    document.getElementById('resp-setor-nome').value = '';
+    document.getElementById('resp-setor-cargo').value = '';
+    loadResponsaveisSetor();
+  } catch { showToast('Erro ao cadastrar!', true); }
+}
+
+async function excluirResponsavelSetor(id, nome) {
+  if (!confirm(`Remover ${nome} dos responsáveis de setor?`)) return;
+  try {
+    const r = await fetch(`${API_URL}/responsaveis-setor/${id}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error();
+    showToast(`✅ ${nome} removido!`);
+    loadResponsaveisSetor();
+  } catch { showToast('Erro ao remover!', true); }
+}
+
+// Carregar responsáveis ao iniciar
+loadResponsaveisSetor();
 
 // ====== AUTOCOMPLETE DA RECEPÇÃO ======
 function setupAutocompleteRecepcao() {
