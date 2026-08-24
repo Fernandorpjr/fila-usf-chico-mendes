@@ -1486,7 +1486,7 @@
     <div class="card-white" style="margin-top:20px; padding:20px;">
       <div class="card-title"><span>📊</span> Relatório de Mensagens Enviadas</div>
       <div class="filter-row" style="margin-bottom:16px;">
-        <div class="form-group"><label>Data</label><input type="date" id="rel-msg-data"></div>
+        <div class="form-group"><label>Data</label><input type="date" id="rel-msg-data" onchange="loadRelatorioMensagens()"></div>
         <button class="btn btn-primary btn-sm" onclick="loadRelatorioMensagens()">🔍 Consultar</button>
       </div>
       <div id="rel-msg-content">

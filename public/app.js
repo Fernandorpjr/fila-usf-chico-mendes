@@ -2657,7 +2657,21 @@ function renderAgendamentos(list) {
 async function updateAgendStatus(id, status) {
   try {
     await fetch(`${API_URL}/agendamentos/${id}/status`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
-    showToast('Status atualizado!'); loadAgendamentos();
+    showToast('Status atualizado!'); 
+    loadAgendamentos();
+
+    if (status === 'lembrete_enviado') {
+      try {
+        const r2 = await fetch(`${API_URL}/agendamentos`);
+        const list = await r2.json();
+        const agend = list.find(a => a.id === id);
+        if (agend) {
+          await registrarMensagemEnviada(agend);
+          loadRelatorioMensagens();
+        }
+      } catch(e) {}
+    }
+
     // === MELHORIA 7: Abrir preview de cancelamento via WhatsApp automaticamente ===
     if (status === 'cancelado') {
       try {
@@ -4508,20 +4522,24 @@ function renderRelatorioMensagens(rel, container) {
     return;
   }
   let rows = rel.porProfissional.map(p => {
-    const profDisplay = document.createTextNode(p.profissional).textContent;
-    return `<tr><td style="font-weight:700;">👨‍⚕️ ${profDisplay}</td><td style="text-align:center;font-weight:800;font-size:16px;color:var(--blue);">${p.total}</td></tr>`;
+    return `<tr style="border-bottom:1px solid var(--gray-200);"><td style="padding:10px 8px;font-weight:700;">👨‍⚕️ ${p.profissional}</td><td style="padding:10px 8px;text-align:center;font-weight:800;font-size:16px;color:var(--blue);">${p.total}</td></tr>`;
   }).join('');
   container.innerHTML = `
-    <div style="background:var(--gray-100);padding:12px;border-radius:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-weight:700;color:var(--gray-600);">📊 Total de mensagens em ${dataFmt}:</span>
-      <span style="font-size:22px;font-weight:900;color:var(--blue);">${rel.total}</span>
+    <div style="background:var(--gray-100);padding:14px 18px;border-radius:10px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--gray-200);">
+      <div>
+        <div style="font-size:11px;color:var(--gray-600);text-transform:uppercase;font-weight:800;letter-spacing:0.5px;">Disparos em ${dataFmt}</div>
+        <div style="font-size:15px;font-weight:800;color:var(--blue-dark);margin-top:2px;">Total de Mensagens Enviadas</div>
+      </div>
+      <div style="font-size:26px;font-weight:900;color:var(--blue);">${rel.total}</div>
     </div>
-    <table style="width:100%;border-collapse:collapse;">
-      <thead><tr style="border-bottom:2px solid var(--gray-200);"><th style="text-align:left;padding:8px;color:var(--gray-600);font-size:12px;text-transform:uppercase;">Profissional</th><th style="text-align:center;padding:8px;color:var(--gray-600);font-size:12px;text-transform:uppercase;">Mensagens</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div style="margin-top:12px;padding:8px;background:rgba(255,193,7,0.1);border-radius:8px;font-size:11px;color:var(--gray-600);text-align:center;">
-      ⚠️ Contagem reflete mensagens geradas/disparadas pelo sistema, não confirmação de leitura/entrega pelo WhatsApp.
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+        <thead><tr style="border-bottom:2px solid var(--gray-200);background:var(--gray-100);"><th style="text-align:left;padding:10px 8px;color:var(--gray-600);font-size:12px;text-transform:uppercase;">Profissional</th><th style="text-align:center;padding:10px 8px;color:var(--gray-600);font-size:12px;text-transform:uppercase;">Mensagens</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="padding:10px 14px;background:rgba(255,193,7,0.12);border:1px solid rgba(255,193,7,0.3);border-radius:8px;font-size:11px;color:var(--gray-600);display:flex;align-items:center;gap:6px;">
+      <span>ℹ️</span> <span>A contagem reflete as mensagens geradas/disparadas pelo sistema, não a confirmação de leitura do paciente no WhatsApp.</span>
     </div>
   `;
 }
