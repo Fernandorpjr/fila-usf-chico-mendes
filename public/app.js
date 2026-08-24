@@ -2311,17 +2311,17 @@ async function sendChatMessage() { await sendChatChannelMessage(); }
 
 // ====== DICIONÁRIO E CACHE DE PROFISSIONAIS (com profissão garantida) ======
 const PROFISSOES_DEFAULT = {
-  'dra. juliana cavalcante': 'Cirurgiã-Dentista – Estratégia Saúde da Família (ESF)',
-  'juliana cavalcante': 'Cirurgiã-Dentista – Estratégia Saúde da Família (ESF)',
-  'dra. mirela mota': 'Clínica Geral – Médica da Estratégia Saúde da Família (ESF)',
-  'mirela mota': 'Clínica Geral – Médica da Estratégia Saúde da Família (ESF)',
-  'dr. israel christian': 'Médico – Estratégia Saúde da Família (ESF)',
-  'israel christian': 'Médico – Estratégia Saúde da Família (ESF)',
-  'dr. joene halan': 'Médico – Estratégia Saúde da Família (ESF)',
-  'joene halan': 'Médico – Estratégia Saúde da Família (ESF)',
-  'jorge marcio': 'Enfermeiro – Estratégia Saúde da Família (ESF)',
-  'mariana vaz': 'Enfermeira – Estratégia Saúde da Família (ESF)',
-  'lucelia de abreu': 'Enfermeira – Estratégia Saúde da Família (ESF)',
+  'dra. juliana cavalcante': 'Cirurgiã-Dentista – Estratégia Saúde da Família',
+  'juliana cavalcante': 'Cirurgiã-Dentista – Estratégia Saúde da Família',
+  'dra. mirela mota': 'Clínica Geral – Médica da Estratégia Saúde da Família',
+  'mirela mota': 'Clínica Geral – Médica da Estratégia Saúde da Família',
+  'dr. israel christian': 'Médico – Estratégia Saúde da Família',
+  'israel christian': 'Médico – Estratégia Saúde da Família',
+  'dr. joene halan': 'Médico – Estratégia Saúde da Família',
+  'joene halan': 'Médico – Estratégia Saúde da Família',
+  'jorge marcio': 'Enfermeiro – Estratégia Saúde da Família',
+  'mariana vaz': 'Enfermeira – Estratégia Saúde da Família',
+  'lucelia de abreu': 'Enfermeira – Estratégia Saúde da Família',
   'viviane': 'Técnica de Enfermagem',
   'vilma': 'Técnica de Enfermagem',
   'fernando': 'Técnico de Enfermagem'

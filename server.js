@@ -323,18 +323,18 @@ async function initDB() {
     `);
     // Seed idempotente – preenche profissionais com profissão
     const profSeed = [
-      ['Dra. Juliana Cavalcante', 'Cirurgiã-Dentista – Estratégia Saúde da Família (ESF)'],
-      ['Dra. Mirela Mota', 'Clínica Geral – Médica da Estratégia Saúde da Família (ESF)'],
-      ['Dr. Israel Christian', 'Médico – Estratégia Saúde da Família (ESF)'],
-      ['Dr. Joene Halan', 'Médico – Estratégia Saúde da Família (ESF)'],
-      ['Jorge Marcio', 'Enfermeiro – Estratégia Saúde da Família (ESF)'],
-      ['Mariana Vaz', 'Enfermeira – Estratégia Saúde da Família (ESF)'],
-      ['Lucelia de Abreu', 'Enfermeira – Estratégia Saúde da Família (ESF)']
+      ['Dra. Juliana Cavalcante', 'Cirurgiã-Dentista – Estratégia Saúde da Família'],
+      ['Dra. Mirela Mota', 'Clínica Geral – Médica da Estratégia Saúde da Família'],
+      ['Dr. Israel Christian', 'Médico – Estratégia Saúde da Família'],
+      ['Dr. Joene Halan', 'Médico – Estratégia Saúde da Família'],
+      ['Jorge Marcio', 'Enfermeiro – Estratégia Saúde da Família'],
+      ['Mariana Vaz', 'Enfermeira – Estratégia Saúde da Família'],
+      ['Lucelia de Abreu', 'Enfermeira – Estratégia Saúde da Família']
     ];
     for (const [nome, profissao] of profSeed) {
       await pool.query(
         `INSERT INTO profissionais_cadastro (nome, profissao) VALUES ($1, $2)
-         ON CONFLICT (nome) DO UPDATE SET profissao = COALESCE(profissionais_cadastro.profissao, $2)`,
+         ON CONFLICT (nome) DO UPDATE SET profissao = $2`,
         [nome, profissao]
       );
     }
