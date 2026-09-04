@@ -225,7 +225,7 @@ function togglePausaPalestra() {
     // Ativar pausa — requer senha simples
     const senha = prompt('🎙️ Pausar para Palestra\n\nDigite a senha para ativar o modo pausa:');
     if (!senha) return;
-    if (senha !== 'chico123') { showToast('❌ Senha incorreta!', true); return; }
+    if (!isValidAdminPass(senha)) { showToast('❌ Senha incorreta!', true); return; }
     isPausado = true;
     // Fechar qualquer modal aberto
     document.querySelectorAll('.modal, .modal-overlay, [id$="-modal"]').forEach(el => {
@@ -389,6 +389,17 @@ let currentCalling = {}; SETORES.forEach(s => currentCalling[s] = null);
 let callHistory = [], attendedPatients = [], totalAtendidos = 0, totalDesistencias = 0;
 let lastSpokenCallId = null, chatMessages = [], unreadChatCount = 0;
 let isAdmin = false, adminPassword = null, alertedPatients = new Set();
+const VALID_ADMIN_PASSWORDS = ['chico123', '0177', 'usf2026'];
+function isValidAdminPass(pwd) {
+  return VALID_ADMIN_PASSWORDS.includes(String(pwd || '').trim());
+}
+try {
+  const _savedAdmin = sessionStorage.getItem('usf_admin_pwd');
+  if (_savedAdmin && isValidAdminPass(_savedAdmin)) {
+    isAdmin = true;
+    adminPassword = _savedAdmin;
+  }
+} catch (e) {}
 let sectorFilters = { medico: null, enfermagem: null };
 
 function safeDate(d) {
@@ -520,20 +531,54 @@ setInterval(updateClock, 1000); updateClock();
 
 // ====== ADMIN ======
 function toggleAdmin() {
-  if (isAdmin) { isAdmin = false; adminPassword = null; updateAdminUI(); return; }
+  if (isAdmin) {
+    isAdmin = false;
+    adminPassword = null;
+    try { sessionStorage.removeItem('usf_admin_pwd'); } catch (e) {}
+    updateAdminUI();
+    showToast('🔒 Modo público ativado');
+    return;
+  }
   const senha = prompt('🔒 Digite a senha administrativa:');
   if (!senha) return;
-  fetch(`${API_URL}/verify-admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha }) })
-    .then(r => { if (r.ok) { isAdmin = true; adminPassword = senha; showToast('🔓 Modo administrador ativado!'); } else { showToast('❌ Senha incorreta!', true); } updateAdminUI(); })
-    .catch(() => showToast('Erro de conexão', true));
+  const s = senha.trim();
+
+  // Validação instantânea local para senhas padrão
+  if (isValidAdminPass(s)) {
+    isAdmin = true;
+    adminPassword = s;
+    try { sessionStorage.setItem('usf_admin_pwd', s); } catch (e) {}
+    showToast('🔓 Modo administrador ativado!');
+    updateAdminUI();
+    fetch(`${API_URL}/verify-admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: s }) }).catch(() => {});
+    return;
+  }
+
+  fetch(`${API_URL}/verify-admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: s }) })
+    .then(r => {
+      if (r.ok) {
+        isAdmin = true;
+        adminPassword = s;
+        try { sessionStorage.setItem('usf_admin_pwd', s); } catch (e) {}
+        showToast('🔓 Modo administrador ativado!');
+      } else {
+        showToast('❌ Senha incorreta!', true);
+      }
+      updateAdminUI();
+    })
+    .catch(() => showToast('Erro de conexão ou senha incorreta', true));
 }
 
 function updateAdminUI() {
   const btn = document.getElementById('btn-admin');
-  if (isAdmin) { btn.textContent = '🔓 Admin'; btn.classList.add('unlocked'); document.body.classList.add('admin-active'); }
-  else { btn.textContent = '🔒 Modo Público'; btn.classList.remove('unlocked'); document.body.classList.remove('admin-active'); }
+  if (btn) {
+    if (isAdmin) { btn.textContent = '🔓 Admin'; btn.classList.add('unlocked'); }
+    else { btn.textContent = '🔒 Modo Público'; btn.classList.remove('unlocked'); }
+  }
+  if (isAdmin) { document.body.classList.add('admin-active'); }
+  else { document.body.classList.remove('admin-active'); }
   // Re-render filas para mostrar/ocultar controles admin
-  updateAll();
+  if (typeof updateAll === 'function') updateAll();
 }
 
 // ====== MELHORIA G: MÓDULO DE REORDENAÇÃO RBAC ======
@@ -553,18 +598,19 @@ const AdminGuard = {
   }
 };
 
-// Helper centralizado para ações que exigem a senha 'chico123'
+// Helper centralizado para ações que exigem senha administrativa
 function pedirSenhaAdmin(acaoNome, callback) {
-  if (isAdmin && adminPassword === 'chico123') {
-    return callback('chico123');
+  if (isAdmin && isValidAdminPass(adminPassword)) {
+    return callback(adminPassword);
   }
   const senha = prompt(`🔒 Confirmação requerida para ${acaoNome}:\n\nDigite a senha de administrador:`);
   if (!senha) return;
-  if (senha !== 'chico123') {
+  const s = senha.trim();
+  if (!isValidAdminPass(s)) {
     showToast('❌ Senha incorreta! Ação cancelada.', true);
     return;
   }
-  callback(senha);
+  callback(s);
 }
 
 // --- ESC fecha context menu e modais ---
@@ -2417,13 +2463,72 @@ function getOrientacaoTipo(tipoAtendimento, profissionalNome) {
 
 const MAPS_LINK_USF = 'https://maps.google.com/?q=USF+Chico+Mendes+Recife';
 
+// ====== MAPA DE IMAGENS POR TIPO DE CONSULTA ======
+const IMAGENS_TIPO_CONSULTA = {
+  'Pré-Natal':      '/img/confirmacao-prenatal.jpeg',
+  'Clínico Geral':  '/img/confirmacao-clinico.jpeg',
+  'Puericultura':   '/img/confirmacao-puericultura.jpeg',
+  'Odontologia':    '/img/confirmacao-odontologia.jpeg',
+  '_default':       '/img/confirmacao.jpg'
+};
+
+// Variável que armazena o path da imagem atual do modal WA
+let _waCurrentImageSrc = '/img/confirmacao.jpg';
+
+// Retorna o path da imagem de confirmação com base no tipo de atendimento ou profissional
+function getImagemTipoConsulta(tipoAtendimento, profissionalNome) {
+  // 1. Busca direta pelo tipo de atendimento
+  if (tipoAtendimento && IMAGENS_TIPO_CONSULTA[tipoAtendimento]) {
+    return IMAGENS_TIPO_CONSULTA[tipoAtendimento];
+  }
+  // 2. Para tipos genéricos: "Consulta" sem especificação → Clínico Geral
+  if (tipoAtendimento === 'Consulta' || tipoAtendimento === 'Retorno' || tipoAtendimento === 'Hiperdia') {
+    // Verifica se o profissional é dentista → usa imagem de Odontologia
+    const profissao = getProfissaoProfissional(profissionalNome) || '';
+    const nomeLower = (profissionalNome || '').toLowerCase();
+    if (profissao.toLowerCase().includes('dentista') || nomeLower.includes('juliana')) {
+      return IMAGENS_TIPO_CONSULTA['Odontologia'];
+    }
+    return IMAGENS_TIPO_CONSULTA['Clínico Geral'];
+  }
+  // 3. Sem tipo definido: tenta inferir pelo profissional
+  if (!tipoAtendimento || tipoAtendimento === '') {
+    const profissao = getProfissaoProfissional(profissionalNome) || '';
+    const nomeLower = (profissionalNome || '').toLowerCase();
+    if (profissao.toLowerCase().includes('dentista') || nomeLower.includes('juliana')) {
+      return IMAGENS_TIPO_CONSULTA['Odontologia'];
+    }
+  }
+  // 4. Fallback: imagem genérica
+  return IMAGENS_TIPO_CONSULTA['_default'];
+}
+
+// Atualiza o preview de imagem no modal WA
+function updateWaImagePreview(tipoAtendimento, profissionalNome) {
+  const imgSrc = getImagemTipoConsulta(tipoAtendimento, profissionalNome);
+  _waCurrentImageSrc = imgSrc;
+  const container = document.getElementById('wa-img-preview-container');
+  const imgEl = document.getElementById('wa-img-preview');
+  const label = document.getElementById('wa-img-preview-label');
+  if (container && imgEl) {
+    imgEl.src = imgSrc;
+    container.style.display = 'block';
+    // Label descritivo
+    const tipoLabel = tipoAtendimento || 'Consulta';
+    if (label) label.textContent = `📎 Confirmação de Consulta – ${tipoLabel}`;
+  }
+}
+// ====== FIM MAPA DE IMAGENS ======
+
 const WA_TEMPLATES = {
   lembrete: `Lembrete de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n🗺️ Localização: [MAPS_LINK]\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n[ORIENTACAO_TIPO]\n[OBS]\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
   confirmacao: `Confirmação de Consulta – USF Chico Mendes 🏥\n\n👤 Paciente: [NOME]\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n🗺️ Localização: [MAPS_LINK]\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n[ORIENTACAO_TIPO]\n[OBS]\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nEstamos aqui para cuidar de você. 💙`,
   reagendamento: `Olá [NOME]! 🔄\n\nInformamos que sua consulta na *USF Chico Mendes* foi *REAGENDADA*:\n\n📅 Nova data: [DATA]\n⏰ Novo horário: [HORARIO]\n👨‍⚕️ [PROFISSIONAL]\n\n[OBS]\n\nPedimos desculpas pelo inconveniente.\n*USF Chico Mendes* 🏥`,
   preparo_exames: `Lembrete de Coleta – USF Chico Mendes\n\nOlá, [NOME]!\n📅 Data da coleta: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Responsável: [PROFISSIONAL]\n\n📋 Checklist dos seus exames:\n[EXAMES]\n\n📍 Local: Unidade de Saúde da Família Chico Mendes\n💬 Em caso de dúvidas, fale com seu agente de saúde. 💙`,
   // === MELHORIA 7: Template de cancelamento de consulta ===
-  cancelamento: `Olá, [NOME]! 🏥\n\nInformamos que sua consulta na *USF Chico Mendes* agendada para o dia *[DATA]* às *[HORARIO]* foi *cancelada*.\n\nEm breve entraremos em contato para confirmar o *reagendamento para uma nova data*.\n\nPedimos desculpas pelo transtorno e agradecemos a compreensão. 💙\n\n— *USF Chico Mendes*`
+  cancelamento: `Olá, [NOME]! 🏥\n\nInformamos que sua consulta na *USF Chico Mendes* agendada para o dia *[DATA]* às *[HORARIO]* foi *cancelada*.\n\nEm breve entraremos em contato para confirmar o *reagendamento para uma nova data*.\n\nPedimos desculpas pelo transtorno e agradecemos a compreensão. 💙\n\n— *USF Chico Mendes*`,
+  // === LEMBRETE D-1: Template de lembrete para o dia anterior à consulta ===
+  lembrete_d1: `Olá, [NOME]! 🏥\n\nLembrando que sua consulta na *USF Chico Mendes* está marcada para *amanhã*:\n\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n🗺️ Localização: [MAPS_LINK]\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n[ORIENTACAO_TIPO]\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nContamos com a sua presença! 💙\n\n— *USF Chico Mendes*`
 };
 
 // === MELHORIA 7: Constante de texto para reutilização ===
@@ -2615,8 +2720,120 @@ async function loadAgendamentos() {
     renderAgendamentos(list);
     loadColetasStats();
     loadRelatorioMensagens();
+    loadLembretesD1(); // Carregar painel de lembretes D-1
   } catch { showToast('Erro ao carregar agendamentos', true); }
 }
+
+// ====== LEMBRETES D-1 (Painel de lembretes para consultas de amanhã) ======
+
+// Calcula a data de amanhã no fuso de São Paulo
+function getAmanhaSP() {
+  const now = new Date();
+  // Usar Intl para obter a data no fuso de SP
+  const spDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  const [y, m, d] = spDateStr.split('-').map(Number);
+  const amanha = new Date(y, m - 1, d + 1);
+  return amanha.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+async function loadLembretesD1() {
+  const container = document.getElementById('lembretes-d1-list');
+  const badge = document.getElementById('lembretes-d1-count');
+  if (!container) return;
+  
+  try {
+    const amanha = getAmanhaSP();
+    const r = await fetch(`${API_URL}/agendamentos?data=${amanha}`);
+    const list = await r.json();
+    // Filtra apenas agendamentos ativos (não cancelados)
+    const ativos = list.filter(a => a.status !== 'cancelado');
+    renderLembretesD1(ativos, amanha);
+    
+    // Atualizar badge
+    if (badge) {
+      if (ativos.length > 0) {
+        badge.textContent = ativos.length;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao carregar lembretes D-1:', e);
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Erro ao carregar lembretes</div>';
+  }
+}
+
+function renderLembretesD1(list, dataAmanha) {
+  const container = document.getElementById('lembretes-d1-list');
+  if (!container) return;
+
+  if (!list.length) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">✅ Nenhuma consulta agendada para amanhã.</div>';
+    return;
+  }
+
+  const dataFmt = new Date(dataAmanha + 'T12:00:00').toLocaleDateString('pt-BR');
+  
+  container.innerHTML = list.map(a => {
+    const tipoLabel = a.tipo_atendimento || 'Consulta';
+    const profNome = (a.profissional || '').trim() || 'A definir';
+    let profCompleto = profNome;
+    if (profNome !== 'A definir') {
+      const profissao = getProfissaoProfissional(profNome);
+      if (profissao && !profNome.includes(profissao)) {
+        profCompleto = `${profNome} – ${profissao}`;
+      }
+    }
+    
+    // Cor do badge do tipo
+    const tipoCores = {
+      'Pré-Natal': { bg: 'rgba(233,30,99,0.12)', color: '#c2185b' },
+      'Puericultura': { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
+      'Odontologia': { bg: 'rgba(0,150,136,0.12)', color: '#00796b' },
+      'Clínico Geral': { bg: 'rgba(26,79,196,0.12)', color: '#1a4fc4' },
+      'Coleta de Sangue': { bg: 'rgba(229,57,53,0.12)', color: '#c62828' },
+    };
+    const corTipo = tipoCores[tipoLabel] || { bg: 'rgba(26,79,196,0.08)', color: 'var(--blue)' };
+    
+    // Status visual
+    const jaEnviado = a.status === 'lembrete_enviado' || a.status === 'confirmado';
+    const statusHtml = jaEnviado 
+      ? `<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:12px;background:rgba(74,171,60,0.15);color:#2d7a22;text-transform:uppercase;">✅ ${a.status === 'confirmado' ? 'Confirmado' : 'Lembrete Enviado'}</span>`
+      : `<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:12px;background:rgba(249,200,35,0.2);color:#b8860b;text-transform:uppercase;">⏳ Pendente</span>`;
+
+    // Imagem do tipo (para preview rápido)
+    const imgSrc = getImagemTipoConsulta(a.tipo_atendimento, a.profissional);
+
+    return `<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:white;border-radius:12px;border-left:5px solid ${corTipo.color};box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:8px;transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.06)'">
+      <!-- Thumbnail da imagem -->
+      <div style="flex-shrink:0;width:60px;height:40px;border-radius:6px;overflow:hidden;border:1px solid var(--gray-200);">
+        <img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;" alt="${tipoLabel}" />
+      </div>
+      <!-- Info do paciente -->
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--blue-dark);margin-bottom:2px;">${a.nome}</div>
+        <div style="font-size:12px;color:var(--gray-600);font-weight:600;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+          <span>⏰ ${a.horario}</span>
+          <span>👨‍⚕️ ${profCompleto}</span>
+          <span style="background:${corTipo.bg};color:${corTipo.color};padding:1px 8px;border-radius:10px;font-size:10px;font-weight:800;">${tipoLabel}</span>
+          ${statusHtml}
+        </div>
+      </div>
+      <!-- Ações -->
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="openWaPreview(${a.id}, 'lembrete_d1')" title="Enviar Lembrete D-1 via WhatsApp" style="background:#25D366;color:white;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(37,211,102,0.3);transition:all 0.15s;" onmouseover="this.style.background='#1fb855'" onmouseout="this.style.background='#25D366'">
+          📲 Lembrete
+        </button>
+        <button onclick="_waCurrentImageSrc=getImagemTipoConsulta('${(a.tipo_atendimento||'').replace(/'/g, "\\'")}','${(a.profissional||'').replace(/'/g, "\\'")}');copyWaImageToClipboard()" title="Copiar imagem de confirmação" style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='var(--gray-200)'" onmouseout="this.style.background='var(--gray-100)'">
+          🖼️
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ====== FIM LEMBRETES D-1 ======
 
 function renderAgendamentos(list) {
   const tbody = document.getElementById('agend-tbody'); if (!tbody) return;
@@ -2685,6 +2902,8 @@ async function updateAgendStatus(id, status) {
           // === MELHORIA 6: Usar web.whatsapp.com/send ===
           _waCurrentUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(cancelMsg)}`;
           _waModalAgendAtual = { ...agend, template: 'cancelamento' };
+          // Atualizar preview de imagem por tipo de consulta
+          updateWaImagePreview(agend.tipo_atendimento, agend.profissional);
           document.getElementById('wa-modal').classList.add('show');
         }
       } catch(e) { /* silencioso se falhar */ }
@@ -2708,17 +2927,21 @@ async function deleteAgendamento(id) {
 let _waModalAgendAtual = null;
 let _waCurrentUrl = '';
 
-async function openWaPreview(id) {
+async function openWaPreview(id, overrideTemplate) {
   try {
     const r = await fetch(`${API_URL}/agendamentos`);
     const list = await r.json();
     const agend = list.find(a => a.id === id);
     if (!agend) return;
-    _waModalAgendAtual = agend;
-    const msg = buildWaMessage(agend);
+    // Permite override do template (ex: lembrete_d1)
+    const agendComTemplate = overrideTemplate ? { ...agend, template: overrideTemplate } : agend;
+    _waModalAgendAtual = agendComTemplate;
+    const msg = buildWaMessage(agendComTemplate);
     document.getElementById('wa-preview-text').textContent = msg;
     const phone = agend.telefone.replace(/\D/g,'');
     _waCurrentUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+    // Atualizar preview de imagem por tipo de consulta
+    updateWaImagePreview(agend.tipo_atendimento, agend.profissional);
     document.getElementById('wa-modal').classList.add('show');
   } catch { showToast('Erro!', true); }
 }
@@ -4300,7 +4523,8 @@ async function copyWaImageToClipboard() {
         } catch(e) { showToast("Erro ao copiar imagem: " + e.message, true); }
       }, "image/png");
     };
-    img.src = "/img/confirmacao.jpg";
+    // Usa a imagem dinâmica por tipo de consulta (definida por openWaPreview/updateWaImagePreview)
+    img.src = _waCurrentImageSrc || '/img/confirmacao.jpg';
   } catch (err) {
     showToast("Erro: " + err.message, true);
   }

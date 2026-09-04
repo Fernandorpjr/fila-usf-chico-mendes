@@ -15,6 +15,11 @@ const io = { emit: () => {} };
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = 'chico123';
+const ADMIN_PASSWORDS = ['chico123', '0177', 'usf2026'];
+function isValidAdminPass(senha) {
+  if (!senha) return false;
+  return ADMIN_PASSWORDS.includes(String(senha).trim());
+}
 
 // Middleware
 app.use(cors());
@@ -389,7 +394,7 @@ initDB();
 // Verify admin password
 app.post('/api/verify-admin', (req, res) => {
   const { senha } = req.body;
-  if (senha === ADMIN_PASSWORD) {
+  if (isValidAdminPass(senha)) {
     res.json({ valid: true });
   } else {
     res.status(403).json({ valid: false, error: 'Senha incorreta' });
@@ -679,7 +684,7 @@ app.put('/api/patients/:id/reorder', async (req, res) => {
     const { id } = req.params;
     const { setor, newPosition, senha } = req.body;
 
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     if (!setor || !newPosition || isNaN(parseInt(newPosition))) {
@@ -737,7 +742,7 @@ app.put('/api/patients/:id/rename', async (req, res) => {
   try {
     const { id } = req.params;
     const { novoNome, senha } = req.body;
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     if (!novoNome || !novoNome.trim()) {
@@ -765,7 +770,7 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     const { id } = req.params;
     const { novoSetor, novoTipoAtendimento, novoProfissional, senha } = req.body;
 
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     if (!novoSetor || !SETORES.includes(novoSetor)) {
@@ -873,7 +878,7 @@ app.post('/api/remove-patient', async (req, res) => {
   try {
     const { id, senha } = req.body;
     
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     
@@ -1141,7 +1146,7 @@ app.post('/api/reset', async (req, res) => {
   try {
     const { senha } = req.body;
     
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     
@@ -1253,7 +1258,7 @@ app.post('/api/chat/canais/:canal/clear', async (req, res) => {
   try {
     const { canal } = req.params;
     const { senha } = req.body;
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     await pool.query('DELETE FROM chat_channels WHERE canal = $1', [canal]);
@@ -1588,7 +1593,7 @@ app.put('/api/ctrl-agendamentos/:id', async (req, res) => {
     const { id } = req.params;
     const { nome, horario, queixa, equipe, cpf6, status, motivo, senha, mes_agendamento, ano_agendamento } = req.body;
 
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     if (!nome || !horario) {
@@ -1630,7 +1635,7 @@ app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
     const { id } = req.params;
     const { motivo, senha, mes_agendamento, ano_agendamento } = req.body;
 
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     if (!motivo) {
@@ -2176,7 +2181,7 @@ app.post('/api/agendamentos/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const { senha } = req.body;
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     const result = await pool.query('DELETE FROM agendamentos WHERE id = $1 RETURNING *', [id]);
@@ -2194,7 +2199,7 @@ app.post('/api/patients/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const { senha } = req.body;
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     const result = await pool.query('DELETE FROM patients WHERE id = $1 RETURNING *', [id]);
@@ -2213,7 +2218,7 @@ app.post('/api/history/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const { senha } = req.body;
-    if (senha !== ADMIN_PASSWORD) {
+    if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     const result = await pool.query('DELETE FROM call_history WHERE id = $1 RETURNING *', [id]);

@@ -942,7 +942,7 @@
   <button class="nav-tab" onclick="showScreen('enfermagem')" id="tab-enfermagem">👩‍⚕️ Enfermagem <span class="tab-badge" style="background:var(--teal);" id="badge-enfermagem">0</span></button>
   <button class="nav-tab" onclick="showScreen('odontologia')" id="tab-odontologia">🦷 Odontologia <span class="tab-badge" style="background:var(--pink);" id="badge-odontologia">0</span></button>
   <button class="nav-tab" onclick="showScreen('tec_enfermagem')" id="tab-tec_enfermagem">🩹 Tec. Enfermagem <span class="tab-badge" style="background:#0097a7;display:none;" id="badge-tec_enfermagem">0</span></button>
-  <button class="nav-tab admin-only" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
+  <button class="nav-tab" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
   <button class="nav-tab ctrl-agend-tab" onclick="showScreen('ctrl_agendamentos')" id="tab-ctrl_agendamentos">🗂️ Sala de Agendamento <span class="tab-badge" style="background:#e67e22;display:none;" id="badge-ctrl_agendamentos">0</span></button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
   <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
@@ -1432,6 +1432,21 @@
         <!-- Dashboard renderizado via JS -->
       </div>
     </div>
+
+    <!-- ====== PAINEL DE LEMBRETES D-1 ====== -->
+    <div class="card-white" style="margin-bottom:20px; padding:20px;" id="lembretes-d1-container">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <div><span>🔔</span> Lembretes do Dia (D-1)</div>
+        <span id="lembretes-d1-count" style="background:var(--red);color:white;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;min-width:24px;text-align:center;display:none;">0</span>
+      </div>
+      <div style="font-size:12px;color:var(--gray-600);margin-bottom:14px;">
+        Consultas agendadas para <b>amanhã</b> — clique para enviar o lembrete via WhatsApp. A imagem correta do tipo de consulta é anexada automaticamente.
+      </div>
+      <div id="lembretes-d1-list">
+        <div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Carregando lembretes...</div>
+      </div>
+    </div>
+    <!-- ====== FIM PAINEL DE LEMBRETES D-1 ====== -->
     <div class="agend-grid">
       <div class="card-white">
         <div class="card-title"><span>📝</span> Novo Agendamento</div>
@@ -1449,7 +1464,7 @@
           </select>
         </div>
         <div class="form-group" style="margin-bottom:12px;"><label>Tipo de Atendimento</label>
-          <select id="agend-tipo" title="Tipo atendimento" onchange="handleAgendTipoChange()"><option value="">— Opcional —</option><option>Consulta</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Hiperdia</option><option>Coleta de Sangue</option></select>
+          <select id="agend-tipo" title="Tipo atendimento" onchange="handleAgendTipoChange()"><option value="">— Opcional —</option><option>Consulta</option><option>Clínico Geral</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Puericultura</option><option>Odontologia</option><option>Hiperdia</option><option>Coleta de Sangue</option></select>
         </div>
         <div class="form-group" style="margin-bottom:12px;"><label>Template de Mensagem</label>
           <select id="agend-template" title="Template" onchange="toggleChecklistExames()">
@@ -1528,6 +1543,13 @@
     <div class="wa-modal">
       <h3>📱 Preview da Mensagem WhatsApp</h3>
       <div class="wa-preview" id="wa-preview-text"></div>
+      <!-- Preview da imagem de confirmação por tipo de consulta -->
+      <div id="wa-img-preview-container" style="margin-bottom:16px;border-radius:12px;overflow:hidden;border:2px solid var(--gray-200);background:var(--gray-100);display:none;">
+        <img id="wa-img-preview" src="" alt="Imagem de Confirmação" style="width:100%;display:block;" />
+        <div id="wa-img-preview-label" style="text-align:center;padding:8px 12px;font-size:12px;font-weight:700;color:var(--gray-600);background:var(--gray-100);">
+          📎 Imagem de confirmação
+        </div>
+      </div>
       <div style="display:flex;gap:12px;margin-bottom:12px;">
         <button class="btn btn-outline" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;" onclick="copyWaImageToClipboard()">🖼️ Copiar Imagem</button>
       </div>
