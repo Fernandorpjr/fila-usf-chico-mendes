@@ -152,7 +152,7 @@
       <span>⏱️ Detalhamento do Tempo Médio de Espera e Gargalos por Setor</span>
       <button class="btn-export" onclick="exportDailyReport()">📄 Exportar Relatório em PDF</button>
     </div>
-    <table><thead><tr><th>Setor</th><th>Tempo Médio</th><th>Aguardando</th><th>Atendidos</th><th>Gargalo</th></tr></thead><tbody id="waitTable"></tbody></table>
+    <table><thead><tr><th>Setor</th><th class="col-responsavel">Responsável</th><th>Tempo Médio</th><th>Aguardando</th><th>Atendidos</th><th>Gargalo</th></tr></thead><tbody id="waitTable"></tbody></table>
   </div>
 
   <!-- ====== SEÇÃO DE FECHAMENTO DIÁRIO DO EXPEDIENTE ====== -->
@@ -169,6 +169,8 @@
   <!-- Cards de Fechamento -->
   <div class="metrics" id="fechamentoMetrics">
     <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" id="fchAtendidos" style="color:var(--green);">0</div><div class="metric-label">Total Atendidos</div></div>
+    <div class="metric-card"><div class="metric-icon">☀️</div><div class="metric-value" id="fchManha" style="color:#f9c823;">0</div><div class="metric-label">Manhã (até 12h)</div></div>
+    <div class="metric-card"><div class="metric-icon">🌙</div><div class="metric-value" id="fchTarde" style="color:#7c4dff;">0</div><div class="metric-label">Tarde (após 12h)</div></div>
     <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" id="fchDesistencias" style="color:var(--red);">0</div><div class="metric-label">Desistências</div></div>
     <div class="metric-card"><div class="metric-icon">🚨</div><div class="metric-value" id="fchUrgencias" style="color:var(--orange);">0</div><div class="metric-label">Intercorrências / Urgências</div></div>
     <div class="metric-card"><div class="metric-icon">🗂️</div><div class="metric-value" id="fchAgendamentos" style="color:var(--yellow);">0</div><div class="metric-label">Encaminhados Agendamento</div></div>
@@ -542,7 +544,9 @@ function renderMetrics() {
   }
 
   document.getElementById('metricsGrid').innerHTML = `
-    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${d.totalAttended}</div><div class="metric-label">Atendidos</div></div>
+    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${d.totalAttended}</div><div class="metric-label">Atendidos (Total)</div></div>
+    <div class="metric-card"><div class="metric-icon">☀️</div><div class="metric-value" style="color:#f9c823;">${d.attendedManha || 0}</div><div class="metric-label">Manhã (até 12h)</div></div>
+    <div class="metric-card"><div class="metric-icon">🌙</div><div class="metric-value" style="color:#7c4dff;">${d.attendedTarde || 0}</div><div class="metric-label">Tarde (após 12h)</div></div>
     <div class="metric-card"><div class="metric-icon">📥</div><div class="metric-value" style="color:var(--blue);">${totalEntries}</div><div class="metric-label">Entradas Registradas</div></div>
     <div class="metric-card ${totalWaiting >= 40 ? 'occupancy-alert' : ''}">
       <div class="metric-icon">🛋️</div>
@@ -582,14 +586,35 @@ function renderCharts() {
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
+  // Gráfico de ocupação corrigido: usar totalWaiting real como âncora
+  const realWaiting = metricsData.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
+  const now = new Date();
+  const currentHourBRT = parseInt(new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false }).format(now));
+  const isToday = document.getElementById('dashDateFilter').value === now.toISOString().split('T')[0];
+
+  // Calcular ocupação acumulada para cada hora
   let currentWaiting = 0;
   const waitingOverTime = hours.map(h => {
-    const entries = entriesByHour[hours.indexOf(h)] || 0;
-    const calls = callsByHour[hours.indexOf(h)] || 0;
-    const desist = desistByHour[hours.indexOf(h)] || 0;
+    const idx = hours.indexOf(h);
+    const entries = entriesByHour[idx] || 0;
+    const calls = callsByHour[idx] || 0;
+    const desist = desistByHour[idx] || 0;
     currentWaiting += (entries - (calls + desist));
     return Math.max(0, currentWaiting);
   });
+
+  // Correção: ancorar o gráfico no valor real de aguardando para o horário atual
+  if (isToday && currentHourBRT >= 6 && currentHourBRT <= 19) {
+    const anchorIdx = hours.indexOf(currentHourBRT);
+    if (anchorIdx >= 0) {
+      const diff = realWaiting - waitingOverTime[anchorIdx];
+      if (diff !== 0) {
+        for (let i = 0; i < waitingOverTime.length; i++) {
+          waitingOverTime[i] = Math.max(0, waitingOverTime[i] + diff);
+        }
+      }
+    }
+  }
 
   if (occupancyChart) occupancyChart.destroy();
   occupancyChart = new Chart(document.getElementById('chartOccupancy'), {
@@ -661,16 +686,26 @@ function renderCharts() {
 function renderWaitTable() {
   const d = metricsData;
   const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
+  const responsaveis = d.responsaveisSetor || [];
+  // Atualizar cabeçalho com a nova coluna
+  const thead = document.querySelector('#waitTable')?.closest('table')?.querySelector('thead tr');
+  if (thead && !thead.querySelector('.col-responsavel')) {
+    const th = document.createElement('th');
+    th.className = 'col-responsavel';
+    th.textContent = 'Responsável';
+    thead.insertBefore(th, thead.children[1]);
+  }
   const tbody = document.getElementById('waitTable');
   tbody.innerHTML = setores.map(s => {
     const wait = d.avgWaitBySetor.find(r => r.setor === s);
     const waiting = d.waitingBySetor.find(r => r.setor === s);
     const attended = d.attendedBySetor.find(r => r.setor === s);
     const bottleneck = d.bottleneckBySetor.find(r => r.setor === s);
+    const resp = responsaveis.filter(r => r.setor === s).map(r => r.nome).join(', ') || '—';
     const avgMin = wait ? parseFloat(wait.avg_minutes).toFixed(0) : '-';
     const isBottleneck = bottleneck && parseInt(bottleneck.total) > 0;
     return `<tr style="${isBottleneck ? 'color:var(--red);font-weight:800;' : ''}">
-      <td style="font-weight:700;">${s}</td><td>${avgMin === '-' ? '-' : avgMin + ' min'}</td><td>${waiting ? waiting.total : 0}</td><td>${attended ? attended.total : 0}</td>
+      <td style="font-weight:700;">${s}</td><td style="color:var(--yellow);font-weight:700;">${resp}</td><td>${avgMin === '-' ? '-' : avgMin + ' min'}</td><td>${waiting ? waiting.total : 0}</td><td>${attended ? attended.total : 0}</td>
       <td>${isBottleneck ? '🔴 ' + bottleneck.total + ' pacientes' : '🟢 Normal'}</td></tr>`;
   }).join('');
 }
@@ -702,6 +737,12 @@ function renderFechamentoDiario() {
 
   if (elAtend) elAtend.textContent = d.totalAtendidos || 0;
   if (elDesist) elDesist.textContent = d.desistencias || 0;
+
+  // Turnos
+  const elManha = document.getElementById('fchManha');
+  const elTarde = document.getElementById('fchTarde');
+  if (elManha) elManha.textContent = d.atendidosManha || 0;
+  if (elTarde) elTarde.textContent = d.atendidosTarde || 0;
 
   // Total urgências / intercorrências
   const urgenciasCount = (d.porTipo || [])
@@ -755,6 +796,8 @@ function copiarFechamentoWhatsAppDash() {
   
   let txt = `📋 *FECHAMENTO DIÁRIO DO EXPEDIENTE*\n🏥 *USF Chico Mendes*\n📅 Data: *${dataFmt}*\n\n`;
   txt += `✅ *Total de Atendidos:* ${rep.totalAtendidos}\n`;
+  txt += `☀️ *Turno Manhã (até 12h):* ${rep.atendidosManha || 0}\n`;
+  txt += `🌙 *Turno Tarde (após 12h):* ${rep.atendidosTarde || 0}\n`;
   txt += `🚶 *Desistências:* ${rep.desistencias}\n`;
   
   const urgCount = (rep.porTipo || [])
@@ -774,6 +817,14 @@ function copiarFechamentoWhatsAppDash() {
   (rep.porProfissional || []).forEach(p => {
     txt += `• ${p.profissional} (${p.setor}): *${p.total}*\n`;
   });
+
+  // Responsáveis de Setores de Apoio
+  if (rep.responsaveisSetor && rep.responsaveisSetor.length > 0) {
+    txt += `\n👤 *RESPONSÁVEIS POR SETOR:*\n`;
+    rep.responsaveisSetor.forEach(r => {
+      txt += `• ${r.setor}: *${r.nome}*${r.cargo ? ' (' + r.cargo + ')' : ''}\n`;
+    });
+  }
 
   txt += `\n— *Sistema de Gestão USF Chico Mendes* 💙`;
 
@@ -806,8 +857,15 @@ function imprimirFechamentoDash() {
     <div class="sub">USF Chico Mendes — ${dataFmt}</div>
     <div class="kpi-row">
       <div class="kpi-box"><div>Total de Atendidos</div><div class="kpi-val">${rep.totalAtendidos}</div></div>
+      <div class="kpi-box"><div>Manhã (até 12h)</div><div class="kpi-val" style="color:#f9a825;">${rep.atendidosManha || 0}</div></div>
+      <div class="kpi-box"><div>Tarde (após 12h)</div><div class="kpi-val" style="color:#7c4dff;">${rep.atendidosTarde || 0}</div></div>
       <div class="kpi-box"><div>Desistências</div><div class="kpi-val" style="color:#e53935;">${rep.desistencias}</div></div>
     </div>
+    ${rep.responsaveisSetor && rep.responsaveisSetor.length > 0 ? `
+    <h3>Responsáveis por Setor</h3>
+    <table><thead><tr><th>Setor</th><th>Responsável</th><th>Cargo</th></tr></thead><tbody>
+    ${rep.responsaveisSetor.map(r => `<tr><td>${r.setor}</td><td><b>${r.nome}</b></td><td>${r.cargo || '-'}</td></tr>`).join('')}
+    </tbody></table>` : ''}
     <h3>Atendimentos por Setor</h3>
     <table><thead><tr><th>Setor</th><th>Total</th></tr></thead><tbody>
     ${(rep.porSetor || []).map(s => `<tr><td>${s.setor}</td><td><b>${s.total}</b></td></tr>`).join('')}
@@ -1283,7 +1341,7 @@ async function exportDailyReport() {
 
     doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('Resumo do Atendimento', 14, 32);
     doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-    doc.text(`Atendidos: ${d.totalAttended}   |   Aguardando Agora: ${totalWaiting}   |   Desistências: ${d.totalDesist} (${d.dropoutRate}%)`, 14, 38);
+    doc.text(`Atendidos: ${d.totalAttended} (Manhã: ${d.attendedManha || 0} | Tarde: ${d.attendedTarde || 0})   |   Aguardando: ${totalWaiting}   |   Desistências: ${d.totalDesist} (${d.dropoutRate}%)`, 14, 38);
 
     const chartOccupancyEl = document.getElementById('chartOccupancy');
     const canvasOcc = await html2canvas(chartOccupancyEl, { backgroundColor: '#0a1e5c', scale: 2 });
@@ -1324,13 +1382,16 @@ async function exportDailyReport() {
     doc.text(`Detalhamento por Setor (${dataFiltroFormatada})`, 14, 88);
 
     const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
+    const responsaveisPDF = d.responsaveisSetor || [];
     const rows = setores.map(s => {
       const w = d.avgWaitBySetor.find(r => r.setor === s);
       const wt = d.waitingBySetor.find(r => r.setor === s);
       const at = d.attendedBySetor.find(r => r.setor === s);
       const bn = d.bottleneckBySetor.find(r => r.setor === s);
+      const resp = responsaveisPDF.filter(r => r.setor === s).map(r => r.nome).join(', ') || '—';
       return [
         s,
+        resp,
         w ? parseFloat(w.avg_minutes).toFixed(0) + ' min' : '-',
         wt ? wt.total : '0',
         at ? at.total : '0',
@@ -1340,7 +1401,7 @@ async function exportDailyReport() {
 
     doc.autoTable({
       startY: 94,
-      head: [['Setor', 'Tempo Médio', 'Aguardando', 'Atendidos', 'Status Gargalo']],
+      head: [['Setor', 'Responsável', 'Tempo Médio', 'Aguardando', 'Atendidos', 'Status Gargalo']],
       body: rows,
       theme: 'grid',
       headStyles: { fillColor: [26, 79, 196], fontSize: 10 },

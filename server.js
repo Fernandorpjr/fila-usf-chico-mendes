@@ -527,14 +527,36 @@ app.get('/api/relatorio-diario', async (req, res) => {
     // Total geral de atendidos
     const totalGeral = porSetor.rows.reduce((acc, row) => acc + parseInt(row.total, 10), 0);
 
+    // Atendidos por turno (manhã < 12h, tarde >= 12h)
+    const turnoManha = await pool.query(
+      `SELECT COUNT(*) as total FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12`,
+      [dataFiltro]
+    );
+    const turnoTarde = await pool.query(
+      `SELECT COUNT(*) as total FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12`,
+      [dataFiltro]
+    );
+
+    // Responsáveis de setores de apoio
+    const responsaveis = await pool.query(
+      'SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC'
+    );
+
     res.json({
       data: dataFiltro,
       totalAtendidos: totalGeral,
+      atendidosManha: parseInt(turnoManha.rows[0]?.total || 0, 10),
+      atendidosTarde: parseInt(turnoTarde.rows[0]?.total || 0, 10),
       porSetor: porSetor.rows,
       porProfissional: porProf.rows,
       porTipo: porTipo.rows,
       desistencias: parseInt(desistencias.rows[0]?.total || 0, 10),
-      agendamentos: agendamentos.rows
+      agendamentos: agendamentos.rows,
+      responsaveisSetor: responsaveis.rows
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1080,6 +1102,25 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       [data || new Date().toISOString().split('T')[0]]
     );
     
+    // Atendidos por turno (manhã < 12h, tarde >= 12h)
+    const turnoManhaResult = await pool.query(
+      `SELECT COUNT(*) as total FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12`,
+      params
+    );
+    const turnoTardeResult = await pool.query(
+      `SELECT COUNT(*) as total FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12`,
+      params
+    );
+    
+    // Responsáveis de setores de apoio
+    const responsaveisResult = await pool.query(
+      'SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC'
+    );
+    
     const totalAttended = attendedResult.rows.reduce((sum, r) => sum + parseInt(r.total), 0);
     const totalDesist = parseInt(desistResult.rows[0]?.total || 0);
     const dropoutRate = totalAttended + totalDesist > 0
@@ -1093,7 +1134,10 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       dropoutRate,
       waitingBySetor: waitingResult.rows,
       avgWaitBySetor: avgWaitResult.rows,
-      bottleneckBySetor: bottleneckResult.rows
+      bottleneckBySetor: bottleneckResult.rows,
+      attendedManha: parseInt(turnoManhaResult.rows[0]?.total || 0),
+      attendedTarde: parseInt(turnoTardeResult.rows[0]?.total || 0),
+      responsaveisSetor: responsaveisResult.rows
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
