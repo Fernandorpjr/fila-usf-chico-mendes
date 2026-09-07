@@ -1224,14 +1224,44 @@ async function deletarColeta(id) {
   }
 }
 
+// Helper seguro para converter qualquer <canvas> de gráfico em imagem PNG com fundo sólido
+function getChartDataUrl(canvasId, bgColor = '#0a1e5c') {
+  const canvas = typeof canvasId === 'string' ? document.getElementById(canvasId) : canvasId;
+  if (!canvas) return null;
+  const w = canvas.width;
+  const h = canvas.height;
+  if (!w || !h) return null;
+  try {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = w;
+    tempCanvas.height = h;
+    const ctx = tempCanvas.getContext('2d');
+    if (bgColor) {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, w, h);
+    }
+    ctx.drawImage(canvas, 0, 0);
+    return tempCanvas.toDataURL('image/png');
+  } catch (e) {
+    try {
+      return canvas.toDataURL('image/png');
+    } catch (e2) {
+      console.warn('Erro ao obter dataURL do gráfico:', canvasId, e2);
+      return null;
+    }
+  }
+}
+
 // ====== EXPORTAR GRÁFICOS DE COLETAS EM PDF ======
 async function exportColetasPDF() {
-  if (!window.jspdf || !window.html2canvas) { alert('Aguarde o carregamento dos scripts...'); return; }
+  if (!window.jspdf) { alert('Aguarde o carregamento dos scripts de PDF...'); return; }
   
   const btn = document.querySelector('.btn-pdf');
-  const origText = btn.textContent;
-  btn.textContent = '⏳ Gerando PDF...';
-  btn.disabled = true;
+  const origText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.textContent = '⏳ Gerando PDF...';
+    btn.disabled = true;
+  }
 
   try {
     const { jsPDF } = window.jspdf;
@@ -1260,36 +1290,36 @@ async function exportColetasPDF() {
     const kpiTexts = [
       `Meta Diária: ${META_DIARIA} coletas`,
       `Meta Semanal: ${META_SEMANAL} coletas (3 dias × 12)`,
-      `Agendados: ${document.getElementById('kpiAgendados').textContent}`,
-      `Realizados: ${document.getElementById('kpiRealizados').textContent}`,
-      `Faltas: ${document.getElementById('kpiFaltas').textContent}`,
-      `Eficácia Mês: ${document.getElementById('kpiEficacia').textContent}`
+      `Agendados: ${document.getElementById('kpiAgendados')?.textContent || '0'}`,
+      `Realizados: ${document.getElementById('kpiRealizados')?.textContent || '0'}`,
+      `Faltas: ${document.getElementById('kpiFaltas')?.textContent || '0'}`,
+      `Eficácia Mês: ${document.getElementById('kpiEficacia')?.textContent || '0%'}`
     ];
     kpiTexts.forEach((t, i) => doc.text(t, 14 + (i % 3) * 90, 44 + Math.floor(i / 3) * 6));
 
-    const chartPrincipal = document.getElementById('chartColetasPrincipal');
-    const canvasPrincipal = await html2canvas(chartPrincipal, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgPrincipal = canvasPrincipal.toDataURL('image/png');
-    doc.addImage(imgPrincipal, 'PNG', 14, 55, pageWidth - 28, 120);
+    const imgPrincipal = getChartDataUrl('chartColetasPrincipal');
+    if (imgPrincipal) {
+      doc.addImage(imgPrincipal, 'PNG', 14, 55, pageWidth - 28, 120);
+    }
 
     doc.addPage();
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.text(`Desempenho Semanal e Taxa de Eficácia — ${nomeMesAno}`, pageWidth / 2, 15, { align: 'center' });
 
-    const chartComparativo = document.getElementById('chartColetasComparativo');
-    const canvasComparativo = await html2canvas(chartComparativo, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgComparativo = canvasComparativo.toDataURL('image/png');
-    doc.addImage(imgComparativo, 'PNG', 14, 22, (pageWidth - 35) / 2, 80);
+    const imgComparativo = getChartDataUrl('chartColetasComparativo');
+    if (imgComparativo) {
+      doc.addImage(imgComparativo, 'PNG', 14, 22, (pageWidth - 35) / 2, 80);
+    }
 
-    const chartEficacia = document.getElementById('chartColetasEficacia');
-    const canvasEficacia = await html2canvas(chartEficacia, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgEficacia = canvasEficacia.toDataURL('image/png');
-    doc.addImage(imgEficacia, 'PNG', (pageWidth + 7) / 2, 22, (pageWidth - 35) / 2, 80);
+    const imgEficacia = getChartDataUrl('chartColetasEficacia');
+    if (imgEficacia) {
+      doc.addImage(imgEficacia, 'PNG', (pageWidth + 7) / 2, 22, (pageWidth - 35) / 2, 80);
+    }
 
-    const monthData = coletasData.filter(c => c.data_coleta && c.data_coleta.startsWith(monthKey));
+    const monthData = (coletasData || []).filter(c => c.data_coleta && c.data_coleta.startsWith(monthKey));
     const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
-    if (sorted.length > 0) {
+    if (sorted.length > 0 && typeof doc.autoTable === 'function') {
       const rows = sorted.map(c => {
         const dayOfWeekNum = getDayOfWeekNumFromDateString(c.data_coleta);
         const diaSemana = getDayOfWeekFromDateString(c.data_coleta);
@@ -1337,31 +1367,39 @@ async function exportColetasPDF() {
 
     doc.save(`coletas_sangue_${monthKey}.pdf`);
   } catch(e) {
-    console.error('Erro ao gerar PDF:', e);
-    alert('Erro ao gerar PDF. Tente novamente.');
+    console.error('Erro ao gerar PDF de Coletas:', e);
+    alert('Erro ao gerar PDF de Coletas: ' + (e.message || e));
+  } finally {
+    if (btn) {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
   }
-
-  btn.textContent = origText;
-  btn.disabled = false;
 }
 
 // ====== EXPORTAR RELATÓRIO DO DIA COM GRÁFICOS EM PDF ======
 async function exportDailyReport() {
-  if (!window.jspdf || !window.html2canvas) { alert('Aguarde o carregamento dos scripts...'); return; }
+  if (!window.jspdf) { alert('Aguarde o carregamento dos scripts de PDF...'); return; }
   
   const btn = document.getElementById('btnExportTopPDF') || document.querySelector('.btn-export');
-  const originalText = btn.textContent;
-  btn.textContent = '⏳ Gerando PDF...';
-  btn.disabled = true;
+  const originalText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.textContent = '⏳ Gerando PDF...';
+    btn.disabled = true;
+  }
 
   try {
+    if (!metricsData) {
+      await loadDashboard();
+    }
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('portrait', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    const dataFiltroRaw = document.getElementById('dashDateFilter').value || new Date().toISOString().split('T')[0];
-    const dataFiltroFormatada = formatDateBR(dataFiltroRaw);
+    const dataFiltroRaw = document.getElementById('dashDateFilter')?.value || new Date().toISOString().split('T')[0];
+    const dataFiltroFormatada = typeof formatDateBR === 'function' ? formatDateBR(dataFiltroRaw) : dataFiltroRaw;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
@@ -1370,80 +1408,89 @@ async function exportDailyReport() {
     doc.setFont('helvetica', 'normal');
     doc.text(`Data: ${dataFiltroFormatada} | Gerado em: ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 22, { align: 'center' });
 
-    const d = metricsData || { waitingBySetor: [], totalAttended: 0, totalDesist: 0, dropoutRate: 0, avgWaitBySetor: [], bottleneckBySetor: [] };
-    const totalWaiting = d.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
+    const d = metricsData || {};
+    const waitingBySetor = Array.isArray(d.waitingBySetor) ? d.waitingBySetor : [];
+    const avgWaitBySetor = Array.isArray(d.avgWaitBySetor) ? d.avgWaitBySetor : [];
+    const attendedBySetor = Array.isArray(d.attendedBySetor) ? d.attendedBySetor : [];
+    const bottleneckBySetor = Array.isArray(d.bottleneckBySetor) ? d.bottleneckBySetor : [];
+
+    const totalWaiting = waitingBySetor.reduce((s, r) => s + parseInt(r.total || 0, 10), 0);
+    const totalAttended = d.totalAttended || 0;
+    const attendedManha = d.attendedManha || 0;
+    const attendedTarde = d.attendedTarde || 0;
+    const totalDesist = d.totalDesist || 0;
+    const dropoutRate = d.dropoutRate || 0;
 
     doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('Resumo do Atendimento', 14, 32);
     doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-    doc.text(`Atendidos: ${d.totalAttended} (Manhã: ${d.attendedManha || 0} | Tarde: ${d.attendedTarde || 0})   |   Aguardando: ${totalWaiting}   |   Desistências: ${d.totalDesist} (${d.dropoutRate}%)`, 14, 38);
+    doc.text(`Atendidos: ${totalAttended} (Manhã: ${attendedManha} | Tarde: ${attendedTarde})   |   Aguardando: ${totalWaiting}   |   Desistências: ${totalDesist} (${dropoutRate}%)`, 14, 38);
 
-    const chartOccupancyEl = document.getElementById('chartOccupancy');
-    const canvasOcc = await html2canvas(chartOccupancyEl, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgOcc = canvasOcc.toDataURL('image/png');
-
+    // Capturar Gráficos com fundo escuro sólido nativo (instantâneo e sem falhas)
+    const imgOcc = getChartDataUrl('chartOccupancy');
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
     doc.text('1. Ocupação da Recepção (Pacientes no Local):', 14, 46);
-    doc.addImage(imgOcc, 'PNG', 14, 50, pageWidth - 28, 65);
+    if (imgOcc) {
+      doc.addImage(imgOcc, 'PNG', 14, 50, pageWidth - 28, 65);
+    }
 
-    const chartHourlyEl = document.getElementById('chartHourly');
-    const canvasHourly = await html2canvas(chartHourlyEl, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgHourly = canvasHourly.toDataURL('image/png');
-
-    const chartFlowEl = document.getElementById('chartFlow');
-    const canvasFlow = await html2canvas(chartFlowEl, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgFlow = canvasFlow.toDataURL('image/png');
-
+    const imgHourly = getChartDataUrl('chartHourly');
+    const imgFlow = getChartDataUrl('chartFlow');
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
     doc.text('2. Atendimentos por Hora e Fluxo de Entradas:', 14, 122);
-    doc.addImage(imgHourly, 'PNG', 14, 126, (pageWidth - 34) / 2, 55);
-    doc.addImage(imgFlow, 'PNG', (pageWidth + 6) / 2, 126, (pageWidth - 34) / 2, 55);
+    if (imgHourly) {
+      doc.addImage(imgHourly, 'PNG', 14, 126, (pageWidth - 34) / 2, 55);
+    }
+    if (imgFlow) {
+      doc.addImage(imgFlow, 'PNG', (pageWidth + 6) / 2, 126, (pageWidth - 34) / 2, 55);
+    }
 
     doc.addPage();
-    const chartDonutEl = document.getElementById('chartSetoresDonut');
-    const canvasDonut = await html2canvas(chartDonutEl, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgDonut = canvasDonut.toDataURL('image/png');
-
-    const chartTempoBarEl = document.getElementById('chartTempoEsperaBar');
-    const canvasTempoBar = await html2canvas(chartTempoBarEl, { backgroundColor: '#0a1e5c', scale: 2 });
-    const imgTempoBar = canvasTempoBar.toDataURL('image/png');
-
+    const imgDonut = getChartDataUrl('chartSetoresDonut');
+    const imgTempoBar = getChartDataUrl('chartTempoEsperaBar');
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
     doc.text('3. Distribuição por Setor e Tempo de Espera Médio:', 14, 15);
-    doc.addImage(imgDonut, 'PNG', 14, 20, (pageWidth - 34) / 2, 60);
-    doc.addImage(imgTempoBar, 'PNG', (pageWidth + 6) / 2, 20, (pageWidth - 34) / 2, 60);
+    if (imgDonut) {
+      doc.addImage(imgDonut, 'PNG', 14, 20, (pageWidth - 34) / 2, 60);
+    }
+    if (imgTempoBar) {
+      doc.addImage(imgTempoBar, 'PNG', (pageWidth + 6) / 2, 20, (pageWidth - 34) / 2, 60);
+    }
 
     doc.setFontSize(12); doc.setFont('helvetica', 'bold');
     doc.text(`Detalhamento por Setor (${dataFiltroFormatada})`, 14, 88);
 
+    const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
     const defaultRespPDF = [
       { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
       { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
     ];
     const responsaveisPDF = (d.responsaveisSetor && d.responsaveisSetor.length > 0) ? d.responsaveisSetor : defaultRespPDF;
     const rows = setores.map(s => {
-      const w = d.avgWaitBySetor.find(r => r.setor === s);
-      const wt = d.waitingBySetor.find(r => r.setor === s);
-      const at = d.attendedBySetor.find(r => r.setor === s);
-      const bn = d.bottleneckBySetor.find(r => r.setor === s);
+      const w = avgWaitBySetor.find(r => r.setor === s);
+      const wt = waitingBySetor.find(r => r.setor === s);
+      const at = attendedBySetor.find(r => r.setor === s);
+      const bn = bottleneckBySetor.find(r => r.setor === s);
       const resp = responsaveisPDF.filter(r => r.setor === s).map(r => r.nome).join(', ') || '—';
       return [
         s,
         resp,
         w ? parseFloat(w.avg_minutes).toFixed(0) + ' min' : '-',
-        wt ? wt.total : '0',
-        at ? at.total : '0',
-        bn && parseInt(bn.total) > 0 ? `ALERTA (${bn.total} >30m)` : 'Normal'
+        wt ? String(wt.total) : '0',
+        at ? String(at.total) : '0',
+        bn && parseInt(bn.total, 10) > 0 ? `ALERTA (${bn.total} >30m)` : 'Normal'
       ];
     });
 
-    doc.autoTable({
-      startY: 94,
-      head: [['Setor', 'Responsável', 'Tempo Médio', 'Aguardando', 'Atendidos', 'Status Gargalo']],
-      body: rows,
-      theme: 'grid',
-      headStyles: { fillColor: [26, 79, 196], fontSize: 10 },
-      bodyStyles: { fontSize: 9 }
-    });
+    if (typeof doc.autoTable === 'function') {
+      doc.autoTable({
+        startY: 94,
+        head: [['Setor', 'Responsável', 'Tempo Médio', 'Aguardando', 'Atendidos', 'Status Gargalo']],
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [26, 79, 196], fontSize: 10 },
+        bodyStyles: { fontSize: 9 }
+      });
+    }
 
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
@@ -1456,11 +1503,13 @@ async function exportDailyReport() {
     doc.save(`dashboard_recepcao_${dataFiltroFormatada.replace(/\//g,'-')}.pdf`);
   } catch(e) {
     console.error('Erro ao gerar PDF do Dashboard:', e);
-    alert('Erro ao gerar PDF do Dashboard.');
+    alert('Erro ao gerar PDF do Dashboard: ' + (e.message || e));
+  } finally {
+    if (btn) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
   }
-
-  btn.textContent = originalText;
-  btn.disabled = false;
 }
 </script>
 </body>
