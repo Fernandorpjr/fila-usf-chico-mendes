@@ -478,68 +478,111 @@ app.get('/api/relatorio-diario', async (req, res) => {
     const dataFiltro = req.query.data || new Date().toISOString().split('T')[0];
 
     // Atendimentos por setor no dia
-    const porSetor = await pool.query(
-      `SELECT setor, COUNT(*) as total
-       FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
-       GROUP BY setor
-       ORDER BY total DESC`,
-      [dataFiltro]
-    );
+    let porSetorRows = [];
+    try {
+      const porSetor = await pool.query(
+        `SELECT setor, COUNT(*) as total
+         FROM call_history
+         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+         GROUP BY setor
+         ORDER BY total DESC`,
+        [dataFiltro]
+      );
+      porSetorRows = porSetor.rows;
+    } catch (e) {
+      console.warn('Erro em porSetor no relatorio-diario:', e.message);
+    }
 
     // Atendimentos por profissional no dia
-    const porProf = await pool.query(
-      `SELECT COALESCE(profissional, medico, 'Não especificado') as profissional, setor, COUNT(*) as total
-       FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
-       GROUP BY COALESCE(profissional, medico, 'Não especificado'), setor
-       ORDER BY total DESC`,
-      [dataFiltro]
-    );
+    let porProfRows = [];
+    try {
+      const porProf = await pool.query(
+        `SELECT COALESCE(profissional, medico, 'Não especificado') as profissional, setor, COUNT(*) as total
+         FROM call_history
+         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+         GROUP BY COALESCE(profissional, medico, 'Não especificado'), setor
+         ORDER BY total DESC`,
+        [dataFiltro]
+      );
+      porProfRows = porProf.rows;
+    } catch (e) {
+      console.warn('Erro em porProf no relatorio-diario:', e.message);
+    }
 
     // Tipos de atendimento especiais (Intercorrências, Urgências, etc.)
-    const porTipo = await pool.query(
-      `SELECT tipo_atendimento, COUNT(*) as total
-       FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date AND tipo_atendimento IS NOT NULL
-       GROUP BY tipo_atendimento
-       ORDER BY total DESC`,
-      [dataFiltro]
-    );
+    let porTipoRows = [];
+    try {
+      const porTipo = await pool.query(
+        `SELECT tipo_atendimento, COUNT(*) as total
+         FROM call_history
+         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date AND tipo_atendimento IS NOT NULL
+         GROUP BY tipo_atendimento
+         ORDER BY total DESC`,
+        [dataFiltro]
+      );
+      porTipoRows = porTipo.rows;
+    } catch (e) {
+      console.warn('Erro em porTipo no relatorio-diario:', e.message);
+    }
 
     // Total de desistências no dia
-    const desistencias = await pool.query(
-      `SELECT COUNT(*) as total
-       FROM patients
-       WHERE status = 'desistencia' AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date`,
-      [dataFiltro]
-    );
+    let totalDesistencias = 0;
+    try {
+      const desistencias = await pool.query(
+        `SELECT COUNT(*) as total
+         FROM patients
+         WHERE status = 'desistencia' AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date`,
+        [dataFiltro]
+      );
+      totalDesistencias = parseInt(desistencias.rows[0]?.total || 0, 10);
+    } catch (e) {
+      console.warn('Erro em desistencias no relatorio-diario:', e.message);
+    }
 
     // Total na sala de agendamentos no dia
-    const agendamentos = await pool.query(
-      `SELECT status, COUNT(*) as total
-       FROM ctrl_agendamentos
-       WHERE DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = $1::date
-       GROUP BY status`,
-      [dataFiltro]
-    );
+    let agendamentosRows = [];
+    try {
+      const agendamentos = await pool.query(
+        `SELECT status, COUNT(*) as total
+         FROM ctrl_agendamentos
+         WHERE DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = $1::date
+         GROUP BY status`,
+        [dataFiltro]
+      );
+      agendamentosRows = agendamentos.rows;
+    } catch (e) {
+      console.warn('Erro em agendamentos no relatorio-diario:', e.message);
+    }
 
     // Total geral de atendidos
-    const totalGeral = porSetor.rows.reduce((acc, row) => acc + parseInt(row.total, 10), 0);
+    const totalGeral = porSetorRows.reduce((acc, row) => acc + parseInt(row.total, 10), 0);
 
     // Atendidos por turno (manhã < 12h, tarde >= 12h)
-    const turnoManha = await pool.query(
-      `SELECT COUNT(*) as total FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
-       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12`,
-      [dataFiltro]
-    );
-    const turnoTarde = await pool.query(
-      `SELECT COUNT(*) as total FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
-       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12`,
-      [dataFiltro]
-    );
+    let totalManha = 0;
+    let totalTarde = 0;
+    try {
+      const turnoManha = await pool.query(
+        `SELECT COUNT(*) as total FROM call_history
+         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+         AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12`,
+        [dataFiltro]
+      );
+      totalManha = parseInt(turnoManha.rows[0]?.total || 0, 10);
+    } catch (e) {
+      console.warn('Erro em turnoManha no relatorio-diario:', e.message);
+    }
+
+    try {
+      const turnoTarde = await pool.query(
+        `SELECT COUNT(*) as total FROM call_history
+         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+         AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12`,
+        [dataFiltro]
+      );
+      totalTarde = parseInt(turnoTarde.rows[0]?.total || 0, 10);
+    } catch (e) {
+      console.warn('Erro em turnoTarde no relatorio-diario:', e.message);
+    }
 
     // Responsáveis de setores de apoio (Viviane -> Regulação, Leandra -> Farmácia)
     let responsaveisRows = [];
@@ -547,20 +590,13 @@ app.get('/api/relatorio-diario', async (req, res) => {
       const responsaveis = await pool.query(
         'SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC'
       );
-      if (responsaveis.rows.length === 0) {
-        await pool.query(`
-          INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES
-          ('Viviane', 'Regulação', 'Responsável pela Regulação'),
-          ('Leandra', 'Farmácia', 'Responsável pela Farmácia')
-          ON CONFLICT (nome, setor) DO NOTHING
-        `);
-        const recheck = await pool.query('SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC');
-        responsaveisRows = recheck.rows.length > 0 ? recheck.rows : [
+      if (responsaveis.rows && responsaveis.rows.length > 0) {
+        responsaveisRows = responsaveis.rows;
+      } else {
+        responsaveisRows = [
           { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
           { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
         ];
-      } else {
-        responsaveisRows = responsaveis.rows;
       }
     } catch (e) {
       responsaveisRows = [
@@ -572,16 +608,17 @@ app.get('/api/relatorio-diario', async (req, res) => {
     res.json({
       data: dataFiltro,
       totalAtendidos: totalGeral,
-      atendidosManha: parseInt(turnoManha.rows[0]?.total || 0, 10),
-      atendidosTarde: parseInt(turnoTarde.rows[0]?.total || 0, 10),
-      porSetor: porSetor.rows,
-      porProfissional: porProf.rows,
-      porTipo: porTipo.rows,
-      desistencias: parseInt(desistencias.rows[0]?.total || 0, 10),
-      agendamentos: agendamentos.rows,
+      atendidosManha: totalManha,
+      atendidosTarde: totalTarde,
+      porSetor: porSetorRows,
+      porProfissional: porProfRows,
+      porTipo: porTipoRows,
+      desistencias: totalDesistencias,
+      agendamentos: agendamentosRows,
       responsaveisSetor: responsaveisRows
     });
   } catch (error) {
+    console.error('Erro geral em /api/relatorio-diario:', error);
     res.status(500).json({ error: error.message });
   }
 });
