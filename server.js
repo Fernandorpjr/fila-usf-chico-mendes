@@ -493,14 +493,36 @@ app.get('/api/relatorio-diario', async (req, res) => {
       console.warn('Erro em porSetor no relatorio-diario:', e.message);
     }
 
-    // Atendimentos por profissional no dia
+    // Atendimentos por profissional no dia (com mapeamento automático de responsáveis para Regulação e Farmácia)
     let porProfRows = [];
     try {
       const porProf = await pool.query(
-        `SELECT COALESCE(profissional, medico, 'Não especificado') as profissional, setor, COUNT(*) as total
-         FROM call_history
-         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
-         GROUP BY COALESCE(profissional, medico, 'Não especificado'), setor
+        `SELECT 
+           CASE 
+             WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
+                  AND TRIM(COALESCE(c.profissional, c.medico, '')) <> 'Não especificado'
+               THEN TRIM(COALESCE(c.profissional, c.medico))
+             WHEN c.setor ILIKE '%Regula%' THEN 'Viviane'
+             WHEN c.setor ILIKE '%Farm%' THEN 'Leandra'
+             WHEN r.nome IS NOT NULL THEN r.nome
+             ELSE 'Não especificado'
+           END as profissional,
+           c.setor,
+           COUNT(*) as total
+         FROM call_history c
+         LEFT JOIN responsaveis_setor r ON LOWER(TRIM(c.setor)) = LOWER(TRIM(r.setor)) AND r.ativo = true
+         WHERE DATE(c.created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+         GROUP BY 
+           CASE 
+             WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
+                  AND TRIM(COALESCE(c.profissional, c.medico, '')) <> 'Não especificado'
+               THEN TRIM(COALESCE(c.profissional, c.medico))
+             WHEN c.setor ILIKE '%Regula%' THEN 'Viviane'
+             WHEN c.setor ILIKE '%Farm%' THEN 'Leandra'
+             WHEN r.nome IS NOT NULL THEN r.nome
+             ELSE 'Não especificado'
+           END,
+           c.setor
          ORDER BY total DESC`,
         [dataFiltro]
       );
@@ -711,7 +733,11 @@ app.post('/api/call-next/:setor', async (req, res) => {
 
     const medicoFinal = medico || null;
     const consultorioFinal = consultorio || null;
-    const profissionalFinal = profissional || null;
+    let profissionalFinal = profissional || null;
+    if (!profissionalFinal) {
+      if (setor && setor.toLowerCase().includes('regula')) profissionalFinal = 'Viviane';
+      else if (setor && setor.toLowerCase().includes('farm')) profissionalFinal = 'Leandra';
+    }
 
     // Update patient status and assign medico/consultorio/profissional
     await client.query(
@@ -1055,7 +1081,12 @@ app.get('/api/history/monthly', async (req, res) => {
     
     records.forEach(r => {
       bySetor[r.setor] = (bySetor[r.setor] || 0) + 1;
-      const prof = r.profissional || r.medico || 'Não especificado';
+      let prof = r.profissional || r.medico;
+      if (!prof || prof === 'Não especificado') {
+        if (r.setor && r.setor.toLowerCase().includes('regula')) prof = 'Viviane';
+        else if (r.setor && r.setor.toLowerCase().includes('farm')) prof = 'Leandra';
+        else prof = 'Não especificado';
+      }
       byProfissional[prof] = (byProfissional[prof] || 0) + 1;
       const day = new Date(r.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
       byDay[day] = (byDay[day] || 0) + 1;
