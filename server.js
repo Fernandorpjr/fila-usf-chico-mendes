@@ -541,10 +541,33 @@ app.get('/api/relatorio-diario', async (req, res) => {
       [dataFiltro]
     );
 
-    // Responsáveis de setores de apoio
-    const responsaveis = await pool.query(
-      'SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC'
-    );
+    // Responsáveis de setores de apoio (Viviane -> Regulação, Leandra -> Farmácia)
+    let responsaveisRows = [];
+    try {
+      const responsaveis = await pool.query(
+        'SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC'
+      );
+      if (responsaveis.rows.length === 0) {
+        await pool.query(`
+          INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES
+          ('Viviane', 'Regulação', 'Responsável pela Regulação'),
+          ('Leandra', 'Farmácia', 'Responsável pela Farmácia')
+          ON CONFLICT (nome, setor) DO NOTHING
+        `);
+        const recheck = await pool.query('SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC');
+        responsaveisRows = recheck.rows.length > 0 ? recheck.rows : [
+          { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+          { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
+        ];
+      } else {
+        responsaveisRows = responsaveis.rows;
+      }
+    } catch (e) {
+      responsaveisRows = [
+        { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+        { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
+      ];
+    }
 
     res.json({
       data: dataFiltro,
@@ -556,7 +579,7 @@ app.get('/api/relatorio-diario', async (req, res) => {
       porTipo: porTipo.rows,
       desistencias: parseInt(desistencias.rows[0]?.total || 0, 10),
       agendamentos: agendamentos.rows,
-      responsaveisSetor: responsaveis.rows
+      responsaveisSetor: responsaveisRows
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1116,10 +1139,33 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       params
     );
     
-    // Responsáveis de setores de apoio
-    const responsaveisResult = await pool.query(
-      'SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC'
-    );
+    // Responsáveis de setores de apoio (Viviane -> Regulação, Leandra -> Farmácia)
+    let responsaveisRows = [];
+    try {
+      const responsaveisResult = await pool.query(
+        'SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC'
+      );
+      if (responsaveisResult.rows.length === 0) {
+        await pool.query(`
+          INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES
+          ('Viviane', 'Regulação', 'Responsável pela Regulação'),
+          ('Leandra', 'Farmácia', 'Responsável pela Farmácia')
+          ON CONFLICT (nome, setor) DO NOTHING
+        `);
+        const recheck = await pool.query('SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC');
+        responsaveisRows = recheck.rows.length > 0 ? recheck.rows : [
+          { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+          { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
+        ];
+      } else {
+        responsaveisRows = responsaveisResult.rows;
+      }
+    } catch (e) {
+      responsaveisRows = [
+        { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+        { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
+      ];
+    }
     
     const totalAttended = attendedResult.rows.reduce((sum, r) => sum + parseInt(r.total), 0);
     const totalDesist = parseInt(desistResult.rows[0]?.total || 0);
@@ -1137,7 +1183,7 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       bottleneckBySetor: bottleneckResult.rows,
       attendedManha: parseInt(turnoManhaResult.rows[0]?.total || 0),
       attendedTarde: parseInt(turnoTardeResult.rows[0]?.total || 0),
-      responsaveisSetor: responsaveisResult.rows
+      responsaveisSetor: responsaveisRows
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
