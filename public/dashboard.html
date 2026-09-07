@@ -195,15 +195,6 @@
         <thead><tr><th>Profissional</th><th>Setor</th><th>Atendidos</th></tr></thead>
         <tbody id="fchProfTbody"></tbody>
       </table>
-    </div>
-  </div>
-
-  <div class="table-card" style="margin-bottom:32px;">
-    <div class="chart-title">👤 Responsáveis por Setor (Apoio)</div>
-    <table>
-      <thead><tr><th>Responsável</th><th>Setor</th><th>Função / Cargo</th></tr></thead>
-      <tbody id="fchRespTbody"></tbody>
-    </table>
   </div>
 
   <!-- ====== SEÇÃO DE COLETAS DE SANGUE ====== -->
@@ -879,21 +870,6 @@ function renderFechamentoDiario() {
       }).join('');
     }
   }
-
-  // Tabela por responsáveis (Viviane -> Regulação, Leandra -> Farmácia)
-  const respTbody = document.getElementById('fchRespTbody');
-  if (respTbody) {
-    const defaultResp = [
-      { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
-      { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
-    ];
-    const listaResp = (d.responsaveisSetor && d.responsaveisSetor.length > 0) ? d.responsaveisSetor : defaultResp;
-    respTbody.innerHTML = listaResp.map(r => `<tr>
-      <td style="font-weight:700;color:var(--white);">👤 ${r.nome}</td>
-      <td><span style="display:inline-block;padding:2px 8px;border-radius:6px;background:rgba(249,200,35,0.25);color:var(--yellow);font-size:12px;font-weight:800;">${r.setor}</span></td>
-      <td style="color:var(--gray-300);">${r.cargo || 'Responsável'}</td>
-    </tr>`).join('');
-  }
 }
 
 async function copiarFechamentoWhatsAppDash() {
@@ -935,17 +911,6 @@ async function copiarFechamentoWhatsAppDash() {
     });
   }
 
-  // Responsáveis de Setores de Apoio (Viviane -> Regulação, Leandra -> Farmácia)
-  const defaultResp = [
-    { nome: 'Viviane', setor: 'Regulação' },
-    { nome: 'Leandra', setor: 'Farmácia' }
-  ];
-  const listaResp = (rep.responsaveisSetor && rep.responsaveisSetor.length > 0) ? rep.responsaveisSetor : defaultResp;
-  txt += `\n👤 *RESPONSÁVEIS POR SETOR:*\n`;
-  listaResp.forEach(r => {
-    txt += `• *${r.nome}* ➔ ${r.setor}\n`;
-  });
-
   txt += `\n— *Sistema de Gestão USF Chico Mendes* 💙`;
 
   navigator.clipboard.writeText(txt).then(() => {
@@ -966,12 +931,6 @@ async function imprimirFechamentoDash() {
     alert('O navegador bloqueou a janela pop-up de impressão. Por favor, permita pop-ups ou utilize o botão "📄 Baixar PDF do Fechamento".');
     return;
   }
-
-  const defaultResp = [
-    { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
-    { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
-  ];
-  const listaResp = (rep.responsaveisSetor && rep.responsaveisSetor.length > 0) ? rep.responsaveisSetor : defaultResp;
 
   let html = `
     <!DOCTYPE html>
@@ -1015,14 +974,6 @@ async function imprimirFechamentoDash() {
         <div class="kpi-box"><div class="kpi-lbl">Tarde (após 12h)</div><div class="kpi-val" style="color:#7c3aed;">${rep.atendidosTarde || 0}</div></div>
         <div class="kpi-box"><div class="kpi-lbl">Desistências</div><div class="kpi-val" style="color:#dc2626;">${rep.desistencias}</div></div>
       </div>
-
-      <h3>👤 Responsáveis por Setor de Apoio</h3>
-      <table>
-        <thead><tr><th>Responsável</th><th>Setor</th><th>Função / Cargo</th></tr></thead>
-        <tbody>
-          ${listaResp.map(r => `<tr><td><b>${r.nome}</b></td><td>${r.setor}</td><td>${r.cargo || 'Responsável'}</td></tr>`).join('')}
-        </tbody>
-      </table>
 
       <h3>🏥 Atendimentos por Setor</h3>
       <table>
@@ -1133,35 +1084,10 @@ async function exportarFechamentoPDF() {
       startY = doc.lastAutoTable.finalY + 10;
     }
 
-    // 2. Responsáveis por Setor de Apoio
+    // 2. Atendimentos por Setor
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
-    doc.text('2. Responsáveis por Setor de Apoio', 14, startY);
-
-    const defaultResp = [
-      { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
-      { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
-    ];
-    const listaResp = (rep.responsaveisSetor && rep.responsaveisSetor.length > 0) ? rep.responsaveisSetor : defaultResp;
-    const respRows = listaResp.map(r => [r.nome, r.setor, r.cargo || 'Responsável']);
-
-    if (typeof doc.autoTable === 'function') {
-      doc.autoTable({
-        startY: startY + 4,
-        head: [['Responsável', 'Setor', 'Função / Cargo']],
-        body: respRows,
-        theme: 'striped',
-        headStyles: { fillColor: [249, 168, 37], textColor: [15, 52, 145], fontStyle: 'bold' },
-        styles: { fontSize: 9.5, cellPadding: 3 },
-        margin: { left: 14, right: 14 }
-      });
-      startY = doc.lastAutoTable.finalY + 10;
-    }
-
-    // 3. Atendimentos por Setor
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('3. Atendimentos por Setor', 14, startY);
+    doc.text('2. Atendimentos por Setor', 14, startY);
 
     const setorRows = (rep.porSetor && rep.porSetor.length > 0)
       ? rep.porSetor.map(s => {
@@ -1183,7 +1109,7 @@ async function exportarFechamentoPDF() {
       startY = doc.lastAutoTable.finalY + 10;
     }
 
-    // 4. Atendimentos por Profissional
+    // 3. Atendimentos por Profissional
     if (startY > 225) {
       doc.addPage();
       startY = 20;
@@ -1191,7 +1117,7 @@ async function exportarFechamentoPDF() {
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
-    doc.text('4. Atendimentos por Profissional', 14, startY);
+    doc.text('3. Atendimentos por Profissional', 14, startY);
 
     const profRows = (rep.porProfissional && rep.porProfissional.length > 0)
       ? rep.porProfissional.map(p => [formatProfissionalNome(p.profissional, p.setor), p.setor, p.total.toString()])
