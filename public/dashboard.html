@@ -159,7 +159,10 @@
   <hr class="section-divider">
   
   <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:16px;" id="secFechamentoDia">
-    <span>📋 Fechamento Diário do Expediente</span>
+    <span>
+      📋 Fechamento Diário do Expediente
+      <span style="font-size:14px;color:var(--gray-300);font-weight:600;margin-left:12px;" id="fchDateLabel"></span>
+    </span>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn-export" style="background:#25d366;" onclick="copiarFechamentoWhatsAppDash()">📲 Copiar p/ WhatsApp da Gerência</button>
       <button class="btn-pdf" id="btnExportFechamentoPDF" onclick="exportarFechamentoPDF()">📄 Baixar PDF do Fechamento</button>
@@ -499,29 +502,53 @@ function updateDashClock() {
 }
 setInterval(updateDashClock, 1000); updateDashClock();
 
+function getTodayDateBRT() {
+  try {
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date());
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const d = parts.find(p => p.type === 'day')?.value;
+    if (y && m && d) return `${y}-${m}-${d}`;
+  } catch (e) {}
+  return new Date().toISOString().split('T')[0];
+}
+
 // Initialize date filter to today
-document.getElementById('dashDateFilter').value = new Date().toISOString().split('T')[0];
-document.getElementById('coleta-data').value = new Date().toISOString().split('T')[0];
+const todayBRT = getTodayDateBRT();
+document.getElementById('dashDateFilter').value = todayBRT;
+document.getElementById('coleta-data').value = todayBRT;
 
 async function loadDashboard() {
   try {
-    const data = document.getElementById('dashDateFilter').value;
+    const data = document.getElementById('dashDateFilter').value || getTodayDateBRT();
     if (data) {
         const dt = parseDateParts(data);
         const diaSemanaStr = dt ? DIAS_SEMANA[dt.getDay()] : '';
         const dataBR = dt ? dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : data;
         document.getElementById('dashDate').textContent = `(${formatDateBR(data)} — ${diaSemanaStr}, ${dataBR})`;
     }
-    const [mRes, hRes] = await Promise.all([
+    const [mRes, hRes, fRes] = await Promise.all([
         fetch(`${API_URL}/dashboard/metrics?data=${data}`),
-        fetch(`${API_URL}/dashboard/hourly?data=${data}`)
+        fetch(`${API_URL}/dashboard/hourly?data=${data}`),
+        fetch(`${API_URL}/relatorio-diario?data=${data}`).catch(err => {
+          console.warn('Erro ao buscar relatorio-diario:', err);
+          return null;
+        })
     ]);
-    metricsData = await mRes.json();
-    hourlyData = await hRes.json();
-    renderMetrics();
-    renderCharts();
-    renderWaitTable();
-    loadFechamentoDiario();
+
+    if (mRes && mRes.ok) metricsData = await mRes.json();
+    if (hRes && hRes.ok) hourlyData = await hRes.json();
+    if (fRes && fRes.ok) fechamentoData = await fRes.json();
+
+    try { renderMetrics(); } catch(e) { console.error('Erro em renderMetrics:', e); }
+    try { renderCharts(); } catch(e) { console.error('Erro em renderCharts:', e); }
+    try { renderWaitTable(); } catch(e) { console.error('Erro em renderWaitTable:', e); }
+    try { renderFechamentoDiario(); } catch(e) { console.error('Erro em renderFechamentoDiario:', e); }
 
     const lastRef = document.getElementById('lastRefreshTime');
     if (lastRef) lastRef.textContent = `🟢 Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
@@ -727,9 +754,12 @@ let fechamentoData = null;
 
 function getFechamentoDataSafe() {
   const dateInput = document.getElementById('dashDateFilter');
-  const data = dateInput?.value || new Date().toISOString().split('T')[0];
+  const data = (dateInput?.value || '').trim() || getTodayDateBRT();
   
-  if (fechamentoData && fechamentoData.data === data) {
+  if (fechamentoData && (!data || !fechamentoData.data || fechamentoData.data === data || fechamentoData.data.startsWith(data))) {
+    return fechamentoData;
+  }
+  if (fechamentoData && fechamentoData.totalAtendidos !== undefined) {
     return fechamentoData;
   }
   
@@ -740,10 +770,10 @@ function getFechamentoDataSafe() {
     atendidosManha: fechamentoData?.atendidosManha ?? d.attendedManha ?? 0,
     atendidosTarde: fechamentoData?.atendidosTarde ?? d.attendedTarde ?? 0,
     desistencias: fechamentoData?.desistencias ?? d.totalDesist ?? 0,
-    porTipo: fechamentoData?.porTipo || [],
+    porTipo: fechamentoData?.porTipo || d.porTipo || [],
     porSetor: fechamentoData?.porSetor || (d.attendedBySetor || []).map(s => ({ setor: s.setor, total: s.total })),
-    porProfissional: fechamentoData?.porProfissional || [],
-    agendamentos: fechamentoData?.agendamentos || [],
+    porProfissional: fechamentoData?.porProfissional || d.porProfissional || [],
+    agendamentos: fechamentoData?.agendamentos || d.agendamentos || [],
     responsaveisSetor: (fechamentoData?.responsaveisSetor && fechamentoData.responsaveisSetor.length > 0)
       ? fechamentoData.responsaveisSetor
       : (d.responsaveisSetor && d.responsaveisSetor.length > 0)
@@ -757,7 +787,7 @@ function getFechamentoDataSafe() {
 
 async function loadFechamentoDiario() {
   const dateInput = document.getElementById('dashDateFilter');
-  const data = dateInput?.value || new Date().toISOString().split('T')[0];
+  const data = (dateInput?.value || '').trim() || getTodayDateBRT();
   try {
     const res = await fetch(`${API_URL}/relatorio-diario?data=${data}`);
     if (res.ok) {
@@ -784,6 +814,13 @@ function formatProfissionalNome(prof, setor) {
 function renderFechamentoDiario() {
   const d = getFechamentoDataSafe();
   if (!d) return;
+
+  const dateLbl = document.getElementById('fchDateLabel');
+  if (dateLbl && d.data) {
+    const dt = parseDateParts(d.data);
+    const diaSemanaStr = dt ? DIAS_SEMANA[dt.getDay()] : '';
+    dateLbl.textContent = `(${formatDateBR(d.data)}${diaSemanaStr ? ' — ' + diaSemanaStr : ''})`;
+  }
   
   const elAtend = document.getElementById('fchAtendidos');
   const elDesist = document.getElementById('fchDesistencias');
@@ -813,7 +850,7 @@ function renderFechamentoDiario() {
   const setorTbody = document.getElementById('fchSetorTbody');
   if (setorTbody) {
     if (!d.porSetor || d.porSetor.length === 0) {
-      setorTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum atendimento no dia selecionado.</td></tr>';
+      setorTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum atendimento registrado no dia selecionado (${formatDateBR(d.data)}).</td></tr>`;
     } else {
       setorTbody.innerHTML = d.porSetor.map(s => {
         const pct = d.totalAtendidos > 0 ? ((parseInt(s.total, 10) / d.totalAtendidos) * 100).toFixed(1) : 0;
@@ -830,7 +867,7 @@ function renderFechamentoDiario() {
   const profTbody = document.getElementById('fchProfTbody');
   if (profTbody) {
     if (!d.porProfissional || d.porProfissional.length === 0) {
-      profTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum profissional com chamadas.</td></tr>';
+      profTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum profissional com chamadas em ${formatDateBR(d.data)}.</td></tr>`;
     } else {
       profTbody.innerHTML = d.porProfissional.map(p => {
         const nomeProf = formatProfissionalNome(p.profissional, p.setor);

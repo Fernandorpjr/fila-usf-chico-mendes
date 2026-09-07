@@ -475,7 +475,15 @@ app.post('/api/patients/:id/iniciar-consulta', async (req, res) => {
 // Relatório diário de fechamento do expediente
 app.get('/api/relatorio-diario', async (req, res) => {
   try {
-    const dataFiltro = req.query.data || new Date().toISOString().split('T')[0];
+    let dataFiltro = req.query.data ? String(req.query.data).trim() : '';
+    if (!dataFiltro || dataFiltro === 'undefined' || dataFiltro === 'null') {
+      dataFiltro = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    } else if (dataFiltro.includes('/')) {
+      const parts = dataFiltro.split('/');
+      if (parts.length === 3) {
+        dataFiltro = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    }
 
     // Atendimentos por setor no dia
     let porSetorRows = [];
@@ -1235,6 +1243,44 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       ];
     }
     
+    // Atendimentos por profissional no dia (com mapeamento automático de responsáveis)
+    let porProfRows = [];
+    try {
+      const porProfResult = await pool.query(
+        `SELECT 
+           CASE 
+             WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
+                  AND TRIM(COALESCE(c.profissional, c.medico, '')) <> 'Não especificado'
+               THEN TRIM(COALESCE(c.profissional, c.medico))
+             WHEN c.setor ILIKE '%Regula%' THEN 'Viviane'
+             WHEN c.setor ILIKE '%Farm%' THEN 'Leandra'
+             WHEN r.nome IS NOT NULL THEN r.nome
+             ELSE 'Não especificado'
+           END as profissional,
+           c.setor,
+           COUNT(*) as total
+         FROM call_history c
+         LEFT JOIN responsaveis_setor r ON LOWER(TRIM(c.setor)) = LOWER(TRIM(r.setor)) AND r.ativo = true
+         WHERE DATE(c.created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+         GROUP BY 
+           CASE 
+             WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
+                  AND TRIM(COALESCE(c.profissional, c.medico, '')) <> 'Não especificado'
+               THEN TRIM(COALESCE(c.profissional, c.medico))
+             WHEN c.setor ILIKE '%Regula%' THEN 'Viviane'
+             WHEN c.setor ILIKE '%Farm%' THEN 'Leandra'
+             WHEN r.nome IS NOT NULL THEN r.nome
+             ELSE 'Não especificado'
+           END,
+           c.setor
+         ORDER BY total DESC`,
+        params
+      );
+      porProfRows = porProfResult.rows;
+    } catch (e) {
+      console.warn('Erro em porProf no metrics:', e.message);
+    }
+
     const totalAttended = attendedResult.rows.reduce((sum, r) => sum + parseInt(r.total), 0);
     const totalDesist = parseInt(desistResult.rows[0]?.total || 0);
     const dropoutRate = totalAttended + totalDesist > 0
@@ -1251,7 +1297,8 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       bottleneckBySetor: bottleneckResult.rows,
       attendedManha: parseInt(turnoManhaResult.rows[0]?.total || 0),
       attendedTarde: parseInt(turnoTardeResult.rows[0]?.total || 0),
-      responsaveisSetor: responsaveisRows
+      responsaveisSetor: responsaveisRows,
+      porProfissional: porProfRows
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
