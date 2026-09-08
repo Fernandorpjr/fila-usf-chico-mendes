@@ -713,7 +713,7 @@ function renderCharts() {
 function renderWaitTable() {
   const d = metricsData;
   const defaultResp = [
-    { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+    { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
     { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
   ];
   const responsaveis = (d.responsaveisSetor && d.responsaveisSetor.length > 0) ? d.responsaveisSetor : defaultResp;
@@ -770,7 +770,7 @@ function getFechamentoDataSafe() {
       : (d.responsaveisSetor && d.responsaveisSetor.length > 0)
         ? d.responsaveisSetor
         : [
-            { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+            { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
             { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
           ]
   };
@@ -795,7 +795,7 @@ function formatProfissionalNome(prof, setor) {
   const p = (prof || '').trim();
   const s = (setor || '').trim().toLowerCase();
   if (!p || p === 'Não especificado' || p === 'Nao especificado') {
-    if (s.includes('regula')) return 'Viviane';
+    if (s.includes('regula')) return 'Vivi';
     if (s.includes('farm')) return 'Leandra';
     return 'Não especificado';
   }
@@ -1693,7 +1693,7 @@ async function exportDailyReport() {
 
     const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
     const defaultRespPDF = [
-      { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+      { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
       { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
     ];
     const responsaveisPDF = (d.responsaveisSetor && d.responsaveisSetor.length > 0) ? d.responsaveisSetor : defaultRespPDF;

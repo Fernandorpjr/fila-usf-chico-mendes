@@ -357,9 +357,13 @@ async function initDB() {
         UNIQUE(nome, setor)
       )
     `);
-    // Seed: Viviane (Regulação) e Leandra (Farmácia)
+    // Seed: Vivi (Regulação) e Leandra (Farmácia)
+    // Atualiza registro legado 'Viviane' → 'Vivi' se existir
     await pool.query(
-      `INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES ('Viviane', 'Regulação', 'Responsável pela Regulação')
+      `UPDATE responsaveis_setor SET nome = 'Vivi' WHERE nome = 'Viviane' AND setor = 'Regulação'`
+    );
+    await pool.query(
+      `INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES ('Vivi', 'Regulação', 'Responsável pela Regulação')
        ON CONFLICT (nome, setor) DO NOTHING`
     );
     await pool.query(
@@ -504,30 +508,28 @@ app.get('/api/relatorio-diario', async (req, res) => {
     // Atendimentos por profissional no dia (com mapeamento automático de responsáveis para Regulação e Farmácia)
     let porProfRows = [];
     try {
+      // Corrigido: sem JOIN em responsaveis_setor para evitar multiplicação de linhas (COUNT duplo)
       const porProf = await pool.query(
         `SELECT 
            CASE 
              WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
                   AND TRIM(COALESCE(c.profissional, c.medico, '')) <> 'Não especificado'
                THEN TRIM(COALESCE(c.profissional, c.medico))
-             WHEN c.setor ILIKE '%Regula%' THEN 'Viviane'
+             WHEN c.setor ILIKE '%Regula%' THEN 'Vivi'
              WHEN c.setor ILIKE '%Farm%' THEN 'Leandra'
-             WHEN r.nome IS NOT NULL THEN r.nome
              ELSE 'Não especificado'
            END as profissional,
            c.setor,
            COUNT(*) as total
          FROM call_history c
-         LEFT JOIN responsaveis_setor r ON LOWER(TRIM(c.setor)) = LOWER(TRIM(r.setor)) AND r.ativo = true
          WHERE DATE(c.created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
          GROUP BY 
            CASE 
              WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
                   AND TRIM(COALESCE(c.profissional, c.medico, '')) <> 'Não especificado'
                THEN TRIM(COALESCE(c.profissional, c.medico))
-             WHEN c.setor ILIKE '%Regula%' THEN 'Viviane'
+             WHEN c.setor ILIKE '%Regula%' THEN 'Vivi'
              WHEN c.setor ILIKE '%Farm%' THEN 'Leandra'
-             WHEN r.nome IS NOT NULL THEN r.nome
              ELSE 'Não especificado'
            END,
            c.setor
@@ -614,7 +616,7 @@ app.get('/api/relatorio-diario', async (req, res) => {
       console.warn('Erro em turnoTarde no relatorio-diario:', e.message);
     }
 
-    // Responsáveis de setores de apoio (Viviane -> Regulação, Leandra -> Farmácia)
+    // Responsáveis de setores de apoio (Vivi -> Regulação, Leandra -> Farmácia)
     let responsaveisRows = [];
     try {
       const responsaveis = await pool.query(
@@ -624,13 +626,13 @@ app.get('/api/relatorio-diario', async (req, res) => {
         responsaveisRows = responsaveis.rows;
       } else {
         responsaveisRows = [
-          { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+          { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
           { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
         ];
       }
     } catch (e) {
       responsaveisRows = [
-        { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+        { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
         { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
       ];
     }
@@ -743,7 +745,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
     const consultorioFinal = consultorio || null;
     let profissionalFinal = profissional || null;
     if (!profissionalFinal) {
-      if (setor && setor.toLowerCase().includes('regula')) profissionalFinal = 'Viviane';
+      if (setor && setor.toLowerCase().includes('regula')) profissionalFinal = 'Vivi';
       else if (setor && setor.toLowerCase().includes('farm')) profissionalFinal = 'Leandra';
     }
 
@@ -1091,7 +1093,7 @@ app.get('/api/history/monthly', async (req, res) => {
       bySetor[r.setor] = (bySetor[r.setor] || 0) + 1;
       let prof = r.profissional || r.medico;
       if (!prof || prof === 'Não especificado') {
-        if (r.setor && r.setor.toLowerCase().includes('regula')) prof = 'Viviane';
+        if (r.setor && r.setor.toLowerCase().includes('regula')) prof = 'Vivi';
         else if (r.setor && r.setor.toLowerCase().includes('farm')) prof = 'Leandra';
         else prof = 'Não especificado';
       }
@@ -1215,7 +1217,7 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       params
     );
     
-    // Responsáveis de setores de apoio (Viviane -> Regulação, Leandra -> Farmácia)
+    // Responsáveis de setores de apoio (Vivi -> Regulação, Leandra -> Farmácia)
     let responsaveisRows = [];
     try {
       const responsaveisResult = await pool.query(
@@ -1224,13 +1226,13 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       if (responsaveisResult.rows.length === 0) {
         await pool.query(`
           INSERT INTO responsaveis_setor (nome, setor, cargo) VALUES
-          ('Viviane', 'Regulação', 'Responsável pela Regulação'),
+          ('Vivi', 'Regulação', 'Responsável pela Regulação'),
           ('Leandra', 'Farmácia', 'Responsável pela Farmácia')
           ON CONFLICT (nome, setor) DO NOTHING
         `);
         const recheck = await pool.query('SELECT nome, setor, cargo FROM responsaveis_setor WHERE ativo = true ORDER BY setor ASC, nome ASC');
         responsaveisRows = recheck.rows.length > 0 ? recheck.rows : [
-          { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+          { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
           { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
         ];
       } else {
@@ -1238,7 +1240,7 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       }
     } catch (e) {
       responsaveisRows = [
-        { nome: 'Viviane', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
+        { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
         { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
       ];
     }
@@ -1246,30 +1248,28 @@ app.get('/api/dashboard/metrics', async (req, res) => {
     // Atendimentos por profissional no dia (com mapeamento automático de responsáveis)
     let porProfRows = [];
     try {
+      // Corrigido: sem JOIN em responsaveis_setor para evitar multiplicação de linhas (COUNT duplo)
       const porProfResult = await pool.query(
         `SELECT 
            CASE 
              WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
                   AND TRIM(COALESCE(c.profissional, c.medico, '')) <> 'Não especificado'
                THEN TRIM(COALESCE(c.profissional, c.medico))
-             WHEN c.setor ILIKE '%Regula%' THEN 'Viviane'
+             WHEN c.setor ILIKE '%Regula%' THEN 'Vivi'
              WHEN c.setor ILIKE '%Farm%' THEN 'Leandra'
-             WHEN r.nome IS NOT NULL THEN r.nome
              ELSE 'Não especificado'
            END as profissional,
            c.setor,
            COUNT(*) as total
          FROM call_history c
-         LEFT JOIN responsaveis_setor r ON LOWER(TRIM(c.setor)) = LOWER(TRIM(r.setor)) AND r.ativo = true
          WHERE DATE(c.created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
          GROUP BY 
            CASE 
              WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
                   AND TRIM(COALESCE(c.profissional, c.medico, '')) <> 'Não especificado'
                THEN TRIM(COALESCE(c.profissional, c.medico))
-             WHEN c.setor ILIKE '%Regula%' THEN 'Viviane'
+             WHEN c.setor ILIKE '%Regula%' THEN 'Vivi'
              WHEN c.setor ILIKE '%Farm%' THEN 'Leandra'
-             WHEN r.nome IS NOT NULL THEN r.nome
              ELSE 'Não especificado'
            END,
            c.setor
@@ -2376,6 +2376,20 @@ app.put('/api/agendamentos/:id/edit', async (req, res) => {
       return res.status(404).json({ error: 'Agendamento não encontrado' });
     }
     res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE – excluir agendamento via painel de lembretes D-1 (sem senha, com confirmação no front)
+app.delete('/api/agendamentos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM agendamentos WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Agendamento não encontrado' });
+    }
+    res.json({ message: 'Agendamento excluído', agendamento: result.rows[0] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

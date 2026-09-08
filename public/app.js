@@ -2827,12 +2827,32 @@ function renderLembretesD1(list, dataAmanha) {
         <button onclick="_waCurrentImageSrc=getImagemTipoConsulta('${(a.tipo_atendimento||'').replace(/'/g, "\\'")}','${(a.profissional||'').replace(/'/g, "\\'")}');copyWaImageToClipboard()" title="Copiar imagem de confirmação" style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='var(--gray-200)'" onmouseout="this.style.background='var(--gray-100)'">
           🖼️
         </button>
+        <button onclick="excluirLembreteD1(${a.id}, '${(a.nome||'').replace(/'/g, "\\'")}')" title="Excluir lembrete" style="background:rgba(229,57,53,0.1);border:1px solid rgba(229,57,53,0.25);border-radius:8px;padding:8px 10px;font-size:14px;cursor:pointer;transition:all 0.15s;color:var(--red);" onmouseover="this.style.background='rgba(229,57,53,0.2)'" onmouseout="this.style.background='rgba(229,57,53,0.1)'">
+          🗑️
+        </button>
       </div>
     </div>`;
   }).join('');
 }
 
 // ====== FIM LEMBRETES D-1 ======
+
+async function excluirLembreteD1(id, nomePaciente) {
+  if (!confirm(`Excluir o lembrete de ${nomePaciente}? Esta ação é permanente e removerá o agendamento.`)) return;
+  try {
+    const r = await fetch(`${API_URL}/agendamentos/${id}`, { method: 'DELETE' });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      showToast(`Erro ao excluir: ${err.error || r.status}`, true);
+      return;
+    }
+    showToast(`✅ Lembrete de ${nomePaciente} excluído!`);
+    loadLembretesD1(); // Recarrega o painel
+  } catch (e) {
+    console.error('Erro ao excluir lembrete D-1:', e);
+    showToast('Erro ao excluir lembrete!', true);
+  }
+}
 
 function renderAgendamentos(list) {
   const tbody = document.getElementById('agend-tbody'); if (!tbody) return;
