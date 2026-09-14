@@ -426,11 +426,14 @@
    .agend-status.lembrete_enviado{background:rgba(26,79,196,0.12);color:var(--blue);}
    .agend-status.confirmado{background:rgba(74,171,60,0.12);color:var(--green-dark);}
    .agend-status.cancelado{background:rgba(229,57,53,0.12);color:var(--red);}
-    .agend-status.realizado{background:rgba(74,171,60,0.2);color:var(--green-dark);border:1px solid rgba(74,171,60,0.4);}
-    .agend-status.faltou{background:rgba(229,57,53,0.2);color:var(--red);border:1px solid rgba(229,57,53,0.4);}
-   .agend-actions{display:flex;gap:4px;}
+   .agend-status.realizado{background:rgba(74,171,60,0.2);color:var(--green-dark);border:1px solid rgba(74,171,60,0.4);}
+   .agend-status.faltou{background:rgba(229,57,53,0.2);color:var(--red);border:1px solid rgba(229,57,53,0.4);}
+   .agend-status.reagendado{background:rgba(230,126,34,0.15);color:#d35400;border:1px solid rgba(230,126,34,0.35);}
+   .agend-actions{display:flex;gap:4px;align-items:center;}
    .agend-actions button{padding:4px 8px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:all .15s;background:transparent;}
    .agend-actions button:hover{background:var(--gray-100);}
+   .btn-editar-envio{background:#e67e22!important;color:white!important;border:none;border-radius:6px;padding:4px 9px!important;font-size:11px!important;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;transition:all .15s;box-shadow:0 2px 6px rgba(230,126,34,0.3);}
+   .btn-editar-envio:hover{background:#d35400!important;transform:scale(1.03);}
    .wa-modal-overlay{position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;display:none;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
    .wa-modal-overlay.show{display:flex;}
    .wa-modal{background:white;border-radius:20px;padding:32px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;color:var(--gray-700);box-shadow:0 24px 60px rgba(0,0,0,0.4);}
@@ -1488,7 +1491,7 @@
         </div>
         <div class="filter-row" style="margin-bottom:16px;">
           <div class="form-group"><label>Data</label><input type="date" id="agend-filter-data"></div>
-          <div class="form-group"><label>Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
+          <div class="form-group"><label>Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="reagendado">Reagendado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
           <button class="btn btn-primary btn-sm" onclick="loadAgendamentos()">🔍 Filtrar</button>
         </div>
         <div style="overflow-x:auto;">
@@ -1506,6 +1509,20 @@
       </div>
       <div id="rel-msg-content">
         <div style="text-align:center;padding:24px;color:var(--gray-600);">Selecione uma data e clique em Consultar</div>
+      </div>
+    </div>
+
+    <!-- Histórico de Cancelamentos e Reagendamentos -->
+    <div class="card-white" style="margin-top:20px; padding:20px;">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <div><span>📜</span> Histórico de Cancelamentos e Reagendamentos</div>
+        <button class="btn btn-outline btn-sm" onclick="loadHistoricoAgendamentos()" style="font-weight:700;">🔄 Atualizar</button>
+      </div>
+      <div style="font-size:12px;color:var(--gray-600);margin-bottom:14px;">
+        Registro do sistema contendo todas as consultas canceladas ou reagendadas com data, horário original e motivo.
+      </div>
+      <div id="agend-historico-content">
+        <div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Carregando histórico...</div>
       </div>
     </div>
 
@@ -1573,6 +1590,119 @@
       </div>
       <button class="btn btn-green" style="width:100%;margin-bottom:12px;" onclick="salvarEdicaoAgendamento()">💾 Salvar Alterações</button>
       <button class="btn btn-ghost" style="width:100%;" onclick="closeAgendEditModal()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Modal Editar Envio (Cancelar / Reagendar) -->
+  <div class="wa-modal-overlay" id="modal-editar-envio">
+    <div class="wa-modal" style="max-width:580px;width:95%;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin-bottom:0;">✏️ Editar Envio de Consulta</h3>
+        <button onclick="fecharModalEditarEnvio()" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--gray-500);">✕</button>
+      </div>
+
+      <!-- Card com resumo da consulta selecionada -->
+      <div id="ee-resumo-consulta" style="background:var(--gray-100);padding:12px 14px;border-radius:10px;margin-bottom:16px;border-left:4px solid var(--blue);font-size:13px;line-height:1.5;">
+        <!-- Preenchido via JS -->
+      </div>
+
+      <input type="hidden" id="ee-agend-id">
+      <input type="hidden" id="ee-agend-tipo">
+      <input type="hidden" id="ee-agend-data-original">
+      <input type="hidden" id="ee-agend-horario-original">
+      <input type="hidden" id="ee-agend-prof">
+      <input type="hidden" id="ee-agend-nome">
+      <input type="hidden" id="ee-agend-telefone">
+
+      <!-- Seletor de Novo Status -->
+      <div style="margin-bottom:16px;text-align:left;">
+        <label style="font-size:12px;font-weight:800;color:var(--gray-700);text-transform:uppercase;display:block;margin-bottom:8px;">Novo Status da Consulta <span style="color:var(--red);">*</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid var(--gray-300);border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;transition:all .15s;" id="label-status-cancelado">
+            <input type="radio" name="ee-status" id="ee-status-cancelado" value="cancelado" onchange="onEditarEnvioStatusChange()">
+            <span>❌ Cancelado</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid var(--gray-300);border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;transition:all .15s;" id="label-status-reagendado">
+            <input type="radio" name="ee-status" id="ee-status-reagendado" value="reagendado" onchange="onEditarEnvioStatusChange()">
+            <span>🔄 Reagendado</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Campos de Cancelamento -->
+      <div id="ee-campos-cancelamento" style="display:none;margin-bottom:16px;text-align:left;">
+        <div class="form-group">
+          <label>Motivo do Cancelamento <span style="font-size:11px;color:var(--gray-500);font-weight:normal;">(Opcional - incluído na mensagem de WhatsApp)</span></label>
+          <input type="text" id="ee-motivo-cancelamento" placeholder="Ex: Equipamento odontológico quebrado, ausência do profissional..." oninput="onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+        </div>
+      </div>
+
+      <!-- Campos de Reagendamento -->
+      <div id="ee-campos-reagendamento" style="display:none;margin-bottom:16px;text-align:left;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div class="form-group">
+            <label>Nova Data <span style="color:var(--red);">*</span></label>
+            <input type="date" id="ee-nova-data" onchange="onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+          </div>
+          <div class="form-group">
+            <label>Novo Horário <span style="color:var(--red);">*</span></label>
+            <input type="text" id="ee-novo-horario" placeholder="08:00" oninput="mascaraHorario(this);onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Motivo / Justificativa do Reagendamento <span style="font-size:11px;color:var(--gray-500);font-weight:normal;">(Opcional)</span></label>
+          <input type="text" id="ee-motivo-reagendamento" placeholder="Ex: Manutenção do consultório, remanejamento de escala..." oninput="onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+        </div>
+      </div>
+
+      <!-- Opção de Ação em Lote -->
+      <div style="background:rgba(230,126,34,0.08);border:1px dashed #e67e22;border-radius:10px;padding:12px;margin-bottom:16px;text-align:left;">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:var(--gray-800);">
+          <input type="checkbox" id="ee-aplicar-lote" onchange="onEditarEnvioInputChange()" style="margin-top:2px;">
+          <div>
+            <span>⚡ Aplicar esta mesma alteração a todas as consultas desta categoria</span>
+            <div id="ee-lote-info" style="font-size:11px;color:var(--gray-600);font-weight:normal;margin-top:2px;">
+              Edita todas as consultas da mesma categoria agendadas para o mesmo dia.
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Preview da Mensagem de WhatsApp -->
+      <div style="margin-bottom:16px;text-align:left;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:12px;font-weight:800;color:var(--gray-700);text-transform:uppercase;">📱 Preview da Nova Mensagem</label>
+          <span style="font-size:11px;color:var(--green-dark);font-weight:700;">Atualização automática</span>
+        </div>
+        <div class="wa-preview" id="ee-preview-msg" style="max-height:160px;overflow-y:auto;font-size:12px;margin-bottom:0;line-height:1.5;">
+          Selecione o novo status (Cancelado ou Reagendado) para pré-visualizar a mensagem gerada.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-green" id="ee-btn-salvar" style="flex:2;padding:12px;font-weight:800;" onclick="salvarEditarEnvio()">💾 Confirmar e Preparar Envio</button>
+        <button class="btn btn-ghost" style="flex:1;padding:12px;" onclick="fecharModalEditarEnvio()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Fila de Disparo em Lote (WhatsApp) -->
+  <div class="wa-modal-overlay" id="modal-fila-disparo-lote">
+    <div class="wa-modal" style="max-width:620px;width:95%;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin-bottom:0;">⚡ Disparo de Mensagens em Lote</h3>
+        <button onclick="fecharFilaDisparoLote()" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--gray-500);">✕</button>
+      </div>
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px;text-align:left;">
+        As consultas foram atualizadas no sistema com sucesso. Para evitar bloqueio pelo navegador, dispare o WhatsApp de cada paciente na fila abaixo:
+      </p>
+      <div id="fila-disparo-progresso" style="font-size:13px;font-weight:800;color:var(--blue);margin-bottom:12px;text-align:left;">
+        <!-- Progresso preenchido via JS -->
+      </div>
+      <div id="fila-disparo-lista" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        <!-- Itens da fila gerados via JS -->
+      </div>
+      <button class="btn btn-primary" style="width:100%;font-weight:800;padding:12px;" onclick="fecharFilaDisparoLote()">✅ Concluir</button>
     </div>
   </div>
 

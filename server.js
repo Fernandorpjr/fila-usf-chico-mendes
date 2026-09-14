@@ -184,6 +184,33 @@ async function initDB() {
       )
     `);
 
+    // Garantir colunas para cancelamento/reagendamento e histórico
+    await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS motivo_cancelamento TEXT`);
+    await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS data_original DATE`);
+    await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS horario_original TEXT`);
+    await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cancelado_em TIMESTAMPTZ`);
+    await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS reagendado_em TIMESTAMPTZ`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS agendamento_historico (
+        id SERIAL PRIMARY KEY,
+        agendamento_id INTEGER,
+        paciente TEXT,
+        telefone TEXT,
+        tipo_atendimento TEXT,
+        profissional TEXT,
+        status_anterior TEXT,
+        novo_status TEXT NOT NULL,
+        motivo TEXT,
+        data_anterior DATE,
+        horario_anterior TEXT,
+        nova_data DATE,
+        novo_horario TEXT,
+        em_lote BOOLEAN DEFAULT false,
+        criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // ====== CTRL AGENDAMENTOS (Checklist interno – Sala de Agendamento) ======
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ctrl_agendamentos (
@@ -2377,6 +2404,197 @@ app.put('/api/agendamentos/:id/edit', async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT - Editar Envio (Cancelar ou Reagendar individualmente)
+app.put('/api/agendamentos/:id/editar-envio', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, motivo, nova_data, novo_horario } = req.body;
+    if (!['cancelado', 'reagendado'].includes(status)) {
+      return res.status(400).json({ error: 'Status deve ser cancelado ou reagendado' });
+    }
+    if (status === 'reagendado' && (!nova_data || !novo_horario)) {
+      return res.status(400).json({ error: 'Nova data e novo horário são obrigatórios para reagendamento' });
+    }
+
+    const atualRes = await pool.query('SELECT * FROM agendamentos WHERE id = $1', [id]);
+    if (atualRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Agendamento não encontrado' });
+    }
+    const agendAtual = atualRes.rows[0];
+
+    let query = '';
+    let params = [];
+    if (status === 'cancelado') {
+      query = `UPDATE agendamentos 
+               SET status = 'cancelado',
+                   motivo_cancelamento = $2,
+                   cancelado_em = CURRENT_TIMESTAMP
+               WHERE id = $1 
+               RETURNING *`;
+      params = [id, motivo || null];
+    } else {
+      const dataOrig = agendAtual.data_original || agendAtual.data_agendamento;
+      const horaOrig = agendAtual.horario_original || agendAtual.horario;
+      query = `UPDATE agendamentos 
+               SET status = 'reagendado',
+                   data_original = $2,
+                   horario_original = $3,
+                   data_agendamento = $4,
+                   horario = $5,
+                   motivo_cancelamento = $6,
+                   reagendado_em = CURRENT_TIMESTAMP
+               WHERE id = $1 
+               RETURNING *`;
+      params = [id, dataOrig, horaOrig, nova_data, novo_horario, motivo || null];
+    }
+
+    const result = await pool.query(query, params);
+    const atualizado = result.rows[0];
+
+    // Registrar no histórico
+    await pool.query(
+      `INSERT INTO agendamento_historico 
+       (agendamento_id, paciente, telefone, tipo_atendimento, profissional, status_anterior, novo_status, motivo, data_anterior, horario_anterior, nova_data, novo_horario, em_lote)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false)`,
+      [
+        agendAtual.id,
+        agendAtual.nome,
+        agendAtual.telefone,
+        agendAtual.tipo_atendimento,
+        agendAtual.profissional,
+        agendAtual.status,
+        status,
+        motivo || null,
+        agendAtual.data_agendamento,
+        agendAtual.horario,
+        status === 'reagendado' ? nova_data : null,
+        status === 'reagendado' ? novo_horario : null
+      ]
+    );
+
+    res.json(atualizado);
+  } catch (error) {
+    console.error('Erro ao editar envio:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT - Editar Envio em Lote (por Categoria e Data)
+app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
+  try {
+    const { tipo_atendimento, data, status, motivo, nova_data, novo_horario } = req.body;
+    if (!tipo_atendimento || !data || !status) {
+      return res.status(400).json({ error: 'tipo_atendimento, data e status são obrigatórios' });
+    }
+    if (!['cancelado', 'reagendado'].includes(status)) {
+      return res.status(400).json({ error: 'Status deve ser cancelado ou reagendado' });
+    }
+    if (status === 'reagendado' && (!nova_data || !novo_horario)) {
+      return res.status(400).json({ error: 'Nova data e novo horário são obrigatórios para reagendamento' });
+    }
+
+    // Busca agendamentos da categoria e data que não estejam cancelados
+    const buscaRes = await pool.query(
+      `SELECT * FROM agendamentos 
+       WHERE tipo_atendimento = $1 AND data_agendamento = $2 AND status != 'cancelado'
+       ORDER BY horario ASC`,
+      [tipo_atendimento, data]
+    );
+
+    const alvos = buscaRes.rows;
+    if (alvos.length === 0) {
+      return res.status(404).json({ error: 'Nenhum agendamento encontrado para a categoria e data fornecidas' });
+    }
+
+    const editados = [];
+    for (const agendAtual of alvos) {
+      let query = '';
+      let params = [];
+      if (status === 'cancelado') {
+        query = `UPDATE agendamentos 
+                 SET status = 'cancelado',
+                     motivo_cancelamento = $2,
+                     cancelado_em = CURRENT_TIMESTAMP
+                 WHERE id = $1 
+                 RETURNING *`;
+        params = [agendAtual.id, motivo || null];
+      } else {
+        const dataOrig = agendAtual.data_original || agendAtual.data_agendamento;
+        const horaOrig = agendAtual.horario_original || agendAtual.horario;
+        query = `UPDATE agendamentos 
+                 SET status = 'reagendado',
+                     data_original = $2,
+                     horario_original = $3,
+                     data_agendamento = $4,
+                     horario = $5,
+                     motivo_cancelamento = $6,
+                     reagendado_em = CURRENT_TIMESTAMP
+                 WHERE id = $1 
+                 RETURNING *`;
+        params = [agendAtual.id, dataOrig, horaOrig, nova_data, novo_horario, motivo || null];
+      }
+
+      const r = await pool.query(query, params);
+      editados.push(r.rows[0]);
+
+      await pool.query(
+        `INSERT INTO agendamento_historico 
+         (agendamento_id, paciente, telefone, tipo_atendimento, profissional, status_anterior, novo_status, motivo, data_anterior, horario_anterior, nova_data, novo_horario, em_lote)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)`,
+        [
+          agendAtual.id,
+          agendAtual.nome,
+          agendAtual.telefone,
+          agendAtual.tipo_atendimento,
+          agendAtual.profissional,
+          agendAtual.status,
+          status,
+          motivo || null,
+          agendAtual.data_agendamento,
+          agendAtual.horario,
+          status === 'reagendado' ? nova_data : null,
+          status === 'reagendado' ? novo_horario : null
+        ]
+      );
+    }
+
+    res.json({ total: editados.length, agendamentos: editados });
+  } catch (error) {
+    console.error('Erro em lote editar envio:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET - Histórico de Cancelamentos e Reagendamentos
+app.get('/api/agendamentos/historico', async (req, res) => {
+  try {
+    const { limit = 50, agendamento_id, data } = req.query;
+    let query = 'SELECT * FROM agendamento_historico WHERE 1=1';
+    const params = [];
+    let idx = 1;
+
+    if (agendamento_id) {
+      query += ` AND agendamento_id = $${idx}`;
+      params.push(agendamento_id);
+      idx++;
+    }
+    if (data) {
+      query += ` AND (DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = $${idx}::date OR data_anterior = $${idx}::date)`;
+      params.push(data);
+      idx++;
+    }
+
+    query += ` ORDER BY criado_em DESC LIMIT $${idx}`;
+    params.push(parseInt(limit, 10) || 50);
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar histórico de agendamentos:', error);
     res.status(500).json({ error: error.message });
   }
 });

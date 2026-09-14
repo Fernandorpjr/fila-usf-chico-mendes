@@ -1027,6 +1027,7 @@ function showScreen(name) {
   if (name === 'agendamentos') {
     loadAgendamentos();
     loadRelatorioMensagens();
+    loadHistoricoAgendamentos();
     loadResponsaveisSetor();
   }
   // === CTRL AGENDAMENTOS: carrega e ativa polling dedicado ao entrar na aba ===
@@ -2719,6 +2720,7 @@ async function loadAgendamentos() {
     renderAgendamentos(list);
     loadColetasStats();
     loadRelatorioMensagens();
+    loadHistoricoAgendamentos();
     loadLembretesD1(); // Carregar painel de lembretes D-1
   } catch { showToast('Erro ao carregar agendamentos', true); }
 }
@@ -2824,6 +2826,9 @@ function renderLembretesD1(list, dataAmanha) {
         <button onclick="openWaPreview(${a.id}, 'lembrete_d1')" title="Enviar Lembrete D-1 via WhatsApp" style="background:#25D366;color:white;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(37,211,102,0.3);transition:all 0.15s;" onmouseover="this.style.background='#1fb855'" onmouseout="this.style.background='#25D366'">
           📲 Lembrete
         </button>
+        <button onclick="abrirModalEditarEnvio(${a.id})" title="Editar Envio (Cancelar / Reagendar)" style="background:#e67e22;color:white;border:none;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(230,126,34,0.3);transition:all 0.15s;" onmouseover="this.style.background='#d35400'" onmouseout="this.style.background='#e67e22'">
+          ✏️ Editar
+        </button>
         <button onclick="_waCurrentImageSrc=getImagemTipoConsulta('${(a.tipo_atendimento||'').replace(/'/g, "\\'")}','${(a.profissional||'').replace(/'/g, "\\'")}');copyWaImageToClipboard()" title="Copiar imagem de confirmação" style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='var(--gray-200)'" onmouseout="this.style.background='var(--gray-100)'">
           🖼️
         </button>
@@ -2880,6 +2885,7 @@ function renderAgendamentos(list) {
       <td><span class="agend-status ${statusCls}">${a.status}</span></td>
       <td><div class="agend-actions" style="display:flex;gap:4px;flex-wrap:wrap;">
         ${extraBtns}
+        <button class="btn-editar-envio" onclick="abrirModalEditarEnvio(${a.id})" title="Editar Envio (Cancelar / Reagendar)">✏️ Editar Envio</button>
         <button onclick="openWaPreview(${a.id})" title="WhatsApp">📲</button>
         <button onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar lembrete">📨</button>
         <button onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmado">✅</button>
@@ -3026,6 +3032,455 @@ async function salvarEdicaoAgendamento() {
   } catch {
     showToast('Erro ao atualizar contato!', true);
   }
+}
+
+// ====== EDITAR ENVIO (CANCELAR / REAGENDAR) ======
+
+let _editarEnvioAgendAtual = null;
+let _filaDisparoLote = [];
+let _filaDisparoEnviados = 0;
+
+function formatarProfissionalComProfissao(profNome) {
+  const raw = (profNome || '').trim() || 'A definir';
+  if (raw === 'A definir') return raw;
+  const profissao = getProfissaoProfissional(raw);
+  if (profissao && !raw.includes(profissao) && !raw.includes('–') && !raw.includes(' - ')) {
+    return `${raw} – ${profissao}`;
+  }
+  return raw;
+}
+
+function gerarMensagemEditarEnvio(agend, novoStatus, motivo, novaData, novoHorario) {
+  const nome = agend.nome || 'Paciente';
+  const profCompleto = formatarProfissionalComProfissao(agend.profissional);
+  const tipo = agend.tipo_atendimento || 'Consulta';
+
+  // Data e horário originais
+  const dataOrigRaw = (agend.data_original || agend.data_agendamento || '').split('T')[0];
+  const dataOrigFmt = dataOrigRaw ? new Date(dataOrigRaw + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+  const horaOrig = agend.horario_original || agend.horario || '';
+  const periodoOrig = getPeriodoDia(horaOrig);
+  const horaOrigFmt = periodoOrig ? `${horaOrig} (${periodoOrig})` : horaOrig;
+
+  if (novoStatus === 'cancelado') {
+    let motivoTexto = '';
+    if (motivo && motivo.trim()) {
+      motivoTexto = `\n⚠️ *Motivo:* ${motivo.trim()}\n`;
+    }
+    return `Olá, ${nome}! 🏥\n\nInformamos que sua consulta de *${tipo}* com *${profCompleto}*, agendada para o dia *${dataOrigFmt}* às *${horaOrigFmt}*, precisou ser *CANCELADA*.${motivoTexto}\nEm breve entraremos em contato para orientar sobre o novo agendamento.\n\nPedimos sinceras desculpas pelo transtorno e agradecemos imensamente a sua compreensão. 💙\n\n— *USF Chico Mendes*`;
+  } else if (novoStatus === 'reagendado') {
+    const dataNovaRaw = (novaData || '').split('T')[0];
+    const dataNovaFmt = dataNovaRaw ? new Date(dataNovaRaw + 'T12:00:00').toLocaleDateString('pt-BR') : 'A definir';
+    const periodoNovo = getPeriodoDia(novoHorario);
+    const horaNovaFmt = periodoNovo ? `${novoHorario} (${periodoNovo})` : (novoHorario || 'A definir');
+
+    let motivoTexto = '';
+    if (motivo && motivo.trim()) {
+      motivoTexto = `\n📝 *Motivo:* ${motivo.trim()}`;
+    }
+
+    const orientacao = getOrientacaoTipo(agend.tipo_atendimento, agend.profissional);
+    const orientacaoTexto = orientacao ? `\n\n📋 *Orientações:*\n${orientacao}` : '';
+
+    return `Olá, ${nome}! 🔄\n\nInformamos que sua consulta de *${tipo}* com *${profCompleto}*, originalmente agendada para *${dataOrigFmt}* às *${horaOrigFmt}*, foi *REAGENDADA* e já está confirmada para uma nova data:\n\n📅 *Nova Data:* ${dataNovaFmt}\n⏰ *Novo Horário:* ${horaNovaFmt}\n👨‍⚕️ *Profissional:* ${profCompleto}\n📍 *Local:* Unidade de Saúde da Família Chico Mendes${motivoTexto}${orientacaoTexto}\n\nPedimos desculpas pelo transtorno e contamos com a sua presença! 💙\n\n— *USF Chico Mendes*`;
+  }
+  return '';
+}
+
+async function abrirModalEditarEnvio(id) {
+  try {
+    const r = await fetch(`${API_URL}/agendamentos`);
+    const list = await r.json();
+    const agend = list.find(a => a.id === id);
+    if (!agend) {
+      showToast('Agendamento não encontrado!', true);
+      return;
+    }
+    _editarEnvioAgendAtual = agend;
+
+    const dataIso = (agend.data_agendamento || '').split('T')[0];
+    const dataFmt = dataIso ? new Date(dataIso + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+    const profCompleto = formatarProfissionalComProfissao(agend.profissional);
+    const tipo = agend.tipo_atendimento || 'Consulta';
+
+    document.getElementById('ee-agend-id').value = agend.id;
+    document.getElementById('ee-agend-tipo').value = tipo;
+    document.getElementById('ee-agend-data-original').value = dataIso;
+    document.getElementById('ee-agend-horario-original').value = agend.horario;
+    document.getElementById('ee-agend-prof').value = profCompleto;
+    document.getElementById('ee-agend-nome').value = agend.nome;
+    document.getElementById('ee-agend-telefone').value = agend.telefone;
+
+    // Resumo da consulta
+    const resumoEl = document.getElementById('ee-resumo-consulta');
+    resumoEl.innerHTML = `
+      <div style="font-weight:800;font-size:14px;color:var(--blue-dark);margin-bottom:4px;">👤 ${agend.nome} <span style="font-size:12px;font-weight:600;color:var(--gray-600);">${agend.telefone}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--gray-700);">
+        <span>📅 <b>Data:</b> ${dataFmt} às ${agend.horario}</span>
+        <span>🩺 <b>Tipo:</b> ${tipo}</span>
+        <span>👨‍⚕️ <b>Profissional:</b> ${profCompleto}</span>
+      </div>
+      <div style="margin-top:4px;font-size:11px;color:var(--gray-500);">Status atual: <b>${agend.status}</b></div>
+    `;
+
+    // Reset formulário
+    document.getElementById('ee-status-cancelado').checked = true;
+    document.getElementById('ee-status-reagendado').checked = false;
+    document.getElementById('ee-motivo-cancelamento').value = '';
+
+    // Sugestão de nova data
+    const amanha = typeof getAmanhaSP === 'function' ? getAmanhaSP() : new Date().toISOString().split('T')[0];
+    document.getElementById('ee-nova-data').value = amanha;
+    document.getElementById('ee-novo-horario').value = agend.horario || '08:00';
+    document.getElementById('ee-motivo-reagendamento').value = '';
+    document.getElementById('ee-aplicar-lote').checked = false;
+
+    // Contagem de consultas da categoria e data para o lote
+    const mesmoTipoEDia = list.filter(x => 
+      (x.tipo_atendimento || 'Consulta') === tipo && 
+      (x.data_agendamento || '').split('T')[0] === dataIso && 
+      x.status !== 'cancelado'
+    );
+    const loteInfoEl = document.getElementById('ee-lote-info');
+    if (loteInfoEl) {
+      loteInfoEl.textContent = `Aplicará para todas as ${mesmoTipoEDia.length} consulta(s) de "${tipo}" em ${dataFmt}.`;
+    }
+
+    onEditarEnvioStatusChange();
+    document.getElementById('modal-editar-envio').classList.add('show');
+  } catch (e) {
+    console.error('Erro ao abrir edição de envio:', e);
+    showToast('Erro ao carregar dados da consulta!', true);
+  }
+}
+
+function fecharModalEditarEnvio() {
+  document.getElementById('modal-editar-envio').classList.remove('show');
+}
+
+function onEditarEnvioStatusChange() {
+  const canceladoRadio = document.getElementById('ee-status-cancelado');
+  const reagendadoRadio = document.getElementById('ee-status-reagendado');
+  const camposCanc = document.getElementById('ee-campos-cancelamento');
+  const camposReag = document.getElementById('ee-campos-reagendamento');
+  const labelCanc = document.getElementById('label-status-cancelado');
+  const labelReag = document.getElementById('label-status-reagendado');
+
+  if (canceladoRadio && canceladoRadio.checked) {
+    camposCanc.style.display = 'block';
+    camposReag.style.display = 'none';
+    labelCanc.style.borderColor = 'var(--red)';
+    labelCanc.style.background = 'rgba(229,57,53,0.08)';
+    labelReag.style.borderColor = 'var(--gray-300)';
+    labelReag.style.background = 'transparent';
+  } else if (reagendadoRadio && reagendadoRadio.checked) {
+    camposCanc.style.display = 'none';
+    camposReag.style.display = 'block';
+    labelReag.style.borderColor = '#e67e22';
+    labelReag.style.background = 'rgba(230,126,34,0.08)';
+    labelCanc.style.borderColor = 'var(--gray-300)';
+    labelCanc.style.background = 'transparent';
+  }
+  onEditarEnvioInputChange();
+}
+
+function onEditarEnvioInputChange() {
+  if (!_editarEnvioAgendAtual) return;
+  const statusRadio = document.querySelector('input[name="ee-status"]:checked');
+  const status = statusRadio ? statusRadio.value : '';
+  const motivo = status === 'cancelado' 
+    ? (document.getElementById('ee-motivo-cancelamento')?.value || '') 
+    : (document.getElementById('ee-motivo-reagendamento')?.value || '');
+  const novaData = document.getElementById('ee-nova-data')?.value || '';
+  const novoHorario = document.getElementById('ee-novo-horario')?.value || '';
+
+  const previewEl = document.getElementById('ee-preview-msg');
+  if (!previewEl) return;
+
+  if (!status) {
+    previewEl.textContent = 'Selecione o novo status da consulta acima.';
+    return;
+  }
+
+  const msg = gerarMensagemEditarEnvio(_editarEnvioAgendAtual, status, motivo, novaData, novoHorario);
+  previewEl.textContent = msg;
+}
+
+async function salvarEditarEnvio() {
+  const id = document.getElementById('ee-agend-id').value;
+  const statusRadio = document.querySelector('input[name="ee-status"]:checked');
+  if (!statusRadio) {
+    showToast('⚠️ Selecione o novo status (Cancelado ou Reagendado)', true);
+    return;
+  }
+  const novoStatus = statusRadio.value;
+  const aplicarLote = document.getElementById('ee-aplicar-lote').checked;
+
+  let motivo = '';
+  let novaData = '';
+  let novoHorario = '';
+
+  if (novoStatus === 'cancelado') {
+    motivo = document.getElementById('ee-motivo-cancelamento').value.trim();
+  } else if (novoStatus === 'reagendado') {
+    novaData = document.getElementById('ee-nova-data').value;
+    novoHorario = document.getElementById('ee-novo-horario').value.trim();
+    motivo = document.getElementById('ee-motivo-reagendamento').value.trim();
+
+    if (!novaData || !novoHorario) {
+      showToast('⚠️ Preencha a nova data e o novo horário!', true);
+      return;
+    }
+  }
+
+  const agend = _editarEnvioAgendAtual;
+  if (!agend) {
+    showToast('Agendamento não encontrado!', true);
+    return;
+  }
+
+  const tipo = agend.tipo_atendimento || 'Consulta';
+  const dataIso = (agend.data_agendamento || '').split('T')[0];
+  const dataFmt = dataIso ? new Date(dataIso + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+
+  if (aplicarLote) {
+    const confirmMsg = `⚠️ CONFIRMAÇÃO DE AÇÃO EM LOTE\n\nTem certeza de que deseja alterar o status para "${novoStatus.toUpperCase()}" de TODAS as consultas de "${tipo}" no dia ${dataFmt}?\n\nEsta ação atualizará os registros no sistema e preparará os disparos no WhatsApp.`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const r = await fetch(`${API_URL}/agendamentos/batch-editar-envio`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo_atendimento: tipo,
+          data: dataIso,
+          status: novoStatus,
+          motivo,
+          nova_data: novaData,
+          novo_horario: novoHorario
+        })
+      });
+
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        showToast(`Erro na edição em lote: ${err.error || r.status}`, true);
+        return;
+      }
+
+      const resJson = await r.json();
+      showToast(`✅ ${resJson.total} consulta(s) de ${tipo} atualizada(s)!`);
+      fecharModalEditarEnvio();
+      loadAgendamentos();
+      loadHistoricoAgendamentos();
+
+      // Iniciar fila de disparo
+      if (resJson.agendamentos && resJson.agendamentos.length > 0) {
+        iniciarFilaDisparoLote(resJson.agendamentos, novoStatus, motivo, novaData, novoHorario);
+      }
+    } catch (e) {
+      console.error('Erro ao editar em lote:', e);
+      showToast('Erro de conexão ao editar em lote!', true);
+    }
+  } else {
+    // Individual
+    try {
+      const r = await fetch(`${API_URL}/agendamentos/${id}/editar-envio`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: novoStatus,
+          motivo,
+          nova_data: novaData,
+          novo_horario: novoHorario
+        })
+      });
+
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        showToast(`Erro ao editar: ${err.error || r.status}`, true);
+        return;
+      }
+
+      const atualizado = await r.json();
+      showToast('✅ Consulta atualizada com sucesso!');
+      fecharModalEditarEnvio();
+      loadAgendamentos();
+      loadHistoricoAgendamentos();
+
+      // Gerar mensagem e abrir WhatsApp
+      const msg = gerarMensagemEditarEnvio(agend, novoStatus, motivo, novaData, novoHorario);
+      const phone = (agend.telefone || '').replace(/\D/g, '');
+      const waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+
+      await registrarMensagemEnviada({
+        id: agend.id,
+        profissional: agend.profissional,
+        paciente: agend.nome,
+        template: novoStatus
+      });
+      loadRelatorioMensagens();
+
+      window.open(waUrl, '_blank');
+    } catch (e) {
+      console.error('Erro ao salvar edição:', e);
+      showToast('Erro de conexão ao salvar!', true);
+    }
+  }
+}
+
+// ====== FILA DE DISPARO EM LOTE ======
+
+function iniciarFilaDisparoLote(agendamentos, novoStatus, motivo, novaData, novoHorario) {
+  _filaDisparoLote = agendamentos.map(a => {
+    const msg = gerarMensagemEditarEnvio(a, novoStatus, motivo, novaData, novoHorario);
+    const phone = (a.telefone || '').replace(/\D/g, '');
+    return {
+      id: a.id,
+      nome: a.nome,
+      telefone: a.telefone,
+      phone,
+      horario: a.horario_original || a.horario,
+      msg,
+      profissional: a.profissional,
+      novoStatus,
+      enviado: false
+    };
+  });
+  _filaDisparoEnviados = 0;
+
+  renderFilaDisparoLote();
+  document.getElementById('modal-fila-disparo-lote').classList.add('show');
+}
+
+function renderFilaDisparoLote() {
+  const container = document.getElementById('fila-disparo-lista');
+  const progresso = document.getElementById('fila-disparo-progresso');
+  if (!container) return;
+
+  const total = _filaDisparoLote.length;
+  progresso.innerHTML = `📊 Progresso: <b>${_filaDisparoEnviados}</b> de <b>${total}</b> paciente(s) notificado(s)`;
+
+  container.innerHTML = _filaDisparoLote.map((item, index) => {
+    const btnHtml = item.enviado
+      ? `<span style="background:rgba(74,171,60,0.15);color:#2d7a22;font-size:11px;font-weight:800;padding:6px 12px;border-radius:6px;">✅ Enviado</span>`
+      : `<button onclick="dispararItemFila(${index})" style="background:#25D366;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(37,211,102,0.3);transition:all 0.15s;" onmouseover="this.style.background='#1fb855'" onmouseout="this.style.background='#25D366'">
+          📲 Disparar WhatsApp
+        </button>`;
+
+    return `<div style="display:flex;align-items:center;justify-content:space-between;background:white;padding:10px 14px;border-radius:8px;border:1px solid var(--gray-200);border-left:4px solid ${item.enviado ? 'var(--green)' : 'var(--blue)'};">
+      <div>
+        <div style="font-weight:800;font-size:13px;color:var(--blue-dark);">${item.nome}</div>
+        <div style="font-size:11px;color:var(--gray-600);">${item.telefone} • Horário: ${item.horario}</div>
+      </div>
+      <div>${btnHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+async function dispararItemFila(index) {
+  const item = _filaDisparoLote[index];
+  if (!item) return;
+
+  const url = `https://web.whatsapp.com/send?phone=${item.phone}&text=${encodeURIComponent(item.msg)}`;
+  window.open(url, '_blank');
+
+  item.enviado = true;
+  _filaDisparoEnviados++;
+
+  await registrarMensagemEnviada({
+    id: item.id,
+    profissional: item.profissional,
+    paciente: item.nome,
+    template: 'lote_' + (item.novoStatus || 'edicao')
+  });
+
+  renderFilaDisparoLote();
+  loadRelatorioMensagens();
+}
+
+function fecharFilaDisparoLote() {
+  document.getElementById('modal-fila-disparo-lote').classList.remove('show');
+}
+
+// ====== HISTÓRICO DE CANCELAMENTOS E REAGENDAMENTOS ======
+
+async function loadHistoricoAgendamentos() {
+  const container = document.getElementById('agend-historico-content');
+  if (!container) return;
+  try {
+    const r = await fetch(`${API_URL}/agendamentos/historico?limit=50`);
+    if (!r.ok) throw new Error();
+    const list = await r.json();
+    renderHistoricoAgendamentos(list, container);
+  } catch (e) {
+    console.error('Erro ao carregar histórico:', e);
+    container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--red);">Erro ao carregar histórico</div>';
+  }
+}
+
+function renderHistoricoAgendamentos(list, container) {
+  if (!list || !list.length) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">✅ Nenhum cancelamento ou reagendamento registrado até o momento.</div>';
+    return;
+  }
+
+  const rows = list.map(item => {
+    const dataAlteracao = safeDate(item.criado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    const dataAntRaw = (item.data_anterior || '').split('T')[0];
+    const dataAntFmt = dataAntRaw ? new Date(dataAntRaw + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
+    const horaAnt = item.horario_anterior || '-';
+
+    const statusBadge = item.novo_status === 'cancelado'
+      ? `<span class="agend-status cancelado">❌ Cancelado</span>`
+      : `<span class="agend-status reagendado">🔄 Reagendado</span>`;
+
+    let infoDestino = '';
+    if (item.novo_status === 'reagendado') {
+      const dataNovaRaw = (item.nova_data || '').split('T')[0];
+      const dataNovaFmt = dataNovaRaw ? new Date(dataNovaRaw + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
+      infoDestino = `<b>Nova data:</b> ${dataNovaFmt} às ${item.novo_horario || '-'}`;
+    }
+    const motivoHtml = item.motivo ? `<div style="font-size:11px;color:var(--gray-600);margin-top:2px;"><i>Motivo:</i> ${item.motivo}</div>` : '<div style="font-size:11px;color:var(--gray-500);margin-top:2px;"><i>Sem motivo informado</i></div>';
+
+    const loteBadge = item.em_lote ? `<span style="font-size:9px;background:rgba(230,126,34,0.15);color:#d35400;padding:1px 5px;border-radius:4px;font-weight:800;margin-left:4px;">EM LOTE</span>` : '';
+
+    return `<tr style="border-bottom:1px solid var(--gray-200);">
+      <td style="padding:10px 8px;font-size:12px;color:var(--gray-600);white-space:nowrap;">${dataAlteracao}${loteBadge}</td>
+      <td style="padding:10px 8px;">
+        <div style="font-weight:700;color:var(--blue-dark);">${item.paciente}</div>
+        <div style="font-size:11px;color:var(--gray-600);">${item.telefone || '-'}</div>
+      </td>
+      <td style="padding:10px 8px;">
+        <div style="font-weight:600;">${item.tipo_atendimento || 'Consulta'}</div>
+        <div style="font-size:11px;color:var(--gray-600);">${item.profissional || '-'}</div>
+      </td>
+      <td style="padding:10px 8px;text-align:center;">${statusBadge}</td>
+      <td style="padding:10px 8px;font-size:12px;">${dataAntFmt} às ${horaAnt}</td>
+      <td style="padding:10px 8px;font-size:12px;">
+        ${infoDestino}
+        ${motivoHtml}
+      </td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;margin-top:4px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--gray-200);background:var(--gray-100);">
+            <th style="text-align:left;padding:10px 8px;color:var(--gray-600);font-size:11px;text-transform:uppercase;">Data/Hora</th>
+            <th style="text-align:left;padding:10px 8px;color:var(--gray-600);font-size:11px;text-transform:uppercase;">Paciente</th>
+            <th style="text-align:left;padding:10px 8px;color:var(--gray-600);font-size:11px;text-transform:uppercase;">Categoria / Profissional</th>
+            <th style="text-align:center;padding:10px 8px;color:var(--gray-600);font-size:11px;text-transform:uppercase;">Novo Status</th>
+            <th style="text-align:left;padding:10px 8px;color:var(--gray-600);font-size:11px;text-transform:uppercase;">Original</th>
+            <th style="text-align:left;padding:10px 8px;color:var(--gray-600);font-size:11px;text-transform:uppercase;">Detalhes / Motivo</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 // ====== PDF ======
