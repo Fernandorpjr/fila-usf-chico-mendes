@@ -440,8 +440,8 @@ function initSectorScreens() {
 
     let profHTML = '';
     if (cfg.profissionais) {
-      const consultOpts = ['1','2','3','4','5','6','Odontológico','Sala de Procedimentos'].map(c =>
-        `<option value="${c}">${c === 'Odontológico' ? 'Consultório Odontológico' : c === 'Sala de Procedimentos' ? c : 'Consultório ' + c}</option>`
+      const consultOpts = ['1','2','3','4','5','6','Odontológico','Sala de Procedimentos','Sala de Vacina'].map(c =>
+        `<option value="${c}">${c === 'Odontológico' ? 'Consultório Odontológico' : (c === 'Sala de Procedimentos' || c === 'Sala de Vacina') ? c : 'Consultório ' + c}</option>`
       ).join('');
       const profOpts = cfg.profissionais.map(p => `<option value="${p}">${p}</option>`).join('');
       profHTML = `
@@ -834,6 +834,7 @@ function toggleTransferTipoAtendimento() {
         <option value="Vacina">💉 Vacina</option>
         <option value="Curativo">🩹 Curativo</option>
         <option value="Procedimento">🔬 Procedimento</option>
+        <option value="Agendamento de Coleta">📋 Agendamento de Coleta</option>
       `;
     } else if (setor === 'Odontologia') {
       selectTipo.innerHTML = `
@@ -1057,6 +1058,7 @@ function toggleTipoAtendimento() {
         <option value="Vacina">💉 Vacina</option>
         <option value="Curativo">🩹 Curativo</option>
         <option value="Procedimento">🔬 Procedimento</option>
+        <option value="Agendamento de Coleta">📋 Agendamento de Coleta</option>
       `;
     } else if (setor === 'Odontologia') {
       selectTipo.innerHTML = `
@@ -1239,7 +1241,7 @@ async function callNext(setor, btnElement) {
       const pEl = document.getElementById('profissional-' + cfg.key);
       consultorio = cEl ? cEl.value : null;
       profissional = pEl ? pEl.value : null;
-      const consLabel = consultorio === 'Odontológico' ? 'Consultório Odontológico' : 'Consultório ' + consultorio;
+      const consLabel = consultorio === 'Odontológico' ? 'Consultório Odontológico' : (consultorio === 'Sala de Procedimentos' || consultorio === 'Sala de Vacina') ? consultorio : 'Consultório ' + consultorio;
       medico = `${consLabel} - ${profissional}`;
     }
     const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional, filtro_profissional, filtro_etapa }) });
@@ -1585,6 +1587,7 @@ const TIPO_ATENDIMENTO_CORES = {
   'Vacina':                        { bg: 'rgba(59,130,246,0.15)',  color: '#1e40af' },
   'Curativo':                      { bg: 'rgba(251,146,60,0.15)',  color: '#9a3412' },
   'Procedimento':                  { bg: 'rgba(45,212,191,0.15)',  color: '#115e59' },
+  'Agendamento de Coleta':         { bg: 'rgba(16,185,129,0.15)',  color: '#064e3b' },
   // Fluxo interno
   '1ª Escuta (ACS)':               { bg: 'rgba(251,146,60,0.15)',  color: '#9a3412' },
   '2ª Escuta':                     { bg: 'rgba(239,68,68,0.15)',   color: '#991b1b' },
@@ -1775,7 +1778,7 @@ function updatePainel() {
     const l = callsOnly[0]; const cfg = SECTOR_CONFIG[l.setor] || {};
     const prioBadge = l.prioridade === 'prioritario' ? `<div class="priority-badge-tv">⭐ ${l.tipo_prioridade || 'PRIORITÁRIO'}</div>` : '';
     let details = '';
-    if (l.consultorio) details += `<div style="font-size:18px;opacity:0.9;margin-top:6px;font-weight:700;">🏠 ${l.consultorio === 'Odontológico' ? 'Consultório Odontológico' : 'Consultório ' + l.consultorio}</div>`;
+    if (l.consultorio) details += `<div style="font-size:18px;opacity:0.9;margin-top:6px;font-weight:700;">🏠 ${l.consultorio === 'Odontológico' ? 'Consultório Odontológico' : (l.consultorio === 'Sala de Procedimentos' || l.consultorio === 'Sala de Vacina') ? l.consultorio : 'Consultório ' + l.consultorio}</div>`;
     if (l.profissional) details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${l.profissional}</div>`;
     else if (l.medico) details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${l.medico}</div>`;
     main.innerHTML = `<div class="painel-call-label">🔔 Chamando agora</div><div class="painel-call-name">${l.nome}</div><div class="painel-call-sector">${cfg.icon||'📋'} ${l.setor}${details}</div>${prioBadge}`;
