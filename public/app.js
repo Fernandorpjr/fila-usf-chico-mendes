@@ -160,7 +160,23 @@ function getDayAndHourRecife(date) {
 // --- isDentroDoHorario: America/Recife | Segunda–Sexta | 06h–18h ---
 // Substitui a versão antiga (America/Sao_Paulo, sem dia da semana) que fica nas linhas ~2362
 function isDentroDoHorario() {
-  const { day, hour } = getDayAndHourRecife(new Date());
+  const now = new Date();
+  const { day, hour } = getDayAndHourRecife(now);
+
+  // === EXCEÇÃO TEMPORÁRIA: Mutirão Chico Mendes — Sábado 26/09/2026 ===
+  // TODO: REMOVER esta exceção após 26/09/2026
+  const dateStrRecife = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Recife',
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(now);
+  const DATAS_MUTIRAO = ['2026-09-26']; // Sábados liberados para mutirão
+  if (DATAS_MUTIRAO.includes(dateStrRecife)) {
+    // No mutirão, só bloqueia fora do horário (06h–18h)
+    if (hour < 6 || hour >= 18) return false;
+    return true;
+  }
+  // === FIM EXCEÇÃO TEMPORÁRIA ===
+
   if (day === 0 || day === 6) return false; // Domingo (0) ou Sábado (6)
   if (hour < 6 || hour >= 18) return false; // Fora de 06h–18h
   return true;
