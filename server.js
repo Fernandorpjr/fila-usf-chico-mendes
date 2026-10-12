@@ -13,6 +13,9 @@ const server = http.createServer(app);
 // Socket.io removido completamente para economizar Invocations/GB-h no Vercel
 const io = { emit: () => {} };
 
+const { setupDispositivos, getDeviceId } = require('./lib/dispositivos');
+const { setupHistorico } = require('./lib/historico');
+
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = 'chico123';
 const ADMIN_PASSWORDS = ['chico123', '0177', 'usf2026'];
@@ -40,7 +43,12 @@ function isDentroDoHorario() {
 app.use('/api', (req, res, next) => {
   if (req.method === 'GET') {
     // Permite cache no Edge Server da Vercel por 3 segundos para abater requisições repetidas (Economia de Invocations)
-    res.set('Cache-Control', 'public, s-maxage=3, stale-while-revalidate=2');
+    // EXCEÇÃO: Rotas administrativas, dispositivos ou histórico não devem ser expostas em cache público
+    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico')) {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    } else {
+      res.set('Cache-Control', 'public, s-maxage=3, stale-while-revalidate=2');
+    }
   } else {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.set('Pragma', 'no-cache');
@@ -190,6 +198,9 @@ async function initDB() {
     await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS horario_original TEXT`);
     await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cancelado_em TIMESTAMPTZ`);
     await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS reagendado_em TIMESTAMPTZ`);
+    await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cancelado_por TEXT`);
+    await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS arquivado BOOLEAN DEFAULT false`);
+    await pool.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS equipe TEXT`);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS agendamento_historico (
@@ -209,6 +220,51 @@ async function initDB() {
         em_lote BOOLEAN DEFAULT false,
         criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    await pool.query(`ALTER TABLE agendamento_historico ADD COLUMN IF NOT EXISTS dispositivo_id UUID`);
+    await pool.query(`ALTER TABLE agendamento_historico ADD COLUMN IF NOT EXISTS usuario TEXT`);
+    await pool.query(`ALTER TABLE agendamento_historico ADD COLUMN IF NOT EXISTS arquivado BOOLEAN DEFAULT false`);
+    await pool.query(`ALTER TABLE agendamento_historico ADD COLUMN IF NOT EXISTS arquivado_em TIMESTAMPTZ`);
+    await pool.query(`ALTER TABLE agendamento_historico ADD COLUMN IF NOT EXISTS vaga_reaproveitada BOOLEAN DEFAULT false`);
+
+    // Tabela de dispositivos conectados
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS dispositivos (
+        id UUID PRIMARY KEY,
+        nome TEXT DEFAULT 'Sem nome',
+        setor TEXT,
+        ultimo_ip TEXT,
+        user_agent TEXT,
+        primeiro_acesso TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        ultimo_acesso TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        ativo BOOLEAN DEFAULT true
+      )
+    `);
+
+    // Histórico de logins / primeiros acessos diários por dispositivo
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS dispositivo_acessos (
+        id SERIAL PRIMARY KEY,
+        dispositivo_id UUID REFERENCES dispositivos(id) ON DELETE CASCADE,
+        ip TEXT,
+        user_agent TEXT,
+        tipo TEXT DEFAULT 'login',
+        criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Tabela de configurações (ex: prazo de retenção)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS configuracoes (
+        chave TEXT PRIMARY KEY,
+        valor TEXT NOT NULL
+      )
+    `);
+    await pool.query(`
+      INSERT INTO configuracoes (chave, valor)
+      VALUES ('historico_retencao_dias', '30')
+      ON CONFLICT (chave) DO NOTHING
     `);
 
     // ====== CTRL AGENDAMENTOS (Checklist interno – Sala de Agendamento) ======
@@ -419,6 +475,10 @@ async function initDB() {
 }
 
 initDB();
+
+// Configurar módulos integrados
+setupDispositivos(app, pool, isValidAdminPass);
+setupHistorico(app, pool, isValidAdminPass);
 
 // ====== API Routes ======
 
@@ -2351,14 +2411,14 @@ app.get('/api/agendamentos', async (req, res) => {
 // POST – criar agendamento
 app.post('/api/agendamentos', async (req, res) => {
   try {
-    const { nome, telefone, data_agendamento, horario, profissional, tipo_atendimento, template, observacoes, checklist_exames } = req.body;
+    const { nome, telefone, data_agendamento, horario, profissional, tipo_atendimento, template, observacoes, checklist_exames, equipe } = req.body;
     if (!nome || !telefone || !data_agendamento || !horario) {
       return res.status(400).json({ error: 'Nome, telefone, data e horário são obrigatórios' });
     }
     const result = await pool.query(
-      `INSERT INTO agendamentos (nome, telefone, data_agendamento, horario, profissional, tipo_atendimento, template, observacoes, checklist_exames)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [nome, telefone, data_agendamento, horario, profissional || null, tipo_atendimento || null, template || 'lembrete', observacoes || null, checklist_exames || null]
+      `INSERT INTO agendamentos (nome, telefone, data_agendamento, horario, profissional, tipo_atendimento, template, observacoes, checklist_exames, equipe)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [nome, telefone, data_agendamento, horario, profissional || null, tipo_atendimento || null, template || 'lembrete', observacoes || null, checklist_exames || null, equipe || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -2412,7 +2472,7 @@ app.put('/api/agendamentos/:id/edit', async (req, res) => {
 app.put('/api/agendamentos/:id/editar-envio', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, motivo, nova_data, novo_horario } = req.body;
+    const { status, motivo, nova_data, novo_horario, setor } = req.body;
     if (!['cancelado', 'reagendado'].includes(status)) {
       return res.status(400).json({ error: 'Status deve ser cancelado ou reagendado' });
     }
@@ -2426,16 +2486,35 @@ app.put('/api/agendamentos/:id/editar-envio', async (req, res) => {
     }
     const agendAtual = atualRes.rows[0];
 
+    // Validação de regra: nova data maior que a original
+    const dataRefOriginal = agendAtual.data_original || agendAtual.data_agendamento;
+    const dataOrigStr = dataRefOriginal ? new Date(dataRefOriginal).toISOString().split('T')[0] : '';
+    if (status === 'reagendado' && nova_data <= dataOrigStr) {
+      return res.status(400).json({ error: 'A nova data deve ser posterior à data original da consulta.' });
+    }
+
+    // Identificação do dispositivo e usuário
+    const deviceId = getDeviceId(req);
+    let deviceNome = 'Sem nome';
+    if (deviceId) {
+      const dRes = await pool.query('SELECT nome FROM dispositivos WHERE id = $1', [deviceId]);
+      if (dRes.rows.length > 0 && dRes.rows[0].nome) {
+        deviceNome = dRes.rows[0].nome;
+      }
+    }
+    const usuarioStr = `${deviceNome}${setor ? ' (' + setor + ')' : ''}`;
+
     let query = '';
     let params = [];
     if (status === 'cancelado') {
       query = `UPDATE agendamentos 
                SET status = 'cancelado',
                    motivo_cancelamento = $2,
-                   cancelado_em = CURRENT_TIMESTAMP
+                   cancelado_em = CURRENT_TIMESTAMP,
+                   cancelado_por = $3
                WHERE id = $1 
                RETURNING *`;
-      params = [id, motivo || null];
+      params = [id, motivo || null, deviceNome];
     } else {
       const dataOrig = agendAtual.data_original || agendAtual.data_agendamento;
       const horaOrig = agendAtual.horario_original || agendAtual.horario;
@@ -2446,20 +2525,21 @@ app.put('/api/agendamentos/:id/editar-envio', async (req, res) => {
                    data_agendamento = $4,
                    horario = $5,
                    motivo_cancelamento = $6,
-                   reagendado_em = CURRENT_TIMESTAMP
+                   reagendado_em = CURRENT_TIMESTAMP,
+                   cancelado_por = $7
                WHERE id = $1 
                RETURNING *`;
-      params = [id, dataOrig, horaOrig, nova_data, novo_horario, motivo || null];
+      params = [id, dataOrig, horaOrig, nova_data, novo_horario, motivo || null, deviceNome];
     }
 
     const result = await pool.query(query, params);
     const atualizado = result.rows[0];
 
-    // Registrar no histórico
+    // Registrar no histórico com dispositivo e usuário
     await pool.query(
       `INSERT INTO agendamento_historico 
-       (agendamento_id, paciente, telefone, tipo_atendimento, profissional, status_anterior, novo_status, motivo, data_anterior, horario_anterior, nova_data, novo_horario, em_lote)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false)`,
+       (agendamento_id, paciente, telefone, tipo_atendimento, profissional, status_anterior, novo_status, motivo, data_anterior, horario_anterior, nova_data, novo_horario, em_lote, dispositivo_id, usuario)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false, $13, $14)`,
       [
         agendAtual.id,
         agendAtual.nome,
@@ -2472,7 +2552,9 @@ app.put('/api/agendamentos/:id/editar-envio', async (req, res) => {
         agendAtual.data_agendamento,
         agendAtual.horario,
         status === 'reagendado' ? nova_data : null,
-        status === 'reagendado' ? novo_horario : null
+        status === 'reagendado' ? novo_horario : null,
+        deviceId,
+        usuarioStr
       ]
     );
 
@@ -2486,7 +2568,7 @@ app.put('/api/agendamentos/:id/editar-envio', async (req, res) => {
 // PUT - Editar Envio em Lote (por Categoria e Data)
 app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
   try {
-    const { tipo_atendimento, data, status, motivo, nova_data, novo_horario } = req.body;
+    const { tipo_atendimento, data, status, motivo, nova_data, novo_horario, setor } = req.body;
     if (!tipo_atendimento || !data || !status) {
       return res.status(400).json({ error: 'tipo_atendimento, data e status são obrigatórios' });
     }
@@ -2496,6 +2578,20 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
     if (status === 'reagendado' && (!nova_data || !novo_horario)) {
       return res.status(400).json({ error: 'Nova data e novo horário são obrigatórios para reagendamento' });
     }
+    if (status === 'reagendado' && nova_data <= data) {
+      return res.status(400).json({ error: 'A nova data deve ser posterior à data original da consulta.' });
+    }
+
+    // Identificação do dispositivo e usuário
+    const deviceId = getDeviceId(req);
+    let deviceNome = 'Sem nome';
+    if (deviceId) {
+      const dRes = await pool.query('SELECT nome FROM dispositivos WHERE id = $1', [deviceId]);
+      if (dRes.rows.length > 0 && dRes.rows[0].nome) {
+        deviceNome = dRes.rows[0].nome;
+      }
+    }
+    const usuarioStr = `${deviceNome}${setor ? ' (' + setor + ')' : ''}`;
 
     // Busca agendamentos da categoria e data que não estejam cancelados
     const buscaRes = await pool.query(
@@ -2518,10 +2614,11 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
         query = `UPDATE agendamentos 
                  SET status = 'cancelado',
                      motivo_cancelamento = $2,
-                     cancelado_em = CURRENT_TIMESTAMP
+                     cancelado_em = CURRENT_TIMESTAMP,
+                     cancelado_por = $3
                  WHERE id = $1 
                  RETURNING *`;
-        params = [agendAtual.id, motivo || null];
+        params = [agendAtual.id, motivo || null, deviceNome];
       } else {
         const dataOrig = agendAtual.data_original || agendAtual.data_agendamento;
         const horaOrig = agendAtual.horario_original || agendAtual.horario;
@@ -2532,10 +2629,11 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
                      data_agendamento = $4,
                      horario = $5,
                      motivo_cancelamento = $6,
-                     reagendado_em = CURRENT_TIMESTAMP
+                     reagendado_em = CURRENT_TIMESTAMP,
+                     cancelado_por = $7
                  WHERE id = $1 
                  RETURNING *`;
-        params = [agendAtual.id, dataOrig, horaOrig, nova_data, novo_horario, motivo || null];
+        params = [agendAtual.id, dataOrig, horaOrig, nova_data, novo_horario, motivo || null, deviceNome];
       }
 
       const r = await pool.query(query, params);
@@ -2543,8 +2641,8 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
 
       await pool.query(
         `INSERT INTO agendamento_historico 
-         (agendamento_id, paciente, telefone, tipo_atendimento, profissional, status_anterior, novo_status, motivo, data_anterior, horario_anterior, nova_data, novo_horario, em_lote)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)`,
+         (agendamento_id, paciente, telefone, tipo_atendimento, profissional, status_anterior, novo_status, motivo, data_anterior, horario_anterior, nova_data, novo_horario, em_lote, dispositivo_id, usuario)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, $13, $14)`,
         [
           agendAtual.id,
           agendAtual.nome,
@@ -2557,7 +2655,9 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
           agendAtual.data_agendamento,
           agendAtual.horario,
           status === 'reagendado' ? nova_data : null,
-          status === 'reagendado' ? novo_horario : null
+          status === 'reagendado' ? novo_horario : null,
+          deviceId,
+          usuarioStr
         ]
       );
     }
@@ -2565,36 +2665,6 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
     res.json({ total: editados.length, agendamentos: editados });
   } catch (error) {
     console.error('Erro em lote editar envio:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// GET - Histórico de Cancelamentos e Reagendamentos
-app.get('/api/agendamentos/historico', async (req, res) => {
-  try {
-    const { limit = 50, agendamento_id, data } = req.query;
-    let query = 'SELECT * FROM agendamento_historico WHERE 1=1';
-    const params = [];
-    let idx = 1;
-
-    if (agendamento_id) {
-      query += ` AND agendamento_id = $${idx}`;
-      params.push(agendamento_id);
-      idx++;
-    }
-    if (data) {
-      query += ` AND (DATE(criado_em AT TIME ZONE 'America/Sao_Paulo') = $${idx}::date OR data_anterior = $${idx}::date)`;
-      params.push(data);
-      idx++;
-    }
-
-    query += ` ORDER BY criado_em DESC LIMIT $${idx}`;
-    params.push(parseInt(limit, 10) || 50);
-
-    const result = await pool.query(query, params);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Erro ao buscar histórico de agendamentos:', error);
     res.status(500).json({ error: error.message });
   }
 });

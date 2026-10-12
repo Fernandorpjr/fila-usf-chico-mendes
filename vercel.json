@@ -6,5 +6,11 @@
     "server.js": {
       "maxDuration": 10
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/limpeza",
+      "schedule": "0 10 * * *"
+    }
+  ]
 }

@@ -6,6 +6,7 @@
 <title>USF Chico Mendes – Sistema de Gestão de Filas</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css?v=2.3">
+<link rel="stylesheet" href="print.css">
 <style>
   :root {
     --blue: #1a4fc4; --blue-dark: #0f3491; --blue-light: #2a5fd4; --blue-bg: #0d2a7a;
@@ -19,6 +20,21 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Nunito Sans', sans-serif; background: var(--blue-bg); min-height: 100vh; color: var(--white); }
+
+  /* Sub-abas e Histórico */
+  .sub-tabs-bar { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--gray-200); padding-bottom: 10px; flex-wrap: wrap; }
+  .sub-tab-btn { background: #fff; border: 1px solid var(--gray-300); border-radius: 8px; padding: 10px 18px; font-weight: 800; font-size: 13px; color: var(--gray-700); cursor: pointer; transition: all 0.2s; }
+  .sub-tab-btn:hover { background: var(--gray-100); }
+  .sub-tab-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 2px 8px rgba(26,79,196,0.3); }
+  .hist-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  @media (max-width: 768px) {
+    .hist-desktop-view { display: none !important; }
+    .hist-mobile-view { display: block !important; }
+  }
+  @media (min-width: 769px) {
+    .hist-desktop-view { display: block !important; }
+    .hist-mobile-view { display: none !important; }
+  }
 
   @keyframes pulseAlert { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229,57,53,0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(229,57,53,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229,57,53,0); } }
   .capacity-alert { animation: pulseAlert 1.5s infinite; background-color: rgba(229,57,53,0.15) !important; border-color: var(--red) !important; }
@@ -947,6 +963,7 @@
   <button class="nav-tab" onclick="showScreen('tec_enfermagem')" id="tab-tec_enfermagem">🩹 Tec. Enfermagem <span class="tab-badge" style="background:#0097a7;display:none;" id="badge-tec_enfermagem">0</span></button>
   <button class="nav-tab" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
   <button class="nav-tab ctrl-agend-tab" onclick="showScreen('ctrl_agendamentos')" id="tab-ctrl_agendamentos">🗂️ Sala de Agendamento <span class="tab-badge" style="background:#e67e22;display:none;" id="badge-ctrl_agendamentos">0</span></button>
+  <button class="nav-tab admin-only-tab" onclick="showScreen('dispositivos')" id="tab-dispositivos" style="display:none;">💻 Dispositivos</button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
   <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
@@ -1427,132 +1444,353 @@
   <div class="screen" id="screen-agendamentos">
     <div class="sector-page-header">
       <div class="sector-icon-big" style="background:rgba(74,171,60,0.2);">📅</div>
-      <div><div class="sector-page-title">Agendamentos</div><div class="sector-page-sub">Gerenciar consultas e enviar confirmações via WhatsApp</div></div>
-    </div>
-    <div class="card-white" style="margin-bottom:20px; padding:20px;" id="coleta-dashboard-container">
-      <div class="card-title" style="margin-bottom:12px;"><span>🩸</span> Dashboard de Coleta de Sangue</div>
-      <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;" id="coleta-dashboard-content">
-        <!-- Dashboard renderizado via JS -->
-      </div>
+      <div><div class="sector-page-title">Agendamentos</div><div class="sector-page-sub">Gerenciar consultas, lembretes e histórico de alterações</div></div>
     </div>
 
-    <!-- ====== PAINEL DE LEMBRETES D-1 ====== -->
-    <div class="card-white" style="margin-bottom:20px; padding:20px;" id="lembretes-d1-container">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <div><span>🔔</span> Lembretes do Dia (D-1)</div>
-        <span id="lembretes-d1-count" style="background:var(--red);color:white;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;min-width:24px;text-align:center;display:none;">0</span>
-      </div>
-      <div style="font-size:12px;color:var(--gray-600);margin-bottom:14px;">
-        Consultas agendadas para <b>amanhã</b> — clique para enviar o lembrete via WhatsApp. A imagem correta do tipo de consulta é anexada automaticamente.
-      </div>
-      <div id="lembretes-d1-list">
-        <div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Carregando lembretes...</div>
-      </div>
-    </div>
-    <!-- ====== FIM PAINEL DE LEMBRETES D-1 ====== -->
-    <div class="agend-grid">
-      <div class="card-white">
-        <div class="card-title"><span>📝</span> Novo Agendamento</div>
-        <div class="form-group" style="margin-bottom:12px;"><label>Nome do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-nome" placeholder="Nome completo" oninput="validarCampoAgend('agend-nome')"></div>
-        <div class="form-group" style="margin-bottom:12px;"><label>Telefone do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 11 99999-9999" oninput="validarCampoAgend('agend-telefone')"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-          <div class="form-group"><label>Data <span style="color:var(--red);">*</span></label><input type="date" id="agend-data" style="width:100%;" onchange="handleAgendTipoChange();validarDataAgend()" min=""></div>
-          <div class="form-group"><label>Horário <span style="color:var(--red);">*</span></label><input type="text" id="agend-horario" value="08:00" placeholder="08:00" oninput="mascaraHorario(this)"></div>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;"><label>Profissional</label>
-          <select id="agend-profissional" title="Profissional">
-            <option value="">— Opcional —</option>
-            <option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
-            <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Juliana Cavalcante</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;"><label>Tipo de Atendimento</label>
-          <select id="agend-tipo" title="Tipo atendimento" onchange="handleAgendTipoChange()"><option value="">— Opcional —</option><option>Consulta</option><option>Clínico Geral</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Puericultura</option><option>Odontologia</option><option>Hiperdia</option><option>Coleta de Sangue</option></select>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;"><label>Template de Mensagem</label>
-          <select id="agend-template" title="Template" onchange="toggleChecklistExames()">
-            <option value="lembrete">📋 Lembrete de Consulta</option>
-            <option value="confirmacao">✅ Confirmação de Agendamento</option>
-            <option value="reagendamento">🔄 Reagendamento</option>
-            <option value="cancelamento">❌ Cancelamento</option>
-            <option value="preparo_exames">🔬 Preparo para Exames</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;display:none;" id="checklist-exames-grupo">
-          <label>Exames (selecione):</label>
-          <div id="checklist-exames" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
-        </div>
-        <div class="form-group" style="margin-bottom:16px;"><label>Observações</label><input type="text" id="agend-obs" placeholder="Opcional"></div>
-        <button class="btn btn-green" onclick="criarAgendamento()">📅 Agendar</button>
-      </div>
-      <div class="card-white" style="padding:20px;">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-          <div><span>📋</span> Agendamentos</div>
-        </div>
-        <div class="filter-row" style="margin-bottom:16px;">
-          <div class="form-group"><label>Data</label><input type="date" id="agend-filter-data"></div>
-          <div class="form-group"><label>Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="reagendado">Reagendado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
-          <button class="btn btn-primary btn-sm" onclick="loadAgendamentos()">🔍 Filtrar</button>
-        </div>
-        <div style="overflow-x:auto;">
-          <table class="agend-table" id="agend-table"><thead><tr><th>Paciente</th><th>Data</th><th>Hora</th><th>Profissional</th><th>Status</th><th>Ações</th></tr></thead><tbody id="agend-tbody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr></tbody></table>
-        </div>
-      </div>
+    <!-- Sub-Abas da Seção -->
+    <div class="sub-tabs-bar">
+      <button class="sub-tab-btn active" id="subtab-btn-principal" onclick="alternarSubAbaAgendamento('principal')">📅 Agendamentos & Lembretes</button>
+      <button class="sub-tab-btn" id="subtab-btn-historico" onclick="alternarSubAbaAgendamento('historico')">📜 Histórico de Cancelamentos e Reagendamentos</button>
     </div>
 
-    <!-- Relatório de Mensagens Enviadas -->
-    <div class="card-white" style="margin-top:20px; padding:20px;">
-      <div class="card-title"><span>📊</span> Relatório de Mensagens Enviadas</div>
-      <div class="filter-row" style="margin-bottom:16px;">
-        <div class="form-group"><label>Data</label><input type="date" id="rel-msg-data" onchange="loadRelatorioMensagens()"></div>
-        <button class="btn btn-primary btn-sm" onclick="loadRelatorioMensagens()">🔍 Consultar</button>
+    <!-- SUB-ABA 1: Agendamentos & Lembretes (Principal) -->
+    <div id="subtab-content-principal">
+      <div class="card-white" style="margin-bottom:20px; padding:20px;" id="coleta-dashboard-container">
+        <div class="card-title" style="margin-bottom:12px;"><span>🩸</span> Dashboard de Coleta de Sangue</div>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;" id="coleta-dashboard-content">
+          <!-- Dashboard renderizado via JS -->
+        </div>
       </div>
-      <div id="rel-msg-content">
-        <div style="text-align:center;padding:24px;color:var(--gray-600);">Selecione uma data e clique em Consultar</div>
-      </div>
-    </div>
 
-    <!-- Histórico de Cancelamentos e Reagendamentos -->
-    <div class="card-white" style="margin-top:20px; padding:20px;">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <div><span>📜</span> Histórico de Cancelamentos e Reagendamentos</div>
-        <button class="btn btn-outline btn-sm" onclick="loadHistoricoAgendamentos()" style="font-weight:700;">🔄 Atualizar</button>
+      <!-- ====== PAINEL DE LEMBRETES D-1 ====== -->
+      <div class="card-white" style="margin-bottom:20px; padding:20px;" id="lembretes-d1-container">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div><span>🔔</span> Lembretes do Dia (D-1)</div>
+          <span id="lembretes-d1-count" style="background:var(--red);color:white;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;min-width:24px;text-align:center;display:none;">0</span>
+        </div>
+        <div style="font-size:12px;color:var(--gray-600);margin-bottom:14px;">
+          Consultas agendadas para <b>amanhã</b> — clique para enviar o lembrete via WhatsApp. A imagem correta do tipo de consulta é anexada automaticamente.
+        </div>
+        <div id="lembretes-d1-list">
+          <div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Carregando lembretes...</div>
+        </div>
       </div>
-      <div style="font-size:12px;color:var(--gray-600);margin-bottom:14px;">
-        Registro do sistema contendo todas as consultas canceladas ou reagendadas com data, horário original e motivo.
-      </div>
-      <div id="agend-historico-content">
-        <div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Carregando histórico...</div>
-      </div>
-    </div>
+      <!-- ====== FIM PAINEL DE LEMBRETES D-1 ====== -->
 
-    <!-- Responsáveis de Setores de Apoio -->
-    <div class="card-white" style="margin-top:20px; padding:20px;">
-      <div class="card-title"><span>📋</span> Responsáveis de Setores de Apoio</div>
-      <div style="font-size:12px;color:var(--gray-600);margin-bottom:16px;">Uso interno — contatos de referência por setor (não aparece nas mensagens ao paciente).</div>
-      <div id="resp-setor-list" style="margin-bottom:16px;">
-        <!-- Renderizado via JS -->
-      </div>
-      <div style="border-top:1px solid var(--gray-200);padding-top:16px;">
-        <div style="font-weight:700;font-size:13px;margin-bottom:12px;">➕ Adicionar Responsável</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
-          <div class="form-group"><label>Nome <span style="color:var(--red);">*</span></label><input type="text" id="resp-setor-nome" placeholder="Nome"></div>
-          <div class="form-group"><label>Setor <span style="color:var(--red);">*</span></label>
-            <select id="resp-setor-setor">
-              <option value="">— Selecione —</option>
-              <option value="Regulação">Regulação</option>
-              <option value="Farmácia">Farmácia</option>
-              <option value="Acolhimento">Acolhimento</option>
-              <option value="Enfermagem">Enfermagem</option>
-              <option value="Odontologia">Odontologia</option>
+      <div class="agend-grid">
+        <div class="card-white">
+          <div class="card-title"><span>📝</span> Novo Agendamento</div>
+          <div class="form-group" style="margin-bottom:12px;"><label>Nome do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-nome" placeholder="Nome completo" oninput="validarCampoAgend('agend-nome')"></div>
+          <div class="form-group" style="margin-bottom:12px;"><label>Telefone do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 11 99999-9999" oninput="validarCampoAgend('agend-telefone')"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div class="form-group"><label>Data <span style="color:var(--red);">*</span></label><input type="date" id="agend-data" style="width:100%;" onchange="handleAgendTipoChange();validarDataAgend()" min=""></div>
+            <div class="form-group"><label>Horário <span style="color:var(--red);">*</span></label><input type="text" id="agend-horario" value="08:00" placeholder="08:00" oninput="mascaraHorario(this)"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;"><label>Profissional</label>
+            <select id="agend-profissional" title="Profissional">
+              <option value="">— Opcional —</option>
+              <option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
+              <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Juliana Cavalcante</option>
             </select>
           </div>
-          <div class="form-group"><label>Cargo</label><input type="text" id="resp-setor-cargo" placeholder="Ex: Responsável pela Regulação"></div>
+          <div class="form-group" style="margin-bottom:12px;"><label>Equipe</label>
+            <select id="agend-equipe" title="Equipe">
+              <option value="">Sem equipe (Padrão)</option>
+              <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
+              <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
+              <option value="Eq 3 Aurora">Equipe 3 Aurora</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;"><label>Tipo de Atendimento</label>
+            <select id="agend-tipo" title="Tipo atendimento" onchange="handleAgendTipoChange()"><option value="">— Opcional —</option><option>Consulta</option><option>Clínico Geral</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Puericultura</option><option>Odontologia</option><option>Hiperdia</option><option>Coleta de Sangue</option></select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;"><label>Template de Mensagem</label>
+            <select id="agend-template" title="Template" onchange="toggleChecklistExames()">
+              <option value="lembrete">📋 Lembrete de Consulta</option>
+              <option value="confirmacao">✅ Confirmação de Agendamento</option>
+              <option value="reagendamento">🔄 Reagendamento</option>
+              <option value="cancelamento">❌ Cancelamento</option>
+              <option value="preparo_exames">🔬 Preparo para Exames</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;display:none;" id="checklist-exames-grupo">
+            <label>Exames (selecione):</label>
+            <div id="checklist-exames" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;"><label>Observações</label><input type="text" id="agend-obs" placeholder="Opcional"></div>
+          <button class="btn btn-green" onclick="criarAgendamento()">📅 Agendar</button>
         </div>
-        <button class="btn btn-green btn-sm" onclick="criarResponsavelSetor()">✅ Cadastrar</button>
+        <div class="card-white" style="padding:20px;">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <div><span>📋</span> Agendamentos</div>
+          </div>
+          <div class="filter-row" style="margin-bottom:16px;">
+            <div class="form-group"><label>Data</label><input type="date" id="agend-filter-data"></div>
+            <div class="form-group"><label>Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="reagendado">Reagendado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
+            <button class="btn btn-primary btn-sm" onclick="loadAgendamentos()">🔍 Filtrar</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="agend-table" id="agend-table"><thead><tr><th>Paciente</th><th>Data</th><th>Hora</th><th>Profissional</th><th>Status</th><th>Ações</th></tr></thead><tbody id="agend-tbody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Relatório de Mensagens Enviadas -->
+      <div class="card-white" style="margin-top:20px; padding:20px;">
+        <div class="card-title"><span>📊</span> Relatório de Mensagens Enviadas</div>
+        <div class="filter-row" style="margin-bottom:16px;">
+          <div class="form-group"><label>Data</label><input type="date" id="rel-msg-data" onchange="loadRelatorioMensagens()"></div>
+          <button class="btn btn-primary btn-sm" onclick="loadRelatorioMensagens()">🔍 Consultar</button>
+        </div>
+        <div id="rel-msg-content">
+          <div style="text-align:center;padding:24px;color:var(--gray-600);">Selecione uma data e clique em Consultar</div>
+        </div>
+      </div>
+
+      <!-- Responsáveis de Setores de Apoio -->
+      <div class="card-white" style="margin-top:20px; padding:20px;">
+        <div class="card-title"><span>📋</span> Responsáveis de Setores de Apoio</div>
+        <div style="font-size:12px;color:var(--gray-600);margin-bottom:16px;">Uso interno — contatos de referência por setor (não aparece nas mensagens ao paciente).</div>
+        <div id="resp-setor-list" style="margin-bottom:16px;">
+          <!-- Renderizado via JS -->
+        </div>
+        <div style="border-top:1px solid var(--gray-200);padding-top:16px;">
+          <div style="font-weight:700;font-size:13px;margin-bottom:12px;">➕ Adicionar Responsável</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div class="form-group"><label>Nome <span style="color:var(--red);">*</span></label><input type="text" id="resp-setor-nome" placeholder="Nome"></div>
+            <div class="form-group"><label>Setor <span style="color:var(--red);">*</span></label>
+              <select id="resp-setor-setor">
+                <option value="">— Selecione —</option>
+                <option value="Regulação">Regulação</option>
+                <option value="Farmácia">Farmácia</option>
+                <option value="Acolhimento">Acolhimento</option>
+                <option value="Enfermagem">Enfermagem</option>
+                <option value="Odontologia">Odontologia</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Cargo</label><input type="text" id="resp-setor-cargo" placeholder="Ex: Responsável pela Regulação"></div>
+          </div>
+          <button class="btn btn-green btn-sm" onclick="criarResponsavelSetor()">✅ Cadastrar</button>
+        </div>
       </div>
     </div>
 
+    <!-- SUB-ABA 2: Histórico de Cancelamentos e Reagendamentos -->
+    <div id="subtab-content-historico" style="display:none;">
+
+      <!-- Cards de Resumo Agregado -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px;margin-bottom:18px;">
+        <div class="card-white" style="padding:16px;border-left:5px solid #ef4444;">
+          <div style="font-size:12px;color:var(--gray-600);font-weight:700;text-transform:uppercase;">Total Cancelamentos</div>
+          <div style="font-size:28px;font-weight:900;color:#dc2626;margin-top:4px;" id="hist-card-total-canc">0</div>
+        </div>
+        <div class="card-white" style="padding:16px;border-left:5px solid #f59e0b;">
+          <div style="font-size:12px;color:var(--gray-600);font-weight:700;text-transform:uppercase;">Total Reagendamentos</div>
+          <div style="font-size:28px;font-weight:900;color:#d97706;margin-top:4px;" id="hist-card-total-reag">0</div>
+        </div>
+        <div class="card-white" style="padding:16px;border-left:5px solid #10b981;">
+          <div style="font-size:12px;color:var(--gray-600);font-weight:700;text-transform:uppercase;">Vagas Reaproveitadas</div>
+          <div style="font-size:28px;font-weight:900;color:#059669;margin-top:4px;" id="hist-card-total-vagas">0</div>
+        </div>
+      </div>
+
+      <!-- Alerta de Vagas Não Reaproveitadas -->
+      <div id="hist-card-alerta-reaproveitamento" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:18px;">
+      </div>
+
+      <!-- Gráficos do Resumo (Chart.js) -->
+      <div class="card-white" style="padding:20px;margin-bottom:20px;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div><span>📊</span> Indicadores Gráficos</div>
+          <button class="btn btn-outline btn-sm" onclick="const g = document.getElementById('hist-graficos-area'); g.style.display = g.style.display === 'none' ? 'grid' : 'none';" style="font-size:11px;">Alternar Visualização</button>
+        </div>
+        <div id="hist-graficos-area" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
+          <div style="background:#f9fafb;padding:12px;border-radius:10px;border:1px solid var(--gray-200);">
+            <div style="font-size:12px;font-weight:800;color:var(--gray-700);margin-bottom:8px;text-align:center;">📅 Ocorrências por Data da Consulta</div>
+            <div style="position:relative;height:180px;"><canvas id="chart-hist-dia"></canvas></div>
+          </div>
+          <div style="background:#f9fafb;padding:12px;border-radius:10px;border:1px solid var(--gray-200);">
+            <div style="font-size:12px;font-weight:800;color:var(--gray-700);margin-bottom:8px;text-align:center;">👨‍⚕️ Ocorrências por Profissional</div>
+            <div style="position:relative;height:180px;"><canvas id="chart-hist-prof"></canvas></div>
+          </div>
+          <div style="background:#f9fafb;padding:12px;border-radius:10px;border:1px solid var(--gray-200);">
+            <div style="font-size:12px;font-weight:800;color:var(--gray-700);margin-bottom:8px;text-align:center;">📌 Distribuição por Motivo</div>
+            <div style="position:relative;height:180px;"><canvas id="chart-hist-motivo"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros Combináveis -->
+      <div class="card-white" style="padding:20px;margin-bottom:20px;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div><span>🔍</span> Filtros do Histórico</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="exportarCsvHistorico()" title="Exportar CSV">📥 CSV</button>
+            <button class="btn btn-outline btn-sm" onclick="imprimirHistorico()" title="Imprimir relatório em A4">🖨️ Imprimir (A4)</button>
+            <button class="btn btn-outline btn-sm" onclick="abrirModalConfigRetencao()" title="Configurar retenção automática">⚙️ Retenção</button>
+            <button class="btn btn-sm" id="hist-btn-excluir-lote" onclick="abrirModalExcluirLote()" style="display:none;background:var(--red);color:#fff;">🗑️ Excluir Selecionados</button>
+          </div>
+        </div>
+
+        <div class="hist-filter-grid">
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Data Início:</label>
+            <input type="date" id="hist-filtro-inicio" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Data Fim:</label>
+            <input type="date" id="hist-filtro-fim" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Tipo:</label>
+            <select id="hist-filtro-tipo" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+              <option value="">Todos os tipos</option>
+              <option value="cancelado">Cancelado</option>
+              <option value="reagendado">Reagendado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Profissional:</label>
+            <select id="hist-filtro-prof" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+              <option value="">Todos</option>
+              <option value="Dr. Israel Christian">Dr. Israel Christian</option>
+              <option value="Dr. Joene Halan">Dr. Joene Halan</option>
+              <option value="Dra. Mirela Mota">Dra. Mirela Mota</option>
+              <option value="Mariana Vaz">Mariana Vaz</option>
+              <option value="Jorge Marcio">Jorge Marcio</option>
+              <option value="Lucelia de Abreu">Lucelia de Abreu</option>
+              <option value="Dra. Juliana Cavalcante">Dra. Juliana Cavalcante</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Equipe:</label>
+            <select id="hist-filtro-equipe" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+              <option value="">Todas</option>
+              <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
+              <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
+              <option value="Eq 3 Aurora">Equipe 3 Aurora</option>
+              <option value="Sem equipe">Sem equipe</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Atendimento:</label>
+            <select id="hist-filtro-atend" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+              <option value="">Todos</option>
+              <option value="Consulta">Consulta</option>
+              <option value="Clínico Geral">Clínico Geral</option>
+              <option value="Retorno">Retorno</option>
+              <option value="Exame">Exame</option>
+              <option value="Pré-Natal">Pré-Natal</option>
+              <option value="Puericultura">Puericultura</option>
+              <option value="Odontologia">Odontologia</option>
+              <option value="Hiperdia">Hiperdia</option>
+              <option value="Coleta de Sangue">Coleta de Sangue</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Motivo:</label>
+            <input type="text" id="hist-filtro-motivo" placeholder="Filtrar por motivo..." oninput="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Dispositivo:</label>
+            <input type="text" id="hist-filtro-dispositivo" placeholder="Nome do aparelho..." oninput="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Busca Paciente/Fone:</label>
+            <input type="text" id="hist-filtro-busca" placeholder="Nome ou telefone..." oninput="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;font-weight:700;">Arquivo:</label>
+            <select id="hist-filtro-arquivado" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+              <option value="false">Somente Ativos</option>
+              <option value="true">Somente Arquivados</option>
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray-200);">
+          <div id="hist-contador" style="font-size:12px;font-weight:800;color:var(--gray-600);">Carregando registros...</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="carregarHistorico()">🔍 Atualizar</button>
+            <button class="btn btn-outline btn-sm" onclick="limparFiltrosHistorico()">🧹 Limpar filtros</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista / Tabela do Histórico -->
+      <div id="hist-lista-container">
+        <!-- Renderizado dinamicamente via historico.js -->
+      </div>
+
+      <!-- Área de Impressão oculta em tela -->
+      <div id="hist-print-area" class="no-screen"></div>
+
+    </div>
+  </div>
+
+  <!-- ============ PAINEL ADMIN: DISPOSITIVOS CONECTADOS ============ -->
+  <div class="screen" id="screen-dispositivos">
+    <div class="sector-page-header">
+      <div class="sector-icon-big" style="background:rgba(26,79,196,0.2);">💻</div>
+      <div><div class="sector-page-title">Dispositivos Conectados</div><div class="sector-page-sub">Controle de acessos, identificação por consultório e auditoria de aparelhos</div></div>
+    </div>
+
+    <!-- Alertas dinâmicos de dispositivos -->
+    <div id="disp-alertas-container"></div>
+
+    <!-- Card de Aviso sobre IP compartilhado -->
+    <div class="card-white" style="margin-bottom:18px;padding:16px;border-left:5px solid var(--blue);background:#f0f7ff;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <span style="font-size:22px;">ℹ️</span>
+        <div style="font-size:13px;color:#1e3a8a;line-height:1.5;">
+          <b>Sobre os endereços IP na mesma rede:</b><br>
+          Aparelhos conectados ao Wi-Fi ou rede cabeada da USF Chico Mendes compartilham o mesmo IP público externo.
+          Portanto, o <b>Nome do Aparelho</b> (ex.: <i>Consultório 1</i>, <i>Consultório 2</i>, <i>Celular Triagem</i>) configurado abaixo é o identificador oficial e seguro utilizado para auditoria, histórico de cancelamentos e registros do sistema.
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros e Ações de Dispositivos -->
+    <div class="card-white" style="padding:18px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <div class="form-group" style="margin-bottom:0;">
+            <select id="disp-filtro-setor" onchange="carregarDispositivosAdmin()" style="padding:8px 12px;font-size:13px;">
+              <option value="">Todos os Setores</option>
+              <option value="Acolhimento">Acolhimento</option>
+              <option value="Farmácia">Farmácia</option>
+              <option value="Regulação">Regulação</option>
+              <option value="Médico">Médico</option>
+              <option value="Enfermagem">Enfermagem</option>
+              <option value="Odontologia">Odontologia</option>
+              <option value="Téc. Enfermagem">Téc. Enfermagem</option>
+              <option value="Recepção">Recepção</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <select id="disp-filtro-status" onchange="carregarDispositivosAdmin()" style="padding:8px 12px;font-size:13px;">
+              <option value="">Todos os Status</option>
+              <option value="online">Somente Online (últimos 2 min)</option>
+              <option value="offline">Somente Offline</option>
+              <option value="bloqueado">Somente Bloqueados</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="carregarDispositivosAdmin()">🔄 Atualizar</button>
+          <button class="btn btn-outline btn-sm" onclick="imprimirListaDispositivos()">🖨️ Imprimir Lista (A4)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela de Dispositivos -->
+    <div class="card-white" style="padding:20px;" id="disp-lista-container">
+      <div style="text-align:center;padding:20px;color:var(--gray-500);">Carregando dispositivos...</div>
+    </div>
+
+    <!-- Área de Impressão oculta em tela -->
+    <div id="disp-print-area" class="no-screen"></div>
   </div>
 
   <!-- WhatsApp Preview Modal -->
@@ -1632,8 +1870,19 @@
       <!-- Campos de Cancelamento -->
       <div id="ee-campos-cancelamento" style="display:none;margin-bottom:16px;text-align:left;">
         <div class="form-group">
-          <label>Motivo do Cancelamento <span style="font-size:11px;color:var(--gray-500);font-weight:normal;">(Opcional - incluído na mensagem de WhatsApp)</span></label>
-          <input type="text" id="ee-motivo-cancelamento" placeholder="Ex: Equipamento odontológico quebrado, ausência do profissional..." oninput="onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+          <label>Motivo do Cancelamento <span style="color:var(--red);">*</span></label>
+          <select id="ee-motivo-cancelamento-select" onchange="onEditarEnvioMotivoSelectChange('cancelamento')" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);margin-bottom:6px;">
+            <option value="">— Selecione o motivo —</option>
+            <option value="Ausência do profissional">Ausência do profissional</option>
+            <option value="Paciente solicitou">Paciente solicitou</option>
+            <option value="Paciente não pode comparecer">Paciente não pode comparecer</option>
+            <option value="Problema no equipamento">Problema no equipamento</option>
+            <option value="Falta de insumo">Falta de insumo</option>
+            <option value="Feriado/ponto facultativo">Feriado/ponto facultativo</option>
+            <option value="Reunião/capacitação">Reunião/capacitação</option>
+            <option value="Outro">Outro (especificar)</option>
+          </select>
+          <input type="text" id="ee-motivo-cancelamento-outro" placeholder="Descreva o motivo..." oninput="onEditarEnvioInputChange()" style="display:none;width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
         </div>
       </div>
 
@@ -1642,16 +1891,30 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div class="form-group">
             <label>Nova Data <span style="color:var(--red);">*</span></label>
-            <input type="date" id="ee-nova-data" onchange="onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+            <input type="date" id="ee-nova-data" onchange="validarDataReagendamento();onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
           </div>
           <div class="form-group">
             <label>Novo Horário <span style="color:var(--red);">*</span></label>
             <input type="text" id="ee-novo-horario" placeholder="08:00" oninput="mascaraHorario(this);onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
           </div>
         </div>
+        <div id="ee-aviso-data-invalida" style="display:none;color:#dc2626;font-size:12px;font-weight:700;margin-bottom:8px;">
+          ⚠️ A nova data deve ser posterior à data original da consulta!
+        </div>
         <div class="form-group">
-          <label>Motivo / Justificativa do Reagendamento <span style="font-size:11px;color:var(--gray-500);font-weight:normal;">(Opcional)</span></label>
-          <input type="text" id="ee-motivo-reagendamento" placeholder="Ex: Manutenção do consultório, remanejamento de escala..." oninput="onEditarEnvioInputChange()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+          <label>Motivo do Reagendamento <span style="color:var(--red);">*</span></label>
+          <select id="ee-motivo-reagendamento-select" onchange="onEditarEnvioMotivoSelectChange('reagendamento')" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);margin-bottom:6px;">
+            <option value="">— Selecione o motivo —</option>
+            <option value="Ausência do profissional">Ausência do profissional</option>
+            <option value="Paciente solicitou">Paciente solicitou</option>
+            <option value="Paciente não pode comparecer">Paciente não pode comparecer</option>
+            <option value="Problema no equipamento">Problema no equipamento</option>
+            <option value="Falta de insumo">Falta de insumo</option>
+            <option value="Feriado/ponto facultativo">Feriado/ponto facultativo</option>
+            <option value="Reunião/capacitação">Reunião/capacitação</option>
+            <option value="Outro">Outro (especificar)</option>
+          </select>
+          <input type="text" id="ee-motivo-reagendamento-outro" placeholder="Descreva o motivo..." oninput="onEditarEnvioInputChange()" style="display:none;width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
         </div>
       </div>
 
@@ -2052,6 +2315,92 @@
   </div>
 </div>
 
+<!-- Modal: Excluir Histórico (Individual / Lote) com Senha Admin -->
+<div class="wa-modal-overlay" id="modal-excluir-historico">
+  <div class="wa-modal" style="max-width:440px;">
+    <h3 style="color:var(--red);margin-bottom:12px;">🗑️ Confirmar Exclusão</h3>
+    <p id="modal-excluir-hist-texto" style="font-size:13px;color:var(--gray-700);line-height:1.5;margin-bottom:16px;">
+      Tem certeza de que deseja excluir permanentemente o(s) registro(s) selecionado(s)?
+    </p>
+    <div class="form-group" style="text-align:left;margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:700;">Senha de Administrador <span style="color:var(--red);">*</span></label>
+      <input type="password" id="modal-excluir-hist-senha" placeholder="Digite a senha admin" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-sm" style="background:var(--red);color:#fff;flex:2;padding:10px;" onclick="confirmarExclusaoHistorico()">Confirmar Exclusão</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="fecharModalExcluirHistorico()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Configuração de Retenção Automática (N dias) -->
+<div class="wa-modal-overlay" id="modal-config-retencao">
+  <div class="wa-modal" style="max-width:440px;">
+    <h3 style="margin-bottom:12px;">⚙️ Retenção Automática do Histórico</h3>
+    <p style="font-size:13px;color:var(--gray-700);line-height:1.5;margin-bottom:14px;">
+      Consultas que já passaram da data são automaticamente arquivadas. Registros arquivados são apagados definitivamente após N dias.
+    </p>
+    <div class="form-group" style="text-align:left;margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:700;">Prazo para Exclusão Definitiva (Dias):</label>
+      <input type="number" id="config-retencao-dias" min="1" max="365" value="30" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+    </div>
+    <div class="form-group" style="text-align:left;margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:700;">Senha de Administrador <span style="color:var(--red);">*</span></label>
+      <input type="password" id="config-retencao-senha" placeholder="Digite a senha admin" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary btn-sm" style="flex:2;padding:10px;" onclick="salvarConfigRetencao()">💾 Salvar Configuração</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="fecharModalConfigRetencao()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Dispositivo (Nome e Setor) -->
+<div class="wa-modal-overlay" id="modal-editar-dispositivo">
+  <div class="wa-modal" style="max-width:440px;">
+    <h3 style="margin-bottom:12px;">✏️ Identificação do Dispositivo</h3>
+    <p style="font-size:13px;color:var(--gray-600);line-height:1.5;margin-bottom:14px;">
+      Defina o nome deste aparelho (ex.: Consultório 1, Celular Triagem). Esse nome será usado no histórico e auditoria.
+    </p>
+    <div class="form-group" style="text-align:left;margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:700;">Nome do Aparelho <span style="color:var(--red);">*</span></label>
+      <input type="text" id="edit-disp-nome" placeholder="Ex: Consultório 1" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+    </div>
+    <div class="form-group" style="text-align:left;margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:700;">Setor:</label>
+      <select id="edit-disp-setor" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
+        <option value="">— Selecione o setor —</option>
+        <option value="Acolhimento">Acolhimento</option>
+        <option value="Farmácia">Farmácia</option>
+        <option value="Regulação">Regulação</option>
+        <option value="Médico">Médico</option>
+        <option value="Enfermagem">Enfermagem</option>
+        <option value="Odontologia">Odontologia</option>
+        <option value="Téc. Enfermagem">Téc. Enfermagem</option>
+        <option value="Recepção">Recepção</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary btn-sm" style="flex:2;padding:10px;" onclick="salvarEditarDispositivo()">💾 Salvar</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="fecharModalEditarDispositivo()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Histórico de Logins do Dispositivo (30 Dias) -->
+<div class="wa-modal-overlay" id="modal-logins-dispositivo">
+  <div class="wa-modal" style="max-width:620px;width:95%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 id="modal-logins-disp-titulo" style="margin-bottom:0;">📜 Histórico de Acessos</h3>
+      <button onclick="fecharModalHistoricoLogins()" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--gray-500);">✕</button>
+    </div>
+    <div id="modal-logins-disp-lista" style="max-height:380px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;padding:8px;">
+      <!-- Carregado via JS -->
+    </div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:12px;width:100%;" onclick="fecharModalHistoricoLogins()">Fechar</button>
+  </div>
+</div>
+
 <style>
   @media print {
     body { background: #fff !important; min-height: auto !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
@@ -2067,11 +2416,14 @@
   }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="app.js?v=2.8"></script>
+<script src="historico.js"></script>
+<script src="dispositivos.js"></script>
+<script src="app.js?v=2.9"></script>
 </body>
 </html>

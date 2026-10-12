@@ -86,6 +86,9 @@ async function tentarEntrar() {
     inp.value = '';
     gateAttempts = 0;
     hideGate();
+    if (typeof registrarAcessoDispositivo === 'function') {
+      registrarAcessoDispositivo('gate_login');
+    }
   } else {
     gateAttempts++;
     errEl.textContent = '❌ Senha incorreta. Tente novamente.';
@@ -593,6 +596,10 @@ function updateAdminUI() {
   }
   if (isAdmin) { document.body.classList.add('admin-active'); }
   else { document.body.classList.remove('admin-active'); }
+  // Exibir/ocultar abas restritas a administradores (ex: Dispositivos)
+  document.querySelectorAll('.admin-only-tab').forEach(t => {
+    t.style.display = isAdmin ? 'inline-flex' : 'none';
+  });
   // Re-render filas para mostrar/ocultar controles admin
   if (typeof updateAll === 'function') updateAll();
 }
@@ -1046,6 +1053,16 @@ function showScreen(name) {
     loadRelatorioMensagens();
     loadHistoricoAgendamentos();
     loadResponsaveisSetor();
+    // Se a sub-aba histórica estiver ativa, recarrega-a
+    const btnHist = document.getElementById('btn-subtab-historico');
+    if (btnHist && btnHist.classList.contains('active') && typeof carregarHistorico === 'function') {
+      carregarHistorico();
+    }
+  }
+  if (name === 'dispositivos') {
+    if (typeof carregarDispositivosAdmin === 'function') {
+      carregarDispositivosAdmin();
+    }
   }
   // === CTRL AGENDAMENTOS: carrega e ativa polling dedicado ao entrar na aba ===
   if (name === 'ctrl_agendamentos') {
@@ -1054,6 +1071,27 @@ function showScreen(name) {
     startCtrlAgendPolling();
   } else {
     stopCtrlAgendPolling();
+  }
+}
+
+// Alternar entre Sub-Aba 1 (Agendamentos) e Sub-Aba 2 (Histórico)
+function alternarSubAbaAgendamento(tab) {
+  const btnPrincipal = document.getElementById('btn-subtab-principal');
+  const btnHistorico = document.getElementById('btn-subtab-historico');
+  const contentPrincipal = document.getElementById('subtab-content-principal');
+  const contentHistorico = document.getElementById('subtab-content-historico');
+
+  if (tab === 'historico') {
+    if (btnPrincipal) btnPrincipal.classList.remove('active');
+    if (btnHistorico) btnHistorico.classList.add('active');
+    if (contentPrincipal) contentPrincipal.style.display = 'none';
+    if (contentHistorico) contentHistorico.style.display = 'block';
+    if (typeof carregarHistorico === 'function') carregarHistorico();
+  } else {
+    if (btnPrincipal) btnPrincipal.classList.add('active');
+    if (btnHistorico) btnHistorico.classList.remove('active');
+    if (contentPrincipal) contentPrincipal.style.display = 'block';
+    if (contentHistorico) contentHistorico.style.display = 'none';
   }
 }
 
@@ -2683,6 +2721,7 @@ async function criarAgendamento() {
   const tipo_atendimento = document.getElementById('agend-tipo').value;
   const template = document.getElementById('agend-template').value;
   const observacoes = document.getElementById('agend-obs').value.trim();
+  const equipe = document.getElementById('agend-equipe')?.value || null;
   let checklist_exames = null;
   if (template === 'preparo_exames') {
     const checked = [...document.querySelectorAll('#checklist-exames input:checked')].map(c => c.value);
@@ -2716,7 +2755,11 @@ async function criarAgendamento() {
   }
 
   try {
-    const r = await fetch(`${API_URL}/agendamentos`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome,telefone,data_agendamento,horario,profissional,tipo_atendimento,template,observacoes,checklist_exames}) });
+    const r = await fetch(`${API_URL}/agendamentos`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({nome,telefone,data_agendamento,horario,profissional,tipo_atendimento,template,observacoes,checklist_exames,equipe})
+    });
     if (!r.ok) throw new Error();
     showToast(`✅ Agendamento criado com sucesso para ${nome}!`);
     document.getElementById('agend-nome').value=''; document.getElementById('agend-telefone').value='+55 ';
@@ -2845,8 +2888,11 @@ function renderLembretesD1(list, dataAmanha) {
         <button onclick="openWaPreview(${a.id}, 'lembrete_d1')" title="Enviar Lembrete D-1 via WhatsApp" style="background:#25D366;color:white;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(37,211,102,0.3);transition:all 0.15s;" onmouseover="this.style.background='#1fb855'" onmouseout="this.style.background='#25D366'">
           📲 Lembrete
         </button>
-        <button onclick="abrirModalEditarEnvio(${a.id})" title="Editar Envio (Cancelar / Reagendar)" style="background:#e67e22;color:white;border:none;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(230,126,34,0.3);transition:all 0.15s;" onmouseover="this.style.background='#d35400'" onmouseout="this.style.background='#e67e22'">
-          ✏️ Editar
+        <button onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta" style="background:var(--red);color:white;border:none;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(229,57,53,0.3);transition:all 0.15s;">
+          ❌ Cancelar
+        </button>
+        <button onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta" style="background:#e67e22;color:white;border:none;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(230,126,34,0.3);transition:all 0.15s;">
+          🔄 Reagendar
         </button>
         <button onclick="_waCurrentImageSrc=getImagemTipoConsulta('${(a.tipo_atendimento||'').replace(/'/g, "\\'")}','${(a.profissional||'').replace(/'/g, "\\'")}');copyWaImageToClipboard()" title="Copiar imagem de confirmação" style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='var(--gray-200)'" onmouseout="this.style.background='var(--gray-100)'">
           🖼️
@@ -2904,12 +2950,12 @@ function renderAgendamentos(list) {
       <td><span class="agend-status ${statusCls}">${a.status}</span></td>
       <td><div class="agend-actions" style="display:flex;gap:4px;flex-wrap:wrap;">
         ${extraBtns}
-        <button class="btn-editar-envio" onclick="abrirModalEditarEnvio(${a.id})" title="Editar Envio (Cancelar / Reagendar)">✏️ Editar Envio</button>
+        <button class="btn-editar-envio" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta" style="background:var(--red);color:#fff;padding:4px 8px;font-size:11px;font-weight:700;border:none;border-radius:6px;cursor:pointer;">❌ Cancelar</button>
+        <button class="btn-editar-envio" onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta" style="background:#e67e22;color:#fff;padding:4px 8px;font-size:11px;font-weight:700;border:none;border-radius:6px;cursor:pointer;">🔄 Reagendar</button>
         <button onclick="openWaPreview(${a.id})" title="WhatsApp">📲</button>
         <button onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar lembrete">📨</button>
         <button onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmado">✅</button>
         <button onclick="abrirEdicaoAgendamento(${a.id}, '${a.nome.replace(/'/g,"\\'").trim()}', '${a.telefone.replace(/'/g,"\\'").trim()}')" title="Editar Contato">✏️</button>
-        <button onclick="updateAgendStatus(${a.id},'cancelado')" title="Cancelar">❌</button>
         <button onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" style="color:var(--red);">🗑️</button>
       </div></td></tr>`;
   }).join('');
@@ -3106,7 +3152,7 @@ function gerarMensagemEditarEnvio(agend, novoStatus, motivo, novaData, novoHorar
   return '';
 }
 
-async function abrirModalEditarEnvio(id) {
+async function abrirModalEditarEnvio(id, acaoPadrao = 'cancelado') {
   try {
     const r = await fetch(`${API_URL}/agendamentos`);
     const list = await r.json();
@@ -3142,16 +3188,35 @@ async function abrirModalEditarEnvio(id) {
       <div style="margin-top:4px;font-size:11px;color:var(--gray-500);">Status atual: <b>${agend.status}</b></div>
     `;
 
-    // Reset formulário
-    document.getElementById('ee-status-cancelado').checked = true;
-    document.getElementById('ee-status-reagendado').checked = false;
-    document.getElementById('ee-motivo-cancelamento').value = '';
+    // Seleção de status inicial (cancelado ou reagendado)
+    const isReag = acaoPadrao === 'reagendado';
+    document.getElementById('ee-status-cancelado').checked = !isReag;
+    document.getElementById('ee-status-reagendado').checked = isReag;
 
-    // Sugestão de nova data
-    const amanha = typeof getAmanhaSP === 'function' ? getAmanhaSP() : new Date().toISOString().split('T')[0];
-    document.getElementById('ee-nova-data').value = amanha;
+    // Reset selects e inputs de motivo
+    const selCanc = document.getElementById('ee-motivo-cancelamento-select');
+    if (selCanc) selCanc.value = '';
+    const outroCanc = document.getElementById('ee-motivo-cancelamento-outro');
+    if (outroCanc) { outroCanc.value = ''; outroCanc.style.display = 'none'; }
+
+    const selReag = document.getElementById('ee-motivo-reagendamento-select');
+    if (selReag) selReag.value = '';
+    const outroReag = document.getElementById('ee-motivo-reagendamento-outro');
+    if (outroReag) { outroReag.value = ''; outroReag.style.display = 'none'; }
+
+    // Min data para reagendamento (deve ser estritamente posterior à data original)
+    const novaDataEl = document.getElementById('ee-nova-data');
+    if (novaDataEl && dataIso) {
+      const origDateObj = new Date(dataIso + 'T12:00:00');
+      origDateObj.setDate(origDateObj.getDate() + 1);
+      const minIso = origDateObj.toISOString().split('T')[0];
+      novaDataEl.min = minIso;
+      novaDataEl.value = minIso;
+    }
+    const avisoData = document.getElementById('ee-aviso-data-invalida');
+    if (avisoData) avisoData.style.display = 'none';
+
     document.getElementById('ee-novo-horario').value = agend.horario || '08:00';
-    document.getElementById('ee-motivo-reagendamento').value = '';
     document.getElementById('ee-aplicar-lote').checked = false;
 
     // Contagem de consultas da categoria e data para o lote
@@ -3175,6 +3240,36 @@ async function abrirModalEditarEnvio(id) {
 
 function fecharModalEditarEnvio() {
   document.getElementById('modal-editar-envio').classList.remove('show');
+}
+
+function onEditarEnvioMotivoSelectChange(tipo) {
+  const sel = document.getElementById(`ee-motivo-${tipo}-select`);
+  const outro = document.getElementById(`ee-motivo-${tipo}-outro`);
+  if (!sel || !outro) return;
+  if (sel.value === 'Outro') {
+    outro.style.display = 'block';
+    outro.focus();
+  } else {
+    outro.style.display = 'none';
+    outro.value = '';
+  }
+  onEditarEnvioInputChange();
+}
+
+function validarDataReagendamento() {
+  const origData = document.getElementById('ee-agend-data-original')?.value || '';
+  const novaData = document.getElementById('ee-nova-data')?.value || '';
+  const aviso = document.getElementById('ee-aviso-data-invalida');
+  if (!novaData || !origData) {
+    if (aviso) aviso.style.display = 'none';
+    return true;
+  }
+  if (novaData <= origData) {
+    if (aviso) aviso.style.display = 'block';
+    return false;
+  }
+  if (aviso) aviso.style.display = 'none';
+  return true;
 }
 
 function onEditarEnvioStatusChange() {
@@ -3207,9 +3302,18 @@ function onEditarEnvioInputChange() {
   if (!_editarEnvioAgendAtual) return;
   const statusRadio = document.querySelector('input[name="ee-status"]:checked');
   const status = statusRadio ? statusRadio.value : '';
-  const motivo = status === 'cancelado' 
-    ? (document.getElementById('ee-motivo-cancelamento')?.value || '') 
-    : (document.getElementById('ee-motivo-reagendamento')?.value || '');
+  
+  let motivo = '';
+  if (status === 'cancelado') {
+    const sel = document.getElementById('ee-motivo-cancelamento-select');
+    const outro = document.getElementById('ee-motivo-cancelamento-outro');
+    motivo = (sel && sel.value === 'Outro') ? (outro?.value || 'Outro') : (sel?.value || '');
+  } else if (status === 'reagendado') {
+    const sel = document.getElementById('ee-motivo-reagendamento-select');
+    const outro = document.getElementById('ee-motivo-reagendamento-outro');
+    motivo = (sel && sel.value === 'Outro') ? (outro?.value || 'Outro') : (sel?.value || '');
+    validarDataReagendamento();
+  }
   const novaData = document.getElementById('ee-nova-data')?.value || '';
   const novoHorario = document.getElementById('ee-novo-horario')?.value || '';
 
@@ -3234,20 +3338,42 @@ async function salvarEditarEnvio() {
   }
   const novoStatus = statusRadio.value;
   const aplicarLote = document.getElementById('ee-aplicar-lote').checked;
+  const setor = localStorage.getItem('chatSetor') || '';
 
   let motivo = '';
   let novaData = '';
   let novoHorario = '';
 
   if (novoStatus === 'cancelado') {
-    motivo = document.getElementById('ee-motivo-cancelamento').value.trim();
+    const sel = document.getElementById('ee-motivo-cancelamento-select');
+    const outro = document.getElementById('ee-motivo-cancelamento-outro');
+    if (!sel || !sel.value) {
+      showToast('⚠️ Selecione o motivo do cancelamento!', true);
+      return;
+    }
+    motivo = (sel.value === 'Outro') ? (outro?.value.trim() || 'Outro') : sel.value;
   } else if (novoStatus === 'reagendado') {
+    const sel = document.getElementById('ee-motivo-reagendamento-select');
+    const outro = document.getElementById('ee-motivo-reagendamento-outro');
+    if (!sel || !sel.value) {
+      showToast('⚠️ Selecione o motivo do reagendamento!', true);
+      return;
+    }
+    motivo = (sel.value === 'Outro') ? (outro?.value.trim() || 'Outro') : sel.value;
+
     novaData = document.getElementById('ee-nova-data').value;
     novoHorario = document.getElementById('ee-novo-horario').value.trim();
-    motivo = document.getElementById('ee-motivo-reagendamento').value.trim();
 
     if (!novaData || !novoHorario) {
       showToast('⚠️ Preencha a nova data e o novo horário!', true);
+      return;
+    }
+
+    const dataOrig = document.getElementById('ee-agend-data-original').value;
+    if (dataOrig && novaData <= dataOrig) {
+      showToast('⚠️ A nova data deve ser estritamente posterior à data original da consulta!', true);
+      const aviso = document.getElementById('ee-aviso-data-invalida');
+      if (aviso) aviso.style.display = 'block';
       return;
     }
   }
@@ -3276,7 +3402,8 @@ async function salvarEditarEnvio() {
           status: novoStatus,
           motivo,
           nova_data: novaData,
-          novo_horario: novoHorario
+          novo_horario: novoHorario,
+          setor
         })
       });
 
@@ -3290,7 +3417,8 @@ async function salvarEditarEnvio() {
       showToast(`✅ ${resJson.total} consulta(s) de ${tipo} atualizada(s)!`);
       fecharModalEditarEnvio();
       loadAgendamentos();
-      loadHistoricoAgendamentos();
+      if (typeof loadHistoricoAgendamentos === 'function') loadHistoricoAgendamentos();
+      if (typeof carregarHistorico === 'function') carregarHistorico();
 
       // Iniciar fila de disparo
       if (resJson.agendamentos && resJson.agendamentos.length > 0) {
@@ -3310,7 +3438,8 @@ async function salvarEditarEnvio() {
           status: novoStatus,
           motivo,
           nova_data: novaData,
-          novo_horario: novoHorario
+          novo_horario: novoHorario,
+          setor
         })
       });
 
@@ -3324,7 +3453,8 @@ async function salvarEditarEnvio() {
       showToast('✅ Consulta atualizada com sucesso!');
       fecharModalEditarEnvio();
       loadAgendamentos();
-      loadHistoricoAgendamentos();
+      if (typeof loadHistoricoAgendamentos === 'function') loadHistoricoAgendamentos();
+      if (typeof carregarHistorico === 'function') carregarHistorico();
 
       // Gerar mensagem e abrir WhatsApp
       const msg = gerarMensagemEditarEnvio(agend, novoStatus, motivo, novaData, novoHorario);
