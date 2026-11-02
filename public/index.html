@@ -1216,7 +1216,188 @@
     body.modo-tv .historico-escuta-card,
     body.modo-tv .badge-intercorrencia-acol,
     body.modo-tv .badge-equipe-paciente { display: none !important; }
-    /* ====== FIM REDESIGN RECEPÇÃO & INTERCORRÊNCIA ====== */
+
+    /* ====== CLEAN TABLE UI (LISTA / TABELA ALINHADA E RESPONSIVA) ====== */
+    .recepcao-top-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+    @media (max-width: 1100px) {
+      .recepcao-top-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .recepcao-section-box {
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    .queue-list {
+      max-height: 480px;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
+    .acol-stages-grid {
+      display: grid;
+      grid-template-columns: 1fr !important;
+      gap: 20px;
+    }
+    .acol-card-list {
+      max-height: none;
+      overflow: visible;
+    }
+    .seg-grid {
+      display: grid;
+      grid-template-columns: 1fr !important;
+      gap: 20px;
+    }
+    .seg-patient-list {
+      max-height: none;
+      overflow: visible;
+    }
+    .acs-grid {
+      display: grid;
+      grid-template-columns: 1fr !important;
+      gap: 18px;
+    }
+    .acs-patient-list {
+      max-height: none;
+      overflow: visible;
+    }
+    .fila-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+    }
+    .fila-clean-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 700px;
+      text-align: left;
+      background: #ffffff;
+    }
+    .fila-clean-table thead th {
+      background: #f1f5f9;
+      color: #334155;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 10px 14px;
+      border-bottom: 2px solid #cbd5e1;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .fila-clean-table tbody tr {
+      border-bottom: 1px solid #e2e8f0;
+      transition: background-color 0.15s ease;
+    }
+    .fila-clean-table tbody tr:last-child {
+      border-bottom: none;
+    }
+    .fila-clean-table tbody tr:hover {
+      background-color: #f8fafc;
+    }
+    .fila-clean-table tbody tr.calling {
+      background: linear-gradient(135deg, #fffbeb, #fef3c7) !important;
+    }
+    .fila-clean-table tbody tr.row-intercorrencia {
+      background-color: #fff7ed;
+    }
+    .fila-clean-table tbody tr.row-intercorrencia:hover {
+      background-color: #ffedd5;
+    }
+    .fila-clean-table td {
+      padding: 11px 14px;
+      vertical-align: middle;
+      color: #1e293b;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .fila-pos-cell {
+      white-space: nowrap;
+      width: 110px;
+    }
+    .fila-pos-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #ffffff;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: 13px;
+      margin-right: 6px;
+    }
+    .fila-paciente-nome {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: 14.5px;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .fila-paciente-sub {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .fila-motivo-box {
+      font-size: 12.5px;
+      color: #334155;
+      line-height: 1.4;
+    }
+    .fila-motivo-box .motivo-1 {
+      color: #1e293b;
+      font-weight: 600;
+    }
+    .fila-motivo-box .motivo-2 {
+      margin-top: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #fff1f2;
+      border-left: 3px solid #e11d48;
+      color: #881337;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .fila-actions-cell {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
+    .acol-stages-grid,
+    .acs-grid,
+    .seg-grid {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 18px !important;
+    }
+    .acol-card-list,
+    .acs-patient-list,
+    .seg-patient-list {
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    /* ====== FIM CLEAN TABLE UI ====== */
 </style>
 </head>
 <body>
@@ -1340,237 +1521,243 @@
       <div class="stat-card"><div class="stat-icon" style="background:rgba(229,57,53,0.15);">🚶</div><div><div class="stat-value" id="stat-desist" style="color:var(--red);">0</div><div class="stat-label">Desistências</div></div></div>
     </div>
 
-    <div class="two-col">
-      <div class="card-white">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-          <div><span>📝</span> Registrar Paciente (1ª Escuta)</div>
-          <span style="font-size:11px;font-weight:800;background:#e0f2fe;color:#0369a1;padding:4px 10px;border-radius:20px;">Fluxo Rápido APS</span>
+    <!-- PAINEL DE CADASTRO RÁPIDO (1ª ESCUTA) EM LARGURA TOTAL + TABELAS ALINHADAS -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+      <div class="card-white" style="padding:20px 24px;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--gray-200);">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span>📝</span>
+            <span>Registrar Paciente na Recepção (1ª Escuta)</span>
+          </div>
+          <span style="font-size:11px;font-weight:800;background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:20px;">Cadastro Rápido &amp; Alinhado</span>
         </div>
 
-        <!-- PASSO 1: IDENTIFICAÇÃO E PRIORIDADE -->
-        <div class="recepcao-section-box">
-          <div class="recepcao-step-title">
-            <span class="recepcao-step-num">1</span>
-            <span>Identificação e Prioridade Legal</span>
-          </div>
-          <div class="form-group" style="margin-bottom:12px;position:relative;">
-            <label>Nome Completo do Paciente <span style="color:var(--red);">*</span> <span style="font-size:11px;color:var(--gray-500);font-weight:normal;">(ou busque por CPF/Cartão SUS)</span></label>
-            <input type="text" id="input-nome" placeholder="Ex: Maria da Silva ou digite CPF/SUS..." autocomplete="off" style="font-size:15px;font-weight:700;">
-            <div id="autocomplete-sugestoes" class="autocomplete-dropdown" style="display:none;"></div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:start;">
-            <div class="form-group" style="margin-bottom:0;">
-              <label>Idade (opcional)</label>
-              <input type="number" id="input-idade" min="0" max="120" step="1" placeholder="Ex: 65" autocomplete="off">
-              <div style="font-size:10px;color:var(--gray-600);margin-top:3px;font-weight:700;line-height:1.25;">Se não informar, deixe em branco</div>
+        <div class="recepcao-top-grid">
+          <!-- COLUNA 1: IDENTIFICAÇÃO, IDADE, PRIORIDADE E EQUIPE -->
+          <div class="recepcao-section-box">
+            <div class="recepcao-step-title">
+              <span class="recepcao-step-num">1</span>
+              <span>Paciente, Prioridade &amp; Equipe</span>
             </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label>Prioridade Legal <span style="font-size:10px;color:var(--gray-500);font-weight:normal;">(60+ e 80+ automáticos pela idade)</span></label>
-              <select id="input-prioridade" onchange="togglePrioridadeDetalhes()">
-                <option value="geral">👤 Geral (ou prioridade por idade)</option>
-                <option value="prioritario">⭐ Outra Prioridade Legal (Gestante, TEA, PCD)</option>
+            <div class="form-group" style="margin-bottom:10px;position:relative;">
+              <label>Nome Completo do Paciente <span style="color:var(--red);">*</span></label>
+              <input type="text" id="input-nome" placeholder="Ex: Maria da Silva ou CPF/SUS..." autocomplete="off" style="font-size:14.5px;font-weight:700;padding:11px 14px;">
+              <div id="autocomplete-sugestoes" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:105px 1fr;gap:10px;align-items:start;margin-bottom:10px;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label>Idade (opc.)</label>
+                <input type="number" id="input-idade" min="0" max="120" step="1" placeholder="Ex: 65" autocomplete="off" style="padding:11px 10px;">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label>Prioridade Legal</label>
+                <select id="input-prioridade" onchange="togglePrioridadeDetalhes()" style="padding:11px 12px;font-size:13.5px;">
+                  <option value="geral">👤 Geral (ou 60+/80+ auto)</option>
+                  <option value="prioritario">⭐ Gestante / TEA / PCD</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:10px;display:none;" id="prioridade-detalhes">
+              <label>Tipo de Prioridade Legal</label>
+              <select id="input-tipo-prioridade" style="padding:10px 12px;font-size:13.5px;">
+                <option value="Gestante">🤰 Gestante</option>
+                <option value="Autismo/TEA">🧩 Autismo/TEA</option>
+                <option value="PCD">♿ PCD</option>
               </select>
             </div>
-          </div>
 
-          <div class="form-group" style="margin-top:10px;margin-bottom:0;display:none;" id="prioridade-detalhes">
-            <label>Tipo de Prioridade Legal</label>
-            <select id="input-tipo-prioridade">
-              <option value="Gestante">🤰 Gestante</option>
-              <option value="Autismo/TEA">🧩 Autismo/TEA</option>
-              <option value="PCD">♿ PCD</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- PASSO 2: SELEÇÃO RÁPIDA DE EQUIPE -->
-        <div class="recepcao-section-box">
-          <div class="recepcao-step-title">
-            <span class="recepcao-step-num">2</span>
-            <span>Equipe de Saúde da Família (Território)</span>
-          </div>
-          <input type="hidden" id="input-equipe-paciente" value="">
-          <div class="equipe-quick-grid" id="recepcao-equipe-grid">
-            <button type="button" class="equipe-pill-btn" data-equipe="Eq 1 Chico Mendes" onclick="selecionarEquipeRecepcao('Eq 1 Chico Mendes')">
-              <span style="font-size:18px;">🏥</span>
-              <div>
-                <div style="font-size:13px;font-weight:900;">Equipe I</div>
-                <div style="font-size:11px;opacity:0.8;font-weight:700;">Chico Mendes</div>
+            <div style="margin-top:4px;">
+              <label style="display:block;margin-bottom:6px;">🏥 Equipe de Saúde da Família (Território)</label>
+              <input type="hidden" id="input-equipe-paciente" value="">
+              <div class="equipe-quick-grid" id="recepcao-equipe-grid">
+                <button type="button" class="equipe-pill-btn" data-equipe="Eq 1 Chico Mendes" onclick="selecionarEquipeRecepcao('Eq 1 Chico Mendes')">
+                  <span style="font-size:16px;">🏥</span>
+                  <div>
+                    <div style="font-size:12px;font-weight:900;">Equipe I</div>
+                    <div style="font-size:10.5px;opacity:0.85;font-weight:700;">Chico Mendes</div>
+                  </div>
+                </button>
+                <button type="button" class="equipe-pill-btn" data-equipe="Eq 2 Ximboré" onclick="selecionarEquipeRecepcao('Eq 2 Ximboré')">
+                  <span style="font-size:16px;">🏡</span>
+                  <div>
+                    <div style="font-size:12px;font-weight:900;">Equipe II</div>
+                    <div style="font-size:10.5px;opacity:0.85;font-weight:700;">Ximboré</div>
+                  </div>
+                </button>
+                <button type="button" class="equipe-pill-btn" data-equipe="Eq 3 Aurora" onclick="selecionarEquipeRecepcao('Eq 3 Aurora')">
+                  <span style="font-size:16px;">🌅</span>
+                  <div>
+                    <div style="font-size:12px;font-weight:900;">Equipe III</div>
+                    <div style="font-size:10.5px;opacity:0.85;font-weight:700;">Aurora</div>
+                  </div>
+                </button>
+                <button type="button" class="equipe-pill-btn" data-equipe="Fora de Área / Sem Equipe" onclick="selecionarEquipeRecepcao('Fora de Área / Sem Equipe')">
+                  <span style="font-size:16px;">📍</span>
+                  <div>
+                    <div style="font-size:12px;font-weight:900;">Sem Equipe</div>
+                    <div style="font-size:10.5px;opacity:0.85;font-weight:700;">Fora de área</div>
+                  </div>
+                </button>
               </div>
-            </button>
-            <button type="button" class="equipe-pill-btn" data-equipe="Eq 2 Ximboré" onclick="selecionarEquipeRecepcao('Eq 2 Ximboré')">
-              <span style="font-size:18px;">🏡</span>
-              <div>
-                <div style="font-size:13px;font-weight:900;">Equipe II</div>
-                <div style="font-size:11px;opacity:0.8;font-weight:700;">Ximboré</div>
-              </div>
-            </button>
-            <button type="button" class="equipe-pill-btn" data-equipe="Eq 3 Aurora" onclick="selecionarEquipeRecepcao('Eq 3 Aurora')">
-              <span style="font-size:18px;">🌅</span>
-              <div>
-                <div style="font-size:13px;font-weight:900;">Equipe III</div>
-                <div style="font-size:11px;opacity:0.8;font-weight:700;">Aurora</div>
-              </div>
-            </button>
-            <button type="button" class="equipe-pill-btn" data-equipe="Fora de Área / Sem Equipe" onclick="selecionarEquipeRecepcao('Fora de Área / Sem Equipe')">
-              <span style="font-size:18px;">📍</span>
-              <div>
-                <div style="font-size:13px;font-weight:900;">Outra / Sem Eq.</div>
-                <div style="font-size:11px;opacity:0.8;font-weight:700;">Fora de área</div>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- PASSO 3: DESTINO / ENCAMINHAMENTO INICIAL -->
-        <div class="recepcao-section-box">
-          <div class="recepcao-step-title">
-            <span class="recepcao-step-num">3</span>
-            <span>Destino do Encaminhamento Inicial <span style="color:var(--red);">*</span></span>
+            </div>
           </div>
 
-          <div class="setor-quick-grid" id="recepcao-setor-quick-grid">
-            <button type="button" class="setor-quick-btn" data-setor="Acolhimento" onclick="selecionarSetorRapidoRecepcao('Acolhimento')">
-              <span class="sq-icon">💜</span>
-              <span>Acolhimento</span>
-            </button>
-            <button type="button" class="setor-quick-btn" data-setor="Acolhimento ACS" onclick="selecionarSetorRapidoRecepcao('Acolhimento ACS')">
-              <span class="sq-icon">🧡</span>
-              <span>1ª Escuta (ACS)</span>
-            </button>
-            <button type="button" class="setor-quick-btn" data-setor="Acolhimento 2ª Escuta" onclick="selecionarSetorRapidoRecepcao('Acolhimento 2ª Escuta')">
-              <span class="sq-icon">🔴</span>
-              <span>2ª Escuta</span>
-            </button>
-            <button type="button" class="setor-quick-btn" data-setor="Médico" onclick="selecionarSetorRapidoRecepcao('Médico')">
-              <span class="sq-icon">🩺</span>
-              <span>Médico</span>
-            </button>
-            <button type="button" class="setor-quick-btn" data-setor="Enfermagem" onclick="selecionarSetorRapidoRecepcao('Enfermagem')">
-              <span class="sq-icon">👩‍⚕️</span>
-              <span>Enfermagem</span>
-            </button>
-            <button type="button" class="setor-quick-btn" data-setor="Odontologia" onclick="selecionarSetorRapidoRecepcao('Odontologia')">
-              <span class="sq-icon">🦷</span>
-              <span>Odontologia</span>
-            </button>
-            <button type="button" class="setor-quick-btn" data-setor="Farmácia" onclick="selecionarSetorRapidoRecepcao('Farmácia')">
-              <span class="sq-icon">💊</span>
-              <span>Farmácia</span>
-            </button>
-            <button type="button" class="setor-quick-btn" data-setor="Regulação" onclick="selecionarSetorRapidoRecepcao('Regulação')">
-              <span class="sq-icon">📋</span>
-              <span>Regulação</span>
-            </button>
-            <button type="button" class="setor-quick-btn" data-setor="Téc. Enfermagem" onclick="selecionarSetorRapidoRecepcao('Téc. Enfermagem')">
-              <span class="sq-icon">🩹</span>
-              <span>Téc. Enferm.</span>
-            </button>
-          </div>
+          <!-- COLUNA 2: DESTINO / ENCAMINHAMENTO INICIAL -->
+          <div class="recepcao-section-box">
+            <div class="recepcao-step-title">
+              <span class="recepcao-step-num">2</span>
+              <span>Setor / Fila de Destino <span style="color:var(--red);">*</span></span>
+            </div>
 
-          <div class="form-group" style="margin-bottom:10px;">
-            <label style="font-size:11px;color:var(--gray-600);">Setor Selecionado</label>
-            <select id="input-setor" onchange="toggleTipoAtendimento()">
-              <option value="">— Selecione o setor —</option>
-              <option value="Acolhimento">💜 Acolhimento (Recepção)</option>
-              <option value="Acolhimento ACS">🧡 Acolhimento ACS - 1ª Escuta</option>
-              <option value="Acolhimento 2ª Escuta">🔴 Acolhimento - 2ª Escuta</option>
-              <option value="Farmácia">💊 Farmácia</option>
-              <option value="Regulação">📋 Regulação</option>
-              <option value="Médico">🩺 Médico</option>
-              <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
-              <option value="Odontologia">🦷 Odontologia</option>
-              <option value="Téc. Enfermagem">🩹 Téc. Enfermagem</option>
-            </select>
-          </div>
+            <div class="setor-quick-grid" id="recepcao-setor-quick-grid">
+              <button type="button" class="setor-quick-btn" data-setor="Acolhimento" onclick="selecionarSetorRapidoRecepcao('Acolhimento')">
+                <span class="sq-icon">💜</span>
+                <span>Acolhimento</span>
+              </button>
+              <button type="button" class="setor-quick-btn" data-setor="Acolhimento ACS" onclick="selecionarSetorRapidoRecepcao('Acolhimento ACS')">
+                <span class="sq-icon">🧡</span>
+                <span>1ª Escuta (ACS)</span>
+              </button>
+              <button type="button" class="setor-quick-btn" data-setor="Acolhimento 2ª Escuta" onclick="selecionarSetorRapidoRecepcao('Acolhimento 2ª Escuta')">
+                <span class="sq-icon">🔴</span>
+                <span>2ª Escuta</span>
+              </button>
+              <button type="button" class="setor-quick-btn" data-setor="Médico" onclick="selecionarSetorRapidoRecepcao('Médico')">
+                <span class="sq-icon">🩺</span>
+                <span>Médico</span>
+              </button>
+              <button type="button" class="setor-quick-btn" data-setor="Enfermagem" onclick="selecionarSetorRapidoRecepcao('Enfermagem')">
+                <span class="sq-icon">👩‍⚕️</span>
+                <span>Enfermagem</span>
+              </button>
+              <button type="button" class="setor-quick-btn" data-setor="Odontologia" onclick="selecionarSetorRapidoRecepcao('Odontologia')">
+                <span class="sq-icon">🦷</span>
+                <span>Odontologia</span>
+              </button>
+              <button type="button" class="setor-quick-btn" data-setor="Farmácia" onclick="selecionarSetorRapidoRecepcao('Farmácia')">
+                <span class="sq-icon">💊</span>
+                <span>Farmácia</span>
+              </button>
+              <button type="button" class="setor-quick-btn" data-setor="Regulação" onclick="selecionarSetorRapidoRecepcao('Regulação')">
+                <span class="sq-icon">📋</span>
+                <span>Regulação</span>
+              </button>
+              <button type="button" class="setor-quick-btn" data-setor="Téc. Enfermagem" onclick="selecionarSetorRapidoRecepcao('Téc. Enfermagem')">
+                <span class="sq-icon">🩹</span>
+                <span>Téc. Enferm.</span>
+              </button>
+            </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div class="form-group" style="margin-bottom:0;display:none;" id="tipo-atendimento-grupo">
-              <label>Tipo de Atendimento</label>
-              <select id="input-tipo-atendimento">
-                <option value="Consulta">🩺 Consulta</option>
-                <option value="Renovação de Receita">📄 Renovação de Receita</option>
-                <option value="Hiperdia">❤️ Hiperdia</option>
-                <option value="Puericultura">👶 Puericultura</option>
-                <option value="Saúde da Mulher">🩷 Saúde da Mulher</option>
-                <option value="Prevenção">🛡️ Prevenção</option>
-                <option value="Pré-Natal">🤰 Pré-Natal</option>
-                <option value="Intercorrência (Acolhimento)">🚨 Intercorrência (Acolhimento)</option>
-                <option value="Renovação de Receita Controlada">💊 Renovação de Receita Controlada</option>
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="font-size:11px;color:var(--gray-600);">Setor Selecionado</label>
+              <select id="input-setor" onchange="toggleTipoAtendimento()" style="padding:10px 12px;font-size:13.5px;">
+                <option value="">— Selecione o setor —</option>
+                <option value="Acolhimento">💜 Acolhimento (Recepção)</option>
+                <option value="Acolhimento ACS">🧡 Acolhimento ACS - 1ª Escuta</option>
+                <option value="Acolhimento 2ª Escuta">🔴 Acolhimento - 2ª Escuta</option>
+                <option value="Farmácia">💊 Farmácia</option>
+                <option value="Regulação">📋 Regulação</option>
+                <option value="Médico">🩺 Médico</option>
+                <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
+                <option value="Odontologia">🦷 Odontologia</option>
+                <option value="Téc. Enfermagem">🩹 Téc. Enfermagem</option>
               </select>
             </div>
-            <div class="form-group" style="margin-bottom:0;display:none;" id="profissional-grupo">
-              <label>Profissional Responsável</label>
-              <select id="input-profissional">
-                <option value="">— Selecione o profissional —</option>
-              </select>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div class="form-group" style="margin-bottom:0;display:none;" id="tipo-atendimento-grupo">
+                <label>Tipo de Atendimento</label>
+                <select id="input-tipo-atendimento" style="padding:10px 12px;font-size:13px;">
+                  <option value="Consulta">🩺 Consulta</option>
+                  <option value="Renovação de Receita">📄 Renovação de Receita</option>
+                  <option value="Hiperdia">❤️ Hiperdia</option>
+                  <option value="Puericultura">👶 Puericultura</option>
+                  <option value="Saúde da Mulher">🩷 Saúde da Mulher</option>
+                  <option value="Prevenção">🛡️ Prevenção</option>
+                  <option value="Pré-Natal">🤰 Pré-Natal</option>
+                  <option value="Intercorrência (Acolhimento)">🚨 Intercorrência (Acolhimento)</option>
+                  <option value="Renovação de Receita Controlada">💊 Renovação de Receita Controlada</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0;display:none;" id="profissional-grupo">
+                <label>Profissional Responsável</label>
+                <select id="input-profissional" style="padding:10px 12px;font-size:13px;">
+                  <option value="">— Selecione o profissional —</option>
+                </select>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- PASSO 4: MOTIVO DO ATENDIMENTO / OBSERVAÇÃO DA 1ª ESCUTA -->
-        <div class="recepcao-section-box">
-          <div class="recepcao-step-title">
-            <span class="recepcao-step-num">4</span>
-            <span>Motivo do Atendimento / Queixa Inicial (1ª Escuta)</span>
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <textarea id="input-motivo-primeira-escuta" rows="2" placeholder="Descreva o motivo da vinda ou queixa inicial relatada na 1ª Escuta (ex: dor de cabeça há 2 dias, renovação de receita, mostrar exames)..." style="width:100%;padding:10px 12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--gray-700);resize:vertical;"></textarea>
-            <div class="motivo-quick-chips">
-              <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Renovação de receita')">+ Renovação de receita</button>
-              <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Queixa aguda / Dor')">+ Queixa aguda / Dor</button>
-              <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Avaliação de exames')">+ Avaliação de exames</button>
-              <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Acompanhamento Hiperdia')">+ Hiperdia</button>
-              <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Pré-natal / Puericultura')">+ Pré-natal / Puericultura</button>
-              <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Demanda odontológica')">+ Saúde Bucal</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- CONDIÇÕES ESPECIAIS -->
-        <div style="margin-bottom:14px;">
-          <label style="margin-bottom:6px;display:block;font-size:12px;font-weight:800;color:var(--gray-600);">Condições Especiais de Saúde (Opcional)</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="condicoes-especiais-recepcao">
-            <label style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:rgba(33,150,243,0.08);border:2px solid rgba(33,150,243,0.2);border-radius:10px;font-weight:700;font-size:12.5px;cursor:pointer;transition:all 0.2s;color:var(--gray-700);">
-              <input type="checkbox" value="hipertenso" style="transform:scale(1.15);cursor:pointer;"> 💙 Hipertenso
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:rgba(244,130,30,0.08);border:2px solid rgba(244,130,30,0.2);border-radius:10px;font-weight:700;font-size:12.5px;cursor:pointer;transition:all 0.2s;color:var(--gray-700);">
-              <input type="checkbox" value="diabetico" style="transform:scale(1.15);cursor:pointer;"> 🧡 Diabético
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:rgba(142,36,170,0.08);border:2px solid rgba(142,36,170,0.2);border-radius:10px;font-weight:700;font-size:12.5px;cursor:pointer;transition:all 0.2s;color:var(--gray-700);">
-              <input type="checkbox" value="gestante" style="transform:scale(1.15);cursor:pointer;"> 💜 Gestante
-            </label>
-          </div>
-        </div>
-
-        <button class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;border-radius:12px;box-shadow:0 6px 18px rgba(26,79,196,0.3);" onclick="addPatient(this)">➕ Cadastrar e Encaminhar para a Fila</button>
-
-        <!-- Banner Pós-Cadastro: Busca ativa (alumIA) -->
-        <div id="post-cadastro-alumia" style="display:none;margin-top:12px;padding:12px 14px;border-radius:12px;background:linear-gradient(135deg,rgba(0,137,123,0.12),rgba(0,105,92,0.06));border:2px solid rgba(0,137,123,0.4);">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <!-- COLUNA 3: MOTIVO DA 1ª ESCUTA, CONDIÇÕES E BOTÃO CADASTRAR -->
+          <div class="recepcao-section-box" style="justify-content:space-between;">
             <div>
-              <div style="font-size:11px;font-weight:800;color:#00695c;text-transform:uppercase;">Paciente recém-cadastrado</div>
-              <div id="post-cadastro-alumia-nome" style="font-size:14px;font-weight:900;color:var(--blue-dark);">—</div>
-            </div>
-            <button type="button" class="btn-radar-alumia" id="post-cadastro-alumia-btn" style="padding:8px 14px;font-size:12px;">
-              📡 Busca ativa (alumIA)
-            </button>
-          </div>
-        </div>
+              <div class="recepcao-step-title">
+                <span class="recepcao-step-num">3</span>
+                <span>Motivo / Queixa Inicial (1ª Escuta)</span>
+              </div>
+              <div class="form-group" style="margin-bottom:10px;">
+                <textarea id="input-motivo-primeira-escuta" rows="3" placeholder="Descreva o motivo da vinda ou queixa inicial na 1ª Escuta..." style="width:100%;padding:10px 12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--gray-700);resize:vertical;"></textarea>
+                <div class="motivo-quick-chips">
+                  <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Renovação de receita')">+ Renovação</button>
+                  <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Queixa aguda / Dor')">+ Queixa aguda</button>
+                  <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Avaliação de exames')">+ Exames</button>
+                  <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Acompanhamento Hiperdia')">+ Hiperdia</button>
+                  <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Pré-natal / Puericultura')">+ Pré-natal</button>
+                  <button type="button" class="motivo-chip" onclick="adicionarTagMotivoRecepcao('Demanda odontológica')">+ Odonto</button>
+                </div>
+              </div>
 
-        <div style="margin-top:20px;padding-top:18px;border-top:1.5px solid var(--gray-200);">
-          <div class="card-title" style="margin-bottom:12px;font-size:14px;display:flex;justify-content:space-between;align-items:center;">
-            <span>📊 Últimos Pacientes Cadastrados</span>
-            <span style="font-size:11px;color:var(--gray-500);font-weight:700;">Visão Rápida</span>
-          </div>
-          <div id="recent-list" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto;">
-            <div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>
+              <div style="margin-bottom:12px;">
+                <label style="margin-bottom:6px;display:block;font-size:11px;font-weight:800;color:var(--gray-600);">Condições Especiais (Opcional)</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;" id="condicoes-especiais-recepcao">
+                  <label style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(33,150,243,0.08);border:1.5px solid rgba(33,150,243,0.25);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+                    <input type="checkbox" value="hipertenso" style="cursor:pointer;"> 💙 HAS
+                  </label>
+                  <label style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(244,130,30,0.08);border:1.5px solid rgba(244,130,30,0.25);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+                    <input type="checkbox" value="diabetico" style="cursor:pointer;"> 🧡 DM
+                  </label>
+                  <label style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(142,36,170,0.08);border:1.5px solid rgba(142,36,170,0.25);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
+                    <input type="checkbox" value="gestante" style="cursor:pointer;"> 💜 Gestante
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;border-radius:10px;box-shadow:0 4px 14px rgba(26,79,196,0.3);" onclick="addPatient(this)">➕ Cadastrar e Enviar para a Fila</button>
+
+              <!-- Banner Pós-Cadastro: Busca ativa (alumIA) -->
+              <div id="post-cadastro-alumia" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:linear-gradient(135deg,rgba(0,137,123,0.12),rgba(0,105,92,0.06));border:1.5px solid rgba(0,137,123,0.4);">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <div>
+                    <div style="font-size:10px;font-weight:800;color:#00695c;text-transform:uppercase;">Recém-cadastrado</div>
+                    <div id="post-cadastro-alumia-nome" style="font-size:13px;font-weight:900;color:var(--blue-dark);">—</div>
+                  </div>
+                  <button type="button" class="btn-radar-alumia" id="post-cadastro-alumia-btn" style="padding:6px 12px;font-size:11.5px;">
+                    📡 Busca ativa (alumIA)
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:16px;" id="overview-container"></div>
+      <!-- TABELA DE ÚLTIMOS PACIENTES CADASTRADOS NA RECEPÇÃO -->
+      <div class="card-white" style="padding:18px 24px;">
+        <div class="card-title" style="margin-bottom:12px;font-size:15px;display:flex;justify-content:space-between;align-items:center;">
+          <span>📊 Últimos Pacientes Cadastrados na Recepção</span>
+          <span style="font-size:11px;color:var(--gray-600);font-weight:700;">Lista Recente</span>
+        </div>
+        <div id="recent-list">
+          <div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>
+        </div>
+      </div>
+
+      <!-- TABELAS DE FILAS POR SETOR NA RECEPÇÃO -->
+      <div style="display:flex;flex-direction:column;gap:18px;" id="overview-container"></div>
     </div>
   </div>
 
@@ -3146,6 +3333,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js"></script>
 <script src="dispositivos.js"></script>
-<script src="app.js?v=3.1"></script>
+<script src="app.js?v=3.2"></script>
 </body>
 </html>

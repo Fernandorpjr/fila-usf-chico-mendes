@@ -651,23 +651,55 @@ async function initDB() {
     // ====== FIM PARTE B ======
 
     // ====== FLUXO 1ª ESCUTA (RECEPÇÃO) & 2ª ESCUTA (INTERCORRÊNCIA DO ACOLHIMENTO) ======
-    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS equipe_paciente VARCHAR(80)`);
-    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
-    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
-    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN NOT NULL DEFAULT false`);
-    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS setor_destino VARCHAR(80)`);
-    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS profissional_destino TEXT`);
-
-    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS equipe_paciente VARCHAR(80)`);
-    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
-    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
-    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN DEFAULT false`);
+    await garantirColunasEscuta(pool);
     // ====== FIM FLUXO 1ª & 2ª ESCUTA ======
 
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao inicializar banco de dados:', error.message);
   }
+}
+
+let _colunasEscutaGarantidas = false;
+async function garantirColunasEscuta(dbClientOrPool) {
+  if (_colunasEscutaGarantidas) return;
+  const runner = dbClientOrPool || pool;
+  try {
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS equipe_paciente VARCHAR(80)`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN NOT NULL DEFAULT false`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS setor_destino VARCHAR(80)`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS profissional_destino TEXT`);
+
+    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS equipe_paciente VARCHAR(80)`);
+    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
+    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
+    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN DEFAULT false`);
+    _colunasEscutaGarantidas = true;
+  } catch (e) {
+    console.warn('[garantirColunasEscuta] Aviso ao verificar colunas:', e.message);
+  }
+}
+
+function inferirProfissionalPorEquipe(setorReal, equipePaciente, profExplicito) {
+  if (profExplicito && String(profExplicito).trim() && String(profExplicito).trim() !== '__TODOS__') {
+    return String(profExplicito).trim();
+  }
+  if (profExplicito === '__TODOS__') return null;
+  if (setorReal === 'Odontologia') return 'Dra. Juliana Cavalcante';
+  const eq = String(equipePaciente || '').toLowerCase();
+  if (setorReal === 'Médico') {
+    if (eq.includes('chico mendes') || eq.includes('eq 1') || eq.includes('equipe 1') || eq.includes('equipe i')) return 'Dr. Israel Christian';
+    if (eq.includes('ximbor') || eq.includes('eq 2') || eq.includes('equipe 2') || eq.includes('equipe ii')) return 'Dr. Joene Halan';
+    if (eq.includes('aurora') || eq.includes('eq 3') || eq.includes('equipe 3') || eq.includes('equipe iii')) return 'Dra. Mirela Mota';
+  }
+  if (setorReal === 'Enfermagem') {
+    if (eq.includes('chico mendes') || eq.includes('eq 1') || eq.includes('equipe 1') || eq.includes('equipe i')) return 'Mariana Vaz';
+    if (eq.includes('ximbor') || eq.includes('eq 2') || eq.includes('equipe 2') || eq.includes('equipe ii')) return 'Jorge Marcio';
+    if (eq.includes('aurora') || eq.includes('eq 3') || eq.includes('equipe 3') || eq.includes('equipe iii')) return 'Lucelia de Abreu';
+  }
+  return null;
 }
 
 initDB();
@@ -952,6 +984,7 @@ app.get('/api/relatorio-diario', async (req, res) => {
 // Add patient
 app.post('/api/patients', async (req, res) => {
   try {
+    await garantirColunasEscuta(pool);
     const {
       nome,
       setor,
@@ -1079,7 +1112,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
     const baseParams = [setor];
     if (filtro_profissional) {
       baseParams.push(filtro_profissional);
-      baseWhere += ` AND profissional = $${baseParams.length}`;
+      baseWhere += ` AND (profissional = $${baseParams.length} OR profissional IS NULL OR profissional = '')`;
     }
     if (filtro_etapa && setor === 'Acolhimento') {
       baseParams.push(filtro_etapa);
@@ -1354,8 +1387,16 @@ app.put('/api/patients/:id/rename', async (req, res) => {
 app.put('/api/patients/:id/transfer', async (req, res) => {
   const client = await pool.connect();
   try {
+    await garantirColunasEscuta(client);
     const { id } = req.params;
-    const { novoSetor, novoTipoAtendimento, novoProfissional, senha } = req.body;
+    const {
+      novoSetor,
+      novoTipoAtendimento,
+      novoProfissional,
+      observacao_segunda_escuta,
+      is_intercorrencia_acolhimento,
+      senha
+    } = req.body;
 
     if (!isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
@@ -1367,7 +1408,7 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     await client.query('BEGIN');
 
     // Busca o paciente atual antes de mover (para log de histórico)
-    const pResult = await client.query('SELECT * FROM patients WHERE id = $1', [id]);
+    const pResult = await client.query('SELECT * FROM patients WHERE id = $1 FOR UPDATE', [id]);
     if (pResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Paciente não encontrado' });
@@ -1381,8 +1422,20 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     const novoHorario = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
     });
-    const tipo = novoTipoAtendimento || null;
-    const prof = novoProfissional || null;
+    const veioDoAcolhimento = patientAntes.setor === 'Acolhimento' || Boolean(is_intercorrencia_acolhimento);
+    const isIntercFinal = veioDoAcolhimento ? true : Boolean(patientAntes.is_intercorrencia_acolhimento);
+    const tipo = novoTipoAtendimento || (veioDoAcolhimento ? 'Intercorrência (Acolhimento)' : null);
+    const prof = inferirProfissionalPorEquipe(novoSetor, patientAntes.equipe_paciente, novoProfissional);
+    const motivo1Preservado = (patientAntes.motivo_primeira_escuta && String(patientAntes.motivo_primeira_escuta).trim())
+      || (patientAntes.queixa && String(patientAntes.queixa).trim())
+      || null;
+    const obs2Preservada = (observacao_segunda_escuta && String(observacao_segunda_escuta).trim())
+      ? String(observacao_segunda_escuta).trim()
+      : (patientAntes.observacao_segunda_escuta || null);
+    const novaEtapaFluxo = veioDoAcolhimento ? 'encaminhado_intercorrencia' : (patientAntes.etapa_fluxo || 'recepcao');
+    const origemTransf = patientAntes.setor === 'Acolhimento' && patientAntes.etapa_fluxo === 'segunda_escuta'
+      ? '2ª Escuta (Acolhimento)'
+      : patientAntes.setor;
 
     // Calcular o sort_order para inserir na 3ª posição da fila destino
     // Se a fila de destino tiver < 2 pacientes aguardando, o paciente vai ao final.
@@ -1413,12 +1466,36 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
 
     const result = await client.query(
       `UPDATE patients
-       SET setor = $2, sort_order = $6, horario = $3,
-           tipo_atendimento = $4, profissional = $5, origem_transferencia = $7,
-           status = 'aguardando', updated_at = CURRENT_TIMESTAMP
+       SET setor = $2,
+           setor_destino = $2,
+           sort_order = $6,
+           horario = $3,
+           tipo_atendimento = $4,
+           profissional = $5,
+           profissional_destino = $5,
+           origem_transferencia = $7,
+           etapa_fluxo = $8,
+           is_intercorrencia_acolhimento = $9,
+           motivo_primeira_escuta = COALESCE($10, motivo_primeira_escuta),
+           queixa = COALESCE($10, queixa),
+           observacao_segunda_escuta = COALESCE($11, observacao_segunda_escuta),
+           status = 'aguardando',
+           updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
        RETURNING *`,
-      [id, novoSetor, novoHorario, tipo, prof, novoSortOrder, patientAntes.setor]
+      [
+        id,
+        novoSetor,
+        novoHorario,
+        tipo,
+        prof,
+        novoSortOrder,
+        origemTransf,
+        novaEtapaFluxo,
+        isIntercFinal,
+        motivo1Preservado,
+        obs2Preservada
+      ]
     );
     const patient = result.rows[0];
 
@@ -1426,30 +1503,39 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     const horarioLog = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
     });
-    
-    // O 'setor' recebe a origem para que os filtros do relatório funcionem.
-    // O 'profissional' recebe a string de destino para aparecer no PDF.
-    // Adicionamos um prefixo [Transf] no nome para evitar que toque no painel da TV de forma indesejada
-    // ou se tocar, ficar claro. Mas o melhor é o painel ignorar.
-    await client.query(
-      `INSERT INTO call_history
-         (patient_id, nome, setor, medico, horario_chamada, profissional, prioridade, tipo_prioridade)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        patient.id,
-        patient.nome,
-        patientAntes.setor, // Origem
-        prof || null,       // Se houver um profissional destino específico
-        horarioLog,
-        `➡️ Encaminhado p/ ${novoSetor}`, // Aparece na coluna Profissional no PDF
-        patient.prioridade || 'geral',
-        patient.tipo_prioridade || null
-      ]
-    );
+
+    await client.query('SAVEPOINT sp_transfer_hist');
+    try {
+      await client.query(
+        `INSERT INTO call_history
+           (patient_id, nome, setor, medico, horario_chamada, profissional, prioridade, tipo_prioridade,
+            equipe_paciente, motivo_primeira_escuta, observacao_segunda_escuta, is_intercorrencia_acolhimento)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [
+          patient.id,
+          patient.nome,
+          patientAntes.setor, // Origem
+          prof || null,       // Se houver um profissional destino específico
+          horarioLog,
+          `➡️ Encaminhado p/ ${novoSetor}${prof ? ' (' + prof + ')' : ''}`, // Aparece na coluna Profissional no PDF
+          patient.prioridade || 'geral',
+          patient.tipo_prioridade || null,
+          patient.equipe_paciente || null,
+          motivo1Preservado,
+          obs2Preservada,
+          isIntercFinal
+        ]
+      );
+    } catch (histErr) {
+      await client.query('ROLLBACK TO SAVEPOINT sp_transfer_hist');
+      console.warn('[transfer] Aviso ao gravar call_history:', histErr.message);
+    }
 
     await client.query('COMMIT');
+    await anexarBuscaAtivaDetalhes([patient], pool);
     io.emit('queueUpdate');
-    res.json({ message: `Paciente transferido para ${novoSetor} (3ª posição)`, patient });
+    io.emit('acolhimentoUpdate');
+    res.json({ message: `Paciente transferido para ${novoSetor}`, patient });
   } catch (error) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: error.message });
@@ -3316,11 +3402,16 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
   }
 });
 
-// PUT /api/fila/:id/encaminhar-acolhimento — Reencaminhar paciente da 2ª Escuta como Intercorrência do Acolhimento
+// PUT/POST /api/fila/:id/encaminhar-acolhimento — Reencaminhar paciente da 2ª Escuta como Intercorrência do Acolhimento
 async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
   const client = await pool.connect();
   try {
-    const { id } = req.params;
+    await garantirColunasEscuta(client);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'ID do paciente inválido.' });
+    }
+
     const {
       setor_destino,
       profissional_destino,
@@ -3342,12 +3433,16 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
       'Médico': 'Médico',
       'Medico': 'Médico',
       'Enfermeiro': 'Enfermagem',
+      'Enfermeiro(a)': 'Enfermagem',
       'Enfermagem': 'Enfermagem',
       'Dentista': 'Odontologia',
+      'Dentista (Odontologia)': 'Odontologia',
       'Odontologia': 'Odontologia',
       'Téc. Enfermagem': 'Téc. Enfermagem',
       'Tec. Enfermagem': 'Téc. Enfermagem',
+      'Téc. Enfermagem / Procedimentos': 'Téc. Enfermagem',
       'Vacina': 'Téc. Enfermagem',
+      'Sala de Vacina': 'Téc. Enfermagem',
       'Farmácia': 'Farmácia',
       'Farmacia': 'Farmácia',
       'Regulação': 'Regulação',
@@ -3392,9 +3487,8 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
       ? String(equipe_paciente).trim().slice(0, 80)
       : (patientAntes.equipe_paciente || null);
 
-    const profDestinoFinal = profissional_destino && String(profissional_destino).trim()
-      ? String(profissional_destino).trim()
-      : null;
+    // Se o profissional não foi especificado manualmente, tenta inferir pela equipe do paciente para Médico/Enfermagem/Odontologia
+    const profDestinoFinal = inferirProfissionalPorEquipe(setorReal, equipeFinal, profissional_destino);
 
     // Caso especial: Sala de Agendamento
     if (setorReal === 'Sala de Agendamento') {
@@ -3443,7 +3537,7 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
 
     // Definir tipo de atendimento compatível com o setor de destino mantendo o destaque de Intercorrência
     let tipoAtendimentoFinal = 'Intercorrência (Acolhimento)';
-    if (setorReal === 'Téc. Enfermagem' && destinoBruto === 'Vacina') {
+    if (setorReal === 'Téc. Enfermagem' && (destinoBruto === 'Vacina' || destinoBruto === 'Sala de Vacina')) {
       tipoAtendimentoFinal = 'Vacina';
     }
 
@@ -3488,35 +3582,41 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
 
     const updatedPatient = updateRes.rows[0];
 
-    // Registrar no call_history o log de transferência da 2ª Escuta (prefixo ➡️ Encaminhado evita disparo sonoro no painel TV)
-    await client.query(
-      `INSERT INTO call_history (
-         patient_id, nome, setor, medico, horario_chamada, profissional,
-         prioridade, tipo_prioridade, tipo_atendimento, cpf, cartao_sus,
-         acs_responsavel, condicoes_especiais, queixa, risco_clinico,
-         equipe_paciente, motivo_primeira_escuta, observacao_segunda_escuta, is_intercorrencia_acolhimento
-       )
-       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, true)`,
-      [
-        updatedPatient.id,
-        updatedPatient.nome,
-        profDestinoFinal,
-        horarioAtual,
-        `➡️ Encaminhado p/ ${setorReal}${profDestinoFinal ? ' (' + profDestinoFinal + ')' : ''}`,
-        updatedPatient.prioridade || 'geral',
-        updatedPatient.tipo_prioridade || null,
-        tipoAtendimentoFinal,
-        updatedPatient.cpf || null,
-        updatedPatient.cartao_sus || null,
-        updatedPatient.acs_responsavel || null,
-        updatedPatient.condicoes_especiais || null,
-        motivo1Preservado,
-        updatedPatient.risco_clinico || null,
-        equipeFinal,
-        motivo1Preservado,
-        obs2Final
-      ]
-    );
+    // Registrar no call_history o log de transferência da 2ª Escuta (SAVEPOINT evita rollback se houver divergência em call_history)
+    await client.query('SAVEPOINT sp_hist_interc');
+    try {
+      await client.query(
+        `INSERT INTO call_history (
+           patient_id, nome, setor, medico, horario_chamada, profissional,
+           prioridade, tipo_prioridade, tipo_atendimento, cpf, cartao_sus,
+           acs_responsavel, condicoes_especiais, queixa, risco_clinico,
+           equipe_paciente, motivo_primeira_escuta, observacao_segunda_escuta, is_intercorrencia_acolhimento
+         )
+         VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, true)`,
+        [
+          updatedPatient.id,
+          updatedPatient.nome,
+          profDestinoFinal,
+          horarioAtual,
+          `➡️ Encaminhado p/ ${setorReal}${profDestinoFinal ? ' (' + profDestinoFinal + ')' : ''}`,
+          updatedPatient.prioridade || 'geral',
+          updatedPatient.tipo_prioridade || null,
+          tipoAtendimentoFinal,
+          updatedPatient.cpf || null,
+          updatedPatient.cartao_sus || null,
+          updatedPatient.acs_responsavel || null,
+          updatedPatient.condicoes_especiais || null,
+          motivo1Preservado,
+          updatedPatient.risco_clinico || null,
+          equipeFinal,
+          motivo1Preservado,
+          obs2Final
+        ]
+      );
+    } catch (histErr) {
+      await client.query('ROLLBACK TO SAVEPOINT sp_hist_interc');
+      console.warn('[encaminhar-acolhimento] Aviso ao gravar call_history:', histErr.message);
+    }
 
     await client.query('COMMIT');
     await anexarBuscaAtivaDetalhes([updatedPatient], pool);
@@ -3529,6 +3629,7 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    console.error('[encaminhar-acolhimento] Erro:', error);
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
@@ -3536,7 +3637,9 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
 }
 
 app.put('/api/fila/:id/encaminhar-acolhimento', handleEncaminharIntercorrenciaAcolhimento);
+app.post('/api/fila/:id/encaminhar-acolhimento', handleEncaminharIntercorrenciaAcolhimento);
 app.put('/api/acolhimento/:id/encaminhar-intercorrencia', handleEncaminharIntercorrenciaAcolhimento);
+app.post('/api/acolhimento/:id/encaminhar-intercorrencia', handleEncaminharIntercorrenciaAcolhimento);
 
 // POST chamar – Dispara chamado no painel sem mudar status
 app.post('/api/acolhimento/:id/chamar', async (req, res) => {
