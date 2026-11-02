@@ -1106,6 +1106,46 @@ function togglePrioridadeDetalhes() {
   document.getElementById('prioridade-detalhes').style.display = document.getElementById('input-prioridade').value === 'prioritario' ? 'flex' : 'none';
 }
 
+function definirModoEscutaRecepcao(mostrarEscuta) {
+  const grid = document.getElementById('recepcao-top-grid');
+  const btnDireto = document.getElementById('btn-modo-direto-recepcao');
+  const btnEscuta = document.getElementById('btn-modo-escuta-recepcao');
+  const tituloTexto = document.getElementById('recepcao-card-titulo-texto');
+  const step1Label = document.getElementById('recepcao-step1-label');
+
+  if (mostrarEscuta) {
+    if (grid) grid.classList.remove('modo-direto');
+    if (btnDireto) btnDireto.classList.remove('active-direto');
+    if (btnEscuta) btnEscuta.classList.add('active-escuta');
+    if (tituloTexto) tituloTexto.textContent = 'Registrar Paciente na Recepção (1ª Escuta / Acolhimento)';
+    if (step1Label) step1Label.textContent = 'Paciente, Prioridade & Equipe';
+  } else {
+    if (grid) grid.classList.add('modo-direto');
+    if (btnDireto) btnDireto.classList.add('active-direto');
+    if (btnEscuta) btnEscuta.classList.remove('active-escuta');
+    if (tituloTexto) tituloTexto.textContent = 'Registrar Paciente na Recepção (Cadastro Rápido)';
+    if (step1Label) step1Label.textContent = 'Paciente & Prioridade';
+
+    // Limpar campos exclusivos da 1ª escuta quando entrar no modo direto para não enviar dados residuais
+    const equipeInput = document.getElementById('input-equipe-paciente');
+    if (equipeInput) equipeInput.value = '';
+    document.querySelectorAll('#recepcao-equipe-grid .equipe-pill-btn').forEach(b => b.classList.remove('active'));
+    const motivoInput = document.getElementById('input-motivo-primeira-escuta');
+    if (motivoInput) motivoInput.value = '';
+    document.querySelectorAll('#condicoes-especiais-recepcao input[type="checkbox"]').forEach(c => c.checked = false);
+  }
+}
+
+function verificarSubmodoOdontoRecepcao() {
+  const setor = document.getElementById('input-setor')?.value || '';
+  const tipo = document.getElementById('input-tipo-atendimento')?.value || '';
+  if (setor === 'Odontologia' && tipo === 'Acolhimento') {
+    definirModoEscutaRecepcao(true);
+  } else if (!['Acolhimento', 'Acolhimento ACS', 'Acolhimento 2ª Escuta'].includes(setor)) {
+    definirModoEscutaRecepcao(false);
+  }
+}
+
 function selecionarEquipeRecepcao(equipe) {
   const hiddenInput = document.getElementById('input-equipe-paciente');
   if (!hiddenInput) return;
@@ -1146,6 +1186,12 @@ function toggleTipoAtendimento() {
     const btnSetor = btn.dataset.setor || btn.dataset.setorQuick || '';
     btn.classList.toggle('active', btnSetor === setor && setor !== '');
   });
+
+  // Alterna automaticamente os campos da 1ª Escuta:
+  // Somente exibe Equipe / Motivo da 1ª Escuta / Condições quando for Acolhimento.
+  // Para Médico, Regulação, Farmácia, Enfermagem, Odontologia ou Téc. Enfermagem, oculta tudo para cadastro ágil!
+  const isSetorAcolhimento = ['Acolhimento', 'Acolhimento ACS', 'Acolhimento 2ª Escuta'].includes(setor);
+  definirModoEscutaRecepcao(isSetorAcolhimento);
 
   const selectTipo = document.getElementById('input-tipo-atendimento');
   if (selectTipo) {
