@@ -979,7 +979,10 @@ async function confirmTransfer() {
       });
       if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
       if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao transferir!', true); return; }
-      showToast(`↗️ Paciente transferido para ${novoSetor}!`);
+      const dTransf = await r.json().catch(() => ({}));
+      showToast(dTransf && dTransf.posicao_aplicada
+        ? `↗️ Paciente transferido para ${novoSetor} na ${dTransf.posicao_aplicada}ª posição!`
+        : `↗️ Paciente transferido para ${novoSetor}!`);
       await Promise.all([loadQueues(), loadAcolhimentoFluxo()]);
       loadHistory();
       loadAttended();
@@ -1989,7 +1992,9 @@ function renderQueueItems(containerId, setor, filterProfissional) {
   }
   const isSectorQueue = containerId.startsWith('queue-');
 
-  const rowsHtml = items.map((p, i) => {
+  let waitCounter = 0;
+  const rowsHtml = items.map((p) => {
+    const posLabel = p.status === 'chamado' ? '📢' : `#${++waitCounter}`;
     const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const prioBadge = renderPrioridadeIdadeBadge(p);
     const waitBadge = renderEsperaNormalBadge(p);
@@ -2058,11 +2063,11 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       isInterc ? 'row-intercorrencia' : ''
     ].filter(Boolean).join(' ');
 
-    return `<tr class="${rowCls}" data-id="${p.id}" data-draggable="${isAdmin}">
+    return `<tr class="${rowCls}" data-id="${p.id}" data-draggable="${isAdmin && p.status === 'aguardando'}">
       <td class="fila-pos-cell">
         <div style="display:flex;align-items:center;gap:4px;">
-          ${dragHandle}
-          <span class="fila-pos-badge" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">#${i+1}</span>
+          ${p.status === 'aguardando' ? dragHandle : ''}
+          <span class="fila-pos-badge" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${posLabel}</span>
           <span style="font-size:12px;font-weight:800;color:#475569;">🕐 ${p.horario || '—'}</span>
         </div>
         ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
@@ -2103,11 +2108,11 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     <table class="fila-clean-table">
       <thead>
         <tr>
-          <th style="width:105px;"># / Horário</th>
-          <th style="width:26%;">Paciente &amp; Equipe</th>
-          <th style="width:32%;">Histórico / Motivo (1ª e 2ª Escuta)</th>
-          <th style="width:18%;">Setor / Status Atual</th>
-          <th style="text-align:right;width:200px;">Ações</th>
+          <th class="col-pos"># / Horário</th>
+          <th class="col-paciente">Paciente &amp; Equipe</th>
+          <th class="col-historico">Histórico / Motivo (1ª e 2ª Escuta)</th>
+          <th class="col-status">Setor / Status Atual</th>
+          <th class="col-acoes">Ações</th>
         </tr>
       </thead>
       <tbody class="sortable-tbody">
@@ -2141,7 +2146,9 @@ function updateMiniQueues() {
     const items = (queues[s] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
     if (!items.length) { el.innerHTML = '<div class="empty-state" style="padding:18px;"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
 
-    const rowsHtml = items.map((p, i) => {
+    let waitCounter = 0;
+    const rowsHtml = items.map((p) => {
+      const posLabel = p.status === 'chamado' ? '📢' : `#${++waitCounter}`;
       const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const prioBadge = renderPrioridadeIdadeBadge(p);
       const waitBadge = renderEsperaNormalBadge(p);
@@ -2150,41 +2157,47 @@ function updateMiniQueues() {
       const isInterc = Boolean(p.is_intercorrencia_acolhimento) || p.tipo_atendimento === 'Intercorrência (Acolhimento)';
       const tipoLabel = (isInterc && p.tipo_atendimento === 'Intercorrência (Acolhimento)') ? '' : getTipoAtendimentoBadge(p.tipo_atendimento);
       const profLabel = p.profissional
-        ? `<div style="font-size:12px;font-weight:800;color:var(--blue-dark);">👨‍⚕️ ${escapeText(p.profissional)}</div>`
-        : `<div style="font-size:11px;font-weight:700;color:var(--gray-600);">${cfg.icon || '📋'} ${escapeText(s)}</div>`;
+        ? `<div style="font-size:12px;font-weight:800;color:var(--blue-dark);margin-bottom:2px;">👨‍⚕️ ${escapeText(p.profissional)}</div>`
+        : `<div style="font-size:11px;font-weight:700;color:var(--gray-600);margin-bottom:2px;">${cfg.icon || '📋'} ${escapeText(s)}</div>`;
       const condBadges = renderCondicoesBadges(p.condicoes_especiais);
-      const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
-      const radarBtn = renderBotaoBuscaAtivaCard(p, 'Recepção');
+      const qrBtn = `<button class="btn-qr btn-icon-compact" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
+      const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, 'Recepção') : '';
       const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'Recepção');
 
       const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
       const obs2 = (p.observacao_segunda_escuta || '').trim();
       const tagInterc = intercorrenciaBadge ? `<div style="margin-bottom:4px;">${intercorrenciaBadge}</div>` : '';
       const txtMotivo1 = motivo1
-        ? `<div class="motivo-1"><span style="color:#0369a1;font-weight:800;">💬 1ª Escuta:</span> ${escapeText(motivo1)}</div>`
-        : `<div style="font-size:11.5px;color:#94a3b8;font-style:italic;">Sem queixa registrada</div>`;
+        ? `<div class="motivo-1"><span class="motivo-label">💬 1ª Escuta:</span> ${escapeText(motivo1)}</div>`
+        : `<div class="motivo-vazio">Sem queixa registrada</div>`;
       const txtObs2 = obs2
-        ? `<div class="motivo-2">🩺 2ª Escuta: ${escapeText(obs2)}</div>`
+        ? `<div class="motivo-2"><span class="motivo-label-2">🩺 2ª Escuta:</span> ${escapeText(obs2)}</div>`
         : '';
       const historicoColHtml = !document.body.classList.contains('modo-tv')
         ? `<div class="fila-motivo-box">${tagInterc}${txtMotivo1}${txtObs2}${alumiaBloco}</div>`
         : '';
 
       const removeBtn = isAdmin ? `
-        <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Marcar como Desistência">🚶</button>
-        <button class="btn-danger" style="background:rgba(0,0,0,0.08);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Excluir Permanentemente">🔥</button>
+        <button class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Marcar como Desistência">🚶</button>
+        <button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Excluir Permanentemente">🔥</button>
       ` : '';
 
+      let presencaHtml = '';
       let presencaBtn = '';
-      if (['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(s) && p.status === 'aguardando') {
+      if (['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(s)) {
         if (p.presenca_confirmada) {
-          presencaBtn = '<span class="presenca-badge presenca-confirmada">🟢 Presente</span>';
-        } else {
+          presencaHtml = '<span class="presenca-badge presenca-confirmada" title="Presença confirmada na recepção">🟢 PRESENTE</span>';
+        } else if (p.status === 'aguardando') {
           presencaBtn = `<button class="btn-confirmar-presenca" onclick="event.stopPropagation();confirmarPresenca(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Confirmar presença na recepção">✅ Presença</button>`;
         }
       }
 
-      const transferBtn = `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button><button class="btn-reorder-pos" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${s}')" title="Ir para posição específica">🔢 Pos.</button>`;
+      const transferBtn = `
+        <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','up')">↑</button>
+        <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','down')">↓</button>
+        <button class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${s}')" title="Ir para posição específica">🔢</button>
+        <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
+      `;
 
       const originBadge = p.origem_transferencia
         ? `<div style="font-size:10.5px;color:#475569;margin-top:3px;font-weight:700;">🔙 de: ${escapeText(p.origem_transferencia)}</div>`
@@ -2200,7 +2213,7 @@ function updateMiniQueues() {
       return `<tr class="${rowCls}">
         <td class="fila-pos-cell">
           <div style="display:flex;align-items:center;gap:4px;">
-            <span class="fila-pos-badge" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">#${i+1}</span>
+            <span class="fila-pos-badge" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">${posLabel}</span>
             <span style="font-size:12px;font-weight:800;color:#475569;">🕐 ${p.horario || '—'}</span>
           </div>
           ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
@@ -2220,8 +2233,9 @@ function updateMiniQueues() {
         </td>
         <td>
           ${profLabel}
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;">
             ${tipoLabel}
+            ${presencaHtml}
             ${statusBadge}
           </div>
           ${originBadge}
@@ -2242,11 +2256,11 @@ function updateMiniQueues() {
       <table class="fila-clean-table">
         <thead>
           <tr>
-            <th style="width:105px;"># / Horário</th>
-            <th style="width:26%;">Paciente &amp; Equipe</th>
-            <th style="width:32%;">Histórico / Motivo (1ª e 2ª Escuta)</th>
-            <th style="width:18%;">Setor / Status</th>
-            <th style="text-align:right;width:200px;">Ações</th>
+            <th class="col-pos"># / Horário</th>
+            <th class="col-paciente">Paciente &amp; Equipe</th>
+            <th class="col-historico">Histórico / Motivo (1ª e 2ª Escuta)</th>
+            <th class="col-status">Setor / Status</th>
+            <th class="col-acoes">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -4273,7 +4287,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     const obs2Texto = (p.observacao_segunda_escuta || '').trim();
     const obs2El = obs2Texto ? `<div class="motivo-2">🩺 <strong>2ª Escuta:</strong> "${escapeText(obs2Texto)}"</div>` : '';
     const nomeSafe = p.nome.replace(/'/g, "\\'");
-    const radarBtn = renderBotaoBuscaAtivaCard(p, 'Acolhimento');
+    const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, 'Acolhimento') : '';
     const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'Acolhimento');
 
     let actions = '';
@@ -4350,11 +4364,11 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     <table class="fila-clean-table">
       <thead>
         <tr>
-          <th style="width:90px;"># / Horário</th>
-          <th style="width:230px;">Paciente & Equipe</th>
-          <th>Histórico / Motivo (1ª e 2ª Escuta)</th>
-          <th style="width:170px;">Etapa / Responsável</th>
-          <th style="text-align:right;width:290px;">Ações</th>
+          <th class="col-pos"># / Horário</th>
+          <th class="col-paciente">Paciente &amp; Equipe</th>
+          <th class="col-historico">Histórico / Motivo (1ª e 2ª Escuta)</th>
+          <th class="col-status">Etapa / Responsável</th>
+          <th class="col-acoes">Ações</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -5134,11 +5148,11 @@ function renderAcsEscutaScreen() {
           <table class="fila-clean-table">
             <thead>
               <tr>
-                <th style="width:90px;"># / Horário</th>
-                <th style="width:230px;">Paciente & Equipe</th>
-                <th>Motivo da 1ª Escuta</th>
-                <th style="width:150px;">Status</th>
-                <th style="text-align:right;width:300px;">Ações</th>
+                <th class="col-pos"># / Horário</th>
+                <th class="col-paciente">Paciente &amp; Equipe</th>
+                <th class="col-historico">Motivo da 1ª Escuta</th>
+                <th class="col-status">Status</th>
+                <th class="col-acoes">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -5151,7 +5165,7 @@ function renderAcsEscutaScreen() {
                   ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴' : p.risco_clinico === 'amarelo' ? '🟡' : '🟦'}</span>` : '';
                 const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
                 const condBadges = renderCondicoesBadges(p.condicoes_especiais);
-                const radarBtn = renderBotaoBuscaAtivaCard(p, 'ACS - 1ª Escuta');
+                const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, 'ACS - 1ª Escuta') : '';
                 const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'ACS - 1ª Escuta');
                 const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
                 const adminBtns = isAdmin ? `
@@ -5349,7 +5363,7 @@ function renderSegundaEscutaScreen() {
       const condBadges = renderCondicoesBadges(p.condicoes_especiais);
       const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
       const acsLabel = p.acs_responsavel ? `<div style="font-size:11.5px;color:#475569;font-weight:700;">👤 ACS: ${escapeText(p.acs_responsavel)}</div>` : '';
-      const radarBtn = renderBotaoBuscaAtivaCard(p, `2ª Escuta - ${prof}`);
+      const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, `2ª Escuta - ${prof}`) : '';
       const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, `2ª Escuta - ${prof}`);
       const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
       const obs2 = (p.observacao_segunda_escuta || '').trim();
@@ -5403,11 +5417,11 @@ function renderSegundaEscutaScreen() {
           <table class="fila-clean-table">
             <thead>
               <tr>
-                <th style="width:90px;"># / Horário</th>
-                <th style="width:230px;">Paciente & Equipe</th>
-                <th>Histórico / Motivo (1ª e 2ª Escuta)</th>
-                <th style="width:170px;">Status / ACS</th>
-                <th style="text-align:right;width:340px;">Ações</th>
+                <th class="col-pos"># / Horário</th>
+                <th class="col-paciente">Paciente &amp; Equipe</th>
+                <th class="col-historico">Histórico / Motivo (1ª e 2ª Escuta)</th>
+                <th class="col-status">Status / ACS</th>
+                <th class="col-acoes">Ações</th>
               </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>

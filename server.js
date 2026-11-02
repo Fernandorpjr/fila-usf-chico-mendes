@@ -726,6 +726,29 @@ app.get('/api/config-prioridade', (req, res) => {
 });
 
 // Get all queues (sorted: priority level first, then arrival order)
+// ====== ORDEM PADRÃO DA FILA (única fonte de verdade para tela, QR Code e reordenação) ======
+// - sort_order (posição manual ou exceção de 3ª posição) vem sempre primeiro;
+// - Intercorrência vinda da 2ª Escuta entra pela ordem de chegada do encaminhamento (created_at = momento
+//   da transferência), ou seja, no FINAL da fila naquele instante. Quem chegar depois fica atrás dela,
+//   mantendo a fila dinâmica. Para isso o nível de prioridade dela é tratado como normal (3) até que o
+//   profissional a reposicione manualmente.
+const SQL_NIVEL_EFETIVO = `CASE WHEN COALESCE(is_intercorrencia_acolhimento, false) = true AND sort_order IS NULL THEN 3 ELSE COALESCE(nivel_prioridade, 3) END`;
+const SQL_PRIO_EFETIVA = `CASE WHEN COALESCE(is_intercorrencia_acolhimento, false) = true AND sort_order IS NULL THEN 1 WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END`;
+const SQL_ORDEM_FILA = `
+         CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
+         COALESCE(sort_order, 2147483647) ASC,
+         ${SQL_NIVEL_EFETIVO} ASC,
+         ${SQL_PRIO_EFETIVA} ASC,
+         created_at ASC,
+         id ASC`;
+
+// Setores com a regra de exceção da 3ª posição (botão "Chamar 3 Próximos")
+function isParRegulacaoFarmacia(origem, destino) {
+  const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const o = norm(origem), d = norm(destino);
+  return (o.includes('regula') && d.includes('farm')) || (o.includes('farm') && d.includes('regula'));
+}
+
 app.get('/api/queues', async (req, res) => {
   try {
     const queues = {};
@@ -737,12 +760,8 @@ app.get('/api/queues', async (req, res) => {
        FROM patients
        WHERE status NOT IN ('atendido', 'desistencia')
        ORDER BY
-         CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
-         COALESCE(sort_order, 2147483647) ASC,
-         CASE WHEN COALESCE(is_intercorrencia_acolhimento, false) = true AND sort_order IS NULL THEN 1 ELSE 0 END ASC,
-         COALESCE(nivel_prioridade, 3) ASC,
-         CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
-         created_at AT TIME ZONE 'America/Sao_Paulo' ASC`
+         CASE WHEN status = 'chamado' THEN 0 ELSE 1 END ASC,
+         ${SQL_ORDEM_FILA}`
     );
 
     await anexarBuscaAtivaDetalhes(result.rows, pool);
@@ -1083,19 +1102,30 @@ app.get('/api/patients/:id/status', async (req, res) => {
       return res.json({ patient: p, position: 0 });
     }
     
+    const queueParams = [p.setor];
+    let filtroProfSql = '';
+    // Fila individualizada: se o paciente está vinculado a um profissional (ex.: Dr. Fulano),
+    // a posição considera SOMENTE a fila daquele profissional (+ fila geral do setor, exatamente
+    // como o profissional enxerga na tela dele). Não soma pacientes de outros médicos/consultórios.
+    if (p.profissional && String(p.profissional).trim()) {
+      queueParams.push(String(p.profissional).trim());
+      filtroProfSql = ` AND (profissional = $2 OR profissional IS NULL OR profissional = '')`;
+    }
+    // Acolhimento: separa 1ª e 2ª escuta
+    if (p.setor === 'Acolhimento' && p.etapa_fluxo) {
+      queueParams.push(p.etapa_fluxo);
+      filtroProfSql += ` AND etapa_fluxo = $${queueParams.length}`;
+    }
+
     const queueResult = await pool.query(
       `SELECT id FROM patients 
-       WHERE status = 'aguardando' AND setor = $1
-       ORDER BY
-         COALESCE(nivel_prioridade, 3) ASC,
-         CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
-         COALESCE(sort_order, 2147483647) ASC,
-         created_at AT TIME ZONE 'America/Sao_Paulo' ASC`,
-      [p.setor]
+       WHERE status = 'aguardando' AND setor = $1${filtroProfSql}
+       ORDER BY ${SQL_ORDEM_FILA}`,
+      queueParams
     );
     
     const position = queueResult.rows.findIndex(row => row.id == id) + 1;
-    res.json({ patient: p, position });
+    res.json({ patient: p, position, total_fila: queueResult.rows.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1124,7 +1154,8 @@ app.post('/api/call-next/:setor', async (req, res) => {
     let chosenPatient = null;
     let regraAplicada = 'd';
 
-    // Prioridade manual do especialista: se o especialista reordenou manualmente a fila (sort_order = 1), respeitar a ordem definida por ele
+    // Prioridade manual do especialista / exceção de 3ª posição: se existe paciente com posição fixada (sort_order),
+    // respeitar EXATAMENTE a ordem exibida na tela (menor sort_order primeiro).
     const manualTopRes = await client.query(
       `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
        FROM patients
@@ -1135,7 +1166,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
        FOR UPDATE SKIP LOCKED`,
       baseParams
     );
-    if (manualTopRes.rows.length > 0 && Number(manualTopRes.rows[0].sort_order) === 1) {
+    if (manualTopRes.rows.length > 0) {
       chosenPatient = manualTopRes.rows[0];
       regraAplicada = 'd';
     }
@@ -1147,8 +1178,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
         `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
          FROM patients
          WHERE ${baseWhere}
-           AND COALESCE(nivel_prioridade, 3) = 3
-           AND COALESCE(is_intercorrencia_acolhimento, false) = false
+           AND ${SQL_NIVEL_EFETIVO} = 3
            AND EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 >= $${paramsRegraA.length}
          ORDER BY created_at ASC
          LIMIT 1
@@ -1184,12 +1214,8 @@ app.post('/api/call-next/:setor', async (req, res) => {
           `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
            FROM patients
            WHERE ${baseWhere}
-             AND COALESCE(nivel_prioridade, 3) = 3
-           ORDER BY
-             CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
-             COALESCE(sort_order, 2147483647) ASC,
-             CASE WHEN COALESCE(is_intercorrencia_acolhimento, false) = true AND sort_order IS NULL THEN 1 ELSE 0 END ASC,
-             created_at ASC
+             AND ${SQL_NIVEL_EFETIVO} = 3
+           ORDER BY ${SQL_ORDEM_FILA}
            LIMIT 1
            FOR UPDATE SKIP LOCKED`,
           baseParams
@@ -1201,19 +1227,14 @@ app.post('/api/call-next/:setor', async (req, res) => {
       }
     }
 
-    // Regra (c): Há prioritário (1 ou 2) esperando no setor (que não seja intercorrência sem reordenação manual) -> chamar o de menor nível primeiro
+    // Regra (c): Há prioritário (1 ou 2) esperando no setor (intercorrência sem reposicionamento manual conta como normal) -> chamar o de menor nível primeiro
     if (!chosenPatient) {
       const regraCRes = await client.query(
         `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
          FROM patients
          WHERE ${baseWhere}
-           AND COALESCE(nivel_prioridade, 3) IN (1, 2)
-           AND (COALESCE(is_intercorrencia_acolhimento, false) = false OR sort_order IS NOT NULL)
-         ORDER BY
-           CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
-           COALESCE(sort_order, 2147483647) ASC,
-           COALESCE(nivel_prioridade, 3) ASC,
-           created_at ASC
+           AND ${SQL_NIVEL_EFETIVO} IN (1, 2)
+         ORDER BY ${SQL_ORDEM_FILA}
          LIMIT 1
          FOR UPDATE SKIP LOCKED`,
         baseParams
@@ -1224,17 +1245,13 @@ app.post('/api/call-next/:setor', async (req, res) => {
       }
     }
 
-    // Regra (d): Caso contrário -> chamar o próximo da fila (deixando intercorrências sem sort_order no final da fila)
+    // Regra (d): Caso contrário -> chamar o próximo da fila na mesma ordem exibida na tela
     if (!chosenPatient) {
       const regraDRes = await client.query(
         `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
          FROM patients
          WHERE ${baseWhere}
-         ORDER BY
-           CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
-           COALESCE(sort_order, 2147483647) ASC,
-           CASE WHEN COALESCE(is_intercorrencia_acolhimento, false) = true AND sort_order IS NULL THEN 1 ELSE 0 END ASC,
-           created_at ASC
+         ORDER BY ${SQL_ORDEM_FILA}
          LIMIT 1
          FOR UPDATE SKIP LOCKED`,
         baseParams
@@ -1260,9 +1277,9 @@ app.post('/api/call-next/:setor', async (req, res) => {
       else if (setor && setor.toLowerCase().includes('farm')) profissionalFinal = 'Leandra';
     }
 
-    // Update patient status and assign medico/consultorio/profissional
+    // Update patient status and assign medico/consultorio/profissional (limpa sort_order ao ser chamado)
     await client.query(
-      "UPDATE patients SET status = 'chamado', medico = $2, consultorio = $3, profissional = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      "UPDATE patients SET status = 'chamado', sort_order = NULL, medico = $2, consultorio = $3, profissional = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
       [next.id, medicoFinal, consultorioFinal, profissionalFinal]
     );
 
@@ -1348,24 +1365,25 @@ app.put('/api/patients/:id/reorder', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Busca todos os pacientes aguardando neste setor (e filtro de profissional, se ativo) na mesma ordem da tela
+    // Se o filtro de profissional não veio na requisição, usa o profissional do próprio paciente
+    // para não misturar filas de médicos/consultórios diferentes.
+    const targetRes = await client.query('SELECT id, profissional FROM patients WHERE id = $1', [id]);
+    const profEfetivo = (profissional && String(profissional).trim())
+      ? String(profissional).trim()
+      : (targetRes.rows[0]?.profissional ? String(targetRes.rows[0].profissional).trim() : '');
+
+    // Busca todos os pacientes aguardando neste setor (e profissional correspondente) na mesma ordem da tela
     const reorderParams = [setor];
     let profFilterSql = '';
-    if (profissional && String(profissional).trim()) {
-      reorderParams.push(String(profissional).trim());
+    if (profEfetivo) {
+      reorderParams.push(profEfetivo);
       profFilterSql = ` AND (profissional = $2 OR profissional IS NULL OR profissional = '')`;
     }
 
     const queueResult = await client.query(
       `SELECT id FROM patients
        WHERE setor = $1 AND status = 'aguardando'${profFilterSql}
-       ORDER BY
-         CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
-         COALESCE(sort_order, 2147483647) ASC,
-         CASE WHEN COALESCE(is_intercorrencia_acolhimento, false) = true AND sort_order IS NULL THEN 1 ELSE 0 END ASC,
-         COALESCE(nivel_prioridade, 3) ASC,
-         CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
-         created_at AT TIME ZONE 'America/Sao_Paulo' ASC`,
+       ORDER BY ${SQL_ORDEM_FILA}`,
       reorderParams
     );
 
@@ -1523,6 +1541,35 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     );
     const patient = result.rows[0];
 
+    // ===== EXCEÇÃO: Regulação ⇄ Farmácia entra na 3ª POSIÇÃO da fila de destino =====
+    // (relacionada ao botão "Chamar 3 Próximos"). Só fixa a posição dos 2 primeiros e do encaminhado;
+    // os demais pacientes mantêm exatamente a ordem relativa que já tinham.
+    let posicaoAplicada = null;
+    if (isParRegulacaoFarmacia(patientAntes.setor, novoSetor)) {
+      const filaDestino = await client.query(
+        `SELECT id, sort_order FROM patients
+         WHERE setor = $1 AND status = 'aguardando' AND id <> $2
+         ORDER BY ${SQL_ORDEM_FILA}`,
+        [novoSetor, patient.id]
+      );
+      const lista = filaDestino.rows.map(r => ({ id: r.id, sort_order: r.sort_order }));
+      const insertIdx = Math.min(2, lista.length);
+      lista.splice(insertIdx, 0, { id: patient.id, sort_order: null, encaminhado: true });
+      for (let i = 0; i < lista.length; i++) {
+        const item = lista[i];
+        // Os itens até o encaminhado (inclusive) recebem posição fixa; depois dele, apenas quem já tinha
+        // posição manual é renumerado (para não colidir), o restante continua dinâmico (NULL).
+        if (i <= insertIdx || item.sort_order !== null) {
+          await client.query(
+            'UPDATE patients SET sort_order = $1 WHERE id = $2',
+            [i + 1, item.id]
+          );
+        }
+      }
+      posicaoAplicada = insertIdx + 1;
+      patient.sort_order = posicaoAplicada;
+    }
+
     // Registrar no histórico de chamadas (log de transferência)
     const horarioLog = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
@@ -1559,7 +1606,13 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     await anexarBuscaAtivaDetalhes([patient], pool);
     io.emit('queueUpdate');
     io.emit('acolhimentoUpdate');
-    res.json({ message: `Paciente transferido para ${novoSetor}`, patient });
+    res.json({
+      message: posicaoAplicada
+        ? `Paciente transferido para ${novoSetor} na ${posicaoAplicada}ª posição`
+        : `Paciente transferido para ${novoSetor}`,
+      patient,
+      posicao_aplicada: posicaoAplicada
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: error.message });

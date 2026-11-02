@@ -1320,10 +1320,10 @@
     .fila-clean-table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 820px;
+      min-width: 780px;
       text-align: left;
       background: #ffffff;
-      table-layout: fixed;
+      table-layout: auto;
     }
     .fila-clean-table thead th {
       background: #f1f5f9;
@@ -1338,6 +1338,11 @@
       white-space: nowrap;
       vertical-align: middle;
     }
+    .fila-clean-table th.col-pos { width: 105px; min-width: 95px; }
+    .fila-clean-table th.col-paciente { width: 23%; min-width: 170px; }
+    .fila-clean-table th.col-historico { width: 29%; min-width: 190px; }
+    .fila-clean-table th.col-status { width: 18%; min-width: 145px; }
+    .fila-clean-table th.col-acoes { text-align: right; min-width: 220px; width: auto; }
     .fila-clean-table tbody tr {
       border-bottom: 1px solid #e2e8f0;
       transition: background-color 0.15s ease;
@@ -1446,9 +1451,8 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 4px;
-      flex-wrap: nowrap;
-      white-space: nowrap;
+      gap: 5px;
+      flex-wrap: wrap;
     }
     .btn-icon-compact {
       width: 26px !important;
@@ -3552,6 +3556,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js"></script>
 <script src="dispositivos.js"></script>
-<script src="app.js?v=3.5"></script>
+<script src="app.js?v=3.6"></script>
 </body>
 </html>

@@ -187,7 +187,7 @@
             const p = data.patient;
             
             document.getElementById('nome').textContent = p.nome;
-            document.getElementById('setor').textContent = p.setor;
+            document.getElementById('setor').textContent = p.profissional ? `${p.setor} — ${p.profissional}` : p.setor;
             
             if (p.status === 'chamado' || p.status === 'atendido') {
                 isCalled = true;
