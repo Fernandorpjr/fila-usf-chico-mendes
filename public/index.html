@@ -864,6 +864,126 @@
     /* Ocultar aba de agendamento interno no modo TV */
     body.modo-tv .ctrl-agend-tab { display:none !important; }
     /* ====== FIM CTRL AGENDAMENTOS ====== */
+
+    /* ====== PARTE A & B: PRIORIDADE POR IDADE & BUSCA ATIVA (alumIA) ====== */
+    .badge-prioridade-idade {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(135deg, #d32f2f, #b71c1c);
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 20px;
+      box-shadow: 0 2px 6px rgba(211, 47, 47, 0.35);
+    }
+    .wait-badge-normal {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(25, 118, 210, 0.1);
+      color: #1565c0;
+      border: 1px solid rgba(25, 118, 210, 0.25);
+    }
+    .wait-badge-normal.warn {
+      background: #fff3cd;
+      color: #856404;
+      border-color: #ffc107;
+    }
+    .wait-badge-normal.danger {
+      background: #f8d7da;
+      color: #842029;
+      border-color: #dc3545;
+      animation: pulseWaitAlert 1.5s infinite;
+    }
+    @keyframes pulseWaitAlert {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .btn-radar-alumia {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg, #00897b, #00695c);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 6px rgba(0, 137, 123, 0.3);
+    }
+    .btn-radar-alumia:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 137, 123, 0.45);
+    }
+    .btn-radar-alumia.inativo {
+      background: rgba(0, 137, 123, 0.12);
+      color: #00695c;
+      border: 1.5px dashed rgba(0, 137, 123, 0.45);
+      box-shadow: none;
+    }
+    .alumia-card-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(0, 137, 123, 0.1), rgba(0, 105, 92, 0.06));
+      border: 1.5px solid rgba(0, 137, 123, 0.35);
+      font-size: 12px;
+      color: var(--gray-700);
+    }
+    .alumia-aviso-fixo {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff8e1;
+      color: #795548;
+      border: 1px solid #ffe082;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .btn-oferta-feita {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(135deg, #4aab3c, #388e3c);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 3px 9px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: 'Nunito', sans-serif;
+    }
+    .badge-oferta-registrada {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #d1e7dd;
+      color: #0f5132;
+      border: 1px solid #badbcc;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    body.modo-tv .btn-radar-alumia,
+    body.modo-tv .alumia-card-box { display: none !important; }
+    /* ====== FIM PARTE A & B ====== */
 </style>
 </head>
 <body>
@@ -964,6 +1084,7 @@
   <button class="nav-tab" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
   <button class="nav-tab ctrl-agend-tab" onclick="showScreen('ctrl_agendamentos')" id="tab-ctrl_agendamentos">🗂️ Sala de Agendamento <span class="tab-badge" style="background:#e67e22;display:none;" id="badge-ctrl_agendamentos">0</span></button>
   <button class="nav-tab admin-only-tab" onclick="showScreen('dispositivos')" id="tab-dispositivos" style="display:none;">💻 Dispositivos</button>
+  <button class="nav-tab admin-only-tab" onclick="showScreen('admin_relatorios')" id="tab-admin_relatorios" style="display:none;">📡 Prioridade &amp; alumIA</button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
   <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
@@ -989,16 +1110,20 @@
           <div id="autocomplete-sugestoes" class="autocomplete-dropdown" style="display:none;"></div>
         </div>
         <div class="form-group" style="margin-bottom:16px;">
-          <label>Prioridade</label>
+          <label>Idade (opcional)</label>
+          <input type="number" id="input-idade" min="0" max="120" step="1" placeholder="Ex: 65" autocomplete="off">
+          <div style="font-size:11px;color:var(--gray-600);margin-top:4px;font-weight:600;">Se o paciente não quiser informar, deixe em branco</div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Prioridade Legal Adicional <span style="font-size:11px;color:var(--gray-500);font-weight:normal;">(Idosos 60+ e 80+ são priorizados automaticamente pela idade)</span></label>
           <select id="input-prioridade" onchange="togglePrioridadeDetalhes()">
-            <option value="geral">👤 Geral</option>
-            <option value="prioritario">⭐ Prioritário (Lei 10.048)</option>
+            <option value="geral">👤 Geral (ou prioridade por idade)</option>
+            <option value="prioritario">⭐ Outra Prioridade Legal (Gestante, TEA, PCD - Lei 10.048)</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom:16px;display:none;" id="prioridade-detalhes">
           <label>Tipo de Prioridade</label>
           <select id="input-tipo-prioridade">
-            <option value="Idoso 64+">👴 Idoso 64+</option>
             <option value="Gestante">🤰 Gestante</option>
             <option value="Autismo/TEA">🧩 Autismo/TEA</option>
             <option value="PCD">♿ PCD</option>
@@ -1054,6 +1179,18 @@
           </div>
         </div>
         <button class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;" onclick="addPatient(this)">➕ Adicionar à Fila</button>
+        <!-- Banner Pós-Cadastro: Busca ativa (alumIA) -->
+        <div id="post-cadastro-alumia" style="display:none;margin-top:12px;padding:12px 14px;border-radius:12px;background:linear-gradient(135deg,rgba(0,137,123,0.12),rgba(0,105,92,0.06));border:2px solid rgba(0,137,123,0.4);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:11px;font-weight:800;color:#00695c;text-transform:uppercase;">Paciente recém-cadastrado</div>
+              <div id="post-cadastro-alumia-nome" style="font-size:14px;font-weight:900;color:var(--blue-dark);">—</div>
+            </div>
+            <button type="button" class="btn-radar-alumia" id="post-cadastro-alumia-btn" style="padding:8px 14px;font-size:12px;">
+              📡 Busca ativa (alumIA)
+            </button>
+          </div>
+        </div>
         <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--gray-200);">
           <div class="card-title" style="margin-bottom:14px;font-size:14px;">📊 Últimos Cadastrados</div>
           <div id="recent-list" style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;">
@@ -1793,6 +1930,96 @@
     <div id="disp-print-area" class="no-screen"></div>
   </div>
 
+  <!-- ============ TELA ADMIN: RELATÓRIOS & GESTÃO (PARTE A + PARTE B alumIA) ============ -->
+  <div class="screen" id="screen-admin_relatorios">
+    <div class="sector-page-header" style="justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="sector-icon-big" style="background:rgba(0,137,123,0.25);">📡</div>
+        <div>
+          <div class="sector-page-title">PRIORIDADE POR IDADE &amp; BUSCA ATIVA (alumIA)</div>
+          <div class="sector-page-sub">Relatórios Gerenciais (Fuso America/Recife) e Gestão de Motivos da Busca Ativa</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-primary btn-sm" onclick="carregarRelatorioPrioridadeBusca()">🔄 Atualizar Relatório</button>
+      </div>
+    </div>
+
+    <!-- Filtros de Dia, Período e Turno (America/Recife) -->
+    <div class="card-white" style="margin-bottom:20px;padding:16px;">
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:12px;font-weight:800;color:var(--gray-700);">Data Inicial (Recife)</label>
+            <input type="date" id="rel-pb-data-inicio" style="padding:8px 12px;font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:12px;font-weight:800;color:var(--gray-700);">Data Final (Recife)</label>
+            <input type="date" id="rel-pb-data-fim" style="padding:8px 12px;font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:12px;font-weight:800;color:var(--gray-700);">Período / Turno</label>
+            <select id="rel-pb-periodo" style="padding:8px 12px;font-size:13px;">
+              <option value="integral">Dia Integral (06h às 18h)</option>
+              <option value="manha">Manhã (até 12h)</option>
+              <option value="tarde">Tarde (a partir das 12h)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" style="padding:10px 18px;" onclick="carregarRelatorioPrioridadeBusca()">🔍 Filtrar</button>
+        </div>
+        <div style="font-size:11px;color:var(--gray-600);font-weight:700;">
+          🕒 Fuso referência: <strong>America/Recife</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col" style="align-items:start;">
+      <!-- Coluna 1: Relatório Parte A (Prioridade por Idade) -->
+      <div class="card-white" style="padding:20px;">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>⚖️ Parte A: Atendimento Prioritário por Idade</span>
+          <span style="font-size:11px;color:var(--gray-500);font-weight:700;">Lei 10.048/2000 &amp; Estatuto da Pessoa Idosa</span>
+        </div>
+        <div id="rel-parte-a-container">
+          <div style="text-align:center;padding:20px;color:var(--gray-500);">Carregando indicadores da Parte A...</div>
+        </div>
+      </div>
+
+      <!-- Coluna 2: Relatório Parte B (Busca Ativa alumIA) -->
+      <div class="card-white" style="padding:20px;">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>📡 Parte B: Busca Ativa (alumIA)</span>
+          <span style="font-size:11px;color:#00695c;font-weight:800;">Informativo • Sem alterar fila</span>
+        </div>
+        <div id="rel-parte-b-container">
+          <div style="text-align:center;padding:20px;color:var(--gray-500);">Carregando indicadores da Parte B...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gestão de Motivos de Busca Ativa (Admin) -->
+    <div class="card-white" style="margin-top:20px;padding:20px;">
+      <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <span>⚙️ Gerenciar Motivos da Busca Ativa (alumIA)</span>
+        <span style="font-size:12px;color:var(--gray-600);font-weight:600;">Adicione, renomeie ou ative/desative motivos exibidos na Recepção</span>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;padding:14px;background:var(--gray-100);border-radius:12px;border:1px solid var(--gray-200);">
+        <div class="form-group" style="flex:2;min-width:220px;margin-bottom:0;">
+          <label style="font-size:12px;font-weight:800;color:var(--gray-700);">Descrição do Novo Motivo (máx. 120 caracteres)</label>
+          <input type="text" id="novo-motivo-descricao" maxlength="120" placeholder="Ex: Gestante: consulta odontológica pendente">
+        </div>
+        <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+          <label style="font-size:12px;font-weight:800;color:var(--gray-700);">Setor Sugerido</label>
+          <input type="text" id="novo-motivo-setor" maxlength="60" placeholder="Ex: Odontologia">
+        </div>
+        <button class="btn btn-primary btn-sm" style="padding:11px 18px;" onclick="adicionarMotivoBuscaAtivaAdmin()">➕ Adicionar Motivo</button>
+      </div>
+      <div id="admin-motivos-busca-lista">
+        <div style="text-align:center;padding:16px;color:var(--gray-500);">Carregando motivos...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- WhatsApp Preview Modal -->
   <div class="wa-modal-overlay" id="wa-modal">
     <div class="wa-modal">
@@ -2401,6 +2628,58 @@
   </div>
 </div>
 
+<!-- Modal: Busca Ativa (alumIA) — Parte B -->
+<div class="wa-modal-overlay" id="modal-busca-ativa">
+  <div class="wa-modal" style="max-width:560px;width:95%;text-align:left;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin-bottom:0;display:flex;align-items:center;gap:8px;color:#00695c;">
+        <span>📡</span> Busca ativa (alumIA)
+      </h3>
+      <button type="button" onclick="fecharModalBuscaAtiva()" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--gray-500);">✕</button>
+    </div>
+
+    <!-- Aviso Fixo Obrigatório -->
+    <div class="alumia-aviso-fixo" style="font-size:12px;padding:8px 12px;margin-bottom:12px;">
+      <span>⚠️</span>
+      <span>Informado na recepção. Confirmar no alumIA</span>
+    </div>
+
+    <div style="background:var(--gray-100);padding:10px 12px;border-radius:8px;margin-bottom:12px;border-left:4px solid #00897b;">
+      <div style="font-size:11px;color:var(--gray-600);font-weight:700;text-transform:uppercase;">Paciente na Fila do Dia</div>
+      <div id="modal-ba-paciente-nome" style="font-size:15px;font-weight:900;color:var(--blue-dark);">—</div>
+      <div id="modal-ba-paciente-setor" style="font-size:12px;color:var(--gray-600);font-weight:700;">—</div>
+    </div>
+
+    <input type="hidden" id="modal-ba-patient-id">
+    <input type="hidden" id="modal-ba-setor-operador">
+
+    <div style="font-size:12px;font-weight:800;color:var(--gray-700);margin-bottom:8px;">
+      Selecione os motivos / pendências sinalizadas (múltipla escolha):
+    </div>
+
+    <div id="modal-ba-motivos-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;padding-right:4px;margin-bottom:12px;">
+      <!-- Preenchido via JS com textContent seguro -->
+    </div>
+
+    <div id="modal-ba-outro-wrapper" style="display:none;margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:800;color:var(--gray-700);display:block;margin-bottom:4px;">
+        Especificar "Outro" motivo (máx. 120 caracteres): <span style="color:var(--red);">*</span>
+      </label>
+      <input type="text" id="modal-ba-texto-outro" maxlength="120" placeholder="Descreva a pendência assistencial..." style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--gray-300);font-size:13px;">
+    </div>
+
+    <div style="font-size:11px;color:var(--gray-500);margin-bottom:14px;line-height:1.4;">
+      🔒 <strong>Privacidade:</strong> Este sinalizador é estritamente informativo para a equipe logada. Nunca altera a posição na fila e jamais aparece na TV, voz ou WhatsApp.
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="btn btn-primary btn-sm" style="flex:2;background:#00897b;border-color:#00695c;padding:11px;" onclick="salvarBuscaAtivaModal()">💾 Salvar Marcações</button>
+      <button type="button" class="btn btn-sm" id="modal-ba-btn-remover" style="flex:1;background:rgba(229,57,53,0.12);color:var(--red);border:1px solid rgba(229,57,53,0.3);padding:11px;display:none;" onclick="removerBuscaAtivaModal()">🗑️ Remover</button>
+      <button type="button" class="btn btn-ghost btn-sm" style="flex:1;padding:11px;color:var(--gray-700);border-color:var(--gray-300);" onclick="fecharModalBuscaAtiva()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <style>
   @media print {
     body { background: #fff !important; min-height: auto !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
@@ -2424,6 +2703,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js"></script>
 <script src="dispositivos.js"></script>
-<script src="app.js?v=2.9"></script>
+<script src="app.js?v=3.0"></script>
 </body>
 </html>

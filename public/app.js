@@ -1064,6 +1064,11 @@ function showScreen(name) {
       carregarDispositivosAdmin();
     }
   }
+  if (name === 'admin_relatorios') {
+    if (typeof initAdminRelatoriosScreen === 'function') {
+      initAdminRelatoriosScreen();
+    }
+  }
   // === CTRL AGENDAMENTOS: carrega e ativa polling dedicado ao entrar na aba ===
   if (name === 'ctrl_agendamentos') {
     loadCtrlAgendamentos();
@@ -1189,6 +1194,8 @@ function toggleChatSidebar() {
 // ====== ADD PATIENT ======
 async function addPatient(btn) {
   const nome = document.getElementById('input-nome').value.trim();
+  const idadeInput = document.getElementById('input-idade');
+  const idadeRaw = idadeInput ? idadeInput.value.trim() : '';
   let setor = document.getElementById('input-setor').value;
   const prioridade = document.getElementById('input-prioridade').value;
   const tipo_prioridade = prioridade === 'prioritario' ? document.getElementById('input-tipo-prioridade').value : null;
@@ -1200,6 +1207,16 @@ async function addPatient(btn) {
   if (!nome) { showToast('Digite o nome do paciente!', true); return; }
   if (!setor) { showToast('Selecione o setor!', true); return; }
   if (['Médico','Enfermagem','Téc. Enfermagem'].includes(setor) && !profissional) { showToast('Selecione o profissional responsável!', true); return; }
+
+  let idade = null;
+  if (idadeRaw !== '') {
+    const parsedIdade = Number(idadeRaw);
+    if (!Number.isInteger(parsedIdade) || parsedIdade < 0 || parsedIdade > 120) {
+      showToast('Idade inválida! Informe entre 0 e 120 anos ou deixe em branco.', true);
+      return;
+    }
+    idade = parsedIdade;
+  }
 
   // Mapear os novos subsetores do Acolhimento para manter o fluxo integrado
   let etapa_fluxo = 'recepcao';
@@ -1219,21 +1236,35 @@ async function addPatient(btn) {
 
   if (btn) btn.disabled = true;
   try {
-    const r = await fetch(`${API_URL}/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo }) });
-    if (!r.ok) throw new Error();
+    const r = await fetch(`${API_URL}/patients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo, idade })
+    });
+    if (!r.ok) {
+      const errData = await r.json().catch(() => ({}));
+      throw new Error(errData.error || 'Erro ao adicionar paciente!');
+    }
     const newPatient = await r.json();
     document.getElementById('input-nome').value = '';
+    if (idadeInput) idadeInput.value = '';
     document.getElementById('input-setor').value = '';
     document.getElementById('input-prioridade').value = 'geral';
     // Reset condições checkboxes
     document.querySelectorAll('#condicoes-especiais-recepcao input[type="checkbox"]').forEach(c => c.checked = false);
     togglePrioridadeDetalhes(); toggleTipoAtendimento();
-    const prioLabel = prioridade === 'prioritario' ? ' ⭐ PRIORITÁRIO' : '';
+    const isPrio = Number(newPatient.nivel_prioridade) <= 2 || newPatient.prioridade === 'prioritario';
+    const prioLabel = isPrio ? ' ⭐ PRIORIDADE' : '';
     const profLabel = profissional ? ` (${profissional})` : '';
     showToast(`${nome} adicionado à fila de ${nomeSetorOriginal}${profLabel}!${prioLabel}`);
+
+    // Exibir banner rápido na recepção para marcar Busca ativa (alumIA) se necessário
+    mostrarBannerPosCadastroAlumia(newPatient);
+
     await loadQueues();
+    if (setor === 'Acolhimento') loadAcolhimentoFluxo();
     // showQrModal(newPatient); // 🚫 Desativado a pedido: Não mostrar modal de QR automático
-  } catch { showToast('Erro ao adicionar paciente!', true); }
+  } catch (e) { showToast(e.message || 'Erro ao adicionar paciente!', true); }
   if (btn) btn.disabled = false;
 }
 
@@ -1549,7 +1580,37 @@ function playChatSound() {
 }
 
 // ====== LOAD DATA ======
-async function loadQueues() { try { const r = await fetch(`${API_URL}/queues`); queues = await r.json(); SETORES.forEach(s => { if (!queues[s]) queues[s] = []; }); updateAll(); } catch (e) { console.error(e); } }
+async function loadQueues() {
+  try {
+    const [r, rBa] = await Promise.all([
+      fetch(`${API_URL}/queues`),
+      fetch(`${API_URL}/busca-ativa/resumo`).catch(() => null)
+    ]);
+    queues = await r.json();
+    let resumoBa = null;
+    if (rBa && rBa.ok) {
+      resumoBa = await rBa.json().catch(() => null);
+    }
+    SETORES.forEach(s => {
+      if (!queues[s]) queues[s] = [];
+      if (resumoBa) {
+        queues[s].forEach(p => {
+          const itens = resumoBa[p.id];
+          if (Array.isArray(itens)) {
+            p.busca_ativa = itens.length > 0;
+            p.busca_ativa_detalhes = itens;
+            p.busca_ativa_ofertada = itens.length > 0 && itens.every(i => i.ofertado);
+          } else {
+            p.busca_ativa = false;
+            p.busca_ativa_detalhes = [];
+            p.busca_ativa_ofertada = false;
+          }
+        });
+      }
+    });
+    updateAll();
+  } catch (e) { console.error(e); }
+}
 async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); const d = await r.json(); currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { console.error(e); } }
 async function loadHistory() {
   try {
@@ -1656,6 +1717,98 @@ function getTipoAtendimentoBadge(tipo) {
 
 function getColor(setor) { return SECTOR_CONFIG[setor]?.color || 'var(--blue)'; }
 
+// ====== PARTE A & B: HELPERS DE RENDERIZAÇÃO SEGURA (textContent / escapeText) ======
+const LIMITE_ESPERA_NORMAL_MIN_UI = 60;
+
+function escapeText(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+function renderPrioridadeIdadeBadge(p) {
+  const nv = Number(p.nivel_prioridade || (p.prioridade === 'prioritario' ? 2 : 3));
+  if (nv === 1 || nv === 2) {
+    // Exibir selo "Prioridade" nos níveis 1 e 2 SEM mostrar a idade na lista
+    return `<span class="badge-prioridade-idade" title="Atendimento Prioritário Legal">⭐ Prioridade</span>`;
+  }
+  return '';
+}
+
+function renderEsperaNormalBadge(p) {
+  const nv = Number(p.nivel_prioridade || (p.prioridade === 'prioritario' ? 2 : 3));
+  if (nv !== 3 || p.status !== 'aguardando') return '';
+  let mins = 0;
+  if (p.espera_minutos !== undefined && p.espera_minutos !== null) {
+    mins = Math.max(0, Math.floor(Number(p.espera_minutos)));
+  } else if (p.created_at) {
+    mins = Math.max(0, Math.floor((Date.now() - safeDate(p.created_at).getTime()) / 60000));
+  }
+  let cls = 'wait-badge-normal';
+  let icon = '⏱';
+  let title = 'Tempo de espera na fila normal';
+  if (mins >= LIMITE_ESPERA_NORMAL_MIN_UI) {
+    cls += ' danger';
+    icon = '🚨';
+    title = `Acima do limite de ${LIMITE_ESPERA_NORMAL_MIN_UI} min! Prioridade anti-starvation (Regra a) ativa.`;
+  } else if (mins >= Math.floor(LIMITE_ESPERA_NORMAL_MIN_UI * 0.75)) {
+    cls += ' warn';
+    icon = '⚠️';
+    title = `Próximo ao limite de ${LIMITE_ESPERA_NORMAL_MIN_UI} min de espera.`;
+  }
+  return `<span class="${cls}" title="${title}">${icon} ${mins} min</span>`;
+}
+
+function renderBotaoBuscaAtivaCard(p, setorContexto) {
+  if (document.body.classList.contains('modo-tv')) return '';
+  const safeNome = (p.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const safeSetor = (setorContexto || p.setor || 'Recepção').replace(/'/g, "\\'");
+  const ativo = Boolean(p.busca_ativa);
+  const cls = ativo ? 'btn-radar-alumia' : 'btn-radar-alumia inativo';
+  const label = ativo ? '📡 Busca ativa (alumIA) ✓' : '📡 Busca ativa (alumIA)';
+  return `<button type="button" class="${cls}" onclick="event.stopPropagation();abrirModalBuscaAtiva(${p.id}, '${safeNome}', '${safeSetor}')" title="Marcar ou editar pendências do alumIA">${label}</button>`;
+}
+
+function renderBlocoBuscaAtivaEquipe(p, setorContexto) {
+  if (document.body.classList.contains('modo-tv')) return '';
+  if (!p.busca_ativa) return '';
+  const detalhes = Array.isArray(p.busca_ativa_detalhes) ? p.busca_ativa_detalhes : [];
+  const safeSetor = (setorContexto || p.setor || 'Equipe').replace(/'/g, "\\'");
+  const safeNome = (p.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+  const itensHtml = detalhes.length > 0
+    ? detalhes.map(item => {
+        const isOutro = String(item.motivo_descricao || '').toLowerCase() === 'outro';
+        const descTexto = isOutro && item.texto_outro
+          ? `Outro: ${escapeText(item.texto_outro)}`
+          : escapeText(item.motivo_descricao || 'Pendência');
+        const setorSug = escapeText(item.setor_sugerido || 'Geral');
+        const acaoOferta = item.ofertado
+          ? `<span class="badge-oferta-registrada" title="Ofertado por ${escapeText(item.ofertado_por || 'Equipe')}">✅ Oferta feita</span>`
+          : `<button type="button" class="btn-oferta-feita" onclick="event.stopPropagation();registrarOfertaBuscaAtiva(${p.id}, ${item.id}, '${safeSetor}')">🤝 Oferta feita</button>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed rgba(0,137,123,0.2);flex-wrap:wrap;">
+          <div>
+            <span style="font-weight:800;color:#004d40;">• ${descTexto}</span>
+            <span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;background:rgba(0,137,123,0.18);color:#00695c;font-size:10px;font-weight:800;">Setor sugerido: ${setorSug}</span>
+          </div>
+          <div>${acaoOferta}</div>
+        </div>`;
+      }).join('')
+    : `<div style="font-size:11px;color:#00695c;font-weight:700;">Sinalizado na recepção. Clique em editar para ver/detalhar motivos.</div>`;
+
+  return `<div class="alumia-card-box" onclick="event.stopPropagation();">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+      <span style="font-weight:900;color:#00695c;font-size:12px;">📡 Busca ativa (alumIA)</span>
+      <button type="button" onclick="event.stopPropagation();abrirModalBuscaAtiva(${p.id}, '${safeNome}', '${safeSetor}')" style="background:transparent;border:none;color:#00695c;font-size:11px;font-weight:800;cursor:pointer;text-decoration:underline;">✏️ Editar motivos</button>
+    </div>
+    <div class="alumia-aviso-fixo">
+      <span>⚠️</span>
+      <span>Informado na recepção. Confirmar no alumIA</span>
+    </div>
+    <div>${itensHtml}</div>
+  </div>`;
+}
+
 function renderQueueItems(containerId, setor, filterProfissional) {
   const el = document.getElementById(containerId); if (!el) return;
   let items = (queues[setor] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
@@ -1666,11 +1819,14 @@ function renderQueueItems(containerId, setor, filterProfissional) {
   const isSectorQueue = containerId.startsWith('queue-');
   el.innerHTML = items.map((p, i) => {
     const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">\u2B50 ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
+    const prioBadge = renderPrioridadeIdadeBadge(p);
+    const waitBadge = renderEsperaNormalBadge(p);
     const tipoLabel = getTipoAtendimentoBadge(p.tipo_atendimento);
-    const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">\uD83D\uDC68\u200D\u2695\uFE0F ${p.profissional}</span>` : '';
+    const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">\uD83D\uDC68\u200D\u2695\uFE0F ${escapeText(p.profissional)}</span>` : '';
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
     const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">\uD83D\uDCF1</button>`;
+    const radarBtn = renderBotaoBuscaAtivaCard(p, setor);
+    const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, setor);
 
     /* === MELHORIA E: Badge de presença === */
     let presencaHtml = '';
@@ -1707,18 +1863,22 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>
     </div>` : '';
 
-    const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
+    const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${escapeText(p.origem_transferencia)}">🔙 de: ${escapeText(p.origem_transferencia)}</span>` : '';
 
     const publicTransferBtn = !isAdmin
       ? `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button><button class="btn-reorder-pos" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Ir para posição específica" style="margin-left:4px;">🔢 Posição</button>`
       : '';
 
-    return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}">
+    return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}" style="flex-wrap:wrap;">
       ${dragHandle}
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
-      <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${presencaHtml} ${originBadge}</div>
+      <div class="queue-name" style="flex:1;min-width:180px;">
+        <div>${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${tipoLabel}${profLabel}${condBadges} ${presencaHtml} ${originBadge}</div>
+        ${alumiaBloco}
+      </div>
       <div class="queue-time">${p.horario}</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        ${radarBtn}
         ${qrBtn}
         ${publicTransferBtn}
         <span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'\uD83D\uDCE2 Chamando':'Aguardando'}</span>
@@ -1746,7 +1906,7 @@ function updateQueues() {
 }
 
 function updateMiniQueues() {
-  /* === MELHORIA E: Mini-queues com botão de confirmar presença === */
+  /* === MELHORIA E: Mini-queues com botão de confirmar presença + Parte A/B === */
   SETORES.forEach(s => {
     const cfg = SECTOR_CONFIG[s];
     const el = document.getElementById('mini-queue-' + cfg.key); if (!el) return;
@@ -1754,11 +1914,14 @@ function updateMiniQueues() {
     if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
     el.innerHTML = items.map((p, i) => {
       const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-      const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIORITÁRIO'}</span>` : '';
+      const prioBadge = renderPrioridadeIdadeBadge(p);
+      const waitBadge = renderEsperaNormalBadge(p);
       const tipoLabel = getTipoAtendimentoBadge(p.tipo_atendimento);
-      const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${p.profissional}</span>` : '';
+      const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${escapeText(p.profissional)}</span>` : '';
       const condBadges = renderCondicoesBadges(p.condicoes_especiais);
       const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
+      const radarBtn = renderBotaoBuscaAtivaCard(p, 'Recepção');
+      const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'Recepção');
       const removeBtn = isAdmin ? `<div style="display:flex;gap:4px;">
         <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Marcar como Desistência">🚶</button>
         <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir Permanentemente">🔥</button>
@@ -1776,13 +1939,17 @@ function updateMiniQueues() {
       // Botão de encaminhar para outro setor e posição
       const transferBtn = `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button><button class="btn-reorder-pos" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${s}')" title="Ir para posição específica" style="margin-left:4px;">🔢 Posição</button>`;
       
-      const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
+      const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${escapeText(p.origem_transferencia)}">🔙 de: ${escapeText(p.origem_transferencia)}</span>` : '';
 
-      return `<div class="queue-item ${p.status==='chamado'?'calling':''}">
+      return `<div class="queue-item ${p.status==='chamado'?'calling':''}" style="flex-wrap:wrap;">
         <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">${i+1}</div>
-        <div class="queue-name">${p.nome}${prioBadge}${tipoLabel}${profLabel}${condBadges} ${originBadge}</div>
+        <div class="queue-name" style="flex:1;min-width:180px;">
+          <div>${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${tipoLabel}${profLabel}${condBadges} ${originBadge}</div>
+          ${alumiaBloco}
+        </div>
         <div class="queue-time">${p.horario}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          ${radarBtn}
           ${presencaBtn}
           ${transferBtn}
           ${qrBtn}
@@ -1801,11 +1968,14 @@ function updateRecent() {
   if (!all.length) { el.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>'; return; }
   const sorted = all.sort((a, b) => safeDate(b.created_at) - safeDate(a.created_at)).slice(0, 5);
   el.innerHTML = sorted.map(p => {
-    const cfg = SECTOR_CONFIG[p.setor] || {}; const prioBadge = p.prioridade === 'prioritario' ? ' ⭐' : '';
-    const profLabel = p.profissional ? ` · ${p.profissional}` : '';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:8px;border:1px solid var(--gray-200);">
+    const cfg = SECTOR_CONFIG[p.setor] || {};
+    const prioBadge = renderPrioridadeIdadeBadge(p);
+    const profLabel = p.profissional ? ` · ${escapeText(p.profissional)}` : '';
+    const radarBtn = renderBotaoBuscaAtivaCard(p, 'Recepção');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:8px;border:1px solid var(--gray-200);flex-wrap:wrap;">
       <div style="font-size:18px;">${cfg.icon||'📋'}</div>
-      <div style="flex:1;"><div style="font-weight:700;font-size:14px;color:var(--gray-700);">${p.nome}${prioBadge}</div><div style="font-size:12px;color:var(--gray-600);">${p.setor}${profLabel} · ${p.horario}</div></div>
+      <div style="flex:1;min-width:140px;"><div style="font-weight:700;font-size:14px;color:var(--gray-700);">${escapeText(p.nome)} ${prioBadge}</div><div style="font-size:12px;color:var(--gray-600);">${escapeText(p.setor)}${profLabel} · ${p.horario}</div></div>
+      <div>${radarBtn}</div>
     </div>`;
   }).join('');
 }
@@ -3677,11 +3847,32 @@ let selectedRisco = 'verde';
 
 async function loadAcolhimentoFluxo() {
   try {
-    const [rFluxo, rStat] = await Promise.all([
+    const [rFluxo, rStat, rBa] = await Promise.all([
       fetch(`${API_URL}/acolhimento/fluxo`),
-      fetch(`${API_URL}/acolhimento/relatorio`)
+      fetch(`${API_URL}/acolhimento/relatorio`),
+      fetch(`${API_URL}/busca-ativa/resumo`).catch(() => null)
     ]);
     acolhimentoFluxo = await rFluxo.json();
+    let resumoBa = null;
+    if (rBa && rBa.ok) {
+      resumoBa = await rBa.json().catch(() => null);
+    }
+    if (resumoBa && acolhimentoFluxo) {
+      ['recepcao', 'primeira_escuta', 'segunda_escuta'].forEach(et => {
+        (acolhimentoFluxo[et] || []).forEach(p => {
+          const itens = resumoBa[p.id];
+          if (Array.isArray(itens)) {
+            p.busca_ativa = itens.length > 0;
+            p.busca_ativa_detalhes = itens;
+            p.busca_ativa_ofertada = itens.length > 0 && itens.every(i => i.ofertado);
+          } else {
+            p.busca_ativa = false;
+            p.busca_ativa_detalhes = [];
+            p.busca_ativa_ofertada = false;
+          }
+        });
+      });
+    }
     renderAcolhimentoFluxo();
     
     if (rStat.ok) {
@@ -3741,15 +3932,18 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     return;
   }
   el.innerHTML = pacientes.map(p => {
-    const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIO'}</span>` : '';
+    const prioBadge = renderPrioridadeIdadeBadge(p);
+    const waitBadge = renderEsperaNormalBadge(p);
     const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde' ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : p.risco_clinico === 'amarelo' ? '🟡 MODERADO' : p.risco_clinico === 'azul' ? '🟦 SEM RISCO' : ''}</span>` : '';
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
     const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
     const tempoBadge = `<span class="acol-tempo-badge">⏱ ${tempoMin} min</span>`;
-    const acsLabel = p.acs_responsavel ? `<span style="font-size:11px;">👤 ACS: ${p.acs_responsavel}</span>` : '';
-    const profLabel = p.profissional_destino ? `<span style="font-size:11px;">👨‍⚕️ ${p.profissional_destino}</span>` : '';
-    const queixaEl = p.queixa ? `<div class="acol-card-queixa">"${p.queixa}"</div>` : '';
+    const acsLabel = p.acs_responsavel ? `<span style="font-size:11px;">👤 ACS: ${escapeText(p.acs_responsavel)}</span>` : '';
+    const profLabel = p.profissional_destino ? `<span style="font-size:11px;">👨‍⚕️ ${escapeText(p.profissional_destino)}</span>` : '';
+    const queixaEl = p.queixa ? `<div class="acol-card-queixa">"${escapeText(p.queixa)}"</div>` : '';
     const nomeSafe = p.nome.replace(/'/g, "\\'");
+    const radarBtn = renderBotaoBuscaAtivaCard(p, 'Acolhimento');
+    const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'Acolhimento');
 
     let actions = '';
     if (etapa === 'recepcao') {
@@ -3779,16 +3973,18 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
       <button class="btn-danger" style="font-size:11px;padding:4px 8px;background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${nomeSafe}')" title="Excluir">🔥</button>
     ` : '';
     
-    const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${p.origem_transferencia}">🔙 de: ${p.origem_transferencia}</span>` : '';
+    const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${escapeText(p.origem_transferencia)}">🔙 de: ${escapeText(p.origem_transferencia)}</span>` : '';
 
     return `<div class="acol-card etapa-${etapa}">
-      <div class="acol-card-name">${p.nome}${prioBadge}${riscoBadge}${condBadges} ${originBadge}</div>
+      <div class="acol-card-name">${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${riscoBadge}${condBadges} ${originBadge}</div>
       <div class="acol-card-meta">
         <span>🕐 ${p.horario}</span>
         ${tempoBadge}
         ${acsLabel}
         ${profLabel}
+        ${radarBtn}
       </div>
+      ${alumiaBloco}
       ${queixaEl}
       <div class="acol-card-actions">
         ${actions}
@@ -4408,22 +4604,27 @@ function renderAcsEscutaScreen() {
       ? '<div style="text-align:center;padding:16px;color:rgba(255,255,255,0.3);font-size:12px;font-weight:600;">Nenhum paciente em atendimento</div>'
       : emAtendimento.map(p => {
           const nomeSafe = p.nome.replace(/'/g, "\\'");
-          const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIO'}</span>` : '';
+          const prioBadge = renderPrioridadeIdadeBadge(p);
+          const waitBadge = renderEsperaNormalBadge(p);
           const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde'
             ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴' : p.risco_clinico === 'amarelo' ? '🟡' : '🟦'}</span>` : '';
           const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
           const condBadges = renderCondicoesBadges(p.condicoes_especiais);
+          const radarBtn = renderBotaoBuscaAtivaCard(p, 'ACS - 1ª Escuta');
+          const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'ACS - 1ª Escuta');
           const adminBtns = isAdmin ? `
             <button class="btn-danger" style="font-size:11px;padding:3px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
           ` : '';
 
           return `<div class="acs-patient-card ${p.status === 'chamado' ? 'status-chamado' : ''}">
-            <div class="acs-patient-name">${p.nome}${prioBadge}${riscoBadge}${condBadges}</div>
+            <div class="acs-patient-name">${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${riscoBadge}${condBadges}</div>
             <div class="acs-patient-meta">
               <span>🕐 ${p.horario}</span>
               <span class="acol-tempo-badge">⏱ ${tempoMin}m</span>
-              ${p.queixa ? `<span>💬 ${p.queixa}</span>` : ''}
+              ${p.queixa ? `<span>💬 ${escapeText(p.queixa)}</span>` : ''}
+              ${radarBtn}
             </div>
+            ${alumiaBloco}
             <div class="acs-patient-actions">
               <button class="acs-btn-chamar" onclick="chamarAcsPaciente(${p.id},'${nomeSafe}','${acs}',this)">🔊 Chamar</button>
               <button class="acs-btn-enc" onclick="abrirModalEncaminharAcs(${p.id},'${nomeSafe}')">📤 Encaminhar 2ª</button>
@@ -4582,24 +4783,29 @@ function renderSegundaEscutaScreen() {
 
     const patientsHtml = list.map(p => {
       const nomeSafe = p.nome.replace(/'/g, "\\'");
-      const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐ ${p.tipo_prioridade || 'PRIO'}</span>` : '';
+      const prioBadge = renderPrioridadeIdadeBadge(p);
+      const waitBadge = renderEsperaNormalBadge(p);
       const riscoBadge = p.risco_clinico
         ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : p.risco_clinico === 'amarelo' ? '🟡 MOD.' : p.risco_clinico === 'azul' ? '🟦 SEM' : '🟢'}</span>` : '';
       const condBadges = renderCondicoesBadges(p.condicoes_especiais);
       const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
-      const acsLabel = p.acs_responsavel ? `<span>👤 ACS: ${p.acs_responsavel}</span>` : '';
+      const acsLabel = p.acs_responsavel ? `<span>👤 ACS: ${escapeText(p.acs_responsavel)}</span>` : '';
+      const radarBtn = renderBotaoBuscaAtivaCard(p, `2ª Escuta - ${prof}`);
+      const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, `2ª Escuta - ${prof}`);
       const adminBtns = isAdmin ? `
         <button class="btn-danger" style="font-size:11px;padding:3px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
       ` : '';
 
       return `<div class="seg-patient-card ${p.status === 'chamado' ? 'status-chamado' : ''}">
-        <div class="seg-patient-name">${p.nome}${prioBadge}${riscoBadge}${condBadges}</div>
+        <div class="seg-patient-name">${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${riscoBadge}${condBadges}</div>
         <div class="seg-patient-meta">
           <span>🕐 ${p.horario}</span>
           <span class="acol-tempo-badge">⏱ ${tempoMin}m</span>
           ${acsLabel}
+          ${radarBtn}
         </div>
-        ${p.queixa ? `<div class="seg-patient-queixa">"${p.queixa}"</div>` : ''}
+        ${alumiaBloco}
+        ${p.queixa ? `<div class="seg-patient-queixa">"${escapeText(p.queixa)}"</div>` : ''}
         <div class="seg-patient-actions">
           <button class="seg-btn-chamar" onclick="chamarSegundaEscutaPaciente(${p.id},'${nomeSafe}','${prof.replace(/'/g,"\\'")}',this)">🔊 Chamar</button>
           <button class="seg-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar Consulta</button>
@@ -5557,3 +5763,580 @@ function selecionarPacienteAutocomplete(nome, condicoesStr) {
 
 // Inicializa autocomplete
 setupAutocompleteRecepcao();
+
+// ====== PARTE B & ADMIN: BUSCA ATIVA (alumIA) + RELATÓRIOS GERENCIAIS ======
+
+let _motivosBuscaAtivaCache = [];
+
+function mostrarBannerPosCadastroAlumia(patient) {
+  const box = document.getElementById('post-cadastro-alumia');
+  const nomeEl = document.getElementById('post-cadastro-alumia-nome');
+  const btnEl = document.getElementById('post-cadastro-alumia-btn');
+  if (!box || !nomeEl || !btnEl || !patient) return;
+  nomeEl.textContent = `${patient.nome} (${patient.setor})`;
+  btnEl.onclick = () => abrirModalBuscaAtiva(patient.id, patient.nome, 'Recepção');
+  box.style.display = 'block';
+}
+
+async function carregarMotivosBuscaAtiva(incluirInativos = false) {
+  try {
+    const url = incluirInativos ? `${API_URL}/motivos-busca-ativa?all=1` : `${API_URL}/motivos-busca-ativa`;
+    const r = await fetch(url);
+    if (!r.ok) return [];
+    const lista = await r.json();
+    if (!incluirInativos) _motivosBuscaAtivaCache = lista;
+    return lista;
+  } catch (e) {
+    return [];
+  }
+}
+
+async function abrirModalBuscaAtiva(patientId, patientNome, setorOperador = 'Recepção') {
+  const modal = document.getElementById('modal-busca-ativa');
+  if (!modal) return;
+
+  document.getElementById('modal-ba-patient-id').value = patientId;
+  document.getElementById('modal-ba-setor-operador').value = setorOperador || 'Recepção';
+  document.getElementById('modal-ba-paciente-nome').textContent = patientNome || 'Paciente';
+  document.getElementById('modal-ba-paciente-setor').textContent = `Setor atual: ${setorOperador || 'Fila'}`;
+
+  const listContainer = document.getElementById('modal-ba-motivos-list');
+  const outroWrapper = document.getElementById('modal-ba-outro-wrapper');
+  const outroInput = document.getElementById('modal-ba-texto-outro');
+  const btnRemover = document.getElementById('modal-ba-btn-remover');
+
+  listContainer.textContent = 'Carregando motivos...';
+  outroWrapper.style.display = 'none';
+  outroInput.value = '';
+  if (btnRemover) btnRemover.style.display = 'none';
+
+  modal.classList.add('show');
+
+  try {
+    const [motivosAtivos, estadoRes] = await Promise.all([
+      carregarMotivosBuscaAtiva(false),
+      fetch(`${API_URL}/patients/${patientId}/busca-ativa`).then(r => r.ok ? r.json() : { itens: [] }).catch(() => ({ itens: [] }))
+    ]);
+
+    const itensMarcados = Array.isArray(estadoRes.itens) ? estadoRes.itens : [];
+    const marcadosMap = {};
+    itensMarcados.forEach(it => {
+      marcadosMap[Number(it.motivo_id)] = it;
+    });
+
+    if (estadoRes.patient && estadoRes.patient.setor) {
+      document.getElementById('modal-ba-paciente-setor').textContent = `Setor na fila: ${estadoRes.patient.setor}`;
+    }
+
+    if (btnRemover) {
+      btnRemover.style.display = itensMarcados.length > 0 ? 'inline-block' : 'none';
+    }
+
+    // Incluir também motivos que já estavam marcados no paciente mesmo se tiverem sido desativados depois pelo Admin
+    const motivosParaExibir = [...motivosAtivos];
+    itensMarcados.forEach(it => {
+      if (!motivosParaExibir.some(m => Number(m.id) === Number(it.motivo_id))) {
+        motivosParaExibir.push({
+          id: it.motivo_id,
+          descricao: it.motivo_descricao || 'Motivo',
+          setor_sugerido: it.setor_sugerido || 'Geral',
+          ativo: true
+        });
+      }
+    });
+
+    listContainer.innerHTML = '';
+    let outroSelecionado = false;
+    let textoOutroSalvo = '';
+
+    motivosParaExibir.forEach(m => {
+      const isOutro = String(m.descricao || '').toLowerCase() === 'outro';
+      const itemExistente = marcadosMap[Number(m.id)];
+      const checked = Boolean(itemExistente);
+      if (isOutro && checked) {
+        outroSelecionado = true;
+        textoOutroSalvo = itemExistente.texto_outro || '';
+      }
+
+      const labelEl = document.createElement('label');
+      labelEl.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:10px;cursor:pointer;background:#fff;transition:all 0.15s;';
+
+      const leftDiv = document.createElement('div');
+      leftDiv.style.cssText = 'display:flex;align-items:center;gap:10px;flex:1;';
+
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.className = 'ba-motivo-checkbox';
+      chk.value = String(m.id);
+      chk.dataset.isOutro = isOutro ? '1' : '0';
+      chk.checked = checked;
+      chk.style.cssText = 'transform:scale(1.25);cursor:pointer;';
+      chk.addEventListener('change', atualizarVisibilidadeOutroBuscaAtiva);
+
+      const descSpan = document.createElement('span');
+      descSpan.style.cssText = 'font-size:13px;font-weight:700;color:var(--gray-800);';
+      descSpan.textContent = m.descricao; // Seguro via textContent
+
+      leftDiv.appendChild(chk);
+      leftDiv.appendChild(descSpan);
+
+      const rightDiv = document.createElement('div');
+      rightDiv.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
+
+      const setorBadge = document.createElement('span');
+      setorBadge.style.cssText = 'font-size:10px;font-weight:800;padding:2px 8px;border-radius:12px;background:rgba(0,137,123,0.12);color:#00695c;';
+      setorBadge.textContent = m.setor_sugerido; // Seguro via textContent
+      rightDiv.appendChild(setorBadge);
+
+      if (itemExistente && itemExistente.ofertado) {
+        const ofBadge = document.createElement('span');
+        ofBadge.className = 'badge-oferta-registrada';
+        ofBadge.textContent = '✅ Oferta feita';
+        rightDiv.appendChild(ofBadge);
+      } else if (itemExistente) {
+        const btnOf = document.createElement('button');
+        btnOf.type = 'button';
+        btnOf.className = 'btn-oferta-feita';
+        btnOf.textContent = '🤝 Oferta feita';
+        btnOf.onclick = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          registrarOfertaBuscaAtiva(patientId, itemExistente.id, setorOperador, true);
+        };
+        rightDiv.appendChild(btnOf);
+      }
+
+      labelEl.appendChild(leftDiv);
+      labelEl.appendChild(rightDiv);
+      listContainer.appendChild(labelEl);
+    });
+
+    if (outroSelecionado) {
+      outroWrapper.style.display = 'block';
+      outroInput.value = textoOutroSalvo;
+    }
+  } catch (e) {
+    listContainer.textContent = 'Erro ao carregar motivos de busca ativa.';
+  }
+}
+
+function atualizarVisibilidadeOutroBuscaAtiva() {
+  const checks = document.querySelectorAll('#modal-ba-motivos-list .ba-motivo-checkbox');
+  let algumOutroMarcado = false;
+  checks.forEach(c => {
+    if (c.dataset.isOutro === '1' && c.checked) algumOutroMarcado = true;
+  });
+  const outroWrapper = document.getElementById('modal-ba-outro-wrapper');
+  if (outroWrapper) {
+    outroWrapper.style.display = algumOutroMarcado ? 'block' : 'none';
+    if (algumOutroMarcado) {
+      document.getElementById('modal-ba-texto-outro')?.focus();
+    }
+  }
+}
+
+function fecharModalBuscaAtiva() {
+  const modal = document.getElementById('modal-busca-ativa');
+  if (modal) modal.classList.remove('show');
+}
+
+async function salvarBuscaAtivaModal() {
+  const patientId = document.getElementById('modal-ba-patient-id').value;
+  const setorOperador = document.getElementById('modal-ba-setor-operador').value || 'Recepção';
+  const textoOutro = (document.getElementById('modal-ba-texto-outro')?.value || '').trim().slice(0, 120);
+
+  const checks = document.querySelectorAll('#modal-ba-motivos-list .ba-motivo-checkbox:checked');
+  const itens = [];
+  for (const c of checks) {
+    const isOutro = c.dataset.isOutro === '1';
+    if (isOutro && !textoOutro) {
+      showToast('⚠️ Para o motivo "Outro", descreva a pendência (máx. 120 caracteres).', true);
+      document.getElementById('modal-ba-texto-outro')?.focus();
+      return;
+    }
+    itens.push({
+      motivo_id: parseInt(c.value, 10),
+      texto_outro: isOutro ? textoOutro : null
+    });
+  }
+
+  try {
+    const r = await fetch(`${API_URL}/patients/${patientId}/busca-ativa`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itens, setor_operador: setorOperador })
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      showToast(data.error || 'Erro ao salvar busca ativa!', true);
+      return;
+    }
+    fecharModalBuscaAtiva();
+    showToast(itens.length > 0 ? '📡 Busca ativa (alumIA) registrada!' : '🗑️ Marcações de busca ativa removidas.');
+    await loadQueues();
+    loadAcolhimentoFluxo();
+  } catch (e) {
+    showToast('Erro de conexão ao salvar busca ativa!', true);
+  }
+}
+
+async function removerBuscaAtivaModal() {
+  const patientId = document.getElementById('modal-ba-patient-id').value;
+  const setorOperador = document.getElementById('modal-ba-setor-operador').value || 'Recepção';
+  if (!confirm('Deseja remover todas as marcações de Busca ativa (alumIA) deste paciente?')) return;
+  try {
+    const r = await fetch(`${API_URL}/patients/${patientId}/busca-ativa`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itens: [], setor_operador: setorOperador })
+    });
+    if (!r.ok) throw new Error();
+    fecharModalBuscaAtiva();
+    showToast('🗑️ Marcações de busca ativa removidas!');
+    await loadQueues();
+    loadAcolhimentoFluxo();
+  } catch (e) {
+    showToast('Erro ao remover marcações!', true);
+  }
+}
+
+async function registrarOfertaBuscaAtiva(patientId, itemId, setorOperador = 'Equipe', recarregarModal = false) {
+  try {
+    const r = await fetch(`${API_URL}/patients/${patientId}/busca-ativa/ofertar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, setor_operador: setorOperador })
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      showToast(data.error || 'Erro ao registrar oferta!', true);
+      return;
+    }
+    showToast('🤝 Oferta feita registrada com sucesso!');
+    await loadQueues();
+    loadAcolhimentoFluxo();
+    if (recarregarModal) {
+      const nome = document.getElementById('modal-ba-paciente-nome')?.textContent || 'Paciente';
+      abrirModalBuscaAtiva(patientId, nome, setorOperador);
+    }
+  } catch (e) {
+    showToast('Erro ao registrar oferta!', true);
+  }
+}
+
+// ====== TELA ADMIN: RELATÓRIOS PARTE A & PARTE B + CRUD DE MOTIVOS ======
+
+function obterDataHojeRecifeISO() {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Recife' }).format(new Date());
+  } catch (e) {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
+function initAdminRelatoriosScreen() {
+  const iniEl = document.getElementById('rel-pb-data-inicio');
+  const fimEl = document.getElementById('rel-pb-data-fim');
+  const hoje = obterDataHojeRecifeISO();
+  if (iniEl && !iniEl.value) iniEl.value = hoje;
+  if (fimEl && !fimEl.value) fimEl.value = hoje;
+  carregarRelatorioPrioridadeBusca();
+  carregarMotivosBuscaAtivaAdmin();
+}
+
+async function carregarRelatorioPrioridadeBusca() {
+  const ini = document.getElementById('rel-pb-data-inicio')?.value || obterDataHojeRecifeISO();
+  const fim = document.getElementById('rel-pb-data-fim')?.value || ini;
+  const periodo = document.getElementById('rel-pb-periodo')?.value || 'integral';
+
+  const contA = document.getElementById('rel-parte-a-container');
+  const contB = document.getElementById('rel-parte-b-container');
+  if (!contA || !contB) return;
+
+  try {
+    const params = new URLSearchParams({ data_inicio: ini, data_fim: fim, periodo });
+    const r = await fetch(`${API_URL}/admin/relatorio-prioridade-busca?${params.toString()}`);
+    if (!r.ok) throw new Error();
+    const rel = await r.json();
+    renderRelatorioParteA(rel, contA);
+    renderRelatorioParteB(rel, contB);
+  } catch (e) {
+    contA.textContent = 'Erro ao carregar relatório da Parte A.';
+    contB.textContent = 'Erro ao carregar relatório da Parte B.';
+  }
+}
+
+function renderRelatorioParteA(rel, container) {
+  const parteA = rel.parteA || {};
+  const niveis = Array.isArray(parteA.por_nivel) ? parteA.por_nivel : [];
+  const regraA = Number(parteA.regra_a_acionada || 0);
+  const limiteMin = rel.config_prioridade?.LIMITE_ESPERA_NORMAL_MIN || 60;
+
+  const rowsHtml = niveis.map(n => {
+    const corNivel = n.nivel === 1 ? '#b71c1c' : n.nivel === 2 ? '#e65100' : '#1565c0';
+    return `<tr style="border-bottom:1px solid var(--gray-200);">
+      <td style="padding:10px 8px;font-weight:800;color:${corNivel};">${escapeText(n.descricao)}</td>
+      <td style="padding:10px 8px;text-align:center;font-weight:800;">${Number(n.total_chamados || 0)}</td>
+      <td style="padding:10px 8px;text-align:center;font-weight:700;">${Number(n.media_espera_min || 0).toFixed(1)} min</td>
+      <td style="padding:10px 8px;text-align:center;font-weight:800;color:${Number(n.max_espera_min) >= limiteMin ? 'var(--red)' : 'var(--gray-800)'};">${Number(n.max_espera_min || 0).toFixed(1)} min</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="background:rgba(211,47,47,0.08);border:1.5px solid rgba(211,47,47,0.28);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;font-weight:800;color:#b71c1c;text-transform:uppercase;">Acionamentos da Regra (a)</div>
+        <div style="font-size:26px;font-weight:900;color:#b71c1c;margin-top:2px;">${regraA}</div>
+        <div style="font-size:11px;color:var(--gray-600);font-weight:600;">Normais chamados por espera &ge; ${limiteMin} min (anti-starvation)</div>
+      </div>
+      <div style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;font-weight:800;color:var(--gray-600);text-transform:uppercase;">Chamadas por Regra</div>
+        <div style="font-size:12px;font-weight:700;color:var(--gray-800);margin-top:6px;line-height:1.6;">
+          • Regra (a) Anti-starvation: <b>${parteA.por_regra?.a || 0}</b><br>
+          • Regra (b) Alternância: <b>${parteA.por_regra?.b || 0}</b><br>
+          • Regra (c) Prioritário (1/2): <b>${parteA.por_regra?.c || 0}</b><br>
+          • Regra (d) Normal padrão: <b>${parteA.por_regra?.d || 0}</b>
+        </div>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--gray-100);border-bottom:2px solid var(--gray-200);">
+            <th style="text-align:left;padding:10px 8px;font-size:11px;color:var(--gray-600);text-transform:uppercase;">Nível de Prioridade</th>
+            <th style="text-align:center;padding:10px 8px;font-size:11px;color:var(--gray-600);text-transform:uppercase;">Chamados</th>
+            <th style="text-align:center;padding:10px 8px;font-size:11px;color:var(--gray-600);text-transform:uppercase;">Espera Média</th>
+            <th style="text-align:center;padding:10px 8px;font-size:11px;color:var(--gray-600);text-transform:uppercase;">Espera Máxima</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderRelatorioParteB(rel, container) {
+  const parteB = rel.parteB || {};
+  const motivos = Array.isArray(parteB.por_motivo) ? parteB.por_motivo : [];
+  const totPac = Number(parteB.total_pacientes_busca_ativa || 0);
+  const totOfe = Number(parteB.total_pacientes_com_oferta || 0);
+  const pctGeral = Number(parteB.percentual_geral_oferta || 0).toFixed(1);
+
+  container.innerHTML = '';
+
+  const summaryGrid = document.createElement('div');
+  summaryGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;';
+  summaryGrid.innerHTML = `
+    <div style="background:rgba(0,137,123,0.1);border:1.5px solid rgba(0,137,123,0.3);border-radius:10px;padding:12px 14px;">
+      <div style="font-size:11px;font-weight:800;color:#00695c;text-transform:uppercase;">Pacientes de Busca Ativa</div>
+      <div style="font-size:26px;font-weight:900;color:#00695c;margin-top:2px;">${totPac}</div>
+      <div style="font-size:11px;color:var(--gray-600);font-weight:600;">Com oferta registrada: <b>${totOfe}</b></div>
+    </div>
+    <div style="background:rgba(74,171,60,0.1);border:1.5px solid rgba(74,171,60,0.3);border-radius:10px;padding:12px 14px;">
+      <div style="font-size:11px;font-weight:800;color:#2e7d32;text-transform:uppercase;">Taxa de Oferta Feita</div>
+      <div style="font-size:26px;font-weight:900;color:#2e7d32;margin-top:2px;">${pctGeral}%</div>
+      <div style="font-size:11px;color:var(--gray-600);font-weight:600;">Aproveitamento de presença na USF</div>
+    </div>
+  `;
+  container.appendChild(summaryGrid);
+
+  const tableWrap = document.createElement('div');
+  tableWrap.style.overflowX = 'auto';
+
+  const table = document.createElement('table');
+  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px;';
+  table.innerHTML = `
+    <thead>
+      <tr style="background:var(--gray-100);border-bottom:2px solid var(--gray-200);">
+        <th style="text-align:left;padding:9px 8px;font-size:11px;color:var(--gray-600);text-transform:uppercase;">Motivo (alumIA)</th>
+        <th style="text-align:left;padding:9px 8px;font-size:11px;color:var(--gray-600);text-transform:uppercase;">Setor Sugerido</th>
+        <th style="text-align:center;padding:9px 8px;font-size:11px;color:var(--gray-600);text-transform:uppercase;">Compareceram</th>
+        <th style="text-align:center;padding:9px 8px;font-size:11px;color:var(--gray-600);text-transform:uppercase;">% Oferta Feita</th>
+      </tr>
+    </thead>
+  `;
+
+  const tbody = document.createElement('tbody');
+  motivos.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--gray-200)';
+
+    const tdDesc = document.createElement('td');
+    tdDesc.style.cssText = 'padding:8px;font-weight:700;color:var(--gray-800);';
+    tdDesc.textContent = m.descricao; // Seguro com textContent
+
+    const tdSetor = document.createElement('td');
+    tdSetor.style.cssText = 'padding:8px;color:var(--gray-600);font-weight:600;';
+    tdSetor.textContent = m.setor_sugerido; // Seguro com textContent
+
+    const tdTot = document.createElement('td');
+    tdTot.style.cssText = 'padding:8px;text-align:center;font-weight:800;color:var(--blue-dark);';
+    tdTot.textContent = String(m.total_pacientes || 0);
+
+    const tdPct = document.createElement('td');
+    tdPct.style.cssText = 'padding:8px;text-align:center;font-weight:800;color:#00695c;';
+    tdPct.textContent = `${Number(m.percentual_ofertado || 0).toFixed(1)}% (${m.total_ofertados || 0})`;
+
+    tr.appendChild(tdDesc);
+    tr.appendChild(tdSetor);
+    tr.appendChild(tdTot);
+    tr.appendChild(tdPct);
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  container.appendChild(tableWrap);
+}
+
+async function carregarMotivosBuscaAtivaAdmin() {
+  const container = document.getElementById('admin-motivos-busca-lista');
+  if (!container) return;
+  const lista = await carregarMotivosBuscaAtiva(true);
+  container.innerHTML = '';
+
+  if (!lista.length) {
+    container.textContent = 'Nenhum motivo cadastrado.';
+    return;
+  }
+
+  lista.forEach(m => {
+    const row = document.createElement('div');
+    row.style.cssText = `display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:10px;margin-bottom:8px;border:1px solid var(--gray-200);background:${m.ativo ? '#fff' : 'var(--gray-100)'};opacity:${m.ativo ? '1' : '0.65'};flex-wrap:wrap;`;
+
+    const infoDiv = document.createElement('div');
+    infoDiv.style.cssText = 'flex:1;min-width:200px;';
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-weight:800;font-size:14px;color:var(--blue-dark);';
+    titleEl.textContent = m.descricao; // textContent seguro
+
+    const metaEl = document.createElement('div');
+    metaEl.style.cssText = 'font-size:12px;color:var(--gray-600);font-weight:600;margin-top:2px;';
+    metaEl.textContent = `Setor sugerido: ${m.setor_sugerido} • Status: ${m.ativo ? '🟢 Ativo' : '⚪ Inativo (Desativado)'}`;
+
+    infoDiv.appendChild(titleEl);
+    infoDiv.appendChild(metaEl);
+
+    const btnsDiv = document.createElement('div');
+    btnsDiv.style.cssText = 'display:flex;gap:8px;align-items:center;';
+
+    const btnRename = document.createElement('button');
+    btnRename.type = 'button';
+    btnRename.className = 'btn btn-sm';
+    btnRename.style.cssText = 'background:var(--gray-200);color:var(--gray-800);padding:6px 12px;font-size:12px;font-weight:700;';
+    btnRename.textContent = '✏️ Renomear / Setor';
+    btnRename.onclick = () => renomearMotivoBuscaAtivaAdmin(m);
+
+    const btnToggle = document.createElement('button');
+    btnToggle.type = 'button';
+    btnToggle.className = 'btn btn-sm';
+    btnToggle.style.cssText = m.ativo
+      ? 'background:rgba(229,57,53,0.12);color:var(--red);border:1px solid rgba(229,57,53,0.3);padding:6px 12px;font-size:12px;font-weight:700;'
+      : 'background:rgba(74,171,60,0.15);color:#2e7d32;border:1px solid rgba(74,171,60,0.35);padding:6px 12px;font-size:12px;font-weight:700;';
+    btnToggle.textContent = m.ativo ? '🚫 Desativar' : '✅ Reativar';
+    btnToggle.onclick = () => alternarAtivoMotivoBuscaAtivaAdmin(m);
+
+    btnsDiv.appendChild(btnRename);
+    btnsDiv.appendChild(btnToggle);
+
+    row.appendChild(infoDiv);
+    row.appendChild(btnsDiv);
+    container.appendChild(row);
+  });
+}
+
+function adicionarMotivoBuscaAtivaAdmin() {
+  const descInput = document.getElementById('novo-motivo-descricao');
+  const setorInput = document.getElementById('novo-motivo-setor');
+  const descricao = (descInput?.value || '').trim().slice(0, 120);
+  const setor_sugerido = (setorInput?.value || '').trim().slice(0, 60);
+
+  if (!descricao || !setor_sugerido) {
+    showToast('⚠️ Preencha a descrição e o setor sugerido!', true);
+    return;
+  }
+
+  pedirSenhaAdmin('Adicionar Motivo de Busca Ativa', async (senhaUsada) => {
+    try {
+      const r = await fetch(`${API_URL}/admin/motivos-busca-ativa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descricao, setor_sugerido, senha: senhaUsada })
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showToast(data.error || 'Erro ao adicionar motivo!', true);
+        return;
+      }
+      if (descInput) descInput.value = '';
+      if (setorInput) setorInput.value = '';
+      showToast('✅ Novo motivo de busca ativa cadastrado!');
+      carregarMotivosBuscaAtivaAdmin();
+      carregarRelatorioPrioridadeBusca();
+    } catch (e) {
+      showToast('Erro de conexão ao cadastrar motivo!', true);
+    }
+  });
+}
+
+function renomearMotivoBuscaAtivaAdmin(motivo) {
+  const novaDesc = prompt('Editar descrição do motivo (máx. 120 caracteres):', motivo.descricao);
+  if (novaDesc === null) return;
+  const descLimpa = novaDesc.trim().slice(0, 120);
+  if (!descLimpa) {
+    showToast('A descrição não pode ficar vazia!', true);
+    return;
+  }
+  const novoSetor = prompt('Editar setor sugerido (máx. 60 caracteres):', motivo.setor_sugerido);
+  if (novoSetor === null) return;
+  const setorLimpo = novoSetor.trim().slice(0, 60);
+  if (!setorLimpo) {
+    showToast('O setor sugerido não pode ficar vazio!', true);
+    return;
+  }
+
+  pedirSenhaAdmin('Editar Motivo de Busca Ativa', async (senhaUsada) => {
+    try {
+      const r = await fetch(`${API_URL}/admin/motivos-busca-ativa/${motivo.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descricao: descLimpa, setor_sugerido: setorLimpo, ativo: motivo.ativo, senha: senhaUsada })
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showToast(data.error || 'Erro ao atualizar motivo!', true);
+        return;
+      }
+      showToast('✅ Motivo atualizado com sucesso!');
+      carregarMotivosBuscaAtivaAdmin();
+      carregarRelatorioPrioridadeBusca();
+    } catch (e) {
+      showToast('Erro de conexão!', true);
+    }
+  });
+}
+
+function alternarAtivoMotivoBuscaAtivaAdmin(motivo) {
+  const novoAtivo = !motivo.ativo;
+  pedirSenhaAdmin(`${novoAtivo ? 'Reativar' : 'Desativar'} Motivo de Busca Ativa`, async (senhaUsada) => {
+    try {
+      // Soft delete / toggle ativo (nunca DELETE físico para preservar FK de busca_ativa_itens)
+      const r = await fetch(`${API_URL}/admin/motivos-busca-ativa/${motivo.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descricao: motivo.descricao, setor_sugerido: motivo.setor_sugerido, ativo: novoAtivo, senha: senhaUsada })
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showToast(data.error || 'Erro ao alterar status do motivo!', true);
+        return;
+      }
+      showToast(novoAtivo ? '✅ Motivo reativado!' : '🚫 Motivo desativado!');
+      carregarMotivosBuscaAtivaAdmin();
+      carregarRelatorioPrioridadeBusca();
+    } catch (e) {
+      showToast('Erro de conexão!', true);
+    }
+  });
+}

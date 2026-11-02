@@ -24,6 +24,92 @@ function isValidAdminPass(senha) {
   return ADMIN_PASSWORDS.includes(String(senha).trim());
 }
 
+// ====== CONFIGURAÇÃO ÚNICA: PRIORIDADE POR IDADE (PARTE A) ======
+const CONFIG_PRIORIDADE = {
+  PROPORCAO_PRIORITARIOS: 1,
+  LIMITE_ESPERA_NORMAL_MIN: 60
+};
+
+function calcularNivelPrioridade(idadeVal, prioridadeManual) {
+  let idadeNum = null;
+  if (idadeVal !== undefined && idadeVal !== null && String(idadeVal).trim() !== '') {
+    const parsed = Number(idadeVal);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 120) {
+      return { erro: 'A idade deve ser um número inteiro entre 0 e 120 anos (ou ficar em branco).' };
+    }
+    idadeNum = parsed;
+  }
+  let nivel = 3;
+  if (idadeNum !== null && idadeNum >= 80) {
+    nivel = 1;
+  } else if ((idadeNum !== null && idadeNum >= 60 && idadeNum <= 79) || prioridadeManual === 'prioritario') {
+    nivel = 2;
+  } else {
+    nivel = 3;
+  }
+  return { idade: idadeNum, nivel };
+}
+
+function sanitizarPacientePublico(p) {
+  if (!p) return p;
+  const clone = { ...p };
+  delete clone.idade;
+  delete clone.busca_ativa;
+  delete clone.busca_ativa_ofertada;
+  delete clone.busca_ativa_detalhes;
+  return clone;
+}
+
+async function obterUsuarioDispositivo(req, dbClientOrPool, rotuloExtra) {
+  try {
+    const deviceId = getDeviceId(req);
+    let deviceNome = 'Dispositivo não identificado';
+    if (deviceId && dbClientOrPool) {
+      const dRes = await dbClientOrPool.query('SELECT nome, setor FROM dispositivos WHERE id = $1', [deviceId]);
+      if (dRes.rows.length > 0) {
+        const r = dRes.rows[0];
+        deviceNome = r.nome || 'Sem nome';
+        if (r.setor && !rotuloExtra) rotuloExtra = r.setor;
+      }
+    }
+    const extra = rotuloExtra ? ` (${rotuloExtra})` : '';
+    return `${deviceNome}${extra}`.slice(0, 80);
+  } catch (e) {
+    return (rotuloExtra ? `Sistema (${rotuloExtra})` : 'Sistema').slice(0, 80);
+  }
+}
+
+async function anexarBuscaAtivaDetalhes(rows, dbPool) {
+  if (!rows || rows.length === 0) return rows;
+  const idsComBusca = rows.filter(r => r.busca_ativa).map(r => r.id);
+  if (idsComBusca.length === 0) {
+    rows.forEach(r => { r.busca_ativa_detalhes = []; });
+    return rows;
+  }
+  try {
+    const itensRes = await dbPool.query(
+      `SELECT bi.id, bi.entrada_fila_id, bi.motivo_id, bi.texto_outro, bi.ofertado, bi.ofertado_por, bi.ofertado_em,
+              m.descricao AS motivo_descricao, m.setor_sugerido
+       FROM busca_ativa_itens bi
+       JOIN motivos_busca_ativa m ON m.id = bi.motivo_id
+       WHERE bi.entrada_fila_id = ANY($1::int[])
+       ORDER BY bi.id ASC`,
+      [idsComBusca]
+    );
+    const map = {};
+    itensRes.rows.forEach(item => {
+      if (!map[item.entrada_fila_id]) map[item.entrada_fila_id] = [];
+      map[item.entrada_fila_id].push(item);
+    });
+    rows.forEach(r => {
+      r.busca_ativa_detalhes = map[r.id] || [];
+    });
+  } catch (e) {
+    rows.forEach(r => { r.busca_ativa_detalhes = []; });
+  }
+  return rows;
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
@@ -44,7 +130,7 @@ app.use('/api', (req, res, next) => {
   if (req.method === 'GET') {
     // Permite cache no Edge Server da Vercel por 3 segundos para abater requisições repetidas (Economia de Invocations)
     // EXCEÇÃO: Rotas administrativas, dispositivos ou histórico não devem ser expostas em cache público
-    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico')) {
+    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico') || req.path.startsWith('/motivos-busca-ativa') || req.path.includes('/busca-ativa') || req.path.startsWith('/config-prioridade')) {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     } else {
       res.set('Cache-Control', 'public, s-maxage=3, stale-while-revalidate=2');
@@ -468,6 +554,100 @@ async function initDB() {
     `);
     // ====== FIM MENSAGENS ENVIADAS ======
 
+    // ====== PARTE A: PRIORIDADE POR IDADE ======
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS idade SMALLINT NULL`);
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS nivel_prioridade SMALLINT NOT NULL DEFAULT 3`);
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_patients_idade') THEN
+          ALTER TABLE patients ADD CONSTRAINT chk_patients_idade CHECK (idade IS NULL OR (idade >= 0 AND idade <= 120));
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_patients_nivel_prioridade') THEN
+          ALTER TABLE patients ADD CONSTRAINT chk_patients_nivel_prioridade CHECK (nivel_prioridade IN (1, 2, 3));
+        END IF;
+      END $$;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS log_prioridade (
+        id SERIAL PRIMARY KEY,
+        paciente_id INT REFERENCES patients(id) ON DELETE SET NULL,
+        setor VARCHAR(60) NOT NULL,
+        filtro_profissional TEXT,
+        idade_informada SMALLINT,
+        nivel_calculado SMALLINT NOT NULL,
+        regra_aplicada CHAR(1) NOT NULL CHECK (regra_aplicada IN ('a', 'b', 'c', 'd')),
+        espera_min NUMERIC(10,2),
+        usuario_dispositivo VARCHAR(80),
+        data_hora TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_log_prioridade_setor_data ON log_prioridade(setor, data_hora DESC)`);
+    // ====== FIM PARTE A ======
+
+    // ====== PARTE B: BUSCA ATIVA (alumIA) ======
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS busca_ativa BOOLEAN NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS busca_ativa_ofertada BOOLEAN NOT NULL DEFAULT false`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS motivos_busca_ativa (
+        id SERIAL PRIMARY KEY,
+        descricao VARCHAR(120) NOT NULL UNIQUE,
+        setor_sugerido VARCHAR(60) NOT NULL,
+        ativo BOOLEAN NOT NULL DEFAULT true
+      )
+    `);
+
+    const motivosSeed = [
+      ['Criança com vacina em atraso: completar vacinação', 'Sala de vacina'],
+      ['Criança: puericultura em atraso', 'Enfermagem'],
+      ['Hipertenso: consulta de acompanhamento', 'Enfermagem/Clínico'],
+      ['Diabético: consulta de acompanhamento', 'Enfermagem/Clínico'],
+      ['Diabético ou hipertenso: retirar medicamento na farmácia', 'Farmácia'],
+      ['Gestante: pré-natal em atraso', 'Enfermagem'],
+      ['Puérpera: consulta pós-parto pendente', 'Enfermagem'],
+      ['Rastreamento de câncer em atraso', 'Enfermagem'],
+      ['Saúde bucal: consulta ou procedimento pendente', 'Odontologia'],
+      ['Outro', 'Geral']
+    ];
+    for (const [descricao, setor_sugerido] of motivosSeed) {
+      await pool.query(
+        `INSERT INTO motivos_busca_ativa (descricao, setor_sugerido, ativo)
+         VALUES ($1, $2, true)
+         ON CONFLICT (descricao) DO NOTHING`,
+        [descricao, setor_sugerido]
+      );
+    }
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS busca_ativa_itens (
+        id SERIAL PRIMARY KEY,
+        entrada_fila_id INT REFERENCES patients(id) ON DELETE CASCADE,
+        motivo_id INT REFERENCES motivos_busca_ativa(id),
+        texto_outro VARCHAR(120),
+        ofertado BOOLEAN DEFAULT false,
+        ofertado_por VARCHAR(80),
+        ofertado_em TIMESTAMPTZ
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_busca_ativa_itens_fila ON busca_ativa_itens(entrada_fila_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS log_busca_ativa (
+        id SERIAL PRIMARY KEY,
+        acao VARCHAR(40) NOT NULL,
+        entrada_fila_id INT,
+        motivo_id INT,
+        motivo_descricao VARCHAR(120),
+        detalhes TEXT,
+        usuario_dispositivo VARCHAR(80),
+        data_hora TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_log_busca_ativa_data ON log_busca_ativa(data_hora DESC)`);
+    // ====== FIM PARTE B ======
+
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao inicializar banco de dados:', error.message);
@@ -492,19 +672,30 @@ app.post('/api/verify-admin', (req, res) => {
   }
 });
 
-// Get all queues (sorted: priority first, then arrival order)
+// Get config de prioridade (Parte A)
+app.get('/api/config-prioridade', (req, res) => {
+  res.json(CONFIG_PRIORIDADE);
+});
+
+// Get all queues (sorted: priority level first, then arrival order)
 app.get('/api/queues', async (req, res) => {
   try {
     const queues = {};
     SETORES.forEach(s => queues[s] = []);
 
     const result = await pool.query(
-      `SELECT * FROM patients WHERE status NOT IN ('atendido', 'desistencia')
+      `SELECT *,
+              ROUND(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0, 1) AS espera_minutos
+       FROM patients
+       WHERE status NOT IN ('atendido', 'desistencia')
        ORDER BY
+         COALESCE(nivel_prioridade, 3) ASC,
          CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
          COALESCE(sort_order, 2147483647) ASC,
          created_at AT TIME ZONE 'America/Sao_Paulo' ASC`
     );
+
+    await anexarBuscaAtivaDetalhes(result.rows, pool);
 
     result.rows.forEach(patient => {
       if (queues[patient.setor]) {
@@ -745,34 +936,55 @@ app.get('/api/relatorio-diario', async (req, res) => {
 // Add patient
 app.post('/api/patients', async (req, res) => {
   try {
-    const { nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo } = req.body;
+    const { nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo, idade } = req.body;
 
     if (!nome || !setor) {
       return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
     }
 
+    const calc = calcularNivelPrioridade(idade, prioridade);
+    if (calc.erro) {
+      return res.status(400).json({ error: calc.erro });
+    }
+
+    const prioridadeFinal = calc.nivel <= 2 ? 'prioritario' : (prioridade || 'geral');
+    let tipoPrioridadeFinal = tipo_prioridade || null;
+    if (calc.nivel === 1 && !tipoPrioridadeFinal) {
+      tipoPrioridadeFinal = 'Idoso 80+ (Prioridade Especial)';
+    } else if (calc.nivel === 2 && calc.idade !== null && calc.idade >= 60 && !tipoPrioridadeFinal) {
+      tipoPrioridadeFinal = 'Idoso 60+';
+    }
+
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
     const result = await pool.query(
-      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP) RETURNING *`,
-      [nome, setor, horario, 'aguardando', prioridade || 'geral', tipo_prioridade || null, tipo_atendimento || null, profissional || null, condicoes_especiais || null, etapa_fluxo || 'recepcao']
+      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo, idade, nivel_prioridade, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP) RETURNING *`,
+      [nome, setor, horario, 'aguardando', prioridadeFinal, tipoPrioridadeFinal, tipo_atendimento || null, profissional || null, condicoes_especiais || null, etapa_fluxo || 'recepcao', calc.idade, calc.nivel]
     );
+
+    const novoPaciente = result.rows[0];
+    novoPaciente.busca_ativa_detalhes = [];
 
     io.emit('queueUpdate');
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(novoPaciente);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Patient status for QR Code
+// Patient status for QR Code (público — lista explícita sem expor idade nem busca_ativa)
 app.get('/api/patients/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const pResult = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    const pResult = await pool.query(
+      `SELECT id, nome, setor, horario, status, medico, consultorio, profissional,
+              prioridade, tipo_prioridade, tipo_atendimento, etapa_fluxo, created_at, updated_at
+       FROM patients WHERE id = $1`,
+      [id]
+    );
     if (pResult.rows.length === 0) return res.status(404).json({ error: 'Paciente não encontrado' });
     const p = pResult.rows[0];
     
@@ -784,6 +996,7 @@ app.get('/api/patients/:id/status', async (req, res) => {
       `SELECT id FROM patients 
        WHERE status = 'aguardando' AND setor = $1
        ORDER BY
+         COALESCE(nivel_prioridade, 3) ASC,
          CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
          COALESCE(sort_order, 2147483647) ASC,
          created_at AT TIME ZONE 'America/Sao_Paulo' ASC`,
@@ -797,7 +1010,7 @@ app.get('/api/patients/:id/status', async (req, res) => {
   }
 });
 
-// Call next patient
+// Call next patient (Algoritmo Parte A: Regras a, b, c, d com anti-starvation e alternância)
 app.post('/api/call-next/:setor', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -806,27 +1019,115 @@ app.post('/api/call-next/:setor', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Get next waiting patient (priority first, then arrival order)
-    // If filtro_profissional is set, only get patients assigned to that professional
-    let nextQuery = `SELECT * FROM patients WHERE setor = $1 AND status = 'aguardando'`;
-    const nextParams = [setor];
+    let baseWhere = `setor = $1 AND status = 'aguardando'`;
+    const baseParams = [setor];
     if (filtro_profissional) {
-      nextQuery += ` AND profissional = $2`;
-      nextParams.push(filtro_profissional);
+      baseParams.push(filtro_profissional);
+      baseWhere += ` AND profissional = $${baseParams.length}`;
     }
     if (filtro_etapa && setor === 'Acolhimento') {
-      nextQuery += ` AND etapa_fluxo = $${nextParams.length + 1}`;
-      nextParams.push(filtro_etapa);
+      baseParams.push(filtro_etapa);
+      baseWhere += ` AND etapa_fluxo = $${baseParams.length}`;
     }
-    nextQuery += ` ORDER BY CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC, COALESCE(sort_order, 2147483647) ASC, created_at AT TIME ZONE 'America/Sao_Paulo' ASC LIMIT 1`;
-    const nextResult = await client.query(nextQuery, nextParams);
 
-    if (nextResult.rows.length === 0) {
+    let chosenPatient = null;
+    let regraAplicada = 'd';
+
+    // Regra (a): Há paciente normal (nivel_prioridade = 3) esperando no setor há mais de LIMITE_ESPERA_NORMAL_MIN minutos -> chamar o normal mais antigo (created_at ASC estrito)
+    const paramsRegraA = [...baseParams, CONFIG_PRIORIDADE.LIMITE_ESPERA_NORMAL_MIN];
+    const regraARes = await client.query(
+      `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
+       FROM patients
+       WHERE ${baseWhere}
+         AND COALESCE(nivel_prioridade, 3) = 3
+         AND EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 >= $${paramsRegraA.length}
+       ORDER BY created_at ASC
+       LIMIT 1
+       FOR UPDATE SKIP LOCKED`,
+      paramsRegraA
+    );
+
+    if (regraARes.rows.length > 0) {
+      chosenPatient = regraARes.rows[0];
+      regraAplicada = 'a';
+    }
+
+    // Regra (b): Os últimos PROPORCAO_PRIORITARIOS chamados daquele setor (+ filtro_profissional via COALESCE) foram prioritários (1 ou 2) E há normal esperando -> chamar o normal mais antigo
+    if (!chosenPatient) {
+      const filtroProfNorm = filtro_profissional ? String(filtro_profissional).trim() : '';
+      const ultimosRes = await client.query(
+        `SELECT nivel_calculado FROM log_prioridade
+         WHERE setor = $1
+           AND COALESCE(filtro_profissional, '') = COALESCE($2, '')
+           AND DATE(data_hora AT TIME ZONE 'America/Recife') = (NOW() AT TIME ZONE 'America/Recife')::date
+         ORDER BY data_hora DESC, id DESC
+         LIMIT $3`,
+        [setor, filtroProfNorm, CONFIG_PRIORIDADE.PROPORCAO_PRIORITARIOS]
+      );
+
+      const ultimosForamPrioritarios =
+        ultimosRes.rows.length >= CONFIG_PRIORIDADE.PROPORCAO_PRIORITARIOS &&
+        ultimosRes.rows.every(r => Number(r.nivel_calculado) === 1 || Number(r.nivel_calculado) === 2);
+
+      if (ultimosForamPrioritarios) {
+        const regraBRes = await client.query(
+          `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
+           FROM patients
+           WHERE ${baseWhere}
+             AND COALESCE(nivel_prioridade, 3) = 3
+           ORDER BY COALESCE(sort_order, 2147483647) ASC, created_at ASC
+           LIMIT 1
+           FOR UPDATE SKIP LOCKED`,
+          baseParams
+        );
+        if (regraBRes.rows.length > 0) {
+          chosenPatient = regraBRes.rows[0];
+          regraAplicada = 'b';
+        }
+      }
+    }
+
+    // Regra (c): Há prioritário (1 ou 2) esperando no setor -> chamar o de menor nível primeiro (ORDER BY nivel_prioridade ASC), desempate por sort_order ASC, created_at ASC
+    if (!chosenPatient) {
+      const regraCRes = await client.query(
+        `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
+         FROM patients
+         WHERE ${baseWhere}
+           AND COALESCE(nivel_prioridade, 3) IN (1, 2)
+         ORDER BY COALESCE(nivel_prioridade, 3) ASC, COALESCE(sort_order, 2147483647) ASC, created_at ASC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED`,
+        baseParams
+      );
+      if (regraCRes.rows.length > 0) {
+        chosenPatient = regraCRes.rows[0];
+        regraAplicada = 'c';
+      }
+    }
+
+    // Regra (d): Caso contrário -> chamar o normal mais antigo (desempate por sort_order ASC, created_at ASC)
+    if (!chosenPatient) {
+      const regraDRes = await client.query(
+        `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
+         FROM patients
+         WHERE ${baseWhere}
+         ORDER BY COALESCE(sort_order, 2147483647) ASC, created_at ASC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED`,
+        baseParams
+      );
+      if (regraDRes.rows.length > 0) {
+        chosenPatient = regraDRes.rows[0];
+        regraAplicada = 'd';
+      }
+    }
+
+    if (!chosenPatient) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Nenhum paciente aguardando' });
     }
 
-    const next = nextResult.rows[0];
+    const next = chosenPatient;
 
     const medicoFinal = medico || null;
     const consultorioFinal = consultorio || null;
@@ -856,10 +1157,34 @@ app.post('/api/call-next/:setor', async (req, res) => {
       [next.id, next.nome, setor, horarioChamada, medicoFinal, next.prioridade, next.tipo_prioridade, next.tipo_atendimento, consultorioFinal, profissionalFinal]
     );
 
+    // Registrar auditoria em log_prioridade (Parte A) usando COALESCE($3, '') para filtro_profissional
+    const usuarioDisp = await obterUsuarioDispositivo(req, client, profissionalFinal || medicoFinal || setor);
+    const esperaMin = next.espera_calc_min !== undefined && next.espera_calc_min !== null
+      ? Number(Number(next.espera_calc_min).toFixed(2))
+      : 0;
+    const filtroProfInsert = filtro_profissional ? String(filtro_profissional).trim() : '';
+    await client.query(
+      `INSERT INTO log_prioridade
+         (paciente_id, setor, filtro_profissional, idade_informada, nivel_calculado, regra_aplicada, espera_min, usuario_dispositivo, data_hora)
+       VALUES ($1, $2, COALESCE($3, ''), $4, $5, $6, $7, $8, NOW())`,
+      [
+        next.id,
+        setor,
+        filtroProfInsert,
+        next.idade !== undefined ? next.idade : null,
+        next.nivel_prioridade || 3,
+        regraAplicada,
+        esperaMin,
+        usuarioDisp
+      ]
+    );
+
     await client.query('COMMIT');
 
     const updatedResult = await pool.query('SELECT * FROM patients WHERE id = $1', [next.id]);
+    await anexarBuscaAtivaDetalhes(updatedResult.rows, pool);
     const nextPatient = updatedResult.rows[0];
+    nextPatient.regra_aplicada = regraAplicada;
 
     // Emite atualização imediata
     io.emit('queueUpdate');
@@ -869,7 +1194,7 @@ app.post('/api/call-next/:setor', async (req, res) => {
 
     // Emissão de evento para painéis em background
     setTimeout(() => {
-      io.emit('callPatient', { patient: nextPatient, setor, audioUrl: null });
+      io.emit('callPatient', { patient: sanitizarPacientePublico(nextPatient), setor, audioUrl: null });
     }, 100);
 
   } catch (error) {
@@ -905,6 +1230,7 @@ app.put('/api/patients/:id/reorder', async (req, res) => {
       `SELECT id FROM patients
        WHERE setor = $1 AND status = 'aguardando'
        ORDER BY
+         COALESCE(nivel_prioridade, 3) ASC,
          CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
          COALESCE(sort_order, 2147483647) ASC,
          created_at AT TIME ZONE 'America/Sao_Paulo' ASC`,
@@ -1217,7 +1543,9 @@ app.get('/api/current-calling', async (req, res) => {
 
     for (const setor of SETORES) {
       const result = await pool.query(
-        "SELECT * FROM patients WHERE setor = $1 AND status = 'chamado'",
+        `SELECT id, nome, setor, horario, status, medico, consultorio, profissional,
+                prioridade, tipo_prioridade, tipo_atendimento, etapa_fluxo, created_at, updated_at
+         FROM patients WHERE setor = $1 AND status = 'chamado'`,
         [setor]
       );
       if (result.rows.length > 0) current[setor] = result.rows[0];
@@ -2745,13 +3073,17 @@ app.post('/api/history/:id/delete', async (req, res) => {
 app.get('/api/acolhimento/fluxo', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM patients
+      `SELECT *,
+              ROUND(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0, 1) AS espera_minutos
+       FROM patients
        WHERE setor = 'Acolhimento' AND status NOT IN ('atendido', 'desistencia')
        ORDER BY
          CASE WHEN risco_clinico = 'vermelho' THEN 0 WHEN risco_clinico = 'amarelo' THEN 1 WHEN risco_clinico = 'verde' THEN 2 WHEN risco_clinico = 'azul' THEN 3 ELSE 2 END ASC,
+         COALESCE(nivel_prioridade, 3) ASC,
          CASE WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END ASC,
          created_at AT TIME ZONE 'America/Sao_Paulo' ASC`
     );
+    await anexarBuscaAtivaDetalhes(result.rows, pool);
     const grouped = { recepcao: [], primeira_escuta: [], segunda_escuta: [] };
     result.rows.forEach(p => {
       const etapa = p.etapa_fluxo || 'recepcao';
@@ -3196,6 +3528,611 @@ app.get('/api/mensagens-enviadas/relatorio', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ====== PARTE B: BUSCA ATIVA (alumIA) & RELATÓRIOS ADMIN ======
+
+// GET – listar motivos de busca ativa (?all=1 retorna ativos e inativos; padrão retorna apenas ativos)
+app.get('/api/motivos-busca-ativa', async (req, res) => {
+  try {
+    const mostrarTodos = req.query.all === '1' || req.query.all === 'true';
+    const query = mostrarTodos
+      ? `SELECT id, descricao, setor_sugerido, ativo FROM motivos_busca_ativa ORDER BY CASE WHEN LOWER(descricao) = 'outro' THEN 1 ELSE 0 END ASC, id ASC`
+      : `SELECT id, descricao, setor_sugerido, ativo FROM motivos_busca_ativa WHERE ativo = true ORDER BY CASE WHEN LOWER(descricao) = 'outro' THEN 1 ELSE 0 END ASC, id ASC`;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST – adicionar novo motivo de busca ativa (Admin)
+app.post('/api/admin/motivos-busca-ativa', async (req, res) => {
+  try {
+    const { descricao, setor_sugerido, senha } = req.body || {};
+    if (!isValidAdminPass(senha)) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    const descLimpa = String(descricao || '').trim().slice(0, 120);
+    const setorLimpo = String(setor_sugerido || '').trim().slice(0, 60);
+    if (!descLimpa || !setorLimpo) {
+      return res.status(400).json({ error: 'Descrição e setor sugerido são obrigatórios (máx. 120 e 60 caracteres).' });
+    }
+    const result = await pool.query(
+      `INSERT INTO motivos_busca_ativa (descricao, setor_sugerido, ativo)
+       VALUES ($1, $2, true)
+       RETURNING *`,
+      [descLimpa, setorLimpo]
+    );
+    const usuarioDisp = await obterUsuarioDispositivo(req, pool, 'Admin');
+    await pool.query(
+      `INSERT INTO log_busca_ativa (acao, entrada_fila_id, motivo_id, motivo_descricao, detalhes, usuario_dispositivo, data_hora)
+       VALUES ('admin_criar_motivo', NULL, $1, $2, $3, $4, NOW())`,
+      [result.rows[0].id, descLimpa, `Setor sugerido: ${setorLimpo}`, usuarioDisp]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Já existe um motivo com esta descrição.' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT – renomear ou ativar/desativar motivo de busca ativa (Admin)
+app.put('/api/admin/motivos-busca-ativa/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { descricao, setor_sugerido, ativo, senha } = req.body || {};
+    if (!isValidAdminPass(senha)) {
+      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    }
+    const atualRes = await pool.query('SELECT * FROM motivos_busca_ativa WHERE id = $1', [id]);
+    if (atualRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Motivo não encontrado' });
+    }
+    const atual = atualRes.rows[0];
+    const novaDesc = descricao !== undefined ? String(descricao).trim().slice(0, 120) : atual.descricao;
+    const novoSetor = setor_sugerido !== undefined ? String(setor_sugerido).trim().slice(0, 60) : atual.setor_sugerido;
+    const novoAtivo = typeof ativo === 'boolean' ? ativo : atual.ativo;
+
+    if (!novaDesc || !novoSetor) {
+      return res.status(400).json({ error: 'Descrição e setor sugerido não podem ficar vazios.' });
+    }
+
+    const result = await pool.query(
+      `UPDATE motivos_busca_ativa
+       SET descricao = $2, setor_sugerido = $3, ativo = $4
+       WHERE id = $1
+       RETURNING *`,
+      [id, novaDesc, novoSetor, novoAtivo]
+    );
+
+    const usuarioDisp = await obterUsuarioDispositivo(req, pool, 'Admin');
+    await pool.query(
+      `INSERT INTO log_busca_ativa (acao, entrada_fila_id, motivo_id, motivo_descricao, detalhes, usuario_dispositivo, data_hora)
+       VALUES ('admin_editar_motivo', NULL, $1, $2, $3, $4, NOW())`,
+      [id, novaDesc, `Setor: ${novoSetor} | Ativo: ${novoAtivo}`, usuarioDisp]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Já existe outro motivo com esta descrição.' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET – resumo leve e sem cache (no-store) de todos os itens de busca ativa dos pacientes na fila do dia
+app.get('/api/busca-ativa/resumo', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT bi.id, bi.entrada_fila_id, bi.motivo_id, bi.texto_outro, bi.ofertado, bi.ofertado_por, bi.ofertado_em,
+              m.descricao AS motivo_descricao, m.setor_sugerido
+       FROM busca_ativa_itens bi
+       JOIN motivos_busca_ativa m ON m.id = bi.motivo_id
+       JOIN patients p ON p.id = bi.entrada_fila_id
+       WHERE p.status NOT IN ('atendido', 'desistencia')
+       ORDER BY bi.id ASC`
+    );
+    const porPaciente = {};
+    result.rows.forEach(item => {
+      if (!porPaciente[item.entrada_fila_id]) porPaciente[item.entrada_fila_id] = [];
+      porPaciente[item.entrada_fila_id].push(item);
+    });
+    res.json(porPaciente);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET – obter itens de busca ativa de um paciente da fila
+app.get('/api/patients/:id/busca-ativa', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pRes = await pool.query('SELECT id, nome, setor, busca_ativa, busca_ativa_ofertada FROM patients WHERE id = $1', [id]);
+    if (pRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado na fila ativa' });
+    }
+    const itensRes = await pool.query(
+      `SELECT bi.id, bi.entrada_fila_id, bi.motivo_id, bi.texto_outro, bi.ofertado, bi.ofertado_por, bi.ofertado_em,
+              m.descricao AS motivo_descricao, m.setor_sugerido
+       FROM busca_ativa_itens bi
+       JOIN motivos_busca_ativa m ON m.id = bi.motivo_id
+       WHERE bi.entrada_fila_id = $1
+       ORDER BY bi.id ASC`,
+      [id]
+    );
+    res.json({
+      patient: pRes.rows[0],
+      itens: itensRes.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT – salvar/editar/remover marcações de busca ativa de um paciente (JAMAIS altera prioridade ou ordem da fila)
+app.put('/api/patients/:id/busca-ativa', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { itens, setor_operador } = req.body || {};
+
+    if (!Array.isArray(itens)) {
+      return res.status(400).json({ error: 'Formato inválido: itens deve ser uma lista.' });
+    }
+
+    await client.query('BEGIN');
+
+    const pRes = await client.query('SELECT id, nome, setor, busca_ativa FROM patients WHERE id = $1 FOR UPDATE', [id]);
+    if (pRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado na fila' });
+    }
+    const patient = pRes.rows[0];
+
+    const existentesRes = await client.query(
+      `SELECT bi.*, m.descricao AS motivo_descricao
+       FROM busca_ativa_itens bi
+       JOIN motivos_busca_ativa m ON m.id = bi.motivo_id
+       WHERE bi.entrada_fila_id = $1`,
+      [id]
+    );
+    const existentesMap = {};
+    existentesRes.rows.forEach(r => {
+      existentesMap[Number(r.motivo_id)] = r;
+    });
+
+    // Validar motivos enviados
+    const itensLimpos = [];
+    const vistos = new Set();
+    for (const item of itens) {
+      const motivoId = parseInt(item.motivo_id, 10);
+      if (!motivoId || isNaN(motivoId) || vistos.has(motivoId)) continue;
+      vistos.add(motivoId);
+      const textoOutro = item.texto_outro ? String(item.texto_outro).trim().slice(0, 120) : null;
+      itensLimpos.push({ motivo_id: motivoId, texto_outro: textoOutro });
+    }
+
+    const usuarioDisp = await obterUsuarioDispositivo(req, client, setor_operador || 'Recepção');
+
+    if (itensLimpos.length === 0) {
+      // Remoção total das marcações de busca ativa do paciente
+      await client.query('DELETE FROM busca_ativa_itens WHERE entrada_fila_id = $1', [id]);
+      await client.query(
+        'UPDATE patients SET busca_ativa = false, busca_ativa_ofertada = false WHERE id = $1',
+        [id]
+      );
+      if (existentesRes.rows.length > 0) {
+        for (const rem of existentesRes.rows) {
+          await client.query(
+            `INSERT INTO log_busca_ativa (acao, entrada_fila_id, motivo_id, motivo_descricao, detalhes, usuario_dispositivo, data_hora)
+             VALUES ('remover_item', $1, $2, $3, 'Motivo removido pelo usuário', $4, NOW())`,
+            [id, rem.motivo_id, rem.motivo_descricao, usuarioDisp]
+          );
+        }
+        await client.query(
+          `INSERT INTO log_busca_ativa (acao, entrada_fila_id, motivo_id, motivo_descricao, detalhes, usuario_dispositivo, data_hora)
+           VALUES ('remover', $1, NULL, NULL, $2, $3, NOW())`,
+          [id, `Marcações removidas (${existentesRes.rows.map(e => e.motivo_descricao).join('; ')})`, usuarioDisp]
+        );
+      }
+      await client.query('COMMIT');
+      io.emit('queueUpdate');
+      return res.json({
+        message: 'Busca ativa removida do paciente.',
+        busca_ativa: false,
+        busca_ativa_ofertada: false,
+        busca_ativa_detalhes: []
+      });
+    }
+
+    // Buscar metadados dos motivos selecionados
+    const motivosIds = itensLimpos.map(i => i.motivo_id);
+    const motivosDbRes = await client.query(
+      'SELECT id, descricao, setor_sugerido FROM motivos_busca_ativa WHERE id = ANY($1::int[])',
+      [motivosIds]
+    );
+    const motivosDbMap = {};
+    motivosDbRes.rows.forEach(m => { motivosDbMap[Number(m.id)] = m; });
+
+    // Validar que se "Outro" foi marcado, texto_outro tenha no máx 120 chars
+    for (const item of itensLimpos) {
+      const m = motivosDbMap[item.motivo_id];
+      if (!m) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Motivo inválido (${item.motivo_id}).` });
+      }
+      if (m.descricao.toLowerCase() === 'outro' && (!item.texto_outro || !item.texto_outro.trim())) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Para o motivo "Outro", descreva a pendência (máx. 120 caracteres).' });
+      }
+    }
+
+    // Identificar e logar motivos desmarcados na edição antes de apagar de busca_ativa_itens
+    const motivosSet = new Set(motivosIds);
+    for (const antigo of existentesRes.rows) {
+      if (!motivosSet.has(Number(antigo.motivo_id))) {
+        await client.query(
+          `INSERT INTO log_busca_ativa (acao, entrada_fila_id, motivo_id, motivo_descricao, detalhes, usuario_dispositivo, data_hora)
+           VALUES ('remover_item', $1, $2, $3, 'Motivo desmarcado na edição', $4, NOW())`,
+          [id, antigo.motivo_id, antigo.motivo_descricao, usuarioDisp]
+        );
+      }
+    }
+
+    // Remover motivos desmarcados
+    await client.query(
+      'DELETE FROM busca_ativa_itens WHERE entrada_fila_id = $1 AND NOT (motivo_id = ANY($2::int[]))',
+      [id, motivosIds]
+    );
+
+    // Inserir novos ou atualizar existentes (preservando ofertado se já havia sido ofertado)
+    for (const item of itensLimpos) {
+      const m = motivosDbMap[item.motivo_id];
+      const existente = existentesMap[item.motivo_id];
+      if (existente) {
+        await client.query(
+          'UPDATE busca_ativa_itens SET texto_outro = $2 WHERE id = $1',
+          [existente.id, item.texto_outro]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO busca_ativa_itens (entrada_fila_id, motivo_id, texto_outro, ofertado)
+           VALUES ($1, $2, $3, false)`,
+          [id, item.motivo_id, item.texto_outro]
+        );
+        // Registrar presença no log por motivo novo marcado (usado no relatório Parte B mesmo após reset diário)
+        const descFinal = m.descricao.toLowerCase() === 'outro' && item.texto_outro
+          ? `Outro: ${item.texto_outro}`
+          : m.descricao;
+        await client.query(
+          `INSERT INTO log_busca_ativa (acao, entrada_fila_id, motivo_id, motivo_descricao, detalhes, usuario_dispositivo, data_hora)
+           VALUES ('marcar_item', $1, $2, $3, $4, $5, NOW())`,
+          [id, m.id, m.descricao, descFinal, usuarioDisp]
+        );
+      }
+    }
+
+    // Verificar se todos os itens atuais já estão ofertados
+    const statusItensRes = await client.query(
+      'SELECT bool_and(COALESCE(ofertado, false)) AS todos_ofertados FROM busca_ativa_itens WHERE entrada_fila_id = $1',
+      [id]
+    );
+    const todosOfertados = Boolean(statusItensRes.rows[0]?.todos_ofertados);
+
+    // Atualizar apenas os sinalizadores informativos (NÃO toca em sort_order, nivel_prioridade, prioridade nem updated_at de chamada)
+    await client.query(
+      'UPDATE patients SET busca_ativa = true, busca_ativa_ofertada = $2 WHERE id = $1',
+      [id, todosOfertados]
+    );
+
+    const acaoGeral = existentesRes.rows.length > 0 ? 'editar' : 'marcar';
+    const resumoMotivos = itensLimpos.map(i => {
+      const m = motivosDbMap[i.motivo_id];
+      return m.descricao.toLowerCase() === 'outro' && i.texto_outro ? `Outro (${i.texto_outro})` : m.descricao;
+    }).join('; ');
+
+    await client.query(
+      `INSERT INTO log_busca_ativa (acao, entrada_fila_id, motivo_id, motivo_descricao, detalhes, usuario_dispositivo, data_hora)
+       VALUES ($1, $2, NULL, NULL, $3, $4, NOW())`,
+      [acaoGeral, id, resumoMotivos, usuarioDisp]
+    );
+
+    await client.query('COMMIT');
+
+    const pFinal = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    await anexarBuscaAtivaDetalhes(pFinal.rows, pool);
+
+    io.emit('queueUpdate');
+    res.json({
+      message: 'Busca ativa (alumIA) atualizada com sucesso.',
+      patient: pFinal.rows[0],
+      busca_ativa_detalhes: pFinal.rows[0]?.busca_ativa_detalhes || []
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// POST – registrar "Oferta feita" (por motivo específico ou todos os motivos do paciente)
+app.post('/api/patients/:id/busca-ativa/ofertar', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { item_id, motivo_id, setor_operador, profissional_operador } = req.body || {};
+
+    await client.query('BEGIN');
+
+    const pRes = await client.query('SELECT id, nome, setor, busca_ativa FROM patients WHERE id = $1 FOR UPDATE', [id]);
+    if (pRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado na fila' });
+    }
+
+    const rotulo = profissional_operador || setor_operador || pRes.rows[0].setor || 'Equipe';
+    const usuarioDisp = await obterUsuarioDispositivo(req, client, rotulo);
+
+    let whereClause = 'entrada_fila_id = $1';
+    const params = [id, usuarioDisp];
+    if (item_id) {
+      params.push(parseInt(item_id, 10));
+      whereClause += ` AND id = $${params.length}`;
+    } else if (motivo_id) {
+      params.push(parseInt(motivo_id, 10));
+      whereClause += ` AND motivo_id = $${params.length}`;
+    }
+
+    const updRes = await client.query(
+      `UPDATE busca_ativa_itens
+       SET ofertado = true, ofertado_por = $2, ofertado_em = NOW()
+       WHERE ${whereClause}
+       RETURNING *`,
+      params
+    );
+
+    if (updRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Nenhum item de busca ativa encontrado para registrar oferta.' });
+    }
+
+    // Registrar auditoria por cada item ofertado
+    for (const item of updRes.rows) {
+      const mRes = await client.query('SELECT descricao FROM motivos_busca_ativa WHERE id = $1', [item.motivo_id]);
+      const mDesc = mRes.rows[0]?.descricao || 'Motivo';
+      await client.query(
+        `INSERT INTO log_busca_ativa (acao, entrada_fila_id, motivo_id, motivo_descricao, detalhes, usuario_dispositivo, data_hora)
+         VALUES ('ofertar', $1, $2, $3, $4, $5, NOW())`,
+        [id, item.motivo_id, mDesc, item.texto_outro ? `Oferta feita (${item.texto_outro})` : 'Oferta feita', usuarioDisp]
+      );
+    }
+
+    const statusItensRes = await client.query(
+      'SELECT bool_and(COALESCE(ofertado, false)) AS todos_ofertados FROM busca_ativa_itens WHERE entrada_fila_id = $1',
+      [id]
+    );
+    const todosOfertados = Boolean(statusItensRes.rows[0]?.todos_ofertados);
+
+    await client.query(
+      'UPDATE patients SET busca_ativa_ofertada = $2 WHERE id = $1',
+      [id, todosOfertados]
+    );
+
+    await client.query('COMMIT');
+
+    const pFinal = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    await anexarBuscaAtivaDetalhes(pFinal.rows, pool);
+
+    io.emit('queueUpdate');
+    res.json({
+      message: 'Oferta registrada com sucesso!',
+      patient: pFinal.rows[0],
+      busca_ativa_detalhes: pFinal.rows[0]?.busca_ativa_detalhes || []
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// GET – Relatório Admin Unificado (Parte A + Parte B) com filtro por Dia/Período e Turno no fuso America/Recife
+app.get('/api/admin/relatorio-prioridade-busca', async (req, res) => {
+  try {
+    const hojeRecife = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Recife' }).format(new Date());
+    const dataInicio = (req.query.data_inicio || req.query.data || hojeRecife).trim();
+    const dataFim = (req.query.data_fim || req.query.data || dataInicio).trim();
+    const periodo = (req.query.periodo || 'integral').trim(); // 'integral' | 'manha' | 'tarde'
+
+    let turnoFilterPrioridade = '';
+    let turnoFilterBusca = '';
+    if (periodo === 'manha') {
+      turnoFilterPrioridade = ` AND EXTRACT(HOUR FROM data_hora AT TIME ZONE 'America/Recife') < 12`;
+      turnoFilterBusca = ` AND EXTRACT(HOUR FROM l.data_hora AT TIME ZONE 'America/Recife') < 12`;
+    } else if (periodo === 'tarde') {
+      turnoFilterPrioridade = ` AND EXTRACT(HOUR FROM data_hora AT TIME ZONE 'America/Recife') >= 12`;
+      turnoFilterBusca = ` AND EXTRACT(HOUR FROM l.data_hora AT TIME ZONE 'America/Recife') >= 12`;
+    }
+
+    // --- PARTE A: Tempo médio e máximo de espera por nível de prioridade (1, 2 e 3) e acionamentos da Regra (a) ---
+    const niveisRes = await pool.query(
+      `SELECT
+         nivel_calculado,
+         COUNT(*) AS total_chamados,
+         ROUND(AVG(COALESCE(espera_min, 0)), 1) AS media_espera_min,
+         ROUND(MAX(COALESCE(espera_min, 0)), 1) AS max_espera_min
+       FROM log_prioridade
+       WHERE DATE(data_hora AT TIME ZONE 'America/Recife') BETWEEN $1::date AND $2::date
+       ${turnoFilterPrioridade}
+       GROUP BY nivel_calculado
+       ORDER BY nivel_calculado ASC`,
+      [dataInicio, dataFim]
+    );
+
+    const regrasRes = await pool.query(
+      `SELECT
+         regra_aplicada,
+         COUNT(*) AS total
+       FROM log_prioridade
+       WHERE DATE(data_hora AT TIME ZONE 'America/Recife') BETWEEN $1::date AND $2::date
+       ${turnoFilterPrioridade}
+       GROUP BY regra_aplicada`,
+      [dataInicio, dataFim]
+    );
+
+    const niveisMap = {
+      1: { nivel: 1, descricao: 'Nível 1 (80+ anos - Superprioridade)', total_chamados: 0, media_espera_min: 0, max_espera_min: 0 },
+      2: { nivel: 2, descricao: 'Nível 2 (60 a 79 anos / Prioritário Legal)', total_chamados: 0, media_espera_min: 0, max_espera_min: 0 },
+      3: { nivel: 3, descricao: 'Nível 3 (Normal / < 60 anos)', total_chamados: 0, media_espera_min: 0, max_espera_min: 0 }
+    };
+    niveisRes.rows.forEach(r => {
+      const nv = Number(r.nivel_calculado);
+      if (niveisMap[nv]) {
+        niveisMap[nv].total_chamados = parseInt(r.total_chamados, 10) || 0;
+        niveisMap[nv].media_espera_min = parseFloat(r.media_espera_min) || 0;
+        niveisMap[nv].max_espera_min = parseFloat(r.max_espera_min) || 0;
+      }
+    });
+
+    let regraAAcionada = 0;
+    const porRegra = { a: 0, b: 0, c: 0, d: 0 };
+    regrasRes.rows.forEach(r => {
+      const reg = String(r.regra_aplicada || '').trim();
+      const cnt = parseInt(r.total, 10) || 0;
+      if (porRegra[reg] !== undefined) porRegra[reg] = cnt;
+      if (reg === 'a') regraAAcionada = cnt;
+    });
+
+    // --- PARTE B: Total de pacientes de busca ativa que compareceram por motivo e % com "Oferta feita" ---
+    // Consolida o estado final de cada par (dia_recife, entrada_fila_id, motivo_id) para:
+    // 1. Evitar colisão de entrada_fila_id após /api/reset em dias diferentes.
+    // 2. Descontar motivos marcados e depois removidos ('remover_item') no mesmo dia para aquele paciente.
+    const motivosBuscaRes = await pool.query(
+      `WITH estado_item AS (
+         SELECT
+           DATE(l.data_hora AT TIME ZONE 'America/Recife') AS dia_recife,
+           l.entrada_fila_id,
+           l.motivo_id,
+           (ARRAY_AGG(l.acao ORDER BY l.data_hora DESC, l.id DESC) FILTER (WHERE l.acao IN ('marcar_item', 'remover_item')))[1] AS ultima_acao_marcacao,
+           BOOL_OR(l.acao = 'ofertar') AS foi_ofertado
+         FROM log_busca_ativa l
+         WHERE l.entrada_fila_id IS NOT NULL
+           AND l.motivo_id IS NOT NULL
+           AND DATE(l.data_hora AT TIME ZONE 'America/Recife') BETWEEN $1::date AND $2::date
+           ${turnoFilterBusca}
+         GROUP BY DATE(l.data_hora AT TIME ZONE 'America/Recife'), l.entrada_fila_id, l.motivo_id
+       ),
+       itens_ativos AS (
+         SELECT dia_recife, entrada_fila_id, motivo_id, foi_ofertado
+         FROM estado_item
+         WHERE ultima_acao_marcacao = 'marcar_item'
+       )
+       SELECT
+         m.id AS motivo_id,
+         m.descricao,
+         m.setor_sugerido,
+         m.ativo,
+         COUNT(ia.entrada_fila_id) AS total_pacientes,
+         COUNT(ia.entrada_fila_id) FILTER (WHERE ia.foi_ofertado = true) AS total_ofertados
+       FROM motivos_busca_ativa m
+       LEFT JOIN itens_ativos ia ON ia.motivo_id = m.id
+       GROUP BY m.id, m.descricao, m.setor_sugerido, m.ativo
+       ORDER BY total_pacientes DESC, m.id ASC`,
+      [dataInicio, dataFim]
+    );
+
+    const resumoPacientesBuscaRes = await pool.query(
+      `WITH estado_item AS (
+         SELECT
+           DATE(l.data_hora AT TIME ZONE 'America/Recife') AS dia_recife,
+           l.entrada_fila_id,
+           l.motivo_id,
+           (ARRAY_AGG(l.acao ORDER BY l.data_hora DESC, l.id DESC) FILTER (WHERE l.acao IN ('marcar_item', 'remover_item')))[1] AS ultima_acao_marcacao,
+           BOOL_OR(l.acao = 'ofertar') AS foi_ofertado
+         FROM log_busca_ativa l
+         WHERE l.entrada_fila_id IS NOT NULL
+           AND l.motivo_id IS NOT NULL
+           AND DATE(l.data_hora AT TIME ZONE 'America/Recife') BETWEEN $1::date AND $2::date
+           ${turnoFilterBusca}
+         GROUP BY DATE(l.data_hora AT TIME ZONE 'America/Recife'), l.entrada_fila_id, l.motivo_id
+       ),
+       itens_ativos AS (
+         SELECT dia_recife, entrada_fila_id, motivo_id, foi_ofertado
+         FROM estado_item
+         WHERE ultima_acao_marcacao = 'marcar_item'
+       )
+       SELECT
+         COUNT(DISTINCT (dia_recife, entrada_fila_id)) AS total_pacientes_busca,
+         COUNT(DISTINCT CASE WHEN foi_ofertado = true THEN (dia_recife, entrada_fila_id) END) AS total_pacientes_ofertados
+       FROM itens_ativos`,
+      [dataInicio, dataFim]
+    );
+
+    const totalPacBusca = parseInt(resumoPacientesBuscaRes.rows[0]?.total_pacientes_busca, 10) || 0;
+    const totalPacOfertados = parseInt(resumoPacientesBuscaRes.rows[0]?.total_pacientes_ofertados, 10) || 0;
+    const percentualGeralOfertado = totalPacBusca > 0
+      ? Number(((totalPacOfertados / totalPacBusca) * 100).toFixed(1))
+      : 0;
+
+    const porMotivo = motivosBuscaRes.rows.map(r => {
+      const tot = parseInt(r.total_pacientes, 10) || 0;
+      const ofe = Math.min(tot, parseInt(r.total_ofertados, 10) || 0);
+      const pct = tot > 0 ? Number(((ofe / tot) * 100).toFixed(1)) : 0;
+      return {
+        motivo_id: r.motivo_id,
+        descricao: r.descricao,
+        setor_sugerido: r.setor_sugerido,
+        ativo: r.ativo,
+        total_pacientes: tot,
+        total_ofertados: ofe,
+        percentual_ofertado: pct
+      };
+    });
+
+    res.json({
+      filtro: {
+        data_inicio: dataInicio,
+        data_fim: dataFim,
+        periodo,
+        fuso: 'America/Recife'
+      },
+      config_prioridade: CONFIG_PRIORIDADE,
+      parteA: {
+        por_nivel: [niveisMap[1], niveisMap[2], niveisMap[3]],
+        regra_a_acionada: regraAAcionada,
+        por_regra: porRegra
+      },
+      parteB: {
+        total_pacientes_busca_ativa: totalPacBusca,
+        total_pacientes_com_oferta: totalPacOfertados,
+        percentual_geral_oferta: percentualGeralOfertado,
+        por_motivo: porMotivo
+      }
+    });
+  } catch (error) {
+    console.error('Erro em /api/admin/relatorio-prioridade-busca:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ============================================================================
+ * STUB FUTURO (NÃO IMPLEMENTADO NESTA FASE — PREPARAÇÃO PARA IMPORTAÇÃO CSV ALUMIA)
+ * ============================================================================
+ * Quando a Secretaria de Saúde / Conecta Saúde liberar exportação padronizada CSV
+ * do painel alumIA (recife.pe.radarsaude.com.br):
+ *
+ * // app.post('/api/admin/alumia/import-csv', async (req, res) => {
+ * //   // 1. Validar senha administrativa (isValidAdminPass)
+ * //   // 2. Receber lote CSV em memória (sem gravar diagnóstico/CID, apenas nome/CNS/pendência administrativa)
+ * //   // 3. Cruzar com a fila do dia (patients) para pré-sugerir o sinalizador "Busca ativa (alumIA)" na recepção
+ * //   // 4. Descartar dados ao final do expediente seguindo a rotina de limpeza diária (/api/reset)
+ * // });
+ * ============================================================================ */
 
 // Serve dashboard page
 app.get('/dashboard', (req, res) => {
