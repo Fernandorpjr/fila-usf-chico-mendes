@@ -1932,8 +1932,8 @@ function renderBotaoBuscaAtivaCard(p, setorContexto) {
   const safeSetor = (setorContexto || p.setor || 'Recepção').replace(/'/g, "\\'");
   const ativo = Boolean(p.busca_ativa);
   const cls = ativo ? 'btn-radar-alumia' : 'btn-radar-alumia inativo';
-  const label = ativo ? '📡 Busca ativa (alumIA) ✓' : '📡 Busca ativa (alumIA)';
-  return `<button type="button" class="${cls}" onclick="event.stopPropagation();abrirModalBuscaAtiva(${p.id}, '${safeNome}', '${safeSetor}')" title="Marcar ou editar pendências do alumIA">${label}</button>`;
+  const label = ativo ? '📡 alumIA ✓' : '📡 alumIA';
+  return `<button type="button" class="${cls}" onclick="event.stopPropagation();abrirModalBuscaAtiva(${p.id}, '${safeNome}', '${safeSetor}')" title="${ativo ? 'Pendências do alumIA registradas' : 'Marcar pendências do alumIA'}">${label}</button>`;
 }
 
 function renderBlocoBuscaAtivaEquipe(p, setorContexto) {
@@ -1998,11 +1998,13 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const isInterc = Boolean(p.is_intercorrencia_acolhimento) || p.tipo_atendimento === 'Intercorrência (Acolhimento)';
     const tipoLabel = (isInterc && p.tipo_atendimento === 'Intercorrência (Acolhimento)') ? '' : getTipoAtendimentoBadge(p.tipo_atendimento);
     const profLabel = p.profissional
-      ? `<div style="font-size:12px;font-weight:800;color:var(--blue-dark);">👨‍⚕️ ${escapeText(p.profissional)}</div>`
-      : `<div style="font-size:11px;font-weight:700;color:var(--gray-600);">📋 Fila Geral (${escapeText(setor)})</div>`;
+      ? `<div style="font-size:12px;font-weight:800;color:var(--blue-dark);margin-bottom:2px;">👨‍⚕️ ${escapeText(p.profissional)}</div>`
+      : `<div style="font-size:11px;font-weight:700;color:var(--gray-600);margin-bottom:2px;">📋 Fila Geral (${escapeText(setor)})</div>`;
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
-    const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
-    const radarBtn = renderBotaoBuscaAtivaCard(p, setor);
+    const qrBtn = `<button class="btn-qr btn-icon-compact" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
+    // Se o paciente já tem busca ativa ativa, o bloco detalhado com botão de edição é renderizado na coluna de Histórico.
+    // Deixamos o botão de ação apenas para quem não ativou ainda, evitando poluição visual.
+    const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, setor) : '';
     const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, setor);
 
     const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
@@ -2011,19 +2013,19 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     if (!document.body.classList.contains('modo-tv')) {
       const tagInterc = intercorrenciaBadge ? `<div style="margin-bottom:4px;">${intercorrenciaBadge}</div>` : '';
       const txtMotivo1 = motivo1
-        ? `<div class="motivo-1"><span style="color:#0369a1;font-weight:800;">💬 1ª Escuta:</span> ${escapeText(motivo1)}</div>`
-        : `<div style="font-size:11.5px;color:#94a3b8;font-style:italic;">Sem queixa registrada na 1ª Escuta</div>`;
+        ? `<div class="motivo-1"><span class="motivo-label">💬 1ª Escuta:</span> ${escapeText(motivo1)}</div>`
+        : `<div class="motivo-vazio">Sem queixa registrada na 1ª Escuta</div>`;
       const txtObs2 = obs2
-        ? `<div class="motivo-2">🩺 2ª Escuta: ${escapeText(obs2)}</div>`
+        ? `<div class="motivo-2"><span class="motivo-label-2">🩺 2ª Escuta:</span> ${escapeText(obs2)}</div>`
         : '';
       historicoColHtml = `<div class="fila-motivo-box">${tagInterc}${txtMotivo1}${txtObs2}${alumiaBloco}</div>`;
     }
 
     let presencaHtml = '';
     if (isSectorQueue && ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor)) {
-      presencaHtml = p.presenca_confirmada
-        ? '<span class="presenca-badge presenca-confirmada">🟢 PRESENTE</span>'
-        : '<span class="presenca-badge presenca-aguardando">⚪ AGUARDANDO</span>';
+      if (p.presenca_confirmada) {
+        presencaHtml = '<span class="presenca-badge presenca-confirmada" title="Presença confirmada no totem/recepção">🟢 PRESENTE</span>';
+      }
     }
 
     const dragHandle = isAdmin
@@ -2039,14 +2041,14 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const actionButtons = isAdmin ? `
       <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
       <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
-      <button class="btn-reorder-pos" title="Ir para posição específica" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">🔢</button>
+      <button class="btn-reorder-pos btn-icon-compact" title="Ir para posição específica" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">🔢</button>
       <button class="btn-transfer-sector" title="Encaminhar para outro setor" onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">↗️ Encaminhar</button>
-      <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência">🚶</button>
-      <button class="btn-danger" style="background:rgba(0,0,0,0.08);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>
+      <button class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência">🚶</button>
+      <button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>
     ` : `
       <button class="btn-reorder-arrow" title="Subir uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
       <button class="btn-reorder-arrow" title="Descer uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
-      <button class="btn-reorder-pos" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Mudar posição na fila">🔢 Pos.</button>
+      <button class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Mudar posição na fila">🔢</button>
       <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
     `;
 
@@ -2067,7 +2069,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       </td>
       <td>
         <div class="fila-paciente-nome">
-          <span>${escapeText(p.nome)}</span>
+          <span class="nome-texto">${escapeText(p.nome)}</span>
           ${prioBadge}
         </div>
         <div class="fila-paciente-sub">
@@ -2080,7 +2082,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       </td>
       <td>
         ${profLabel}
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           ${tipoLabel}
           ${presencaHtml}
           ${statusBadge}
@@ -2101,11 +2103,11 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     <table class="fila-clean-table">
       <thead>
         <tr>
-          <th style="width:120px;"># / Horário</th>
-          <th style="width:24%;">Paciente &amp; Equipe</th>
-          <th>Histórico / Motivo (1ª e 2ª Escuta)</th>
-          <th style="width:20%;">Setor / Status Atual</th>
-          <th style="text-align:right;width:190px;">Ações</th>
+          <th style="width:105px;"># / Horário</th>
+          <th style="width:26%;">Paciente &amp; Equipe</th>
+          <th style="width:32%;">Histórico / Motivo (1ª e 2ª Escuta)</th>
+          <th style="width:18%;">Setor / Status Atual</th>
+          <th style="text-align:right;width:200px;">Ações</th>
         </tr>
       </thead>
       <tbody class="sortable-tbody">
@@ -2205,7 +2207,7 @@ function updateMiniQueues() {
         </td>
         <td>
           <div class="fila-paciente-nome">
-            <span>${escapeText(p.nome)}</span>
+            <span class="nome-texto">${escapeText(p.nome)}</span>
             ${prioBadge}
           </div>
           <div class="fila-paciente-sub">
@@ -2240,11 +2242,11 @@ function updateMiniQueues() {
       <table class="fila-clean-table">
         <thead>
           <tr>
-            <th style="width:120px;"># / Horário</th>
-            <th style="width:24%;">Paciente &amp; Equipe</th>
-            <th>Histórico / Motivo (1ª e 2ª Escuta)</th>
-            <th style="width:19%;">Setor / Status</th>
-            <th style="text-align:right;width:210px;">Ações</th>
+            <th style="width:105px;"># / Horário</th>
+            <th style="width:26%;">Paciente &amp; Equipe</th>
+            <th style="width:32%;">Histórico / Motivo (1ª e 2ª Escuta)</th>
+            <th style="width:18%;">Setor / Status</th>
+            <th style="text-align:right;width:200px;">Ações</th>
           </tr>
         </thead>
         <tbody>
