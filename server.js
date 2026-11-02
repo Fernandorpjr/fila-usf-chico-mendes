@@ -57,6 +57,8 @@ function sanitizarPacientePublico(p) {
   delete clone.busca_ativa;
   delete clone.busca_ativa_ofertada;
   delete clone.busca_ativa_detalhes;
+  delete clone.motivo_primeira_escuta;
+  delete clone.observacao_segunda_escuta;
   return clone;
 }
 
@@ -648,6 +650,20 @@ async function initDB() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_log_busca_ativa_data ON log_busca_ativa(data_hora DESC)`);
     // ====== FIM PARTE B ======
 
+    // ====== FLUXO 1ª ESCUTA (RECEPÇÃO) & 2ª ESCUTA (INTERCORRÊNCIA DO ACOLHIMENTO) ======
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS equipe_paciente VARCHAR(80)`);
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS setor_destino VARCHAR(80)`);
+    await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS profissional_destino TEXT`);
+
+    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS equipe_paciente VARCHAR(80)`);
+    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
+    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
+    await pool.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN DEFAULT false`);
+    // ====== FIM FLUXO 1ª & 2ª ESCUTA ======
+
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao inicializar banco de dados:', error.message);
@@ -936,7 +952,20 @@ app.get('/api/relatorio-diario', async (req, res) => {
 // Add patient
 app.post('/api/patients', async (req, res) => {
   try {
-    const { nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo, idade } = req.body;
+    const {
+      nome,
+      setor,
+      prioridade,
+      tipo_prioridade,
+      tipo_atendimento,
+      profissional,
+      condicoes_especiais,
+      etapa_fluxo,
+      idade,
+      equipe_paciente,
+      motivo_primeira_escuta,
+      queixa
+    } = req.body;
 
     if (!nome || !setor) {
       return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
@@ -956,11 +985,38 @@ app.post('/api/patients', async (req, res) => {
     }
 
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    const equipeFinal = equipe_paciente ? String(equipe_paciente).trim().slice(0, 80) : null;
+    const motivoEscuta1Final = motivo_primeira_escuta
+      ? String(motivo_primeira_escuta).trim()
+      : (queixa ? String(queixa).trim() : null);
 
     const result = await pool.query(
-      `INSERT INTO patients (nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo, idade, nivel_prioridade, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP) RETURNING *`,
-      [nome, setor, horario, 'aguardando', prioridadeFinal, tipoPrioridadeFinal, tipo_atendimento || null, profissional || null, condicoes_especiais || null, etapa_fluxo || 'recepcao', calc.idade, calc.nivel]
+      `INSERT INTO patients (
+         nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento,
+         profissional, condicoes_especiais, etapa_fluxo, idade, nivel_prioridade,
+         equipe_paciente, motivo_primeira_escuta, queixa, setor_destino, profissional_destino, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [
+        nome,
+        setor,
+        horario,
+        'aguardando',
+        prioridadeFinal,
+        tipoPrioridadeFinal,
+        tipo_atendimento || null,
+        profissional || null,
+        condicoes_especiais || null,
+        etapa_fluxo || 'recepcao',
+        calc.idade,
+        calc.nivel,
+        equipeFinal,
+        motivoEscuta1Final,
+        motivoEscuta1Final,
+        setor,
+        profissional || null
+      ]
     );
 
     const novoPaciente = result.rows[0];
@@ -3187,15 +3243,49 @@ app.put('/api/acolhimento/:id/iniciar-escuta', async (req, res) => {
 app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
   try {
     const { id } = req.params;
-    const { queixa, risco_clinico, profissional_destino, tipo_profissional_destino, cpf, cartao_sus, condicoes_especiais } = req.body;
-    if (!queixa) {
-      return res.status(400).json({ error: 'Queixa é obrigatória' });
+    const {
+      queixa,
+      motivo_primeira_escuta,
+      equipe_paciente,
+      risco_clinico,
+      profissional_destino,
+      tipo_profissional_destino,
+      cpf,
+      cartao_sus,
+      condicoes_especiais
+    } = req.body;
+    const queixaFinal = (queixa || motivo_primeira_escuta || '').trim();
+    if (!queixaFinal) {
+      return res.status(400).json({ error: 'Queixa / Motivo da 1ª Escuta é obrigatório' });
     }
+    const equipeFinal = equipe_paciente ? String(equipe_paciente).trim().slice(0, 80) : null;
     const result = await pool.query(
-      `UPDATE patients SET etapa_fluxo = 'segunda_escuta', queixa = $2, risco_clinico = $3,
-       profissional_destino = $4, tipo_profissional_destino = $5, cpf = $6, cartao_sus = $7, condicoes_especiais = COALESCE($8, condicoes_especiais), inicio_etapa = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta' RETURNING *`,
-      [id, queixa, risco_clinico || 'verde', profissional_destino || null, tipo_profissional_destino || null, cpf || null, cartao_sus || null, condicoes_especiais || null]
+      `UPDATE patients
+       SET etapa_fluxo = 'segunda_escuta',
+           queixa = $2,
+           motivo_primeira_escuta = COALESCE(NULLIF(TRIM(motivo_primeira_escuta), ''), $2),
+           equipe_paciente = COALESCE($9, equipe_paciente),
+           risco_clinico = $3,
+           profissional_destino = $4,
+           tipo_profissional_destino = $5,
+           cpf = $6,
+           cartao_sus = $7,
+           condicoes_especiais = COALESCE($8, condicoes_especiais),
+           inicio_etapa = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta'
+       RETURNING *`,
+      [
+        id,
+        queixaFinal,
+        risco_clinico || 'verde',
+        profissional_destino || null,
+        tipo_profissional_destino || null,
+        cpf || null,
+        cartao_sus || null,
+        condicoes_especiais || null,
+        equipeFinal
+      ]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Paciente não encontrado ou não está na 1ª Escuta' });
@@ -3210,7 +3300,7 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
     // Auto call to TV immediately on transition
     setTimeout(() => {
       io.emit('callPatient', { 
-        patient: { ...patient, medico: patient.profissional }, 
+        patient: sanitizarPacientePublico({ ...patient, medico: patient.profissional }), 
         setor: 'Acolhimento', 
         audioUrl: null 
       });
@@ -3225,6 +3315,228 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// PUT /api/fila/:id/encaminhar-acolhimento — Reencaminhar paciente da 2ª Escuta como Intercorrência do Acolhimento
+async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const {
+      setor_destino,
+      profissional_destino,
+      observacao_segunda_escuta,
+      motivo_primeira_escuta,
+      equipe_paciente,
+      cpf,
+      cartao_sus,
+      condicoes_especiais
+    } = req.body || {};
+
+    const destinoBruto = (setor_destino || '').trim();
+    if (!destinoBruto) {
+      return res.status(400).json({ error: 'Selecione o setor/profissional de destino do encaminhamento.' });
+    }
+
+    // Mapear possíveis rótulos amigáveis ("Médico", "Enfermeiro", "Dentista", etc.) para os setores reais do sistema
+    const mapaSetor = {
+      'Médico': 'Médico',
+      'Medico': 'Médico',
+      'Enfermeiro': 'Enfermagem',
+      'Enfermagem': 'Enfermagem',
+      'Dentista': 'Odontologia',
+      'Odontologia': 'Odontologia',
+      'Téc. Enfermagem': 'Téc. Enfermagem',
+      'Tec. Enfermagem': 'Téc. Enfermagem',
+      'Vacina': 'Téc. Enfermagem',
+      'Farmácia': 'Farmácia',
+      'Farmacia': 'Farmácia',
+      'Regulação': 'Regulação',
+      'Regulacao': 'Regulação',
+      'Acolhimento': 'Acolhimento',
+      'Sala de Agendamento': 'Sala de Agendamento'
+    };
+
+    const setorReal = mapaSetor[destinoBruto] || (SETORES.includes(destinoBruto) ? destinoBruto : null);
+    if (!setorReal) {
+      return res.status(400).json({ error: `Setor de destino inválido: ${destinoBruto}` });
+    }
+
+    await client.query('BEGIN');
+
+    const pRes = await client.query('SELECT * FROM patients WHERE id = $1 FOR UPDATE', [id]);
+    if (pRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado.' });
+    }
+    const patientAntes = pRes.rows[0];
+    if (patientAntes.status === 'atendido' || patientAntes.status === 'desistencia') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Este atendimento já foi finalizado.' });
+    }
+
+    const horarioAtual = new Date().toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
+    });
+
+    const motivo1Preservado =
+      (patientAntes.motivo_primeira_escuta && String(patientAntes.motivo_primeira_escuta).trim()) ||
+      (patientAntes.queixa && String(patientAntes.queixa).trim()) ||
+      (motivo_primeira_escuta && String(motivo_primeira_escuta).trim()) ||
+      null;
+
+    const obs2Final = observacao_segunda_escuta && String(observacao_segunda_escuta).trim()
+      ? String(observacao_segunda_escuta).trim()
+      : (patientAntes.observacao_segunda_escuta || null);
+
+    const equipeFinal = (equipe_paciente && String(equipe_paciente).trim())
+      ? String(equipe_paciente).trim().slice(0, 80)
+      : (patientAntes.equipe_paciente || null);
+
+    const profDestinoFinal = profissional_destino && String(profissional_destino).trim()
+      ? String(profissional_destino).trim()
+      : null;
+
+    // Caso especial: Sala de Agendamento
+    if (setorReal === 'Sala de Agendamento') {
+      const textoQueixaAgend = [
+        motivo1Preservado ? `1ª Escuta: ${motivo1Preservado}` : null,
+        obs2Final ? `2ª Escuta: ${obs2Final}` : null
+      ].filter(Boolean).join(' | ') || 'Intercorrência do Acolhimento';
+
+      await client.query(
+        `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa, equipe, cpf6, status, setor_origem, motivo)
+         VALUES ($1, $2, $3, $4, $5, $6, 'pendente', '2ª Escuta (Acolhimento)', 'Intercorrência do Acolhimento')`,
+        [
+          patientAntes.id,
+          patientAntes.nome,
+          horarioAtual,
+          textoQueixaAgend,
+          equipeFinal,
+          (cpf || patientAntes.cpf || '').slice(0, 6) || null
+        ]
+      );
+
+      const updAgend = await client.query(
+        `UPDATE patients
+         SET status = 'atendido',
+             etapa_fluxo = 'finalizado',
+             equipe_paciente = $2,
+             motivo_primeira_escuta = $3,
+             observacao_segunda_escuta = $4,
+             is_intercorrencia_acolhimento = true,
+             setor_destino = 'Sala de Agendamento',
+             agendamento_realizado = true,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+         RETURNING *`,
+        [id, equipeFinal, motivo1Preservado, obs2Final]
+      );
+
+      await client.query('COMMIT');
+      io.emit('queueUpdate');
+      io.emit('acolhimentoUpdate');
+      return res.json({
+        message: 'Paciente encaminhado para a Sala de Agendamento com sucesso!',
+        patient: updAgend.rows[0]
+      });
+    }
+
+    // Definir tipo de atendimento compatível com o setor de destino mantendo o destaque de Intercorrência
+    let tipoAtendimentoFinal = 'Intercorrência (Acolhimento)';
+    if (setorReal === 'Téc. Enfermagem' && destinoBruto === 'Vacina') {
+      tipoAtendimentoFinal = 'Vacina';
+    }
+
+    // Atualizar o paciente para a fila do setor/profissional de destino mantendo intacto o motivo_primeira_escuta
+    const updateRes = await client.query(
+      `UPDATE patients
+       SET setor = $2,
+           setor_destino = $2,
+           profissional = $3,
+           profissional_destino = $3,
+           horario = $4,
+           status = 'aguardando',
+           etapa_fluxo = 'encaminhado_intercorrencia',
+           tipo_atendimento = $5,
+           origem_transferencia = '2ª Escuta (Acolhimento)',
+           is_intercorrencia_acolhimento = true,
+           equipe_paciente = $6,
+           motivo_primeira_escuta = $7,
+           queixa = COALESCE($7, queixa),
+           observacao_segunda_escuta = $8,
+           cpf = COALESCE($9, cpf),
+           cartao_sus = COALESCE($10, cartao_sus),
+           condicoes_especiais = COALESCE($11, condicoes_especiais),
+           sort_order = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id,
+        setorReal,
+        profDestinoFinal,
+        horarioAtual,
+        tipoAtendimentoFinal,
+        equipeFinal,
+        motivo1Preservado,
+        obs2Final,
+        cpf || null,
+        cartao_sus || null,
+        condicoes_especiais || null
+      ]
+    );
+
+    const updatedPatient = updateRes.rows[0];
+
+    // Registrar no call_history o log de transferência da 2ª Escuta (prefixo ➡️ Encaminhado evita disparo sonoro no painel TV)
+    await client.query(
+      `INSERT INTO call_history (
+         patient_id, nome, setor, medico, horario_chamada, profissional,
+         prioridade, tipo_prioridade, tipo_atendimento, cpf, cartao_sus,
+         acs_responsavel, condicoes_especiais, queixa, risco_clinico,
+         equipe_paciente, motivo_primeira_escuta, observacao_segunda_escuta, is_intercorrencia_acolhimento
+       )
+       VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, true)`,
+      [
+        updatedPatient.id,
+        updatedPatient.nome,
+        profDestinoFinal,
+        horarioAtual,
+        `➡️ Encaminhado p/ ${setorReal}${profDestinoFinal ? ' (' + profDestinoFinal + ')' : ''}`,
+        updatedPatient.prioridade || 'geral',
+        updatedPatient.tipo_prioridade || null,
+        tipoAtendimentoFinal,
+        updatedPatient.cpf || null,
+        updatedPatient.cartao_sus || null,
+        updatedPatient.acs_responsavel || null,
+        updatedPatient.condicoes_especiais || null,
+        motivo1Preservado,
+        updatedPatient.risco_clinico || null,
+        equipeFinal,
+        motivo1Preservado,
+        obs2Final
+      ]
+    );
+
+    await client.query('COMMIT');
+    await anexarBuscaAtivaDetalhes([updatedPatient], pool);
+    io.emit('queueUpdate');
+    io.emit('acolhimentoUpdate');
+
+    res.json({
+      message: `Paciente encaminhado como Intercorrência do Acolhimento para ${setorReal}${profDestinoFinal ? ' (' + profDestinoFinal + ')' : ''}`,
+      patient: updatedPatient
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+}
+
+app.put('/api/fila/:id/encaminhar-acolhimento', handleEncaminharIntercorrenciaAcolhimento);
+app.put('/api/acolhimento/:id/encaminhar-intercorrencia', handleEncaminharIntercorrenciaAcolhimento);
 
 // POST chamar – Dispara chamado no painel sem mudar status
 app.post('/api/acolhimento/:id/chamar', async (req, res) => {

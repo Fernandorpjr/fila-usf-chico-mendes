@@ -1100,14 +1100,50 @@ function alternarSubAbaAgendamento(tab) {
   }
 }
 
-// ====== FORM HELPERS ======
+// ====== FORM HELPERS (1ª ESCUTA / RECEPÇÃO) ======
 function togglePrioridadeDetalhes() {
   document.getElementById('prioridade-detalhes').style.display = document.getElementById('input-prioridade').value === 'prioritario' ? 'flex' : 'none';
+}
+
+function selecionarEquipeRecepcao(equipe) {
+  const hiddenInput = document.getElementById('input-equipe-paciente');
+  if (!hiddenInput) return;
+  const atual = hiddenInput.value;
+  // Permite desmarcar se clicar novamente na mesma equipe
+  const novoValor = atual === equipe ? '' : equipe;
+  hiddenInput.value = novoValor;
+  document.querySelectorAll('#recepcao-equipe-grid .equipe-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.equipe === novoValor && novoValor !== '');
+  });
+}
+
+function selecionarSetorRapidoRecepcao(setor) {
+  const selectSetor = document.getElementById('input-setor');
+  if (!selectSetor) return;
+  selectSetor.value = setor;
+  toggleTipoAtendimento();
+}
+
+function adicionarTagMotivoRecepcao(textoTag) {
+  const textarea = document.getElementById('input-motivo-primeira-escuta');
+  if (!textarea) return;
+  const atual = textarea.value.trim();
+  if (!atual) {
+    textarea.value = textoTag;
+  } else if (!atual.toLowerCase().includes(textoTag.toLowerCase())) {
+    textarea.value = `${atual}; ${textoTag}`;
+  }
+  textarea.focus();
 }
 
 function toggleTipoAtendimento() {
   const setor = document.getElementById('input-setor').value;
   document.getElementById('tipo-atendimento-grupo').style.display = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? 'flex' : 'none';
+
+  // Sincroniza botões rápidos de setor na Recepção
+  document.querySelectorAll('#recepcao-setor-quick-grid .setor-quick-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.setorQuick === setor && setor !== '');
+  });
 
   const selectTipo = document.getElementById('input-tipo-atendimento');
   if (selectTipo) {
@@ -1125,6 +1161,7 @@ function toggleTipoAtendimento() {
         <option value="Acolhimento">💜 Acolhimento</option>
         <option value="Urgência">🚨 Urgência</option>
         <option value="Intercorrência">⚠️ Intercorrência</option>
+        <option value="Intercorrência (Acolhimento)">🚨 Intercorrência (Acolhimento)</option>
         <option value="Retorno">🔄 Retorno</option>
       `;
     } else {
@@ -1203,9 +1240,13 @@ async function addPatient(btn) {
   const profissionalEl = document.getElementById('input-profissional');
   const profissional = ['Médico','Enfermagem','Téc. Enfermagem'].includes(setor) && profissionalEl ? profissionalEl.value || null : null;
   const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-recepcao');
+  const equipeInput = document.getElementById('input-equipe-paciente');
+  const equipe_paciente = equipeInput && equipeInput.value.trim() ? equipeInput.value.trim() : null;
+  const motivoInput = document.getElementById('input-motivo-primeira-escuta');
+  const motivo_primeira_escuta = motivoInput && motivoInput.value.trim() ? motivoInput.value.trim() : null;
 
   if (!nome) { showToast('Digite o nome do paciente!', true); return; }
-  if (!setor) { showToast('Selecione o setor!', true); return; }
+  if (!setor) { showToast('Selecione o setor de destino!', true); return; }
   if (['Médico','Enfermagem','Téc. Enfermagem'].includes(setor) && !profissional) { showToast('Selecione o profissional responsável!', true); return; }
 
   let idade = null;
@@ -1239,7 +1280,20 @@ async function addPatient(btn) {
     const r = await fetch(`${API_URL}/patients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, setor, prioridade, tipo_prioridade, tipo_atendimento, profissional, condicoes_especiais, etapa_fluxo, idade })
+      body: JSON.stringify({
+        nome,
+        setor,
+        prioridade,
+        tipo_prioridade,
+        tipo_atendimento,
+        profissional,
+        condicoes_especiais,
+        etapa_fluxo,
+        idade,
+        equipe_paciente,
+        motivo_primeira_escuta,
+        queixa: motivo_primeira_escuta
+      })
     });
     if (!r.ok) {
       const errData = await r.json().catch(() => ({}));
@@ -1250,13 +1304,18 @@ async function addPatient(btn) {
     if (idadeInput) idadeInput.value = '';
     document.getElementById('input-setor').value = '';
     document.getElementById('input-prioridade').value = 'geral';
+    if (equipeInput) equipeInput.value = '';
+    if (motivoInput) motivoInput.value = '';
+    document.querySelectorAll('#recepcao-equipe-grid .equipe-pill-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#recepcao-setor-quick-grid .setor-quick-btn').forEach(b => b.classList.remove('active'));
     // Reset condições checkboxes
     document.querySelectorAll('#condicoes-especiais-recepcao input[type="checkbox"]').forEach(c => c.checked = false);
     togglePrioridadeDetalhes(); toggleTipoAtendimento();
     const isPrio = Number(newPatient.nivel_prioridade) <= 2 || newPatient.prioridade === 'prioritario';
     const prioLabel = isPrio ? ' ⭐ PRIORIDADE' : '';
     const profLabel = profissional ? ` (${profissional})` : '';
-    showToast(`${nome} adicionado à fila de ${nomeSetorOriginal}${profLabel}!${prioLabel}`);
+    const eqLabel = equipe_paciente ? ` · ${equipe_paciente}` : '';
+    showToast(`${nome} adicionado à fila de ${nomeSetorOriginal}${profLabel}${eqLabel}!${prioLabel}`);
 
     // Exibir banner rápido na recepção para marcar Busca ativa (alumIA) se necessário
     mostrarBannerPosCadastroAlumia(newPatient);
@@ -1735,6 +1794,51 @@ function renderPrioridadeIdadeBadge(p) {
   return '';
 }
 
+function renderEquipePacienteBadge(p) {
+  if (document.body.classList.contains('modo-tv')) return '';
+  const eq = p.equipe_paciente ? String(p.equipe_paciente).trim() : '';
+  if (!eq) return '';
+  let cls = 'badge-equipe-paciente';
+  let icon = '🏥';
+  const eqLower = eq.toLowerCase();
+  if (eqLower.includes('ximbor') || eqLower.includes('eq 2')) {
+    cls += ' eq2';
+    icon = '🏡';
+  } else if (eqLower.includes('aurora') || eqLower.includes('eq 3')) {
+    cls += ' eq3';
+    icon = '🌅';
+  } else if (eqLower.includes('fora') || eqLower.includes('sem equipe')) {
+    cls += ' outra';
+    icon = '📍';
+  }
+  return `<span class="${cls}" title="Equipe do paciente">${icon} ${escapeText(eq)}</span>`;
+}
+
+function renderIntercorrenciaAcolhimentoBadge(p) {
+  if (document.body.classList.contains('modo-tv')) return '';
+  const isInterc = Boolean(p.is_intercorrencia_acolhimento) || p.tipo_atendimento === 'Intercorrência (Acolhimento)';
+  if (!isInterc) return '';
+  return `<span class="badge-intercorrencia-acol" title="Reencaminhado da 2ª Escuta / Acolhimento como Intercorrência">🚨 Intercorrência do Acolhimento</span>`;
+}
+
+function renderBlocoHistoricoEscuta(p) {
+  if (document.body.classList.contains('modo-tv')) return '';
+  const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
+  const obs2 = (p.observacao_segunda_escuta || '').trim();
+  if (!motivo1 && !obs2) return '';
+  const isInterc = Boolean(p.is_intercorrencia_acolhimento) || p.tipo_atendimento === 'Intercorrência (Acolhimento)';
+  const cls = isInterc ? 'historico-escuta-card is-intercorrencia' : 'historico-escuta-card';
+
+  const linhaMotivo1 = motivo1
+    ? `<div class="historico-escuta-line"><span class="lbl">💬 Motivo (1ª Escuta):</span> ${escapeText(motivo1)}</div>`
+    : '';
+  const linhaObs2 = obs2
+    ? `<div class="historico-escuta-line" style="margin-top:${motivo1 ? '3px' : '0'};"><span class="lbl-sec">🩺 Avaliação (2ª Escuta):</span> ${escapeText(obs2)}</div>`
+    : '';
+
+  return `<div class="${cls}" onclick="event.stopPropagation();">${linhaMotivo1}${linhaObs2}</div>`;
+}
+
 function renderEsperaNormalBadge(p) {
   const nv = Number(p.nivel_prioridade || (p.prioridade === 'prioritario' ? 2 : 3));
   if (nv !== 3 || p.status !== 'aguardando') return '';
@@ -1821,12 +1925,17 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const prioBadge = renderPrioridadeIdadeBadge(p);
     const waitBadge = renderEsperaNormalBadge(p);
-    const tipoLabel = getTipoAtendimentoBadge(p.tipo_atendimento);
+    const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
+    const equipeBadge = renderEquipePacienteBadge(p);
+    const isInterc = Boolean(p.is_intercorrencia_acolhimento) || p.tipo_atendimento === 'Intercorrência (Acolhimento)';
+    // Evita repetir badge "Intercorrência (Acolhimento)" se já exibimos intercorrenciaBadge
+    const tipoLabel = (isInterc && p.tipo_atendimento === 'Intercorrência (Acolhimento)') ? '' : getTipoAtendimentoBadge(p.tipo_atendimento);
     const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">\uD83D\uDC68\u200D\u2695\uFE0F ${escapeText(p.profissional)}</span>` : '';
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
     const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">\uD83D\uDCF1</button>`;
     const radarBtn = renderBotaoBuscaAtivaCard(p, setor);
     const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, setor);
+    const escutaBloco = renderBlocoHistoricoEscuta(p);
 
     /* === MELHORIA E: Badge de presença === */
     let presencaHtml = '';
@@ -1869,11 +1978,12 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       ? `<button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button><button class="btn-reorder-pos" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Ir para posição específica" style="margin-left:4px;">🔢 Posição</button>`
       : '';
 
-    return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}" style="flex-wrap:wrap;">
+    return `<div class="queue-item ${p.status==='chamado'?'calling':''}" data-id="${p.id}" data-draggable="${isAdmin}" style="flex-wrap:wrap;${isInterc ? 'border-left:4px solid #c62828;' : ''}">
       ${dragHandle}
       <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${i+1}</div>
       <div class="queue-name" style="flex:1;min-width:180px;">
-        <div>${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${tipoLabel}${profLabel}${condBadges} ${presencaHtml} ${originBadge}</div>
+        <div>${escapeText(p.nome)} ${prioBadge} ${intercorrenciaBadge} ${equipeBadge} ${waitBadge} ${tipoLabel}${profLabel}${condBadges} ${presencaHtml} ${originBadge}</div>
+        ${escutaBloco}
         ${alumiaBloco}
       </div>
       <div class="queue-time">${p.horario}</div>
@@ -1906,7 +2016,7 @@ function updateQueues() {
 }
 
 function updateMiniQueues() {
-  /* === MELHORIA E: Mini-queues com botão de confirmar presença + Parte A/B === */
+  /* === MELHORIA E: Mini-queues com botão de confirmar presença + Parte A/B + Intercorrência/Equipe === */
   SETORES.forEach(s => {
     const cfg = SECTOR_CONFIG[s];
     const el = document.getElementById('mini-queue-' + cfg.key); if (!el) return;
@@ -1916,12 +2026,16 @@ function updateMiniQueues() {
       const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const prioBadge = renderPrioridadeIdadeBadge(p);
       const waitBadge = renderEsperaNormalBadge(p);
-      const tipoLabel = getTipoAtendimentoBadge(p.tipo_atendimento);
+      const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
+      const equipeBadge = renderEquipePacienteBadge(p);
+      const isInterc = Boolean(p.is_intercorrencia_acolhimento) || p.tipo_atendimento === 'Intercorrência (Acolhimento)';
+      const tipoLabel = (isInterc && p.tipo_atendimento === 'Intercorrência (Acolhimento)') ? '' : getTipoAtendimentoBadge(p.tipo_atendimento);
       const profLabel = p.profissional ? `<span style="font-size:11px;color:var(--blue);margin-left:4px;">👨‍⚕️ ${escapeText(p.profissional)}</span>` : '';
       const condBadges = renderCondicoesBadges(p.condicoes_especiais);
       const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
       const radarBtn = renderBotaoBuscaAtivaCard(p, 'Recepção');
       const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'Recepção');
+      const escutaBloco = renderBlocoHistoricoEscuta(p);
       const removeBtn = isAdmin ? `<div style="display:flex;gap:4px;">
         <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Marcar como Desistência">🚶</button>
         <button class="btn-danger" style="background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir Permanentemente">🔥</button>
@@ -1941,10 +2055,11 @@ function updateMiniQueues() {
       
       const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${escapeText(p.origem_transferencia)}">🔙 de: ${escapeText(p.origem_transferencia)}</span>` : '';
 
-      return `<div class="queue-item ${p.status==='chamado'?'calling':''}" style="flex-wrap:wrap;">
+      return `<div class="queue-item ${p.status==='chamado'?'calling':''}" style="flex-wrap:wrap;${isInterc ? 'border-left:4px solid #c62828;' : ''}">
         <div class="queue-position" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">${i+1}</div>
         <div class="queue-name" style="flex:1;min-width:180px;">
-          <div>${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${tipoLabel}${profLabel}${condBadges} ${originBadge}</div>
+          <div>${escapeText(p.nome)} ${prioBadge} ${intercorrenciaBadge} ${equipeBadge} ${waitBadge} ${tipoLabel}${profLabel}${condBadges} ${originBadge}</div>
+          ${escutaBloco}
           ${alumiaBloco}
         </div>
         <div class="queue-time">${p.horario}</div>
@@ -1966,15 +2081,27 @@ function updateRecent() {
   const el = document.getElementById('recent-list');
   const all = []; SETORES.forEach(s => all.push(...(queues[s] || [])));
   if (!all.length) { el.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>'; return; }
-  const sorted = all.sort((a, b) => safeDate(b.created_at) - safeDate(a.created_at)).slice(0, 5);
+  const sorted = all.sort((a, b) => safeDate(b.created_at) - safeDate(a.created_at)).slice(0, 6);
   el.innerHTML = sorted.map(p => {
     const cfg = SECTOR_CONFIG[p.setor] || {};
     const prioBadge = renderPrioridadeIdadeBadge(p);
+    const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
+    const equipeBadge = renderEquipePacienteBadge(p);
     const profLabel = p.profissional ? ` · ${escapeText(p.profissional)}` : '';
     const radarBtn = renderBotaoBuscaAtivaCard(p, 'Recepção');
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:8px;border:1px solid var(--gray-200);flex-wrap:wrap;">
-      <div style="font-size:18px;">${cfg.icon||'📋'}</div>
-      <div style="flex:1;min-width:140px;"><div style="font-weight:700;font-size:14px;color:var(--gray-700);">${escapeText(p.nome)} ${prioBadge}</div><div style="font-size:12px;color:var(--gray-600);">${escapeText(p.setor)}${profLabel} · ${p.horario}</div></div>
+    const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
+    const motivoHtml = motivo1 && !document.body.classList.contains('modo-tv')
+      ? `<div style="font-size:11px;color:#0d47a1;margin-top:3px;font-weight:600;">💬 ${escapeText(motivo1)}</div>`
+      : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:10px;border:1px solid var(--gray-200);flex-wrap:wrap;">
+      <div style="font-size:20px;">${cfg.icon||'📋'}</div>
+      <div style="flex:1;min-width:150px;">
+        <div style="font-weight:800;font-size:14px;color:var(--gray-700);display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+          <span>${escapeText(p.nome)}</span> ${prioBadge} ${intercorrenciaBadge} ${equipeBadge}
+        </div>
+        <div style="font-size:12px;color:var(--gray-600);margin-top:2px;">${escapeText(p.setor)}${profLabel} · ${p.horario}</div>
+        ${motivoHtml}
+      </div>
       <div>${radarBtn}</div>
     </div>`;
   }).join('');
@@ -3934,13 +4061,18 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
   el.innerHTML = pacientes.map(p => {
     const prioBadge = renderPrioridadeIdadeBadge(p);
     const waitBadge = renderEsperaNormalBadge(p);
+    const equipeBadge = renderEquipePacienteBadge(p);
+    const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
     const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde' ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : p.risco_clinico === 'amarelo' ? '🟡 MODERADO' : p.risco_clinico === 'azul' ? '🟦 SEM RISCO' : ''}</span>` : '';
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
     const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
     const tempoBadge = `<span class="acol-tempo-badge">⏱ ${tempoMin} min</span>`;
     const acsLabel = p.acs_responsavel ? `<span style="font-size:11px;">👤 ACS: ${escapeText(p.acs_responsavel)}</span>` : '';
     const profLabel = p.profissional_destino ? `<span style="font-size:11px;">👨‍⚕️ ${escapeText(p.profissional_destino)}</span>` : '';
-    const queixaEl = p.queixa ? `<div class="acol-card-queixa">"${escapeText(p.queixa)}"</div>` : '';
+    const motivoTexto = (p.motivo_primeira_escuta || p.queixa || '').trim();
+    const queixaEl = motivoTexto ? `<div class="acol-card-queixa">💬 1ª Escuta: "${escapeText(motivoTexto)}"</div>` : '';
+    const obs2Texto = (p.observacao_segunda_escuta || '').trim();
+    const obs2El = obs2Texto ? `<div class="acol-card-queixa" style="border-left:3px solid #c62828;margin-top:4px;">🩺 2ª Escuta: "${escapeText(obs2Texto)}"</div>` : '';
     const nomeSafe = p.nome.replace(/'/g, "\\'");
     const radarBtn = renderBotaoBuscaAtivaCard(p, 'Acolhimento');
     const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'Acolhimento');
@@ -3957,12 +4089,13 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
       actions = `
         <button class="acol-btn-action acol-btn-encaminhar" onclick="abrirModalEncaminhar(${p.id},'${nomeSafe}')">🔴 Encaminhar</button>
         <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
-        <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="abrirModalAgendamento(${p.id}, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">🗂️ Sala de Agendamento</button>
+        <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="abrirModalAgendamento(${p.id}, '${nomeSafe}', '${motivoTexto.replace(/'/g,"\\'")}')">🗂️ Sala de Agendamento</button>
         <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')" style="width:100%;margin-top:4px;height:30px;justify-content:center;">↗️ Encaminhar para Setor</button>
         <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;width:100%;margin-top:4px;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️ Editar Nome</button>
       `;
     } else if (etapa === 'segunda_escuta') {
       actions = `
+        <button class="acol-btn-action" style="background:linear-gradient(135deg,#c62828,#8e0000);color:white;font-weight:800;" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">🚨 Reencaminhar / Avaliar</button>
         <button class="acol-btn-action acol-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar</button>
         <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')" style="width:100%;margin-top:4px;height:30px;justify-content:center;">↗️ Encaminhar para Setor</button>
       `;
@@ -3976,7 +4109,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:var(--gray-700);background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--gray-300);font-weight:700;" title="Encaminhado de: ${escapeText(p.origem_transferencia)}">🔙 de: ${escapeText(p.origem_transferencia)}</span>` : '';
 
     return `<div class="acol-card etapa-${etapa}">
-      <div class="acol-card-name">${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${riscoBadge}${condBadges} ${originBadge}</div>
+      <div class="acol-card-name">${escapeText(p.nome)} ${prioBadge} ${intercorrenciaBadge} ${equipeBadge} ${waitBadge} ${riscoBadge}${condBadges} ${originBadge}</div>
       <div class="acol-card-meta">
         <span>🕐 ${p.horario}</span>
         ${tempoBadge}
@@ -3986,6 +4119,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
       </div>
       ${alumiaBloco}
       ${queixaEl}
+      ${obs2El}
       <div class="acol-card-actions">
         ${actions}
         ${adminBtns}
@@ -4075,15 +4209,17 @@ async function direcionarParaRecepcaoFisica(id, nome) {
 function abrirModalEncaminhar(id, nome) {
   document.getElementById('acol-modal-id').value = id;
   document.getElementById('acol-modal-patient-info').textContent = `👤 ${nome}`;
-  document.getElementById('acol-modal-queixa').value = '';
-  document.getElementById('acol-modal-cpf').value = '';
-  document.getElementById('acol-modal-sus').value = '';
-  selectRisco('verde');
-  document.getElementById('acol-modal-tipo-prof').value = '';
+  const patient = acolhimentoFluxo.primeira_escuta?.find(p => p.id == id);
+  const motivoExistente = (patient?.motivo_primeira_escuta || patient?.queixa || '').trim();
+  document.getElementById('acol-modal-queixa').value = motivoExistente;
+  document.getElementById('acol-modal-cpf').value = patient?.cpf || '';
+  document.getElementById('acol-modal-sus').value = patient?.cartao_sus || '';
+  const eqSelect = document.getElementById('acol-modal-equipe');
+  if (eqSelect) eqSelect.value = patient?.equipe_paciente || '';
+  selectRisco(patient?.risco_clinico || 'verde');
   document.getElementById('acol-modal-tipo-prof').value = '';
   document.getElementById('acol-modal-prof-dest').innerHTML = '<option value="">— Opcional —</option>';
   // Pre-fill condições from patient data
-  const patient = acolhimentoFluxo.primeira_escuta?.find(p => p.id == id);
   setCondicoesCheckboxes('condicoes-especiais-escuta1', patient?.condicoes_especiais);
   document.getElementById('acol-escuta-modal').classList.add('show');
 }
@@ -4174,14 +4310,26 @@ async function confirmarEncaminhamento() {
   const queixa = document.getElementById('acol-modal-queixa').value.trim();
   const cpf = document.getElementById('acol-modal-cpf').value.trim();
   const cartao_sus = document.getElementById('acol-modal-sus').value.trim();
+  const eqSelect = document.getElementById('acol-modal-equipe');
+  const equipe_paciente = eqSelect && eqSelect.value ? eqSelect.value : null;
   const profissional_destino = document.getElementById('acol-modal-prof-dest').value || null;
   const tipo_profissional_destino = document.getElementById('acol-modal-tipo-prof').value || null;
   const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-escuta1');
-  if (!queixa) { showToast('Preencha a queixa!', true); return; }
+  if (!queixa) { showToast('Preencha a queixa / motivo da 1ª escuta!', true); return; }
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/encaminhar`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ queixa, risco_clinico: selectedRisco, profissional_destino, tipo_profissional_destino, cpf, cartao_sus, condicoes_especiais })
+      body: JSON.stringify({
+        queixa,
+        motivo_primeira_escuta: queixa,
+        equipe_paciente,
+        risco_clinico: selectedRisco,
+        profissional_destino,
+        tipo_profissional_destino,
+        cpf,
+        cartao_sus,
+        condicoes_especiais
+      })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
     fecharEscutaModal();
@@ -4307,16 +4455,105 @@ function finalizarAtendimento(id, nome) {
   const patient = acolhimentoFluxo.segunda_escuta?.find(p => p.id == idNum);
   document.getElementById('acol-escuta2-id').value = id;
   document.getElementById('acol-escuta2-patient-info').textContent = `👤 ${nome}`;
-  
-  // Pre-fill fields for editing
-  document.getElementById('acol-escuta2-queixa').value = patient?.queixa || '';
+
+  // Preencher Banner de Contexto da 1ª Escuta (somente leitura)
+  const viewEquipeEl = document.getElementById('acol-escuta2-view-equipe');
+  if (viewEquipeEl) {
+    viewEquipeEl.textContent = patient?.equipe_paciente ? `🏥 ${patient.equipe_paciente}` : '🏥 Equipe não informada na recepção';
+  }
+  const viewMotivo1El = document.getElementById('acol-escuta2-view-motivo1');
+  if (viewMotivo1El) {
+    const motivoOriginal = (patient?.motivo_primeira_escuta || patient?.queixa || '').trim();
+    viewMotivo1El.textContent = motivoOriginal || 'Sem queixa/motivo registrado na 1ª Escuta';
+  }
+
+  // Pre-fill fields for editing / 2ª escuta
+  document.getElementById('acol-escuta2-queixa').value = patient?.queixa || patient?.motivo_primeira_escuta || '';
   document.getElementById('acol-escuta2-cpf').value = patient?.cpf || '';
   document.getElementById('acol-escuta2-sus').value = patient?.cartao_sus || '';
   setCondicoesCheckboxes('condicoes-especiais-escuta2', patient?.condicoes_especiais);
-  
+
+  // Resetar controles do bloco de Reencaminhamento como Intercorrência
+  const selSetorDest = document.getElementById('acol-escuta2-setor-destino');
+  if (selSetorDest) selSetorDest.value = '';
+  const selProfDest = document.getElementById('acol-escuta2-prof-destino');
+  if (selProfDest) selProfDest.innerHTML = '<option value="">— Fila geral do setor —</option>';
+  const obsSecEl = document.getElementById('acol-escuta2-obs-segunda');
+  if (obsSecEl) obsSecEl.value = patient?.observacao_segunda_escuta || '';
+
   selectGravidade('verde');
   document.querySelector('input[name="acol-escuta2-agend"][value="false"]').checked = true;
   document.getElementById('acol-escuta2-modal').classList.add('show');
+}
+
+function atualizarProfissionaisDestinoEscuta2() {
+  const selSetor = document.getElementById('acol-escuta2-setor-destino');
+  const selProf = document.getElementById('acol-escuta2-prof-destino');
+  if (!selSetor || !selProf) return;
+  const setor = selSetor.value;
+  selProf.innerHTML = '<option value="">— Fila geral do setor —</option>';
+  const setorCfgKey = setor === 'Vacina' ? 'Téc. Enfermagem' : setor;
+  const cfg = SECTOR_CONFIG[setorCfgKey];
+  if (cfg && Array.isArray(cfg.profissionais)) {
+    cfg.profissionais.forEach(prof => {
+      const opt = document.createElement('option');
+      opt.value = prof;
+      opt.textContent = prof;
+      selProf.appendChild(opt);
+    });
+  }
+}
+
+async function confirmarEncaminhamentoIntercorrenciaEscuta2(btn) {
+  const id = document.getElementById('acol-escuta2-id').value;
+  const nome = document.getElementById('acol-escuta2-patient-info').textContent.replace('👤 ', '');
+  const setor_destino = document.getElementById('acol-escuta2-setor-destino')?.value || '';
+  const profissional_destino = document.getElementById('acol-escuta2-prof-destino')?.value || null;
+  const observacao_segunda_escuta = (document.getElementById('acol-escuta2-obs-segunda')?.value || '').trim();
+  const cpf = document.getElementById('acol-escuta2-cpf')?.value.trim() || null;
+  const cartao_sus = document.getElementById('acol-escuta2-sus')?.value.trim() || null;
+  const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-escuta2');
+
+  if (!setor_destino) {
+    showToast('Selecione o setor/departamento de destino para reencaminhar!', true);
+    return;
+  }
+
+  let originalText = '';
+  if (btn) {
+    originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Reencaminhando...';
+  }
+  try {
+    const r = await fetch(`${API_URL}/fila/${id}/encaminhar-acolhimento`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        setor_destino,
+        profissional_destino,
+        observacao_segunda_escuta: observacao_segunda_escuta || null,
+        cpf,
+        cartao_sus,
+        condicoes_especiais
+      })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      throw new Error(data.error || 'Erro ao encaminhar paciente como intercorrência!');
+    }
+    document.getElementById('acol-escuta2-modal').classList.remove('show');
+    const profLabel = profissional_destino ? ` (${profissional_destino})` : '';
+    showToast(`🚨 ${nome} reencaminhado para ${setor_destino}${profLabel} como Intercorrência do Acolhimento!`);
+    await Promise.all([loadQueues(), loadAcolhimentoFluxo()]);
+  } catch (e) {
+    showToast(e.message || 'Erro ao reencaminhar paciente!', true);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText || '🚨 Encaminhar como Intercorrência';
+    }
+  }
 }
 
 
@@ -4606,22 +4843,24 @@ function renderAcsEscutaScreen() {
           const nomeSafe = p.nome.replace(/'/g, "\\'");
           const prioBadge = renderPrioridadeIdadeBadge(p);
           const waitBadge = renderEsperaNormalBadge(p);
+          const equipeBadge = renderEquipePacienteBadge(p);
           const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde'
             ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴' : p.risco_clinico === 'amarelo' ? '🟡' : '🟦'}</span>` : '';
           const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
           const condBadges = renderCondicoesBadges(p.condicoes_especiais);
           const radarBtn = renderBotaoBuscaAtivaCard(p, 'ACS - 1ª Escuta');
           const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'ACS - 1ª Escuta');
+          const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
           const adminBtns = isAdmin ? `
             <button class="btn-danger" style="font-size:11px;padding:3px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
           ` : '';
 
           return `<div class="acs-patient-card ${p.status === 'chamado' ? 'status-chamado' : ''}">
-            <div class="acs-patient-name">${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${riscoBadge}${condBadges}</div>
+            <div class="acs-patient-name">${escapeText(p.nome)} ${prioBadge} ${equipeBadge} ${waitBadge} ${riscoBadge}${condBadges}</div>
             <div class="acs-patient-meta">
               <span>🕐 ${p.horario}</span>
               <span class="acol-tempo-badge">⏱ ${tempoMin}m</span>
-              ${p.queixa ? `<span>💬 ${escapeText(p.queixa)}</span>` : ''}
+              ${motivo1 ? `<span>💬 ${escapeText(motivo1)}</span>` : ''}
               ${radarBtn}
             </div>
             ${alumiaBloco}
@@ -4629,7 +4868,7 @@ function renderAcsEscutaScreen() {
               <button class="acs-btn-chamar" onclick="chamarAcsPaciente(${p.id},'${nomeSafe}','${acs}',this)">🔊 Chamar</button>
               <button class="acs-btn-enc" onclick="abrirModalEncaminharAcs(${p.id},'${nomeSafe}')">📤 Encaminhar 2ª</button>
               <button class="acs-btn-enc" style="background:linear-gradient(135deg,#4aab3c,#3a8a2e);" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
-              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#1976d2,#0d47a1);" onclick="abrirModalAgendamento(${p.id}, '${nomeSafe}', '${(p.queixa||'').replace(/'/g,"\\'")}')">🗂️ Sala Agendamento</button>
+              <button class="acs-btn-enc" style="background:linear-gradient(135deg,#1976d2,#0d47a1);" onclick="abrirModalAgendamento(${p.id}, '${nomeSafe}', '${motivo1.replace(/'/g,"\\'")}')">🗂️ Sala Agendamento</button>
               ${adminBtns}
             </div>
           </div>`;
@@ -4785,6 +5024,8 @@ function renderSegundaEscutaScreen() {
       const nomeSafe = p.nome.replace(/'/g, "\\'");
       const prioBadge = renderPrioridadeIdadeBadge(p);
       const waitBadge = renderEsperaNormalBadge(p);
+      const equipeBadge = renderEquipePacienteBadge(p);
+      const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
       const riscoBadge = p.risco_clinico
         ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : p.risco_clinico === 'amarelo' ? '🟡 MOD.' : p.risco_clinico === 'azul' ? '🟦 SEM' : '🟢'}</span>` : '';
       const condBadges = renderCondicoesBadges(p.condicoes_especiais);
@@ -4792,12 +5033,14 @@ function renderSegundaEscutaScreen() {
       const acsLabel = p.acs_responsavel ? `<span>👤 ACS: ${escapeText(p.acs_responsavel)}</span>` : '';
       const radarBtn = renderBotaoBuscaAtivaCard(p, `2ª Escuta - ${prof}`);
       const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, `2ª Escuta - ${prof}`);
+      const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
+      const obs2 = (p.observacao_segunda_escuta || '').trim();
       const adminBtns = isAdmin ? `
         <button class="btn-danger" style="font-size:11px;padding:3px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
       ` : '';
 
       return `<div class="seg-patient-card ${p.status === 'chamado' ? 'status-chamado' : ''}">
-        <div class="seg-patient-name">${escapeText(p.nome)} ${prioBadge} ${waitBadge} ${riscoBadge}${condBadges}</div>
+        <div class="seg-patient-name">${escapeText(p.nome)} ${prioBadge} ${intercorrenciaBadge} ${equipeBadge} ${waitBadge} ${riscoBadge}${condBadges}</div>
         <div class="seg-patient-meta">
           <span>🕐 ${p.horario}</span>
           <span class="acol-tempo-badge">⏱ ${tempoMin}m</span>
@@ -4805,9 +5048,11 @@ function renderSegundaEscutaScreen() {
           ${radarBtn}
         </div>
         ${alumiaBloco}
-        ${p.queixa ? `<div class="seg-patient-queixa">"${escapeText(p.queixa)}"</div>` : ''}
-        <div class="seg-patient-actions">
+        ${motivo1 ? `<div class="seg-patient-queixa">💬 1ª Escuta: "${escapeText(motivo1)}"</div>` : ''}
+        ${obs2 ? `<div class="seg-patient-queixa" style="border-left:3px solid #c62828;margin-top:4px;">🩺 2ª Escuta: "${escapeText(obs2)}"</div>` : ''}
+        <div class="seg-patient-actions" style="flex-wrap:wrap;">
           <button class="seg-btn-chamar" onclick="chamarSegundaEscutaPaciente(${p.id},'${nomeSafe}','${prof.replace(/'/g,"\\'")}',this)">🔊 Chamar</button>
+          <button class="seg-btn-finalizar" style="background:linear-gradient(135deg,#c62828,#8e0000);" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">🚨 Reencaminhar / Avaliar</button>
           <button class="seg-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar Consulta</button>
           ${adminBtns}
         </div>
