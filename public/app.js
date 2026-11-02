@@ -663,61 +663,74 @@ function handleOutsideClick(e) {
 document.addEventListener('click', handleOutsideClick);
 document.addEventListener('touchstart', handleOutsideClick, { passive: true });
 
+// --- Helpers de filtro ativo do setor para reordenação pelo especialista ---
+function obterKeyPorSetor(setor) {
+  return Object.keys(SECTOR_CONFIG).find(k => k === setor || SECTOR_CONFIG[k]?.key === setor)
+    ? (SECTOR_CONFIG[setor]?.key || setor)
+    : null;
+}
+
+function obterFiltroProfissionalSetor(setor) {
+  const key = SECTOR_CONFIG[setor]?.key;
+  if (!key) return null;
+  return sectorFilters[key] || null;
+}
+
+function obterListaVisivelSetor(setor) {
+  const profFiltro = obterFiltroProfissionalSetor(setor);
+  let list = (queues[setor] || []).filter(p => p.status === 'aguardando');
+  if (profFiltro) {
+    list = list.filter(p => !p.profissional || p.profissional === profFiltro);
+  }
+  return list;
+}
+
 // --- API helper de reordenação ---
 async function apiReorder(patientId, setor, newPosition) {
   const senha = adminPassword || atob('Y2hpY28xMjM=');
+  const profissional = obterFiltroProfissionalSetor(setor);
   const r = await fetch(`${API_URL}/patients/${patientId}/reorder`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ setor, newPosition, senha })
+    body: JSON.stringify({ setor, newPosition, profissional, senha })
   });
   if (r.status === 403) { showToast('❌ Senha administrativa inválida!', true); throw new Error('Unauthorized'); }
   if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Erro ao reordenar'); }
   return r.json();
 }
 
-// --- Mover por setas ↑↓ ---
+// --- Mover por setas ↑↓ (direto para o especialista, sem exigir desbloqueio manual de Admin) ---
 async function movePatientArrow(patientId, setor, direction) {
-  AdminGuard.require(async () => {
-    const list = (queues[setor] || []).filter(p => p.status === 'aguardando');
-    const idx = list.findIndex(p => p.id === patientId);
-    if (idx === -1) return;
-    const newPos = direction === 'up' ? Math.max(1, idx) : Math.min(list.length, idx + 2);
-    if (direction === 'up' && idx === 0) return;
-    if (direction === 'down' && idx === list.length - 1) return;
-    try {
-      // Optimistic update imediato
-      const item = list.splice(idx, 1)[0];
-      list.splice(direction === 'up' ? idx - 1 : idx + 1, 0, item);
-      list.forEach((p, i) => p._optimisticPos = i + 1);
-      updateQueues();
-      await apiReorder(patientId, setor, newPos);
-      await loadQueues();
-    } catch(e) { await loadQueues(); showToast(e.message || 'Erro ao mover paciente!', true); }
-  });
+  const list = obterListaVisivelSetor(setor);
+  const idx = list.findIndex(p => p.id === patientId);
+  if (idx === -1) return;
+  if (direction === 'up' && idx === 0) return;
+  if (direction === 'down' && idx === list.length - 1) return;
+  const newPos = direction === 'up' ? Math.max(1, idx) : Math.min(list.length, idx + 2);
+  try {
+    await apiReorder(patientId, setor, newPos);
+    showToast(direction === 'up' ? `⬆️ Paciente subiu para ${newPos}º na fila!` : `⬇️ Paciente desceu para ${newPos}º na fila!`);
+    await loadQueues();
+  } catch(e) { await loadQueues(); showToast(e.message || 'Erro ao mover paciente!', true); }
 }
 
 // --- Mover para o topo ---
 async function moveToTop(patientId, setor) {
-  AdminGuard.require(async () => {
-    try {
-      await apiReorder(patientId, setor, 1);
-      showToast('🔝 Paciente movido para o topo!');
-      await loadQueues();
-    } catch(e) { await loadQueues(); showToast(e.message || 'Erro!', true); }
-  });
+  try {
+    await apiReorder(patientId, setor, 1);
+    showToast('🔝 Paciente movido para o 1º da fila!');
+    await loadQueues();
+  } catch(e) { await loadQueues(); showToast(e.message || 'Erro!', true); }
 }
 
 // --- Mover para o fim ---
 async function moveToBottom(patientId, setor) {
-  AdminGuard.require(async () => {
-    try {
-      const total = (queues[setor] || []).filter(p => p.status === 'aguardando').length;
-      await apiReorder(patientId, setor, total);
-      showToast('⬇️ Paciente movido para o fim!');
-      await loadQueues();
-    } catch(e) { await loadQueues(); showToast(e.message || 'Erro!', true); }
-  });
+  try {
+    const total = Math.max(1, obterListaVisivelSetor(setor).length);
+    await apiReorder(patientId, setor, total);
+    showToast('⬇️ Paciente movido para o final da fila!');
+    await loadQueues();
+  } catch(e) { await loadQueues(); showToast(e.message || 'Erro!', true); }
 }
 
 // --- Context Menu ---
@@ -765,7 +778,7 @@ function openPositionModal(id, nome, setor) {
   document.getElementById('position-patient-id').value = id;
   document.getElementById('position-patient-setor').value = setor;
   document.getElementById('position-patient-name').textContent = nome;
-  const total = (queues[setor] || []).filter(p => p.status === 'aguardando').length;
+  const total = Math.max(1, obterListaVisivelSetor(setor).length);
   const inp = document.getElementById('position-input');
   inp.max = total;
   inp.placeholder = `1 - ${total}`;
@@ -2031,8 +2044,10 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       <button class="btn-danger" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência">🚶</button>
       <button class="btn-danger" style="background:rgba(0,0,0,0.08);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>
     ` : `
+      <button class="btn-reorder-arrow" title="Subir uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
+      <button class="btn-reorder-arrow" title="Descer uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
+      <button class="btn-reorder-pos" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Mudar posição na fila">🔢 Pos.</button>
       <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
-      <button class="btn-reorder-pos" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Ir para posição específica">🔢 Pos.</button>
     `;
 
     const rowCls = [

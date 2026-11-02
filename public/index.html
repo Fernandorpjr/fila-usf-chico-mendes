@@ -1438,6 +1438,135 @@
       max-height: none !important;
       overflow: visible !important;
     }
+
+    /* ====== RESPONSIVIDADE COMPLETA PARA TABLET E CELULAR (<= 960px e <= 600px) ====== */
+    @media (max-width: 960px) {
+      .header {
+        padding: 8px 14px !important;
+        height: auto !important;
+        min-height: 60px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .logo-text { font-size: 20px !important; }
+      .logo-text .nome { font-size: 16px !important; }
+      .header-subtitle { font-size: 9.5px !important; }
+      .clock { font-size: 18px !important; }
+      .main { padding: 12px 10px 28px !important; }
+      .card-white, .card { padding: 14px 12px !important; border-radius: 12px !important; }
+      .stats-row {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 8px !important;
+      }
+      .stat-card { padding: 10px 10px !important; }
+      .stat-value { font-size: 20px !important; }
+      .stat-label { font-size: 10px !important; }
+      .queue-list {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+
+      /* Transforma a tabela horizontal em lista de cartões alinhados e responsivos no Tablet/Celular */
+      .fila-table-wrap {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow-x: visible !important;
+      }
+      .fila-clean-table,
+      .fila-clean-table tbody {
+        display: block !important;
+        width: 100% !important;
+      }
+      .fila-clean-table thead {
+        display: none !important;
+      }
+      .fila-clean-table tbody tr {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        background: #ffffff !important;
+        border: 1.5px solid #cbd5e1 !important;
+        border-radius: 12px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 10px !important;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+      }
+      .fila-clean-table tbody tr.row-intercorrencia {
+        border-left: 5px solid #dc2626 !important;
+        background: #fff7ed !important;
+      }
+      .fila-clean-table tbody tr.calling,
+      .fila-clean-table tbody tr.row-calling {
+        border-left: 5px solid #d97706 !important;
+        background: #fffbeb !important;
+      }
+      .fila-clean-table tbody td {
+        display: block !important;
+        width: 100% !important;
+        padding: 0 !important;
+        border: none !important;
+        text-align: left !important;
+        white-space: normal !important;
+      }
+      .fila-clean-table tbody td.fila-pos-cell {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        padding-bottom: 6px !important;
+        border-bottom: 1px dashed #e2e8f0 !important;
+      }
+      .fila-actions-cell {
+        justify-content: flex-start !important;
+        flex-wrap: wrap !important;
+        white-space: normal !important;
+        gap: 6px !important;
+        padding-top: 8px !important;
+        border-top: 1px solid #f1f5f9 !important;
+      }
+      .fila-actions-cell button,
+      .btn-reorder-arrow,
+      .btn-reorder-pos,
+      .btn-transfer-sector {
+        min-height: 34px !important;
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+      }
+      .btn-reorder-arrow {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 15px !important;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .stats-row {
+        grid-template-columns: 1fr 1fr !important;
+      }
+      .setor-quick-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 6px !important;
+      }
+      .equipe-quick-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+      }
+      .btn-toggle-escuta1 {
+        width: 100%;
+        justify-content: center;
+      }
+      .acol-modal, .reorder-modal, .wa-modal {
+        width: 96% !important;
+        padding: 18px 14px !important;
+        border-radius: 14px !important;
+      }
+      .fila-paciente-nome {
+        font-size: 15px !important;
+      }
+    }
     /* ====== FIM CLEAN TABLE UI ====== */
 </style>
 </head>
@@ -3388,6 +3517,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js"></script>
 <script src="dispositivos.js"></script>
-<script src="app.js?v=3.3"></script>
+<script src="app.js?v=3.4"></script>
 </body>
 </html>
