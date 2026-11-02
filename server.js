@@ -665,14 +665,14 @@ async function garantirColunasEscuta(dbClientOrPool) {
   if (_colunasEscutaGarantidas) return;
   const runner = dbClientOrPool || pool;
   try {
-    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS equipe_paciente VARCHAR(80)`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS equipe_paciente TEXT`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN NOT NULL DEFAULT false`);
-    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS setor_destino VARCHAR(80)`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS setor_destino TEXT`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS profissional_destino TEXT`);
 
-    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS equipe_paciente VARCHAR(80)`);
+    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS equipe_paciente TEXT`);
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN DEFAULT false`);
@@ -1467,18 +1467,18 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     const result = await client.query(
       `UPDATE patients
        SET setor = $2,
-           setor_destino = $2,
-           sort_order = $6,
-           horario = $3,
-           tipo_atendimento = $4,
-           profissional = $5,
-           profissional_destino = $5,
-           origem_transferencia = $7,
-           etapa_fluxo = $8,
-           is_intercorrencia_acolhimento = $9,
-           motivo_primeira_escuta = COALESCE($10, motivo_primeira_escuta),
-           queixa = COALESCE($10, queixa),
-           observacao_segunda_escuta = COALESCE($11, observacao_segunda_escuta),
+           setor_destino = $3,
+           sort_order = $4,
+           horario = $5,
+           tipo_atendimento = $6,
+           profissional = $7,
+           profissional_destino = $8,
+           origem_transferencia = $9,
+           etapa_fluxo = $10,
+           is_intercorrencia_acolhimento = $11,
+           motivo_primeira_escuta = COALESCE($12::text, motivo_primeira_escuta),
+           queixa = COALESCE($13::text, queixa),
+           observacao_segunda_escuta = COALESCE($14::text, observacao_segunda_escuta),
            status = 'aguardando',
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
@@ -1486,13 +1486,16 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       [
         id,
         novoSetor,
+        novoSetor,
+        novoSortOrder,
         novoHorario,
         tipo,
         prof,
-        novoSortOrder,
+        prof,
         origemTransf,
         novaEtapaFluxo,
         isIntercFinal,
+        motivo1Preservado,
         motivo1Preservado,
         obs2Preservada
       ]
@@ -3349,14 +3352,14 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
       `UPDATE patients
        SET etapa_fluxo = 'segunda_escuta',
            queixa = $2,
-           motivo_primeira_escuta = COALESCE(NULLIF(TRIM(motivo_primeira_escuta), ''), $2),
-           equipe_paciente = COALESCE($9, equipe_paciente),
-           risco_clinico = $3,
-           profissional_destino = $4,
-           tipo_profissional_destino = $5,
-           cpf = $6,
-           cartao_sus = $7,
-           condicoes_especiais = COALESCE($8, condicoes_especiais),
+           motivo_primeira_escuta = COALESCE(NULLIF(TRIM(motivo_primeira_escuta), ''), $3::text),
+           equipe_paciente = COALESCE($4::text, equipe_paciente),
+           risco_clinico = $5,
+           profissional_destino = $6,
+           tipo_profissional_destino = $7,
+           cpf = $8,
+           cartao_sus = $9,
+           condicoes_especiais = COALESCE($10::text, condicoes_especiais),
            inicio_etapa = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta'
@@ -3364,13 +3367,14 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
       [
         id,
         queixaFinal,
+        queixaFinal,
+        equipeFinal,
         risco_clinico || 'verde',
         profissional_destino || null,
         tipo_profissional_destino || null,
         cpf || null,
         cartao_sus || null,
-        condicoes_especiais || null,
-        equipeFinal
+        condicoes_especiais || null
       ]
     );
     if (result.rows.length === 0) {
@@ -3545,22 +3549,22 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
     const updateRes = await client.query(
       `UPDATE patients
        SET setor = $2,
-           setor_destino = $2,
-           profissional = $3,
-           profissional_destino = $3,
-           horario = $4,
+           setor_destino = $3,
+           profissional = $4,
+           profissional_destino = $5,
+           horario = $6,
            status = 'aguardando',
            etapa_fluxo = 'encaminhado_intercorrencia',
-           tipo_atendimento = $5,
+           tipo_atendimento = $7,
            origem_transferencia = '2ª Escuta (Acolhimento)',
            is_intercorrencia_acolhimento = true,
-           equipe_paciente = $6,
-           motivo_primeira_escuta = $7,
-           queixa = COALESCE($7, queixa),
-           observacao_segunda_escuta = $8,
-           cpf = COALESCE($9, cpf),
-           cartao_sus = COALESCE($10, cartao_sus),
-           condicoes_especiais = COALESCE($11, condicoes_especiais),
+           equipe_paciente = $8,
+           motivo_primeira_escuta = $9,
+           queixa = COALESCE($10::text, queixa),
+           observacao_segunda_escuta = $11,
+           cpf = COALESCE($12::text, cpf),
+           cartao_sus = COALESCE($13::text, cartao_sus),
+           condicoes_especiais = COALESCE($14::text, condicoes_especiais),
            sort_order = NULL,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
@@ -3568,10 +3572,13 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
       [
         id,
         setorReal,
+        setorReal,
+        profDestinoFinal,
         profDestinoFinal,
         horarioAtual,
         tipoAtendimentoFinal,
         equipeFinal,
+        motivo1Preservado,
         motivo1Preservado,
         obs2Final,
         cpf || null,
