@@ -1685,7 +1685,15 @@
     <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
     <button id="btn-palestra" class="btn-palestra admin-only" onclick="togglePausaPalestra()" title="Pausar sistema para palestra da gestora">🎙️ Pausar para Palestra</button>
     <!-- === FIM MELHORIA F === -->
-    <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:3px 6px;">
+      <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio" style="padding:5px 8px;border:none;background:transparent;">🔊</button>
+      <select id="select-voz-sistema" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas" style="background:rgba(15,23,42,0.75);color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;padding:4px 8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;outline:none;">
+        <option value="feminina_br">🇧🇷👩 Voz Feminina (Francisca)</option>
+        <option value="masculina_br">🇧🇷👨 Voz Masculina (Antônio)</option>
+        <option value="thalita_br">🇧🇷👩‍⚕️ Voz Suave (Thalita)</option>
+      </select>
+      <button type="button" onclick="testarVozSistema()" title="Ouvir teste da voz brasileira selecionada" style="background:rgba(74,171,60,0.25);color:#fff;border:1px solid rgba(74,171,60,0.5);border-radius:7px;padding:4px 8px;font-family:'Nunito',sans-serif;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;">🎙️ Testar</button>
+    </div>
     <div>
       <div class="date-display" id="dateDisplay"></div>
       <div class="clock" id="clockDisplay">00:00:00</div>
@@ -2362,9 +2370,17 @@
         <div class="painel-title" style="font-size:18px;color:var(--gray-300);font-weight:600;letter-spacing:2px;text-transform:uppercase;">Painel de Chamadas</div>
       </div>
       <div class="painel-main-call" id="painel-main"><div class="painel-empty">Aguardando chamadas...</div></div>
-      <div style="display:flex;gap:12px;justify-content:center;margin-bottom:24px;flex-wrap:wrap;">
+      <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-bottom:24px;flex-wrap:wrap;">
         <button class="btn-3d" onclick="speakPatientName(this)" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(74,171,60,0.4);display:flex;align-items:center;gap:8px;">🔊 Chamar pelo Nome</button>
         <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">🔁 Repetir Última</button>
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:8px 12px;">
+          <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:8px 10px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;">
+            <option value="feminina_br">🇧🇷👩 Voz Feminina (Francisca)</option>
+            <option value="masculina_br">🇧🇷👨 Voz Masculina (Antônio)</option>
+            <option value="thalita_br">🇧🇷👩‍⚕️ Voz Suave (Thalita)</option>
+          </select>
+          <button type="button" onclick="testarVozSistema()" style="background:rgba(74,171,60,0.3);color:#fff;border:1px solid rgba(74,171,60,0.6);border-radius:8px;padding:8px 12px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">🎙️ Testar Voz</button>
+        </div>
       </div>
       <div class="painel-history-title">🕐 Histórico de Chamadas</div>
       <div class="painel-history-grid" id="painel-history" style="max-height:420px;overflow-y:auto;scrollbar-width:thin;"><div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;font-size:14px;font-weight:600;">Nenhuma chamada registrada</div></div>
@@ -3425,11 +3441,19 @@
 <!-- ====== FIM MELHORIA G: MODAIS ====== -->
 
 <div id="sound-modal" style="display:none;position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
-  <div style="background:var(--white);border-radius:24px;padding:40px 48px;text-align:center;max-width:440px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.4);">
-    <div style="font-size:56px;margin-bottom:16px;">🔊</div>
-    <div style="font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;color:var(--blue-dark);margin-bottom:10px;">Ativar Sistema de Voz</div>
-    <div style="font-size:15px;color:var(--gray-600);margin-bottom:28px;line-height:1.6;">Para que os chamados sejam <strong>anunciados em voz alta</strong>, clique no botão abaixo.</div>
-    <button onclick="unlockAudio()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;border:none;border-radius:12px;padding:18px 40px;font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;cursor:pointer;width:100%;box-shadow:0 6px 20px rgba(74,171,60,0.4);">🔊 Ativar Som Agora</button>
+  <div style="background:var(--white);border-radius:24px;padding:36px 40px;text-align:center;max-width:460px;width:92%;box-shadow:0 24px 60px rgba(0,0,0,0.4);">
+    <div style="font-size:52px;margin-bottom:12px;">🔊</div>
+    <div style="font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;color:var(--blue-dark);margin-bottom:8px;">Ativar Sistema de Voz Brasileira</div>
+    <div style="font-size:14.5px;color:var(--gray-600);margin-bottom:18px;line-height:1.5;">Escolha a voz brasileira preferida e clique abaixo para ativar os anúncios em voz alta:</div>
+    <div style="margin-bottom:20px;text-align:left;">
+      <label style="font-size:12px;font-weight:800;color:var(--gray-600);text-transform:uppercase;display:block;margin-bottom:6px;">Voz do Painel (Português do Brasil)</label>
+      <select id="select-voz-modal" onchange="alterarVozPreferida(this.value, false)" style="width:100%;padding:12px 14px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14.5px;font-weight:800;color:var(--blue-dark);cursor:pointer;">
+        <option value="feminina_br">🇧🇷👩 Voz Brasileira Feminina (Francisca — Natural)</option>
+        <option value="masculina_br">🇧🇷👨 Voz Brasileira Masculina (Antônio — Natural)</option>
+        <option value="thalita_br">🇧🇷👩‍⚕️ Voz Brasileira Suave (Thalita — Natural)</option>
+      </select>
+    </div>
+    <button onclick="unlockAudio(false)" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;border:none;border-radius:12px;padding:18px 40px;font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;cursor:pointer;width:100%;box-shadow:0 6px 20px rgba(74,171,60,0.4);">🔊 Ativar Som Agora</button>
   </div>
 </div>
 

@@ -86,6 +86,10 @@ async function tentarEntrar() {
     inp.value = '';
     gateAttempts = 0;
     hideGate();
+    // O clique em "Entrar" já é um gesto do usuário: desbloqueia o áudio imediatamente!
+    if (typeof unlockAudio === 'function') {
+      unlockAudio(true);
+    }
     if (typeof registrarAcessoDispositivo === 'function') {
       registrarAcessoDispositivo('gate_login');
     }
@@ -232,6 +236,7 @@ function checkExpediente() {
   } else if (dentroHorario && !isPausado) {
     // Dentro do expediente → esconder overlay + garantir polling ativo
     if (offEl) offEl.classList.add('hidden');
+    if (typeof ensureAudioContextResumed === 'function') ensureAudioContextResumed();
     if (!pollingTimer1) resumeAllPolling(); // só retoma se estava parado
   }
 }
@@ -1438,6 +1443,15 @@ function showQrModal(p) {
 
 // ====== CALL NEXT ======
 async function callNext(setor, btnElement) {
+  // O clique em "Chamar Próximo" já destrava o áudio do navegador caso ainda estivesse bloqueado
+  if (typeof unlockAudio === 'function' && !audioUnlocked) {
+    unlockAudio(true);
+  }
+  // Garante que a 1ª chamada do dia nunca seja engolida caso o 1º loadHistory ainda estivesse em trânsito
+  if (lastSpokenCallId === null) {
+    lastSpokenCallId = 0;
+  }
+
   if (btnElement) {
     btnElement.disabled = true;
     const originalText = btnElement.innerHTML;
@@ -1473,7 +1487,8 @@ async function callNext(setor, btnElement) {
     }
     const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional, filtro_profissional, filtro_etapa }) });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
-    loadQueues(); loadCurrentCalling();
+    // Carrega imediatamente o histórico para disparar a fala na mesma hora!
+    loadQueues(); loadCurrentCalling(); loadHistory();
   } catch (e) { showToast(e.message || `Fila de ${setor} está vazia!`, true); }
 }
 
@@ -1525,9 +1540,73 @@ async function deletePatientPermanently(id, nome) {
   } catch { showToast('Erro ao excluir!', true); }
 }
 
-// ====== SPEAK ======
+// ====== SPEAK (VOZ NEURAL BRASILEIRA + DESBLOQUEIO AUTOMÁTICO) ======
 let audioUnlocked = false;
 let isMuted = false;
+let sharedAudioCtx = null;
+let vozPreferida = localStorage.getItem('usf_voz_preferida') || 'feminina_br';
+const clientTtsCache = new Map();
+
+function getSharedAudioContext() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+      sharedAudioCtx = new AudioCtx();
+    }
+    if (sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume().catch(() => {});
+    }
+    return sharedAudioCtx;
+  } catch (e) {
+    return null;
+  }
+}
+
+function ensureAudioContextResumed() {
+  if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume().catch(() => {});
+  }
+}
+
+function sincronizarSeletoresVoz() {
+  ['select-voz-sistema', 'select-voz-painel', 'select-voz-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value !== vozPreferida) {
+      el.value = vozPreferida;
+    }
+  });
+}
+
+function alterarVozPreferida(novaVoz, tocarTeste = false) {
+  vozPreferida = novaVoz || 'feminina_br';
+  try { localStorage.setItem('usf_voz_preferida', vozPreferida); } catch (e) {}
+  sincronizarSeletoresVoz();
+  const labelMap = {
+    feminina_br: '🇧🇷👩 Voz Brasileira Feminina (Francisca)',
+    masculina_br: '🇧🇷👨 Voz Brasileira Masculina (Antônio)',
+    thalita_br: '🇧🇷👩‍⚕️ Voz Brasileira Suave (Thalita)'
+  };
+  showToast(`🔊 Voz selecionada: ${labelMap[vozPreferida] || 'Voz Brasileira'}`);
+  if (tocarTeste) {
+    testarVozSistema();
+  }
+}
+
+function testarVozSistema() {
+  unlockAudio(true);
+  if (isMuted) {
+    isMuted = false;
+    const btn = document.getElementById('btn-mute');
+    if (btn) btn.innerHTML = '🔊';
+  }
+  const h = new Date().getHours();
+  const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  speechQueue.push({
+    texto: `${saudacao}. Voz brasileira da Unidade Chico Mendes ativada com sucesso.`
+  });
+  processSpeechQueue();
+}
 
 function toggleMute() {
   isMuted = !isMuted;
@@ -1537,16 +1616,68 @@ function toggleMute() {
   }
   showToast(isMuted ? 'Áudio silenciado' : 'Áudio ativado');
 }
-function unlockAudio() {
-  if (!audioUnlocked && 'speechSynthesis' in window) { const d = new SpeechSynthesisUtterance(' '); d.volume = 0; window.speechSynthesis.speak(d); audioUnlocked = true; }
-  const g = document.getElementById('global-audio'); if (g) g.play().catch(() => {});
-  document.getElementById('sound-modal').style.display = 'none';
-  showToast('🔊 Som ativado com sucesso!');
+
+function unlockAudio(silent = false) {
+  try {
+    const ctx = getSharedAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+  } catch (e) {}
+
+  if (!audioUnlocked) {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.getVoices();
+        const d = new SpeechSynthesisUtterance(' ');
+        d.volume = 0;
+        window.speechSynthesis.speak(d);
+      } catch (e) {}
+    }
+    const g = document.getElementById('global-audio');
+    if (g) {
+      g.muted = false;
+      g.play().catch(() => {});
+    }
+    audioUnlocked = true;
+  }
+
+  const modal = document.getElementById('sound-modal');
+  if (modal) modal.style.display = 'none';
+  if (!silent) {
+    showToast('🔊 Som ativado com sucesso!');
+  }
 }
+
+// Desbloqueia automaticamente no primeiro clique ou tecla em qualquer lugar da página
+['click', 'keydown', 'touchstart'].forEach(evtName => {
+  document.addEventListener(evtName, function _autoUnlockOnFirstInteraction() {
+    if (!audioUnlocked) {
+      unlockAudio(true);
+    } else {
+      ensureAudioContextResumed();
+    }
+  }, { passive: true });
+});
+
+// Pré-carregar vozes do navegador caso precise de fallback offline
+if ('speechSynthesis' in window) {
+  try {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  } catch (e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  sincronizarSeletoresVoz();
+});
 
 function speak(nome, setor, audioUrl, medico) { speakViaSynthesis(nome, setor, medico); }
 
 function speakAgain(setor, btnElement) {
+  unlockAudio(true);
   if (btnElement) {
     btnElement.disabled = true;
     setTimeout(() => btnElement.disabled = false, 2500);
@@ -1559,97 +1690,233 @@ let isSpeaking = false;
 
 function playChime() {
   return new Promise((resolve) => {
-    if (isMuted || (typeof audioUnlocked !== 'undefined' && !audioUnlocked)) {
+    if (isMuted) {
       return resolve();
     }
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return resolve();
-      const ctx = new AudioCtx();
-      
-      // Nota 1 (Ding - 587.33Hz / D5)
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
-      gain1.gain.setValueAtTime(0.22, ctx.currentTime);
-      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start(ctx.currentTime);
-      osc1.stop(ctx.currentTime + 0.45);
-      
-      // Nota 2 (Dong - 880Hz / A5)
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.18);
-      gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.18);
-      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.75);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.start(ctx.currentTime + 0.18);
-      osc2.stop(ctx.currentTime + 0.75);
-      
-      setTimeout(resolve, 750);
-    } catch(e) {
+      const ctx = getSharedAudioContext();
+      if (!ctx) return resolve();
+
+      const startChime = () => {
+        try {
+          // Nota 1 (Ding - 587.33Hz / D5)
+          const osc1 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+          gain1.gain.setValueAtTime(0.24, ctx.currentTime);
+          gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+          osc1.connect(gain1);
+          gain1.connect(ctx.destination);
+          osc1.start(ctx.currentTime);
+          osc1.stop(ctx.currentTime + 0.45);
+
+          // Nota 2 (Dong - 880Hz / A5)
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.18);
+          gain2.gain.setValueAtTime(0.27, ctx.currentTime + 0.18);
+          gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.75);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start(ctx.currentTime + 0.18);
+          osc2.stop(ctx.currentTime + 0.75);
+
+          setTimeout(resolve, 750);
+        } catch (err) {
+          resolve();
+        }
+      };
+
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(startChime).catch(() => startChime());
+      } else {
+        startChime();
+      }
+    } catch (e) {
       resolve();
     }
   });
 }
 
-function processSpeechQueue() {
-  if (isSpeaking || speechQueue.length === 0) return;
-  if (!('speechSynthesis' in window)) return;
-  
-  isSpeaking = true;
-  playChime().then(() => {
-    if (speechQueue.length === 0) {
-      isSpeaking = false;
-      return;
+function base64ToArrayBuffer(base64) {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function playAudioBase64(audioBase64, provider, voz) {
+  // 1ª tentativa: tocar via Web Audio API (não sofre bloqueio de aba em segundo plano e permite ajuste fino)
+  const ctx = getSharedAudioContext();
+  if (ctx) {
+    try {
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
+      const arrayBuf = base64ToArrayBuffer(audioBase64);
+      const audioBuffer = await ctx.decodeAudioData(arrayBuf.slice(0));
+      return await new Promise((resolve, reject) => {
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        // Se caiu no fallback Google (feminino) mas o usuário pediu voz masculina, ajusta o timbre
+        if (provider === 'google-pt-br' && String(voz).includes('masc')) {
+          source.playbackRate.value = 0.88;
+        } else {
+          source.playbackRate.value = 1.0;
+        }
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = 1.15;
+        source.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        const maxMs = Math.ceil((audioBuffer.duration / (source.playbackRate.value || 1)) * 1000) + 2500;
+        const safety = setTimeout(() => resolve(), maxMs);
+        source.onended = () => {
+          clearTimeout(safety);
+          resolve();
+        };
+        source.start(0);
+      });
+    } catch (webAudioErr) {
+      // Fallback para elemento <audio> HTML5
     }
-    const { texto } = speechQueue.shift();
-    const utter = new SpeechSynthesisUtterance(texto);
-    utter.lang = 'pt-BR'; utter.rate = 0.95; utter.pitch = 1;
-    const voices = window.speechSynthesis.getVoices();
-    const pv = voices.find(v => v.name.includes('Francisca') || v.name.includes('Antonio') || v.name.includes('Google português do Brasil') || v.name.includes('Luciana') || v.name.includes('Daniel'));
-    const fv = voices.find(v => v.lang.startsWith('pt'));
-    if (pv) utter.voice = pv; else if (fv) utter.voice = fv;
+  }
 
-    // Safety timeout: bug do Chrome onde onend não dispara quando aba perde foco.
-    const wordCount = texto.split(/\s+/).length;
-    const estimatedDuration = Math.ceil(wordCount / 3) * 1000;
-    const safetyTimeout = setTimeout(() => {
-      console.warn('⚠️ Speech onend não disparou (aba minimizada?). Continuando fila...');
-      isSpeaking = false;
-      processSpeechQueue();
-    }, estimatedDuration + 3000);
-
-    utter.onend = () => {
-      clearTimeout(safetyTimeout);
-      isSpeaking = false;
-      setTimeout(processSpeechQueue, 500);
-    };
-    
-    utter.onerror = (e) => {
-      clearTimeout(safetyTimeout);
-      console.error("SpeechSynthesis erro", e);
-      isSpeaking = false;
-      processSpeechQueue();
-    };
-    
-    window.speechSynthesis.resume();
-    window.speechSynthesis.speak(utter);
+  // 2ª tentativa: elemento <audio> HTML5
+  return new Promise((resolve, reject) => {
+    try {
+      const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+      const safety = setTimeout(() => resolve(), 18000);
+      audio.onended = () => {
+        clearTimeout(safety);
+        resolve();
+      };
+      audio.onerror = (err) => {
+        clearTimeout(safety);
+        reject(err);
+      };
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch((err) => {
+          clearTimeout(safety);
+          reject(err);
+        });
+      }
+    } catch (err) {
+      reject(err);
+    }
   });
+}
+
+function speakViaBrowserFallback(texto, voz) {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) return resolve();
+    try {
+      const utter = new SpeechSynthesisUtterance(texto);
+      utter.lang = 'pt-BR';
+      utter.rate = 0.96;
+      utter.pitch = String(voz).includes('masc') ? 0.9 : 1.02;
+
+      const voices = window.speechSynthesis.getVoices() || [];
+      const ptVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('pt'));
+      let chosen = null;
+      if (String(voz).includes('masc')) {
+        chosen =
+          ptVoices.find(v => /antonio|daniel|ricardo|male/i.test(v.name) && /natural|online|google/i.test(v.name)) ||
+          ptVoices.find(v => /antonio|google português do brasil|luciana/i.test(v.name)) ||
+          ptVoices[0];
+      } else {
+        chosen =
+          ptVoices.find(v => /francisca|thalita|leila|google português do brasil|luciana/i.test(v.name)) ||
+          ptVoices.find(v => !/maria/i.test(v.name)) ||
+          ptVoices[0];
+      }
+      if (chosen) utter.voice = chosen;
+
+      const wordCount = texto.split(/\s+/).length;
+      const estimatedDuration = Math.ceil(wordCount / 2.5) * 1000;
+      const safetyTimeout = setTimeout(() => resolve(), estimatedDuration + 3000);
+
+      utter.onend = () => {
+        clearTimeout(safetyTimeout);
+        resolve();
+      };
+      utter.onerror = () => {
+        clearTimeout(safetyTimeout);
+        resolve();
+      };
+
+      window.speechSynthesis.resume();
+      window.speechSynthesis.speak(utter);
+    } catch (e) {
+      resolve();
+    }
+  });
+}
+
+async function speakTextWithBrazilianVoice(texto) {
+  const voz = vozPreferida || 'feminina_br';
+  const cacheKey = `${voz}::${texto}`;
+  try {
+    let ttsData = clientTtsCache.get(cacheKey);
+    if (!ttsData) {
+      const r = await fetch(`${API_URL}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto, voz })
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      ttsData = await r.json();
+      if (!ttsData || !ttsData.audioBase64) throw new Error('Sem audioBase64');
+      if (clientTtsCache.size >= 60) {
+        const firstK = clientTtsCache.keys().next().value;
+        if (firstK) clientTtsCache.delete(firstK);
+      }
+      clientTtsCache.set(cacheKey, ttsData);
+    }
+    await playAudioBase64(ttsData.audioBase64, ttsData.provider, voz);
+  } catch (err) {
+    console.warn('⚠️ Usando síntese local de fallback:', err.message || err);
+    await speakViaBrowserFallback(texto, voz);
+  }
+}
+
+async function processSpeechQueue() {
+  if (isSpeaking || speechQueue.length === 0) return;
+  if (isMuted) {
+    speechQueue = [];
+    return;
+  }
+
+  isSpeaking = true;
+  try {
+    while (speechQueue.length > 0 && !isMuted) {
+      const item = speechQueue.shift();
+      if (!item || !item.texto) continue;
+      await playChime();
+      await speakTextWithBrazilianVoice(item.texto);
+      if (speechQueue.length > 0) {
+        await new Promise(r => setTimeout(r, 450));
+      }
+    }
+  } catch (e) {
+    console.error('Erro na fila de fala:', e);
+  } finally {
+    isSpeaking = false;
+  }
 }
 
 function speakViaSynthesis(nome, setor, medico) {
   if (isMuted) return;
-  if (!('speechSynthesis' in window)) return;
-  
+
   const h = new Date().getHours();
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-  
+
   let texto = '';
   if (medico && medico.startsWith('1ª Escuta')) {
     let parts = medico.split('-');
@@ -1673,27 +1940,42 @@ function speakViaSynthesis(nome, setor, medico) {
     const destino = medico ? `ao ${medico}` : `à ${setor}`;
     texto = `${saudacao}. Usuário ${nome}, dirija-se ${destino}.`;
   }
-  
+
   speechQueue.push({ texto });
   processSpeechQueue();
 }
 
+function getRealCallsFromHistory() {
+  return (callHistory || []).filter(h => !(h.profissional || '').startsWith('➡️ Encaminhado'));
+}
+
 function speakPatientName(btnElement) {
+  unlockAudio(true);
   if (btnElement) {
     btnElement.disabled = true;
     setTimeout(() => btnElement.disabled = false, 2500);
   }
-  if (!callHistory || !callHistory.length) { showToast('Nenhuma chamada registrada!', true); return; }
-  const l = callHistory[0]; speakViaSynthesis(l.nome, l.setor, l.medico); showToast(`🔊 Chamando: ${l.nome}`);
+  const callsOnly = getRealCallsFromHistory();
+  if (!callsOnly.length) { showToast('Nenhuma chamada registrada!', true); return; }
+  const l = callsOnly[0];
+  speakViaSynthesis(l.nome, l.setor, l.medico);
+  showToast(`🔊 Chamando: ${l.nome}`);
 }
 
 function repeatLastCall(btnElement) {
+  unlockAudio(true);
   if (btnElement) {
     btnElement.disabled = true;
     setTimeout(() => btnElement.disabled = false, 2500);
   }
-  if (callHistory && callHistory.length) { const l = callHistory[0]; speakViaSynthesis(l.nome, l.setor, l.medico); showToast(`🔊 Repetindo: ${l.nome}`); }
-  else showToast('Nenhuma chamada no histórico!', true);
+  const callsOnly = getRealCallsFromHistory();
+  if (callsOnly.length) {
+    const l = callsOnly[0];
+    speakViaSynthesis(l.nome, l.setor, l.medico);
+    showToast(`🔊 Repetindo: ${l.nome}`);
+  } else {
+    showToast('Nenhuma chamada no histórico!', true);
+  }
 }
 
 // ====== CHAT SOUND ======
@@ -1701,7 +1983,8 @@ function playChatSound() {
   if (typeof isMuted !== 'undefined' && isMuted) return;
   if (typeof audioUnlocked !== 'undefined' && !audioUnlocked) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
@@ -1710,13 +1993,15 @@ function playChatSound() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
     osc.stop(ctx.currentTime + 0.4);
     setTimeout(() => {
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2); gain2.connect(ctx.destination);
-      osc2.frequency.value = 1100; osc2.type = 'sine'; gain2.gain.value = 0.3;
-      osc2.start();
-      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc2.stop(ctx.currentTime + 0.4);
+      try {
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2); gain2.connect(ctx.destination);
+        osc2.frequency.value = 1100; osc2.type = 'sine'; gain2.gain.value = 0.3;
+        osc2.start();
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc2.stop(ctx.currentTime + 0.4);
+      } catch (e) {}
     }, 200);
   } catch(e) { /* ignore audio errors */ }
 }
@@ -1758,19 +2043,25 @@ async function loadHistory() {
   try {
     const r = await fetch(`${API_URL}/history`);
     callHistory = await r.json();
-    if (callHistory && callHistory.length) {
+    // Ignorar registros de encaminhamento/transferência para controle de voz
+    const callsOnly = (callHistory || []).filter(h => !(h.profissional || '').startsWith('➡️ Encaminhado'));
+    if (callsOnly.length > 0) {
       if (lastSpokenCallId !== null) {
         // Encontrar todas as novas chamadas cronologicamente
         const newCalls = [];
-        for (const p of callHistory) {
-          if (p.id === lastSpokenCallId) break;
+        for (const p of callsOnly) {
+          if (p.id === lastSpokenCallId || (typeof lastSpokenCallId === 'number' && p.id <= lastSpokenCallId)) break;
           newCalls.unshift(p);
         }
         for (const p of newCalls) {
           speakViaSynthesis(p.nome, p.setor, p.medico);
         }
       }
-      lastSpokenCallId = callHistory[0].id;
+      lastSpokenCallId = callsOnly[0].id;
+    } else {
+      // No início das atividades (histórico vazio no dia), inicializa com 0
+      // para que a PRIMEIRA chamada do dia seja anunciada normalmente!
+      lastSpokenCallId = 0;
     }
     updatePainel();
     renderAllSectorAttended();
@@ -4688,6 +4979,13 @@ function abrirModalEncaminhar(id, nome) {
 }
 
 async function chamarNoPainel(source, btn) {
+  if (typeof unlockAudio === 'function' && !audioUnlocked) {
+    unlockAudio(true);
+  }
+  if (lastSpokenCallId === null) {
+    lastSpokenCallId = 0;
+  }
+
   const prefix = source === 'escuta1' ? 'acol-modal' : 'acol-escuta2';
   const inputId = document.getElementById(`${prefix}-id`);
   const infoEl = document.getElementById(`${prefix}-patient-info`);
@@ -4729,7 +5027,7 @@ async function chamarNoPainel(source, btn) {
     });
     if (!r.ok) throw new Error();
     showToast(`🔊 Chamando ${nome} no painel...`);
-    // O áudio será tocado automaticamente pelo loadHistory() que escuta o banco de dados.
+    loadHistory();
   } catch (e) { 
     showToast('Erro ao chamar no painel', true); 
   } finally {
@@ -6223,23 +6521,20 @@ async function copyWaImageToClipboard() {
 
 // === MELHORIA 4: CHAMADAS DE VOZ LOCAIS ===
 function chamarPacienteVoz(nome) {
-  if ('speechSynthesis' in window) {
-    // Garantir que o áudio não esteja silenciado
-    if (isMuted) {
-      isMuted = false;
-      const btn = document.getElementById('btn-mute');
-      if (btn) btn.innerHTML = '🔊';
-    }
-    // Cancelar qualquer chamada travada e reiniciar estado
-    window.speechSynthesis.cancel();
-    isSpeaking = false;
-    window.speechSynthesis.resume();
-    
-    speakViaSynthesis(nome, 'Agendamento', 'Sala de Agendamento');
-    showToast(`📢 Chamando paciente: ${nome}`);
-  } else {
-    showToast('⚠️ Seu navegador não suporta síntese de voz!', true);
+  unlockAudio(true);
+  // Garantir que o áudio não esteja silenciado
+  if (isMuted) {
+    isMuted = false;
+    const btn = document.getElementById('btn-mute');
+    if (btn) btn.innerHTML = '🔊';
   }
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+  }
+  isSpeaking = false;
+
+  speakViaSynthesis(nome, 'Agendamento', 'Sala de Agendamento');
+  showToast(`📢 Chamando paciente: ${nome}`);
 }
 
 async function loadPendingVoiceCalls() {

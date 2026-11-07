@@ -2908,6 +2908,233 @@ app.post('/api/voice-call/:id/ack', async (req, res) => {
 
 // ====== FIM MELHORIA 4 ======
 
+// ====== VOZ NEURAL BRASILEIRA (TTS SERVER-SIDE COM CACHE + FALLBACK) ======
+const crypto = require('crypto');
+let googleTTS = null;
+try { googleTTS = require('google-tts-api'); } catch (e) {}
+let WebSocketLib = null;
+try { WebSocketLib = require('ws'); } catch (e) {}
+
+const TTS_CACHE = new Map();
+const TTS_CACHE_MAX = 100;
+
+function getEdgeVoiceName(vozKey) {
+  const v = String(vozKey || 'feminina_br').toLowerCase();
+  if (v.includes('masc') || v.includes('antonio')) return 'pt-BR-AntonioNeural';
+  if (v.includes('thalita') || v.includes('suave')) return 'pt-BR-ThalitaNeural';
+  return 'pt-BR-FranciscaNeural';
+}
+
+function generateSecMsGecToken() {
+  const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+  const WIN_EPOCH = 11644473600;
+  let ticks = Math.floor(Date.now() / 1000) + WIN_EPOCH;
+  ticks -= ticks % 300;
+  const ticks100ns = BigInt(ticks) * 10000000n;
+  const strToHash = `${ticks100ns.toString()}${TRUSTED_CLIENT_TOKEN}`;
+  return crypto.createHash('sha256').update(strToHash, 'ascii').digest('hex').toUpperCase();
+}
+
+function escapeXmlText(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function synthesizeEdgeNeuralTTS(texto, voiceName, timeoutMs = 3800) {
+  return new Promise((resolve, reject) => {
+    if (!WebSocketLib) return reject(new Error('ws module unavailable'));
+    const connId = crypto.randomBytes(16).toString('hex');
+    const reqId = crypto.randomBytes(16).toString('hex');
+    const secMsGec = generateSecMsGecToken();
+    const CHROMIUM_FULL_VERSION = '130.0.2849.68';
+    const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+    const wsUrl =
+      `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1` +
+      `?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}` +
+      `&Sec-MS-GEC=${secMsGec}` +
+      `&Sec-MS-GEC-Version=1-${CHROMIUM_FULL_VERSION}` +
+      `&ConnectionId=${connId}`;
+
+    const audioChunks = [];
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        try { ws.close(); } catch (e) {}
+        reject(new Error('Edge TTS timeout'));
+      }
+    }, timeoutMs);
+
+    let ws;
+    try {
+      ws = new WebSocketLib(wsUrl, {
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache',
+          'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
+          'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/${CHROMIUM_FULL_VERSION}`,
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8'
+        }
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      return reject(err);
+    }
+
+    ws.on('open', () => {
+      const configMsg =
+        `X-Timestamp:${new Date().toISOString()}\r\n` +
+        `Content-Type:application/json; charset=utf-8\r\n` +
+        `Path:speech.config\r\n\r\n` +
+        JSON.stringify({
+          context: {
+            synthesis: {
+              audio: {
+                metadataoptions: { sentenceBoundaryEnabled: 'false', wordBoundaryEnabled: 'false' },
+                outputFormat: 'audio-24khz-48kbitrate-mono-mp3'
+              }
+            }
+          }
+        });
+      ws.send(configMsg);
+
+      const ssml =
+        `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='pt-BR'>` +
+        `<voice name='${voiceName}'>` +
+        `<prosody pitch='+0Hz' rate='-3%' volume='+0%'>${escapeXmlText(texto)}</prosody>` +
+        `</voice></speak>`;
+
+      const ssmlMsg =
+        `X-RequestId:${reqId}\r\n` +
+        `Content-Type:application/ssml+xml\r\n` +
+        `X-Timestamp:${new Date().toISOString()}Z\r\n` +
+        `Path:ssml\r\n\r\n` +
+        ssml;
+      ws.send(ssmlMsg);
+    });
+
+    ws.on('message', (data, isBinary) => {
+      if (isBinary) {
+        const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
+        if (buf.length < 2) return;
+        const headerLen = buf.readUInt16BE(0);
+        if (buf.length > 2 + headerLen) {
+          const headerStr = buf.subarray(2, 2 + headerLen).toString('utf8');
+          if (headerStr.includes('Path:audio')) {
+            audioChunks.push(buf.subarray(2 + headerLen));
+          }
+        }
+      } else {
+        const str = data.toString('utf8');
+        if (str.includes('Path:turn.end')) {
+          clearTimeout(timer);
+          if (!settled) {
+            settled = true;
+            try { ws.close(); } catch (e) {}
+            const fullBuf = Buffer.concat(audioChunks);
+            if (fullBuf.length > 100) {
+              resolve(fullBuf.toString('base64'));
+            } else {
+              reject(new Error('Edge TTS returned empty audio'));
+            }
+          }
+        }
+      }
+    });
+
+    ws.on('error', (err) => {
+      clearTimeout(timer);
+      if (!settled) {
+        settled = true;
+        reject(err);
+      }
+    });
+
+    ws.on('close', () => {
+      clearTimeout(timer);
+      if (!settled) {
+        settled = true;
+        const fullBuf = Buffer.concat(audioChunks);
+        if (fullBuf.length > 100) {
+          resolve(fullBuf.toString('base64'));
+        } else {
+          reject(new Error('Edge TTS closed before turn.end'));
+        }
+      }
+    });
+  });
+}
+
+async function synthesizeGooglePtBrTTS(texto) {
+  if (!googleTTS) throw new Error('google-tts-api não disponível');
+  const results = await googleTTS.getAllAudioBase64(texto, {
+    lang: 'pt-BR',
+    slow: false,
+    host: 'https://translate.google.com',
+    timeout: 6000,
+    splitPunct: ',.?!;:'
+  });
+  const buffers = results.map(item => Buffer.from(item.base64, 'base64'));
+  const combined = Buffer.concat(buffers);
+  if (!combined.length) throw new Error('Google TTS retornou áudio vazio');
+  return combined.toString('base64');
+}
+
+async function handleTtsRequest(req, res) {
+  try {
+    const rawTexto = (req.body && req.body.texto) || (req.query && req.query.texto) || '';
+    const voz = (req.body && req.body.voz) || (req.query && req.query.voz) || 'feminina_br';
+    const texto = String(rawTexto).trim().slice(0, 500);
+    if (!texto) {
+      return res.status(400).json({ error: 'Texto é obrigatório para síntese de voz' });
+    }
+
+    const cacheKey = `${voz}::${texto}`;
+    if (TTS_CACHE.has(cacheKey)) {
+      return res.json(TTS_CACHE.get(cacheKey));
+    }
+
+    const edgeVoice = getEdgeVoiceName(voz);
+    let audioBase64 = null;
+    let provider = 'edge-neural';
+
+    try {
+      audioBase64 = await synthesizeEdgeNeuralTTS(texto, edgeVoice);
+    } catch (edgeErr) {
+      // Fallback imediato para Google TTS Português do Brasil (natural pt-BR)
+      provider = 'google-pt-br';
+      audioBase64 = await synthesizeGooglePtBrTTS(texto);
+    }
+
+    const payload = {
+      audioBase64,
+      provider,
+      voz,
+      edgeVoice
+    };
+
+    if (TTS_CACHE.size >= TTS_CACHE_MAX) {
+      const firstKey = TTS_CACHE.keys().next().value;
+      if (firstKey) TTS_CACHE.delete(firstKey);
+    }
+    TTS_CACHE.set(cacheKey, payload);
+
+    res.json(payload);
+  } catch (error) {
+    console.warn('[TTS] Falha ao sintetizar no servidor:', error.message);
+    res.status(502).json({ error: error.message });
+  }
+}
+
+app.post('/api/tts', handleTtsRequest);
+app.get('/api/tts', handleTtsRequest);
+// ====== FIM VOZ NEURAL BRASILEIRA ======
+
 // ====== AGENDAMENTOS ======
 
 // GET - Estatísticas de Coletas de Sangue
