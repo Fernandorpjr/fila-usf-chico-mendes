@@ -166,13 +166,12 @@ function isDentroDoHorario() {
   const now = new Date();
   const { day, hour } = getDayAndHourRecife(now);
 
-  // === EXCEÇÃO TEMPORÁRIA: Mutirão Chico Mendes — Sábado 26/09/2026 ===
-  // TODO: REMOVER esta exceção após 26/09/2026
+  // === EXCEÇÃO TEMPORÁRIA: Mutirão Chico Mendes — Sábado ===
   const dateStrRecife = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Recife',
     year: 'numeric', month: '2-digit', day: '2-digit'
   }).format(now);
-  const DATAS_MUTIRAO = ['2026-09-26']; // Sábados liberados para mutirão
+  const DATAS_MUTIRAO = ['2026-09-26', '2026-11-07', '2026-04-11']; // Sábados liberados para mutirão
   if (DATAS_MUTIRAO.includes(dateStrRecife)) {
     // No mutirão, só bloqueia fora do horário (06h–18h)
     if (hour < 6 || hour >= 18) return false;

@@ -19,7 +19,8 @@ function isHorarioHeartbeatRecife() {
   }).format(now), 10);
   const midnight = new Date(dateStr + 'T00:00:00Z');
   const day = midnight.getUTCDay(); // 0=Dom, 6=Sab
-  if (day === 0 || day === 6) return false;
+  const DATAS_MUTIRAO = ['2026-09-26', '2026-11-07', '2026-04-11'];
+  if ((day === 0 || day === 6) && !DATAS_MUTIRAO.includes(dateStr)) return false;
   return (hour >= 6 && hour < 18);
 }
 
