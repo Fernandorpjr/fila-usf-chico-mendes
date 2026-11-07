@@ -41,24 +41,29 @@
   .capacity-alert .stat-value, .capacity-alert .stat-label { color: var(--red) !important; font-weight: 800; }
   .capacity-alert .stat-icon { background-color: var(--red) !important; color: var(--white) !important; }
 
-  .header { background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 72px; border-bottom: 3px solid var(--orange); box-shadow: 0 4px 20px rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 100; }
-  .logo-area { display: flex; align-items: center; gap: 16px; }
-  .logo-text { font-family: 'Nunito', sans-serif; font-size: 28px; font-weight: 900; line-height: 1; }
+  .header { background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; min-height: 72px; gap: 12px; border-bottom: 3px solid var(--orange); box-shadow: 0 4px 20px rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 100; }
+  .logo-area { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .logo-text { font-family: 'Nunito', sans-serif; font-size: 26px; font-weight: 900; line-height: 1; white-space: nowrap; }
   .logo-text .u { color: var(--white); } .logo-text .s { color: var(--green); } .logo-text .f { color: var(--orange); }
-  .logo-text .nome { color: var(--white); font-size: 22px; margin-left: 6px; }
-  .header-subtitle { font-size: 11px; color: var(--gray-300); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
-  .header-right { display: flex; align-items: center; gap: 12px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+  .logo-text .nome { color: var(--white); font-size: 20px; margin-left: 6px; }
+  .header-subtitle { font-size: 10.5px; color: var(--gray-300); font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 2px; white-space: nowrap; }
+  .header-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: nowrap; flex-shrink: 1; min-width: 0; }
+  .header-right > * { flex-shrink: 0; white-space: nowrap; }
   .header-right::-webkit-scrollbar { display: none; }
 
-  .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
   .btn-admin-lock:hover { background: rgba(255,255,255,0.1); }
   .btn-admin-lock.unlocked { color: var(--green); border-color: rgba(74,171,60,0.5); background: rgba(74,171,60,0.1); }
-  .btn-reset { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s; letter-spacing: 0.5px; }
+  .btn-reset { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s; letter-spacing: 0.4px; white-space: nowrap; }
   .btn-reset:hover { background: rgba(229,57,53,0.15); color: var(--red); border-color: rgba(229,57,53,0.3); }
-  .clock { font-family: 'Nunito', sans-serif; font-size: 24px; font-weight: 800; color: var(--yellow); letter-spacing: 2px; }
-  .date-display { font-size: 12px; color: var(--gray-300); text-align: right; }
+  .select-voz-admin { background: rgba(15,23,42,0.65); color: #fff; border: 1px solid rgba(255,255,255,0.25); padding: 6px 8px; border-radius: 8px; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; cursor: pointer; outline: none; white-space: nowrap; }
+  .select-voz-admin:hover { border-color: rgba(74,171,60,0.6); background: rgba(15,23,42,0.85); }
+  .select-voz-admin option { background: #0f172a; color: #fff; font-weight: 700; }
+  .clock { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 800; color: var(--yellow); letter-spacing: 1.5px; white-space: nowrap; line-height: 1.1; text-align: right; }
+  .date-display { font-size: 11.5px; color: var(--gray-300); text-align: right; white-space: nowrap; }
   .admin-only { display: none !important; }
   .admin-active .admin-only { display: flex !important; }
+  .admin-active select.admin-only { display: inline-block !important; }
 
   /* ====== MELHORIA G: CONTROLES DE REORDENAÇÃO (ADMIN RBAC) ====== */
 
@@ -1683,18 +1688,15 @@
     <button class="btn-logout-gate" id="btn-logout-gate" onclick="logoutGate()" title="Encerrar sessão do portão de entrada">🚪 Encerrar sessão</button>
     <!-- === FIM MELHORIA A === -->
     <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
-    <button id="btn-palestra" class="btn-palestra admin-only" onclick="togglePausaPalestra()" title="Pausar sistema para palestra da gestora">🎙️ Pausar para Palestra</button>
+    <button id="btn-palestra" class="btn-palestra admin-only" onclick="togglePausaPalestra()" title="Pausar sistema para palestra da gestora">🎙️ Pausar</button>
     <!-- === FIM MELHORIA F === -->
-    <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:3px 6px;">
-      <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio" style="padding:5px 8px;border:none;background:transparent;">🔊</button>
-      <select id="select-voz-sistema" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas" style="background:rgba(15,23,42,0.75);color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;padding:4px 8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;outline:none;">
-        <option value="feminina_br">🇧🇷👩 Voz Feminina (Francisca)</option>
-        <option value="masculina_br">🇧🇷👨 Voz Masculina (Antônio)</option>
-        <option value="thalita_br">🇧🇷👩‍⚕️ Voz Suave (Thalita)</option>
-      </select>
-      <button type="button" onclick="testarVozSistema()" title="Ouvir teste da voz brasileira selecionada" style="background:rgba(74,171,60,0.25);color:#fff;border:1px solid rgba(74,171,60,0.5);border-radius:7px;padding:4px 8px;font-family:'Nunito',sans-serif;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;">🎙️ Testar</button>
-    </div>
-    <div>
+    <select id="select-voz-sistema" class="select-voz-admin admin-only" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas (Somente Admin — toca teste ao trocar)">
+      <option value="feminina_br">🎙️ Voz: Francisca (Fem)</option>
+      <option value="masculina_br">🎙️ Voz: Antônio (Masc)</option>
+      <option value="thalita_br">🎙️ Voz: Thalita (Suave)</option>
+    </select>
+    <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
+    <div style="flex-shrink:0;white-space:nowrap;text-align:right;">
       <div class="date-display" id="dateDisplay"></div>
       <div class="clock" id="clockDisplay">00:00:00</div>
     </div>
@@ -2373,7 +2375,7 @@
       <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-bottom:24px;flex-wrap:wrap;">
         <button class="btn-3d" onclick="speakPatientName(this)" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(74,171,60,0.4);display:flex;align-items:center;gap:8px;">🔊 Chamar pelo Nome</button>
         <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">🔁 Repetir Última</button>
-        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:8px 12px;">
+        <div class="admin-only" style="align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:8px 12px;">
           <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:8px 10px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;">
             <option value="feminina_br">🇧🇷👩 Voz Feminina (Francisca)</option>
             <option value="masculina_br">🇧🇷👨 Voz Masculina (Antônio)</option>
