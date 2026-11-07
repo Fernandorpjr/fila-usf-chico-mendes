@@ -1544,8 +1544,29 @@ async function deletePatientPermanently(id, nome) {
 let audioUnlocked = false;
 let isMuted = false;
 let sharedAudioCtx = null;
+let currentAudioSource = null;
+let currentHtmlAudio = null;
 let vozPreferida = localStorage.getItem('usf_voz_preferida') || 'feminina_br';
 const clientTtsCache = new Map();
+
+function stopCurrentSpeechPlayback() {
+  speechQueue = [];
+  if (currentAudioSource) {
+    try { currentAudioSource.stop(); } catch (e) {}
+    currentAudioSource = null;
+  }
+  if (currentHtmlAudio) {
+    try {
+      currentHtmlAudio.pause();
+      currentHtmlAudio.currentTime = 0;
+    } catch (e) {}
+    currentHtmlAudio = null;
+  }
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+  }
+  isSpeaking = false;
+}
 
 function getSharedAudioContext() {
   try {
@@ -1595,6 +1616,7 @@ function alterarVozPreferida(novaVoz, tocarTeste = false) {
 
 function testarVozSistema() {
   unlockAudio(true);
+  stopCurrentSpeechPlayback();
   if (isMuted) {
     isMuted = false;
     const btn = document.getElementById('btn-mute');
@@ -1602,8 +1624,13 @@ function testarVozSistema() {
   }
   const h = new Date().getHours();
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  const nomeVoz = vozPreferida === 'masculina_br'
+    ? 'Antônio'
+    : vozPreferida === 'thalita_br'
+      ? 'Thalita'
+      : 'Francisca';
   speechQueue.push({
-    texto: `${saudacao}. Voz brasileira da Unidade Chico Mendes ativada com sucesso.`
+    texto: `${saudacao}. Olá, eu sou ${nomeVoz}, a voz brasileira da Unidade de Saúde da Família Chico Mendes.`
   });
   processSpeechQueue();
 }
@@ -1751,7 +1778,7 @@ function base64ToArrayBuffer(base64) {
 }
 
 async function playAudioBase64(audioBase64, provider, voz) {
-  // 1ª tentativa: tocar via Web Audio API (não sofre bloqueio de aba em segundo plano e permite ajuste fino)
+  // 1ª tentativa: tocar via Web Audio API (não sofre bloqueio de aba em segundo plano e permite controle imediato)
   const ctx = getSharedAudioContext();
   if (ctx) {
     try {
@@ -1760,8 +1787,9 @@ async function playAudioBase64(audioBase64, provider, voz) {
       }
       const arrayBuf = base64ToArrayBuffer(audioBase64);
       const audioBuffer = await ctx.decodeAudioData(arrayBuf.slice(0));
-      return await new Promise((resolve, reject) => {
+      return await new Promise((resolve) => {
         const source = ctx.createBufferSource();
+        currentAudioSource = source;
         source.buffer = audioBuffer;
         // Se caiu no fallback Google (feminino) mas o usuário pediu voz masculina, ajusta o timbre
         if (provider === 'google-pt-br' && String(voz).includes('masc')) {
@@ -1775,9 +1803,13 @@ async function playAudioBase64(audioBase64, provider, voz) {
         gainNode.connect(ctx.destination);
 
         const maxMs = Math.ceil((audioBuffer.duration / (source.playbackRate.value || 1)) * 1000) + 2500;
-        const safety = setTimeout(() => resolve(), maxMs);
+        const safety = setTimeout(() => {
+          if (currentAudioSource === source) currentAudioSource = null;
+          resolve();
+        }, maxMs);
         source.onended = () => {
           clearTimeout(safety);
+          if (currentAudioSource === source) currentAudioSource = null;
           resolve();
         };
         source.start(0);
@@ -1791,19 +1823,26 @@ async function playAudioBase64(audioBase64, provider, voz) {
   return new Promise((resolve, reject) => {
     try {
       const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
-      const safety = setTimeout(() => resolve(), 18000);
+      currentHtmlAudio = audio;
+      const safety = setTimeout(() => {
+        if (currentHtmlAudio === audio) currentHtmlAudio = null;
+        resolve();
+      }, 18000);
       audio.onended = () => {
         clearTimeout(safety);
+        if (currentHtmlAudio === audio) currentHtmlAudio = null;
         resolve();
       };
       audio.onerror = (err) => {
         clearTimeout(safety);
+        if (currentHtmlAudio === audio) currentHtmlAudio = null;
         reject(err);
       };
       const playPromise = audio.play();
       if (playPromise && typeof playPromise.catch === 'function') {
         playPromise.catch((err) => {
           clearTimeout(safety);
+          if (currentHtmlAudio === audio) currentHtmlAudio = null;
           reject(err);
         });
       }
@@ -1873,11 +1912,14 @@ async function speakTextWithBrazilianVoice(texto) {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       ttsData = await r.json();
       if (!ttsData || !ttsData.audioBase64) throw new Error('Sem audioBase64');
-      if (clientTtsCache.size >= 60) {
-        const firstK = clientTtsCache.keys().next().value;
-        if (firstK) clientTtsCache.delete(firstK);
+      // Só faz cache no navegador se vier da voz Neural (evita guardar fallback)
+      if (ttsData.provider === 'edge-neural') {
+        if (clientTtsCache.size >= 60) {
+          const firstK = clientTtsCache.keys().next().value;
+          if (firstK) clientTtsCache.delete(firstK);
+        }
+        clientTtsCache.set(cacheKey, ttsData);
       }
-      clientTtsCache.set(cacheKey, ttsData);
     }
     await playAudioBase64(ttsData.audioBase64, ttsData.provider, voz);
   } catch (err) {
