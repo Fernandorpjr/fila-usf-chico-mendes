@@ -30,7 +30,7 @@ const CONFIG_PRIORIDADE = {
   LIMITE_ESPERA_NORMAL_MIN: 60
 };
 
-function calcularNivelPrioridade(idadeVal, prioridadeManual) {
+function calcularNivelPrioridade(idadeVal, prioridadeManual, tipoPrioridade, condicoesEspeciais) {
   let idadeNum = null;
   if (idadeVal !== undefined && idadeVal !== null && String(idadeVal).trim() !== '') {
     const parsed = Number(idadeVal);
@@ -39,15 +39,83 @@ function calcularNivelPrioridade(idadeVal, prioridadeManual) {
     }
     idadeNum = parsed;
   }
+
+  const tipoNorm = String(tipoPrioridade || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const condNorm = String(condicoesEspeciais || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  // Criança de colo (meses / idade 0 ou selecionada no tipo/condição) tem prioridade Nível 1 igual a 80+ anos
+  const isCriancaColo =
+    tipoNorm.includes('colo') ||
+    condNorm.includes('crianca_colo') ||
+    prioridadeManual === 'crianca_colo' ||
+    (idadeNum !== null && idadeNum === 0);
+
+  const temCondicaoPrioritaria =
+    condNorm.includes('gestante') ||
+    condNorm.includes('idoso') ||
+    condNorm.includes('deficiencia') ||
+    condNorm.includes('pcd') ||
+    condNorm.includes('autismo') ||
+    condNorm.includes('tea');
+
   let nivel = 3;
-  if (idadeNum !== null && idadeNum >= 80) {
+  if ((idadeNum !== null && idadeNum >= 80) || isCriancaColo) {
     nivel = 1;
-  } else if ((idadeNum !== null && idadeNum >= 60 && idadeNum <= 79) || prioridadeManual === 'prioritario') {
+  } else if (
+    (idadeNum !== null && idadeNum >= 60 && idadeNum <= 79) ||
+    prioridadeManual === 'prioritario' ||
+    Boolean(tipoNorm) ||
+    temCondicaoPrioritaria
+  ) {
     nivel = 2;
   } else {
     nivel = 3;
   }
-  return { idade: idadeNum, nivel };
+
+  let tipoResolvido = tipoPrioridade ? String(tipoPrioridade).trim() : null;
+  if (nivel === 1) {
+    if (isCriancaColo && (!tipoResolvido || !tipoNorm.includes('colo'))) {
+      tipoResolvido = 'Criança de Colo';
+    } else if (!tipoResolvido) {
+      tipoResolvido = 'Idoso 80+ (Prioridade Especial)';
+    }
+  } else if (nivel === 2 && !tipoResolvido) {
+    if (idadeNum !== null && idadeNum >= 60) tipoResolvido = 'Idoso 60+';
+    else if (condNorm.includes('gestante')) tipoResolvido = 'Gestante';
+    else if (condNorm.includes('autismo') || condNorm.includes('tea')) tipoResolvido = 'Autismo/TEA';
+    else if (condNorm.includes('deficiencia') || condNorm.includes('pcd')) tipoResolvido = 'PCD';
+  }
+
+  return {
+    idade: idadeNum,
+    nivel,
+    prioridade: nivel <= 2 ? 'prioritario' : 'geral',
+    tipo_prioridade: tipoResolvido,
+    is_crianca_colo: isCriancaColo
+  };
+}
+
+function preservarOuElevarPrioridade(patientAntes, novosDados = {}) {
+  const idadeEfetiva = novosDados.idade !== undefined && novosDados.idade !== null && String(novosDados.idade).trim() !== ''
+    ? novosDados.idade
+    : patientAntes?.idade;
+  const prioManual = novosDados.prioridade || patientAntes?.prioridade || 'geral';
+  const tipoPrio = novosDados.tipo_prioridade || patientAntes?.tipo_prioridade || null;
+  const condEfetiva = novosDados.condicoes_especiais || patientAntes?.condicoes_especiais || null;
+
+  const calc = calcularNivelPrioridade(idadeEfetiva, prioManual, tipoPrio, condEfetiva);
+  const nivelAnterior = Number(patientAntes?.nivel_prioridade || (patientAntes?.prioridade === 'prioritario' ? 2 : 3));
+  const nivelNovo = calc.erro ? nivelAnterior : Math.min(nivelAnterior, calc.nivel);
+  const prioridadeFinal = nivelNovo <= 2 ? 'prioritario' : 'geral';
+  const tipoFinal = calc.tipo_prioridade || patientAntes?.tipo_prioridade || null;
+
+  return {
+    nivel_prioridade: nivelNovo,
+    prioridade: prioridadeFinal,
+    tipo_prioridade: tipoFinal
+  };
 }
 
 function sanitizarPacientePublico(p) {
@@ -727,13 +795,13 @@ app.get('/api/config-prioridade', (req, res) => {
 
 // Get all queues (sorted: priority level first, then arrival order)
 // ====== ORDEM PADRÃO DA FILA (única fonte de verdade para tela, QR Code e reordenação) ======
-// - sort_order (posição manual ou exceção de 3ª posição) vem sempre primeiro;
-// - Intercorrência vinda da 2ª Escuta entra pela ordem de chegada do encaminhamento (created_at = momento
-//   da transferência), ou seja, no FINAL da fila naquele instante. Quem chegar depois fica atrás dela,
-//   mantendo a fila dinâmica. Para isso o nível de prioridade dela é tratado como normal (3) até que o
-//   profissional a reposicione manualmente.
-const SQL_NIVEL_EFETIVO = `CASE WHEN COALESCE(is_intercorrencia_acolhimento, false) = true AND sort_order IS NULL THEN 3 ELSE COALESCE(nivel_prioridade, 3) END`;
-const SQL_PRIO_EFETIVA = `CASE WHEN COALESCE(is_intercorrencia_acolhimento, false) = true AND sort_order IS NULL THEN 1 WHEN prioridade = 'prioritario' THEN 0 ELSE 1 END`;
+// - sort_order (posição manual, fixação de prioridade no topo ou exceção de 3ª posição) vem sempre primeiro;
+// - Pacientes com prioridade legal/clínica (Nível 1: 80+ / Criança de Colo; Nível 2: 60+ / Gestante / TEA / PCD)
+//   mantêm SEMPRE sua prioridade na fila, mesmo quando encaminhados da 1ª e 2ª Escuta (Acolhimento);
+// - Intercorrência SEM prioridade vinda da 2ª Escuta entra no FINAL da fila naquele instante (created_at = momento
+//   da transferência) e segue o fluxo dinâmico conforme novos pacientes chegam.
+const SQL_NIVEL_EFETIVO = `CASE WHEN COALESCE(nivel_prioridade, 3) IN (1, 2) THEN nivel_prioridade WHEN prioridade = 'prioritario' THEN 2 ELSE 3 END`;
+const SQL_PRIO_EFETIVA = `CASE WHEN prioridade = 'prioritario' OR COALESCE(nivel_prioridade, 3) IN (1, 2) THEN 0 ELSE 1 END`;
 const SQL_ORDEM_FILA = `
          CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
          COALESCE(sort_order, 2147483647) ASC,
@@ -741,6 +809,66 @@ const SQL_ORDEM_FILA = `
          ${SQL_PRIO_EFETIVA} ASC,
          created_at ASC,
          id ASC`;
+
+// Garante que pacientes prioritários fiquem fixados no topo da fila (acima dos pacientes normais, mesmo quando
+// já existiam pacientes na fila com sort_order preenchido).
+async function fixarPrioritarioNoTopoDaFila(db, patient, { fixarPrimeiroDireto = false } = {}) {
+  if (!patient || !patient.id || !patient.setor) return;
+  const nv = Number(patient.nivel_prioridade || (patient.prioridade === 'prioritario' ? 2 : 3));
+  const isPrio = nv <= 2 || patient.prioridade === 'prioritario';
+  if (!isPrio) return;
+
+  const meuNivel = nv === 1 ? 1 : 2;
+  const params = [patient.setor];
+  let filtroProfSql = '';
+  if (patient.profissional && String(patient.profissional).trim()) {
+    params.push(String(patient.profissional).trim());
+    filtroProfSql = ` AND (profissional = $2 OR profissional IS NULL OR profissional = '')`;
+  }
+
+  const filaRes = await db.query(
+    `SELECT id, nivel_prioridade, prioridade, sort_order
+     FROM patients
+     WHERE setor = $1 AND status = 'aguardando'${filtroProfSql}
+     ORDER BY ${SQL_ORDEM_FILA}`,
+    params
+  );
+
+  const outros = filaRes.rows.filter(r => Number(r.id) !== Number(patient.id));
+  const obterNivelRow = (r) => {
+    const n = Number(r.nivel_prioridade || 3);
+    if (n === 1) return 1;
+    if (n === 2 || r.prioridade === 'prioritario') return 2;
+    return 3;
+  };
+
+  let insertIdx = 0;
+  if (fixarPrimeiroDireto) {
+    if (meuNivel === 1) {
+      // Superprioridade (80+ / Criança de Colo) inserida diretamente fixa como #1 absoluto
+      insertIdx = 0;
+    } else {
+      // Prioridade inserida diretamente fixa como #1 (ou logo após Nível 1 se houver 80+/Criança de Colo aguardando)
+      const firstNonNivel1 = outros.findIndex(r => obterNivelRow(r) > 1);
+      insertIdx = firstNonNivel1 === -1 ? outros.length : firstNonNivel1;
+    }
+  } else {
+    // Prioridade vinda do Acolhimento (1ª -> 2ª Escuta -> Médico) entra no grupo prioritário, acima de todos os normais
+    const firstLowerPriority = outros.findIndex(r => obterNivelRow(r) > meuNivel);
+    insertIdx = firstLowerPriority === -1 ? outros.length : firstLowerPriority;
+  }
+
+  const novaOrdem = [...outros];
+  novaOrdem.splice(insertIdx, 0, { id: patient.id, nivel_prioridade: meuNivel, prioridade: 'prioritario' });
+
+  for (let i = 0; i < novaOrdem.length; i++) {
+    await db.query(
+      'UPDATE patients SET sort_order = $1 WHERE id = $2',
+      [i + 1, novaOrdem[i].id]
+    );
+  }
+  patient.sort_order = insertIdx + 1;
+}
 
 // Setores com a regra de exceção da 3ª posição (botão "Chamar 3 Próximos")
 function isParRegulacaoFarmacia(origem, destino) {
@@ -1025,18 +1153,13 @@ app.post('/api/patients', async (req, res) => {
       return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
     }
 
-    const calc = calcularNivelPrioridade(idade, prioridade);
+    const calc = calcularNivelPrioridade(idade, prioridade, tipo_prioridade, condicoes_especiais);
     if (calc.erro) {
       return res.status(400).json({ error: calc.erro });
     }
 
-    const prioridadeFinal = calc.nivel <= 2 ? 'prioritario' : (prioridade || 'geral');
-    let tipoPrioridadeFinal = tipo_prioridade || null;
-    if (calc.nivel === 1 && !tipoPrioridadeFinal) {
-      tipoPrioridadeFinal = 'Idoso 80+ (Prioridade Especial)';
-    } else if (calc.nivel === 2 && calc.idade !== null && calc.idade >= 60 && !tipoPrioridadeFinal) {
-      tipoPrioridadeFinal = 'Idoso 60+';
-    }
+    const prioridadeFinal = calc.prioridade;
+    const tipoPrioridadeFinal = calc.tipo_prioridade;
 
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     const equipeFinal = equipe_paciente ? String(equipe_paciente).trim().slice(0, 80) : null;
@@ -1074,6 +1197,9 @@ app.post('/api/patients', async (req, res) => {
     );
 
     const novoPaciente = result.rows[0];
+    if (prioridadeFinal === 'prioritario') {
+      await fixarPrioritarioNoTopoDaFila(pool, novoPaciente, { fixarPrimeiroDireto: true });
+    }
     novoPaciente.busca_ativa_detalhes = [];
 
     io.emit('queueUpdate');
@@ -1498,8 +1624,8 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       ? '2ª Escuta (Acolhimento)'
       : patientAntes.setor;
 
-    // Paciente transferido vai sempre para o FINAL da fila de destino (sort_order = NULL, created_at = CURRENT_TIMESTAMP).
-    // O especialista/profissional de destino é quem decide se altera a posição dele na fila.
+    // Preservar ou elevar prioridade do paciente ao transferir
+    const prioInfo = preservarOuElevarPrioridade(patientAntes);
     const novoSortOrder = null;
 
     const result = await client.query(
@@ -1517,6 +1643,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
            motivo_primeira_escuta = COALESCE($12::text, motivo_primeira_escuta),
            queixa = COALESCE($13::text, queixa),
            observacao_segunda_escuta = COALESCE($14::text, observacao_segunda_escuta),
+           prioridade = $15,
+           nivel_prioridade = $16,
+           tipo_prioridade = COALESCE($17::text, tipo_prioridade),
            status = 'aguardando',
            created_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
@@ -1536,7 +1665,10 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
         isIntercFinal,
         motivo1Preservado,
         motivo1Preservado,
-        obs2Preservada
+        obs2Preservada,
+        prioInfo.prioridade,
+        prioInfo.nivel_prioridade,
+        prioInfo.tipo_prioridade
       ]
     );
     const patient = result.rows[0];
@@ -1568,6 +1700,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       }
       posicaoAplicada = insertIdx + 1;
       patient.sort_order = posicaoAplicada;
+    } else if (prioInfo.prioridade === 'prioritario') {
+      await fixarPrioritarioNoTopoDaFila(client, patient, { fixarPrimeiroDireto: false });
+      posicaoAplicada = patient.sort_order || 1;
     }
 
     // Registrar no histórico de chamadas (log de transferência)
@@ -3083,10 +3218,11 @@ app.put('/api/agendamentos/:id/editar-envio', async (req, res) => {
     const atualizado = result.rows[0];
 
     // Registrar no histórico com dispositivo e usuário
-    await pool.query(
+    const histRes = await pool.query(
       `INSERT INTO agendamento_historico 
        (agendamento_id, paciente, telefone, tipo_atendimento, profissional, status_anterior, novo_status, motivo, data_anterior, horario_anterior, nova_data, novo_horario, em_lote, dispositivo_id, usuario)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false, $13, $14)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false, $13, $14)
+       RETURNING id`,
       [
         agendAtual.id,
         agendAtual.nome,
@@ -3104,6 +3240,21 @@ app.put('/api/agendamentos/:id/editar-envio', async (req, res) => {
         usuarioStr
       ]
     );
+
+    atualizado.snapshot_anterior = [{
+      id: agendAtual.id,
+      nome: agendAtual.nome,
+      status: agendAtual.status,
+      data_agendamento: agendAtual.data_agendamento,
+      horario: agendAtual.horario,
+      data_original: agendAtual.data_original,
+      horario_original: agendAtual.horario_original,
+      motivo_cancelamento: agendAtual.motivo_cancelamento,
+      cancelado_em: agendAtual.cancelado_em,
+      reagendado_em: agendAtual.reagendado_em,
+      cancelado_por: agendAtual.cancelado_por
+    }];
+    atualizado.historico_ids = histRes.rows.map(r => r.id);
 
     res.json(atualizado);
   } catch (error) {
@@ -3153,7 +3304,22 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
       return res.status(404).json({ error: 'Nenhum agendamento encontrado para a categoria e data fornecidas' });
     }
 
+    const snapshotAnterior = alvos.map(a => ({
+      id: a.id,
+      nome: a.nome,
+      status: a.status,
+      data_agendamento: a.data_agendamento,
+      horario: a.horario,
+      data_original: a.data_original,
+      horario_original: a.horario_original,
+      motivo_cancelamento: a.motivo_cancelamento,
+      cancelado_em: a.cancelado_em,
+      reagendado_em: a.reagendado_em,
+      cancelado_por: a.cancelado_por
+    }));
+    const historicoIds = [];
     const editados = [];
+
     for (const agendAtual of alvos) {
       let query = '';
       let params = [];
@@ -3186,10 +3352,11 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
       const r = await pool.query(query, params);
       editados.push(r.rows[0]);
 
-      await pool.query(
+      const histRow = await pool.query(
         `INSERT INTO agendamento_historico 
          (agendamento_id, paciente, telefone, tipo_atendimento, profissional, status_anterior, novo_status, motivo, data_anterior, horario_anterior, nova_data, novo_horario, em_lote, dispositivo_id, usuario)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, $13, $14)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, $13, $14)
+         RETURNING id`,
         [
           agendAtual.id,
           agendAtual.nome,
@@ -3207,12 +3374,85 @@ app.put('/api/agendamentos/batch-editar-envio', async (req, res) => {
           usuarioStr
         ]
       );
+      if (histRow.rows[0]?.id) historicoIds.push(histRow.rows[0].id);
     }
 
-    res.json({ total: editados.length, agendamentos: editados });
+    res.json({
+      total: editados.length,
+      agendamentos: editados,
+      snapshot_anterior: snapshotAnterior,
+      historico_ids: historicoIds
+    });
   } catch (error) {
     console.error('Erro em lote editar envio:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// POST - Reverter / Desfazer alteração em lote (ou individual) de agendamentos
+app.post('/api/agendamentos/reverter-lote', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { snapshot_anterior, historico_ids } = req.body || {};
+    if (!Array.isArray(snapshot_anterior) || snapshot_anterior.length === 0) {
+      return res.status(400).json({ error: 'Nenhum dado de agendamento anterior para reverter.' });
+    }
+
+    await client.query('BEGIN');
+
+    let revertidos = 0;
+    for (const snap of snapshot_anterior) {
+      if (!snap || !snap.id) continue;
+      const r = await client.query(
+        `UPDATE agendamentos
+         SET status = $2,
+             data_agendamento = $3,
+             horario = $4,
+             data_original = $5,
+             horario_original = $6,
+             motivo_cancelamento = $7,
+             cancelado_em = $8,
+             reagendado_em = $9,
+             cancelado_por = $10
+         WHERE id = $1
+         RETURNING id`,
+        [
+          snap.id,
+          snap.status || 'pendente',
+          snap.data_agendamento,
+          snap.horario,
+          snap.data_original || null,
+          snap.horario_original || null,
+          snap.motivo_cancelamento || null,
+          snap.cancelado_em || null,
+          snap.reagendado_em || null,
+          snap.cancelado_por || null
+        ]
+      );
+      if (r.rowCount > 0) revertidos++;
+    }
+
+    if (Array.isArray(historico_ids) && historico_ids.length > 0) {
+      const idsValidos = historico_ids.map(Number).filter(n => Number.isInteger(n) && n > 0);
+      if (idsValidos.length > 0) {
+        await client.query(
+          `DELETE FROM agendamento_historico WHERE id = ANY($1::int[])`,
+          [idsValidos]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({
+      message: `${revertidos} agendamento(s) restaurado(s) ao estado original com sucesso!`,
+      revertidos
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao reverter lote de agendamentos:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -3422,6 +3662,12 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
       return res.status(400).json({ error: 'Queixa / Motivo da 1ª Escuta é obrigatório' });
     }
     const equipeFinal = equipe_paciente ? String(equipe_paciente).trim().slice(0, 80) : null;
+    const pAntesRes = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    if (pAntesRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado na 1ª Escuta' });
+    }
+    const prioEscuta1 = preservarOuElevarPrioridade(pAntesRes.rows[0], { condicoes_especiais });
+
     const result = await pool.query(
       `UPDATE patients
        SET etapa_fluxo = 'segunda_escuta',
@@ -3434,6 +3680,9 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
            cpf = $8,
            cartao_sus = $9,
            condicoes_especiais = COALESCE($10::text, condicoes_especiais),
+           prioridade = $11,
+           nivel_prioridade = $12,
+           tipo_prioridade = COALESCE($13::text, tipo_prioridade),
            inicio_etapa = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'primeira_escuta'
@@ -3448,7 +3697,10 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
         tipo_profissional_destino || null,
         cpf || null,
         cartao_sus || null,
-        condicoes_especiais || null
+        condicoes_especiais || null,
+        prioEscuta1.prioridade,
+        prioEscuta1.nivel_prioridade,
+        prioEscuta1.tipo_prioridade
       ]
     );
     if (result.rows.length === 0) {
@@ -3619,7 +3871,10 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
       tipoAtendimentoFinal = 'Vacina';
     }
 
-    // Atualizar o paciente para a fila do setor/profissional de destino mantendo intacto o motivo_primeira_escuta
+    // Preservar ou elevar prioridade (ex.: paciente prioritário da Recepção ou marcado com Gestante/Criança de Colo/etc. no Acolhimento)
+    const prioEscuta2 = preservarOuElevarPrioridade(patientAntes, { condicoes_especiais });
+
+    // Atualizar o paciente para a fila do setor/profissional de destino mantendo intacto o motivo_primeira_escuta e a prioridade
     const updateRes = await client.query(
       `UPDATE patients
        SET setor = $2,
@@ -3639,6 +3894,9 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
            cpf = COALESCE($12::text, cpf),
            cartao_sus = COALESCE($13::text, cartao_sus),
            condicoes_especiais = COALESCE($14::text, condicoes_especiais),
+           prioridade = $15,
+           nivel_prioridade = $16,
+           tipo_prioridade = COALESCE($17::text, tipo_prioridade),
            sort_order = NULL,
            created_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
@@ -3658,11 +3916,17 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
         obs2Final,
         cpf || null,
         cartao_sus || null,
-        condicoes_especiais || null
+        condicoes_especiais || null,
+        prioEscuta2.prioridade,
+        prioEscuta2.nivel_prioridade,
+        prioEscuta2.tipo_prioridade
       ]
     );
 
     const updatedPatient = updateRes.rows[0];
+    if (prioEscuta2.prioridade === 'prioritario') {
+      await fixarPrioritarioNoTopoDaFila(client, updatedPatient, { fixarPrimeiroDireto: false });
+    }
 
     // Registrar no call_history o log de transferência da 2ª Escuta (SAVEPOINT evita rollback se houver divergência em call_history)
     await client.query('SAVEPOINT sp_hist_interc');

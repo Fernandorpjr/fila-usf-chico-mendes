@@ -1121,6 +1121,23 @@ function togglePrioridadeDetalhes() {
   document.getElementById('prioridade-detalhes').style.display = document.getElementById('input-prioridade').value === 'prioritario' ? 'flex' : 'none';
 }
 
+function sincronizarPrioridadeCondicoesRecepcao() {
+  const checks = document.querySelectorAll('#condicoes-especiais-recepcao input[type="checkbox"]:checked');
+  const vals = [...checks].map(c => c.value);
+  const selPrio = document.getElementById('input-prioridade');
+  const selTipo = document.getElementById('input-tipo-prioridade');
+  if (!selPrio || !selTipo) return;
+  if (vals.includes('crianca_colo')) {
+    selPrio.value = 'prioritario';
+    selTipo.value = 'Criança de Colo';
+    togglePrioridadeDetalhes();
+  } else if (vals.includes('gestante')) {
+    selPrio.value = 'prioritario';
+    selTipo.value = 'Gestante';
+    togglePrioridadeDetalhes();
+  }
+}
+
 function definirModoEscutaRecepcao(mostrarEscuta) {
   const grid = document.getElementById('recepcao-top-grid');
   const btnDireto = document.getElementById('btn-modo-direto-recepcao');
@@ -1271,6 +1288,7 @@ function renderCondicoesBadges(condicoesStr) {
       if (c === 'hipertenso') return '<span class="cond-badge cond-hipertenso">💙 HAS</span>';
       if (c === 'diabetico') return '<span class="cond-badge cond-diabetico">🧡 DM</span>';
       if (c === 'gestante') return '<span class="cond-badge cond-gestante">💜 GEST</span>';
+      if (c === 'crianca_colo') return '<span class="cond-badge" style="background:#ffe4e6;color:#be123c;border:1px solid #fecdd3;">👶 COLO</span>';
       return '';
     }).join('');
   } catch { return ''; }
@@ -1852,7 +1870,13 @@ function escapeText(str) {
 
 function renderPrioridadeIdadeBadge(p) {
   const nv = Number(p.nivel_prioridade || (p.prioridade === 'prioritario' ? 2 : 3));
-  if (nv === 1 || nv === 2) {
+  const tipoStr = String(p.tipo_prioridade || '').toLowerCase();
+  const condStr = String(p.condicoes_especiais || '').toLowerCase();
+  const isCriancaColo = tipoStr.includes('colo') || condStr.includes('crianca_colo');
+  if (isCriancaColo) {
+    return `<span class="badge-prioridade-idade" style="background:linear-gradient(135deg,#be123c,#e11d48);" title="Superprioridade Legal — Criança de Colo (meses), prioridade igual a 80+ anos">👶 Criança de Colo</span>`;
+  }
+  if (nv === 1 || nv === 2 || p.prioridade === 'prioritario') {
     // Exibir selo "Prioridade" nos níveis 1 e 2 SEM mostrar a idade na lista
     return `<span class="badge-prioridade-idade" title="Atendimento Prioritário Legal">⭐ Prioridade</span>`;
   }
@@ -3921,6 +3945,17 @@ async function salvarEditarEnvio() {
       }
 
       const resJson = await r.json();
+      _ultimoLoteReversao = {
+        snapshot_anterior: resJson.snapshot_anterior || [],
+        historico_ids: resJson.historico_ids || [],
+        agendOriginalId: agend.id,
+        acao: novoStatus,
+        tipo,
+        dataFmt,
+        total: resJson.total || (resJson.agendamentos ? resJson.agendamentos.length : 0)
+      };
+      atualizarBannerDesfazerLote();
+
       showToast(`✅ ${resJson.total} consulta(s) de ${tipo} atualizada(s)!`);
       fecharModalEditarEnvio();
       loadAgendamentos();
@@ -3957,6 +3992,18 @@ async function salvarEditarEnvio() {
       }
 
       const atualizado = await r.json();
+      if (atualizado.snapshot_anterior && atualizado.snapshot_anterior.length) {
+        _ultimoLoteReversao = {
+          snapshot_anterior: atualizado.snapshot_anterior,
+          historico_ids: atualizado.historico_ids || [],
+          agendOriginalId: agend.id,
+          acao: novoStatus,
+          tipo,
+          dataFmt,
+          total: 1
+        };
+        atualizarBannerDesfazerLote();
+      }
       showToast('✅ Consulta atualizada com sucesso!');
       fecharModalEditarEnvio();
       loadAgendamentos();
@@ -3984,7 +4031,153 @@ async function salvarEditarEnvio() {
   }
 }
 
-// ====== FILA DE DISPARO EM LOTE ======
+// ====== FILA DE DISPARO EM LOTE + DESFAZER / EDITAR MENSAGEM ======
+let _ultimoLoteReversao = null;
+let _templatePadraoLote = '';
+
+function atualizarBannerDesfazerLote() {
+  const banner = document.getElementById('banner-desfazer-lote');
+  const txt = document.getElementById('banner-desfazer-lote-texto');
+  const btnTopo = document.getElementById('btn-topo-desfazer-lote');
+  if (_ultimoLoteReversao && _ultimoLoteReversao.snapshot_anterior && _ultimoLoteReversao.snapshot_anterior.length > 0) {
+    const u = _ultimoLoteReversao;
+    const statusLabel = u.acao === 'cancelado' ? 'CANCELADA(S)' : 'REAGENDADA(S)';
+    if (txt) {
+      txt.innerHTML = `⚡ Última alteração: <b>${u.total} consulta(s)</b> de <b>${escapeText(u.tipo || 'Consulta')}</b> (${escapeText(u.dataFmt || '')}) marcada(s) como <b>${statusLabel}</b>.`;
+    }
+    if (banner) banner.style.display = 'flex';
+    if (btnTopo) btnTopo.style.display = 'inline-flex';
+  } else {
+    if (banner) banner.style.display = 'none';
+    if (btnTopo) btnTopo.style.display = 'none';
+  }
+}
+
+function reabrirModalFilaDisparoLote() {
+  if (_filaDisparoLote && _filaDisparoLote.length > 0) {
+    renderFilaDisparoLote();
+    document.getElementById('modal-fila-disparo-lote')?.classList.add('show');
+  } else {
+    showToast('Não há fila de disparo ativa no momento.', true);
+  }
+}
+
+async function desfazerUltimoLoteAgendamento(reabrirEdicao = false) {
+  if (!_ultimoLoteReversao || !Array.isArray(_ultimoLoteReversao.snapshot_anterior) || !_ultimoLoteReversao.snapshot_anterior.length) {
+    showToast('Não há alteração recente em lote para desfazer.', true);
+    return;
+  }
+  const u = _ultimoLoteReversao;
+  const msgConf = `↩️ DESFAZER ALTERAÇÃO E VOLTAR ATRÁS\n\nDeseja reverter a alteração das ${u.total} consulta(s) de "${u.tipo}" (${u.dataFmt})?\n\nTodas voltarão exatamente para a data, horário e status originais, e o registro no histórico será removido.`;
+  if (!confirm(msgConf)) return;
+
+  try {
+    const r = await fetch(`${API_URL}/agendamentos/reverter-lote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        snapshot_anterior: u.snapshot_anterior,
+        historico_ids: u.historico_ids || []
+      })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showToast(data.error || 'Erro ao desfazer alteração em lote!', true);
+      return;
+    }
+
+    const idParaReabrir = u.agendOriginalId;
+    const acaoParaReabrir = u.acao || 'cancelado';
+    _ultimoLoteReversao = null;
+    _filaDisparoLote = [];
+    _filaDisparoEnviados = 0;
+    atualizarBannerDesfazerLote();
+    fecharFilaDisparoLote();
+
+    showToast(`↩️ ${data.message || 'Alteração desfeita com sucesso! As consultas voltaram ao estado original.'}`);
+    await loadAgendamentos();
+    if (typeof loadHistoricoAgendamentos === 'function') loadHistoricoAgendamentos();
+    if (typeof carregarHistorico === 'function') carregarHistorico();
+
+    if (reabrirEdicao && idParaReabrir) {
+      setTimeout(() => {
+        abrirModalEditarEnvio(idParaReabrir, acaoParaReabrir);
+      }, 250);
+    }
+  } catch (e) {
+    console.error('Erro ao desfazer lote:', e);
+    showToast('Erro de conexão ao tentar desfazer o lote!', true);
+  }
+}
+
+function construirTemplateLotePadrao(itemExemplo) {
+  if (!itemExemplo || !itemExemplo.msg) return '';
+  let tpl = itemExemplo.msg;
+  if (itemExemplo.nome) {
+    tpl = tpl.replace(itemExemplo.nome, '{nome}');
+  }
+  if (itemExemplo.horario) {
+    tpl = tpl.replace(itemExemplo.horario, '{horario}');
+  }
+  return tpl;
+}
+
+function toggleEditorMensagemLote() {
+  const box = document.getElementById('box-editor-msg-lote');
+  const txt = document.getElementById('fila-disparo-msg-template');
+  if (!box || !txt) return;
+  if (box.style.display === 'none' || !box.style.display) {
+    if (!txt.value.trim() && _filaDisparoLote.length > 0) {
+      txt.value = _templatePadraoLote || construirTemplateLotePadrao(_filaDisparoLote[0]);
+    }
+    box.style.display = 'block';
+    txt.focus();
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function restaurarMensagemPadraoLote() {
+  const txt = document.getElementById('fila-disparo-msg-template');
+  if (!txt) return;
+  txt.value = _templatePadraoLote;
+  aplicarMensagemEditadaLote();
+}
+
+function aplicarMensagemEditadaLote() {
+  const txt = document.getElementById('fila-disparo-msg-template');
+  if (!txt || !txt.value.trim()) {
+    showToast('Digite o texto da mensagem antes de aplicar!', true);
+    return;
+  }
+  const tpl = txt.value;
+  _filaDisparoLote.forEach(item => {
+    item.msg = tpl
+      .replace(/\{nome\}/gi, item.nome || 'Paciente')
+      .replace(/\{horario\}/gi, item.horario || '');
+  });
+  const box = document.getElementById('box-editor-msg-lote');
+  if (box) box.style.display = 'none';
+  renderFilaDisparoLote();
+  showToast('✏️ Mensagem atualizada para todos os pacientes do lote!');
+}
+
+function editarMensagemIndividualLote(index) {
+  const item = _filaDisparoLote[index];
+  if (!item) return;
+  const box = document.getElementById(`edit-item-lote-${index}`);
+  if (!box) return;
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function salvarMensagemIndividualLote(index) {
+  const item = _filaDisparoLote[index];
+  const ta = document.getElementById(`textarea-item-lote-${index}`);
+  if (!item || !ta) return;
+  item.msg = ta.value;
+  renderFilaDisparoLote();
+  showToast(`✏️ Mensagem de ${item.nome} atualizada!`);
+}
 
 function iniciarFilaDisparoLote(agendamentos, novoStatus, motivo, novaData, novoHorario) {
   _filaDisparoLote = agendamentos.map(a => {
@@ -3997,12 +4190,18 @@ function iniciarFilaDisparoLote(agendamentos, novoStatus, motivo, novaData, novo
       phone,
       horario: a.horario_original || a.horario,
       msg,
+      msgOriginal: msg,
       profissional: a.profissional,
       novoStatus,
       enviado: false
     };
   });
   _filaDisparoEnviados = 0;
+  _templatePadraoLote = _filaDisparoLote.length > 0 ? construirTemplateLotePadrao(_filaDisparoLote[0]) : '';
+  const txtTpl = document.getElementById('fila-disparo-msg-template');
+  if (txtTpl) txtTpl.value = _templatePadraoLote;
+  const boxEditor = document.getElementById('box-editor-msg-lote');
+  if (boxEditor) boxEditor.style.display = 'none';
 
   renderFilaDisparoLote();
   document.getElementById('modal-fila-disparo-lote').classList.add('show');
@@ -4018,17 +4217,32 @@ function renderFilaDisparoLote() {
 
   container.innerHTML = _filaDisparoLote.map((item, index) => {
     const btnHtml = item.enviado
-      ? `<span style="background:rgba(74,171,60,0.15);color:#2d7a22;font-size:11px;font-weight:800;padding:6px 12px;border-radius:6px;">✅ Enviado</span>`
-      : `<button onclick="dispararItemFila(${index})" style="background:#25D366;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(37,211,102,0.3);transition:all 0.15s;" onmouseover="this.style.background='#1fb855'" onmouseout="this.style.background='#25D366'">
-          📲 Disparar WhatsApp
-        </button>`;
+      ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+           <span style="background:rgba(74,171,60,0.15);color:#2d7a22;font-size:11px;font-weight:800;padding:5px 10px;border-radius:6px;">✅ Enviado</span>
+           <button type="button" onclick="editarMensagemIndividualLote(${index})" title="Ver ou editar mensagem deste paciente" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;">✏️ Msg</button>
+           <button type="button" onclick="dispararItemFila(${index})" title="Reenviar WhatsApp com texto corrigido" style="background:#25D366;color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Reenviar</button>
+         </div>`
+      : `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+           <button type="button" onclick="editarMensagemIndividualLote(${index})" title="Ver ou editar mensagem deste paciente" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:6px;padding:6px 9px;font-size:11.5px;font-weight:700;cursor:pointer;">✏️ Msg</button>
+           <button type="button" onclick="dispararItemFila(${index})" style="background:#25D366;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(37,211,102,0.3);transition:all 0.15s;" onmouseover="this.style.background='#1fb855'" onmouseout="this.style.background='#25D366'">
+             📲 Disparar WhatsApp
+           </button>
+         </div>`;
 
-    return `<div style="display:flex;align-items:center;justify-content:space-between;background:white;padding:10px 14px;border-radius:8px;border:1px solid var(--gray-200);border-left:4px solid ${item.enviado ? 'var(--green)' : 'var(--blue)'};">
-      <div>
-        <div style="font-weight:800;font-size:13px;color:var(--blue-dark);">${item.nome}</div>
-        <div style="font-size:11px;color:var(--gray-600);">${item.telefone} • Horário: ${item.horario}</div>
+    return `<div style="background:white;padding:10px 14px;border-radius:8px;border:1px solid var(--gray-200);border-left:4px solid ${item.enviado ? 'var(--green)' : 'var(--blue)'};">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:800;font-size:13px;color:var(--blue-dark);">${escapeText(item.nome)}</div>
+          <div style="font-size:11px;color:var(--gray-600);">${escapeText(item.telefone)} • Horário: ${escapeText(item.horario)}</div>
+        </div>
+        <div>${btnHtml}</div>
       </div>
-      <div>${btnHtml}</div>
+      <div id="edit-item-lote-${index}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1;text-align:left;">
+        <textarea id="textarea-item-lote-${index}" rows="4" style="width:100%;padding:8px;border-radius:6px;border:1px solid #94a3b8;font-size:12px;font-family:'Nunito',sans-serif;margin-bottom:6px;">${escapeText(item.msg)}</textarea>
+        <div style="display:flex;justify-content:flex-end;gap:6px;">
+          <button type="button" onclick="salvarMensagemIndividualLote(${index})" style="background:var(--blue);color:white;border:none;border-radius:6px;padding:5px 12px;font-size:11.5px;font-weight:800;cursor:pointer;">💾 Salvar Texto</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -4040,8 +4254,10 @@ async function dispararItemFila(index) {
   const url = `https://web.whatsapp.com/send?phone=${item.phone}&text=${encodeURIComponent(item.msg)}`;
   window.open(url, '_blank');
 
-  item.enviado = true;
-  _filaDisparoEnviados++;
+  if (!item.enviado) {
+    item.enviado = true;
+    _filaDisparoEnviados++;
+  }
 
   await registrarMensagemEnviada({
     id: item.id,
