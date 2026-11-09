@@ -2918,11 +2918,83 @@ try { WebSocketLib = require('ws'); } catch (e) {}
 const TTS_CACHE = new Map();
 const TTS_CACHE_MAX = 100;
 
-function getEdgeVoiceName(vozKey) {
-  const v = String(vozKey || 'feminina_br').toLowerCase();
-  if (v.includes('masc') || v.includes('antonio')) return 'pt-BR-AntonioNeural';
-  if (v.includes('thalita') || v.includes('suave')) return 'pt-BR-ThalitaNeural';
-  return 'pt-BR-FranciscaNeural';
+function getEdgeVoiceProfile(vozKey) {
+  const v = String(vozKey || 'feminina_br').toLowerCase().trim();
+  if (v.includes('elza')) {
+    return {
+      key: 'elza_br',
+      voiceName: 'pt-BR-FranciscaNeural',
+      pitch: '-10%',
+      rate: '-7%',
+      label: 'Elza',
+      gender: 'F',
+      nativeAzureVoice: 'pt-BR-ElzaNeural'
+    };
+  }
+  if (v.includes('brenda')) {
+    return {
+      key: 'brenda_br',
+      voiceName: 'pt-BR-ThalitaMultilingualNeural',
+      pitch: '+6%',
+      rate: '+2%',
+      label: 'Brenda',
+      gender: 'F',
+      nativeAzureVoice: 'pt-BR-BrendaNeural'
+    };
+  }
+  if (v.includes('thalita') || v.includes('suave')) {
+    return {
+      key: 'thalita_br',
+      voiceName: 'pt-BR-ThalitaMultilingualNeural',
+      pitch: '+0Hz',
+      rate: '-1%',
+      label: 'Thalita',
+      gender: 'F',
+      nativeAzureVoice: 'pt-BR-ThalitaMultilingualNeural'
+    };
+  }
+  if (v.includes('donato')) {
+    return {
+      key: 'donato_br',
+      voiceName: 'pt-BR-AntonioNeural',
+      pitch: '-14%',
+      rate: '-6%',
+      label: 'Donato',
+      gender: 'M',
+      nativeAzureVoice: 'pt-BR-DonatoNeural'
+    };
+  }
+  if (v.includes('humberto')) {
+    return {
+      key: 'humberto_br',
+      voiceName: 'pt-BR-AntonioNeural',
+      pitch: '+6%',
+      rate: '+2%',
+      label: 'Humberto',
+      gender: 'M',
+      nativeAzureVoice: 'pt-BR-HumbertoNeural'
+    };
+  }
+  if (v.includes('masc') || v.includes('antonio')) {
+    return {
+      key: 'masculina_br',
+      voiceName: 'pt-BR-AntonioNeural',
+      pitch: '+0Hz',
+      rate: '-2%',
+      label: 'Antônio',
+      gender: 'M',
+      nativeAzureVoice: 'pt-BR-AntonioNeural'
+    };
+  }
+  return {
+    key: 'feminina_br',
+    voiceName: 'pt-BR-FranciscaNeural',
+    pitch: '+0Hz',
+    rate: '-2%',
+    label: 'Francisca',
+    gender: 'F',
+    nativeAzureVoice: 'pt-BR-FranciscaNeural'
+  };
 }
 
 function generateSecMsGecToken() {
@@ -2944,7 +3016,14 @@ function escapeXmlText(str) {
     .replace(/'/g, '&apos;');
 }
 
-function synthesizeEdgeNeuralTTSOnce(texto, voiceName, timeoutMs = 5500) {
+function synthesizeEdgeNeuralTTSOnce(texto, voiceProfile, timeoutMs = 5500) {
+  const profile = typeof voiceProfile === 'string'
+    ? { voiceName: voiceProfile, pitch: '+0Hz', rate: '-2%' }
+    : (voiceProfile || { voiceName: 'pt-BR-FranciscaNeural', pitch: '+0Hz', rate: '-2%' });
+  const voiceName = profile.voiceName || 'pt-BR-FranciscaNeural';
+  const pitch = profile.pitch || '+0Hz';
+  const rate = profile.rate || '-2%';
+
   return new Promise((resolve, reject) => {
     if (!WebSocketLib) return reject(new Error('ws module unavailable'));
     const connId = crypto.randomBytes(16).toString('hex');
@@ -3008,7 +3087,7 @@ function synthesizeEdgeNeuralTTSOnce(texto, voiceName, timeoutMs = 5500) {
       const ssml =
         `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='pt-BR'>` +
         `<voice name='${voiceName}'>` +
-        `<prosody pitch='+0Hz' rate='-2%' volume='+0%'>${escapeXmlText(texto)}</prosody>` +
+        `<prosody pitch='${pitch}' rate='${rate}' volume='+0%'>${escapeXmlText(texto)}</prosody>` +
         `</voice></speak>`;
 
       const ssmlMsg =
@@ -3081,12 +3160,12 @@ function synthesizeEdgeNeuralTTSOnce(texto, voiceName, timeoutMs = 5500) {
   });
 }
 
-async function synthesizeEdgeNeuralTTS(texto, voiceName) {
+async function synthesizeEdgeNeuralTTS(texto, voiceProfile) {
   try {
-    return await synthesizeEdgeNeuralTTSOnce(texto, voiceName, 5500);
+    return await synthesizeEdgeNeuralTTSOnce(texto, voiceProfile, 5500);
   } catch (firstErr) {
     // Segunda tentativa imediata em caso de oscilação de rede
-    return await synthesizeEdgeNeuralTTSOnce(texto, voiceName, 5500);
+    return await synthesizeEdgeNeuralTTSOnce(texto, voiceProfile, 5500);
   }
 }
 
@@ -3119,12 +3198,13 @@ async function handleTtsRequest(req, res) {
       return res.json(TTS_CACHE.get(cacheKey));
     }
 
-    const edgeVoice = getEdgeVoiceName(voz);
+    const voiceProfile = getEdgeVoiceProfile(voz);
+    const edgeVoice = voiceProfile.voiceName;
     let audioBase64 = null;
     let provider = 'edge-neural';
 
     try {
-      audioBase64 = await synthesizeEdgeNeuralTTS(texto, edgeVoice);
+      audioBase64 = await synthesizeEdgeNeuralTTS(texto, voiceProfile);
     } catch (edgeErr) {
       // Fallback imediato para Google TTS Português do Brasil (natural pt-BR)
       provider = 'google-pt-br';
@@ -3135,7 +3215,9 @@ async function handleTtsRequest(req, res) {
       audioBase64,
       provider,
       voz,
-      edgeVoice
+      edgeVoice,
+      voiceLabel: voiceProfile.label,
+      gender: voiceProfile.gender
     };
 
     // Só armazena no cache quando vier da voz Neural (evita cachear fallback)

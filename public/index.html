@@ -1691,9 +1691,13 @@
     <button id="btn-palestra" class="btn-palestra admin-only" onclick="togglePausaPalestra()" title="Pausar sistema para palestra da gestora">🎙️ Pausar</button>
     <!-- === FIM MELHORIA F === -->
     <select id="select-voz-sistema" class="select-voz-admin admin-only" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas (Somente Admin — toca teste ao trocar)">
-      <option value="feminina_br">🎙️ Voz: Francisca (Fem)</option>
-      <option value="masculina_br">🎙️ Voz: Antônio (Masc)</option>
-      <option value="thalita_br">🎙️ Voz: Thalita (Suave)</option>
+      <option value="feminina_br">🎙️ Francisca (Fem)</option>
+      <option value="elza_br">🎙️ Elza (Fem Madura)</option>
+      <option value="brenda_br">🎙️ Brenda (Fem Alt)</option>
+      <option value="thalita_br">🎙️ Thalita (Fem Suave)</option>
+      <option value="masculina_br">🎙️ Antônio (Masc)</option>
+      <option value="donato_br">🎙️ Donato (Masc Grave)</option>
+      <option value="humberto_br">🎙️ Humberto (Masc Alt)</option>
     </select>
     <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
     <div style="flex-shrink:0;white-space:nowrap;text-align:right;">
@@ -2377,9 +2381,13 @@
         <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">🔁 Repetir Última</button>
         <div class="admin-only" style="align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:8px 12px;">
           <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:8px 10px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;">
-            <option value="feminina_br">🇧🇷👩 Voz Feminina (Francisca)</option>
-            <option value="masculina_br">🇧🇷👨 Voz Masculina (Antônio)</option>
-            <option value="thalita_br">🇧🇷👩‍⚕️ Voz Suave (Thalita)</option>
+            <option value="feminina_br">🇧🇷👩 Francisca (Feminina Padrão)</option>
+            <option value="elza_br">🇧🇷👩‍🦳 Elza (Feminina mais Madura)</option>
+            <option value="brenda_br">🇧🇷👩 Brenda (Alternativa Feminina)</option>
+            <option value="thalita_br">🇧🇷👩‍⚕️ Thalita (Feminina Suave)</option>
+            <option value="masculina_br">🇧🇷👨 Antônio (Masculina Padrão)</option>
+            <option value="donato_br">🇧🇷🧔 Donato (Masculina mais Grave)</option>
+            <option value="humberto_br">🇧🇷👨 Humberto (Alternativa Masculina)</option>
           </select>
           <button type="button" onclick="testarVozSistema()" style="background:rgba(74,171,60,0.3);color:#fff;border:1px solid rgba(74,171,60,0.6);border-radius:8px;padding:8px 12px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">🎙️ Testar Voz</button>
         </div>
@@ -3450,9 +3458,13 @@
     <div style="margin-bottom:20px;text-align:left;">
       <label style="font-size:12px;font-weight:800;color:var(--gray-600);text-transform:uppercase;display:block;margin-bottom:6px;">Voz do Painel (Português do Brasil)</label>
       <select id="select-voz-modal" onchange="alterarVozPreferida(this.value, false)" style="width:100%;padding:12px 14px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14.5px;font-weight:800;color:var(--blue-dark);cursor:pointer;">
-        <option value="feminina_br">🇧🇷👩 Voz Brasileira Feminina (Francisca — Natural)</option>
-        <option value="masculina_br">🇧🇷👨 Voz Brasileira Masculina (Antônio — Natural)</option>
-        <option value="thalita_br">🇧🇷👩‍⚕️ Voz Brasileira Suave (Thalita — Natural)</option>
+        <option value="feminina_br">🇧🇷👩 Francisca (Feminina Padrão)</option>
+        <option value="elza_br">🇧🇷👩‍🦳 Elza (Feminina mais Madura)</option>
+        <option value="brenda_br">🇧🇷👩 Brenda (Alternativa Feminina)</option>
+        <option value="thalita_br">🇧🇷👩‍⚕️ Thalita (Feminina Suave)</option>
+        <option value="masculina_br">🇧🇷👨 Antônio (Masculina Padrão)</option>
+        <option value="donato_br">🇧🇷🧔 Donato (Masculina mais Grave)</option>
+        <option value="humberto_br">🇧🇷👨 Humberto (Alternativa Masculina)</option>
       </select>
     </div>
     <button onclick="unlockAudio(false)" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;border:none;border-radius:12px;padding:18px 40px;font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;cursor:pointer;width:100%;box-shadow:0 6px 20px rgba(74,171,60,0.4);">🔊 Ativar Som Agora</button>
@@ -3639,6 +3651,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js"></script>
 <script src="dispositivos.js"></script>
-<script src="app.js?v=4.2"></script>
+<script src="app.js?v=4.3"></script>
 </body>
 </html>

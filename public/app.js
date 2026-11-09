@@ -1599,14 +1599,23 @@ function sincronizarSeletoresVoz() {
   });
 }
 
+function isMaleBrazilianVoice(vozKey) {
+  const v = String(vozKey || '').toLowerCase();
+  return v.includes('masc') || v.includes('antonio') || v.includes('donato') || v.includes('humberto');
+}
+
 function alterarVozPreferida(novaVoz, tocarTeste = false) {
   vozPreferida = novaVoz || 'feminina_br';
   try { localStorage.setItem('usf_voz_preferida', vozPreferida); } catch (e) {}
   sincronizarSeletoresVoz();
   const labelMap = {
-    feminina_br: '🇧🇷👩 Voz Brasileira Feminina (Francisca)',
-    masculina_br: '🇧🇷👨 Voz Brasileira Masculina (Antônio)',
-    thalita_br: '🇧🇷👩‍⚕️ Voz Brasileira Suave (Thalita)'
+    feminina_br: '🇧🇷👩 Francisca (Feminina Padrão)',
+    elza_br: '🇧🇷👩‍🦳 Elza (Feminina mais Madura)',
+    brenda_br: '🇧🇷👩 Brenda (Alternativa Feminina)',
+    thalita_br: '🇧🇷👩‍⚕️ Thalita (Feminina Suave)',
+    masculina_br: '🇧🇷👨 Antônio (Masculina Padrão)',
+    donato_br: '🇧🇷🧔 Donato (Masculina mais Grave)',
+    humberto_br: '🇧🇷👨 Humberto (Alternativa Masculina)'
   };
   showToast(`🔊 Voz selecionada: ${labelMap[vozPreferida] || 'Voz Brasileira'}`);
   if (tocarTeste) {
@@ -1624,11 +1633,16 @@ function testarVozSistema() {
   }
   const h = new Date().getHours();
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-  const nomeVoz = vozPreferida === 'masculina_br'
-    ? 'Antônio'
-    : vozPreferida === 'thalita_br'
-      ? 'Thalita'
-      : 'Francisca';
+  const nomeVozMap = {
+    feminina_br: 'Francisca',
+    elza_br: 'Elza',
+    brenda_br: 'Brenda',
+    thalita_br: 'Thalita',
+    masculina_br: 'Antônio',
+    donato_br: 'Donato',
+    humberto_br: 'Humberto'
+  };
+  const nomeVoz = nomeVozMap[vozPreferida] || 'Francisca';
   speechQueue.push({
     texto: `${saudacao}. Olá, eu sou ${nomeVoz}, a voz brasileira da Unidade de Saúde da Família Chico Mendes.`
   });
@@ -1792,7 +1806,7 @@ async function playAudioBase64(audioBase64, provider, voz) {
         currentAudioSource = source;
         source.buffer = audioBuffer;
         // Se caiu no fallback Google (feminino) mas o usuário pediu voz masculina, ajusta o timbre
-        if (provider === 'google-pt-br' && String(voz).includes('masc')) {
+        if (provider === 'google-pt-br' && isMaleBrazilianVoice(voz)) {
           source.playbackRate.value = 0.88;
         } else {
           source.playbackRate.value = 1.0;
@@ -1856,15 +1870,16 @@ function speakViaBrowserFallback(texto, voz) {
   return new Promise((resolve) => {
     if (!('speechSynthesis' in window)) return resolve();
     try {
+      const isMale = isMaleBrazilianVoice(voz);
       const utter = new SpeechSynthesisUtterance(texto);
       utter.lang = 'pt-BR';
       utter.rate = 0.96;
-      utter.pitch = String(voz).includes('masc') ? 0.9 : 1.02;
+      utter.pitch = isMale ? 0.9 : 1.02;
 
       const voices = window.speechSynthesis.getVoices() || [];
       const ptVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('pt'));
       let chosen = null;
-      if (String(voz).includes('masc')) {
+      if (isMale) {
         chosen =
           ptVoices.find(v => /antonio|daniel|ricardo|male/i.test(v.name) && /natural|online|google/i.test(v.name)) ||
           ptVoices.find(v => /antonio|google português do brasil|luciana/i.test(v.name)) ||
