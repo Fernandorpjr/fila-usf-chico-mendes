@@ -464,9 +464,15 @@ function initSectorScreens() {
 
     let profHTML = '';
     if (cfg.profissionais) {
-      const consultOpts = ['1','2','3','4','5','6','Odontológico','Sala de Procedimentos','Sala de Vacina'].map(c =>
-        `<option value="${c}">${c === 'Odontológico' ? 'Consultório Odontológico' : (c === 'Sala de Procedimentos' || c === 'Sala de Vacina') ? c : 'Consultório ' + c}</option>`
-      ).join('');
+      const listaConsultorios = setor === 'Odontologia'
+        ? ['Odontológico']
+        : ['1','2','3','4','5','6','Odontológico','Sala de Procedimentos','Sala de Vacina'];
+      const defaultCons = (cfg.defaultConsultorios && cfg.defaultConsultorios[0]) || listaConsultorios[0];
+      const consultOpts = listaConsultorios.map(c => {
+        const label = c === 'Odontológico' ? 'Consultório Odontológico' : (c === 'Sala de Procedimentos' || c === 'Sala de Vacina') ? c : 'Consultório ' + c;
+        const sel = c === defaultCons ? ' selected' : '';
+        return `<option value="${c}"${sel}>${label}</option>`;
+      }).join('');
       const profOpts = cfg.profissionais.map(p => `<option value="${p}">${p}</option>`).join('');
       profHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
@@ -1543,10 +1549,14 @@ async function callNext(setor, btnElement) {
     if (cfg && cfg.profissionais) {
       const cEl = document.getElementById('consultorio-' + cfg.key);
       const pEl = document.getElementById('profissional-' + cfg.key);
-      consultorio = cEl ? cEl.value : null;
-      profissional = pEl ? pEl.value : null;
-      const consLabel = consultorio === 'Odontológico' ? 'Consultório Odontológico' : (consultorio === 'Sala de Procedimentos' || consultorio === 'Sala de Vacina') ? consultorio : 'Consultório ' + consultorio;
-      medico = `${consLabel} - ${profissional}`;
+      consultorio = setor === 'Odontologia' ? 'Odontológico' : (cEl ? cEl.value : null);
+      profissional = pEl ? pEl.value : (cfg.profissionais[0] || null);
+      const consLabel = (setor === 'Odontologia' || consultorio === 'Odontológico')
+        ? 'Consultório Odontológico'
+        : (consultorio === 'Sala de Procedimentos' || consultorio === 'Sala de Vacina')
+          ? consultorio
+          : 'Consultório ' + consultorio;
+      medico = profissional ? `${consLabel} - ${profissional}` : consLabel;
     }
     const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional, filtro_profissional, filtro_etapa }) });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
@@ -2045,13 +2055,23 @@ function speakViaSynthesis(nome, setor, medico) {
     } else {
       texto = `${saudacao}. Usuário ${nome}, dirija-se à primeira escuta.`;
     }
-  } else if (medico && medico.startsWith('2ª Escuta')) {
+  } else if (medico && (medico.startsWith('2ª Escuta') || /se dirija.*2ª escuta|se dirija.*segunda escuta/i.test(medico))) {
     let parts = medico.split('-');
-    if (parts.length > 1 && parts[1].trim() !== '') {
-      texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta com ${parts[1].trim()}.`;
+    const profParte = parts.length > 1 ? parts.slice(1).join('-').trim() : '';
+    const semDesignacao = !profParte || /sem designa|se dirija|2ª escuta|segunda escuta/i.test(profParte);
+    if (!semDesignacao) {
+      texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta com ${profParte}.`;
     } else {
-      texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta.`;
+      texto = `${saudacao}. Usuário ${nome}, se dirija à segunda escuta.`;
     }
+  } else if (setor === 'Odontologia') {
+    let destOdonto = 'Consultório Odontológico';
+    if (medico) {
+      const parts = String(medico).split('-');
+      const profOdonto = parts.length > 1 ? parts.slice(1).join('-').trim() : '';
+      destOdonto = profOdonto ? `Consultório Odontológico, com ${profOdonto}` : 'Consultório Odontológico';
+    }
+    texto = `${saudacao}. Usuário ${nome}, dirija-se ao ${destOdonto}.`;
   } else if (setor === 'Acolhimento' && !medico) {
     texto = `${saudacao}. Usuário ${nome}, dirija-se ao Acolhimento.`;
   } else if (setor === 'Agendamento') {
@@ -2787,9 +2807,17 @@ function updatePainel() {
     const l = callsOnly[0]; const cfg = SECTOR_CONFIG[l.setor] || {};
     const prioBadge = l.prioridade === 'prioritario' ? `<div class="priority-badge-tv">⭐ ${l.tipo_prioridade || 'PRIORITÁRIO'}</div>` : '';
     let details = '';
-    if (l.consultorio) details += `<div style="font-size:18px;opacity:0.9;margin-top:6px;font-weight:700;">🏠 ${l.consultorio === 'Odontológico' ? 'Consultório Odontológico' : (l.consultorio === 'Sala de Procedimentos' || l.consultorio === 'Sala de Vacina') ? l.consultorio : 'Consultório ' + l.consultorio}</div>`;
+    const consEfetivo = l.setor === 'Odontologia' ? 'Odontológico' : l.consultorio;
+    if (consEfetivo) details += `<div style="font-size:18px;opacity:0.9;margin-top:6px;font-weight:700;">🏠 ${consEfetivo === 'Odontológico' ? 'Consultório Odontológico' : (consEfetivo === 'Sala de Procedimentos' || consEfetivo === 'Sala de Vacina') ? consEfetivo : 'Consultório ' + consEfetivo}</div>`;
     if (l.profissional) details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${l.profissional}</div>`;
-    else if (l.medico) details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${l.medico}</div>`;
+    else if (l.medico) {
+      const medLimpo = String(l.medico).replace(/\s*\(sem designa[çc][aã]o\)/gi, '').trim();
+      if (medLimpo === '2ª Escuta' || /se dirija.*2ª escuta/i.test(medLimpo)) {
+        details += `<div style="font-size:18px;opacity:0.95;margin-top:6px;font-weight:800;">📍 Se dirija à 2ª Escuta</div>`;
+      } else {
+        details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${medLimpo}</div>`;
+      }
+    }
     main.innerHTML = `<div class="painel-call-label">🔔 Chamando agora</div><div class="painel-call-name">${l.nome}</div><div class="painel-call-sector">${cfg.icon||'📋'} ${l.setor}${details}</div>${prioBadge}`;
   } else { main.innerHTML = '<div class="painel-empty">⏳ Aguardando chamadas...</div>'; }
 
@@ -4918,7 +4946,9 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     const tempoMin = p.inicio_etapa ? Math.round((Date.now() - new Date(p.inicio_etapa).getTime()) / 60000) : Math.round((Date.now() - new Date(p.created_at).getTime()) / 60000);
     const tempoBadge = `<span class="acol-tempo-badge">⏱ ${tempoMin} min</span>`;
     const acsLabel = p.acs_responsavel ? `<div style="font-size:11.5px;color:#475569;font-weight:700;">👤 ACS: ${escapeText(p.acs_responsavel)}</div>` : '';
-    const profLabel = p.profissional_destino ? `<div style="font-size:11.5px;color:#0f172a;font-weight:800;">👨‍⚕️ ${escapeText(p.profissional_destino)}</div>` : '';
+    const profLabel = p.profissional_destino
+      ? `<div style="font-size:11.5px;color:#0f172a;font-weight:800;">👨‍⚕️ ${escapeText(p.profissional_destino)}</div>`
+      : (etapa === 'segunda_escuta' ? `<div style="font-size:11.5px;color:#b91c1c;font-weight:800;">📍 Se dirija à 2ª Escuta</div>` : '');
     const motivoTexto = (p.motivo_primeira_escuta || p.queixa || '').trim();
     const queixaEl = motivoTexto
       ? `<div class="motivo-1">💬 <strong>1ª Escuta:</strong> "${escapeText(motivoTexto)}"</div>`
@@ -5986,17 +6016,18 @@ function renderSegundaEscutaScreen() {
     return;
   }
 
-  // Group by profissional_destino
+  // Group by profissional_destino (quando não houver profissional designado na 1ª escuta, exibe "Se dirija à 2ª Escuta")
   const groups = {};
   pacientes.forEach(p => {
-    const key = p.profissional_destino || `${p.tipo_profissional_destino || 'Profissional'} (sem designação)`;
+    const profDest = (p.profissional_destino || '').trim();
+    const key = profDest || 'Se dirija à 2ª Escuta';
     if (!groups[key]) groups[key] = [];
     groups[key].push(p);
   });
 
   container.innerHTML = Object.entries(groups).map(([prof, list]) => {
     const tipo = list[0]?.tipo_profissional_destino || '';
-    const tipoIcon = tipo === 'medico' ? '🩺' : tipo === 'enfermagem' ? '👩‍⚕️' : tipo === 'odontologia' ? '🦷' : '👨‍⚕️';
+    const tipoIcon = prof === 'Se dirija à 2ª Escuta' ? '📍' : (tipo === 'medico' ? '🩺' : tipo === 'enfermagem' ? '👩‍⚕️' : tipo === 'odontologia' ? '🦷' : '👨‍⚕️');
 
     const rowsHtml = list.map((p, idx) => {
       const nomeSafe = p.nome.replace(/'/g, "\\'");
@@ -6044,7 +6075,7 @@ function renderSegundaEscutaScreen() {
         <td>
           <div class="fila-actions-cell">
             ${radarBtn}
-            <button class="seg-btn-chamar" onclick="chamarSegundaEscutaPaciente(${p.id},'${nomeSafe}','${prof.replace(/'/g,"\\'")}',this)">🔊 Chamar</button>
+            <button class="seg-btn-chamar" onclick="chamarSegundaEscutaPaciente(${p.id},'${nomeSafe}','${(p.profissional_destino || '').replace(/'/g,"\\'")}',this)">🔊 Chamar</button>
             <button class="seg-btn-finalizar" style="background:linear-gradient(135deg,#c62828,#8e0000);" onclick="abrirModalReencaminharEscuta2(${p.id},'${nomeSafe}')">🚨 Encaminhar (Intercorrência)</button>
             <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')">↗️ Outro Setor</button>
             <button class="seg-btn-finalizar" onclick="finalizarAtendimento(${p.id},'${nomeSafe}')">✅ Finalizar</button>
@@ -6079,14 +6110,24 @@ function renderSegundaEscutaScreen() {
 }
 
 async function chamarSegundaEscutaPaciente(id, nome, prof, btn) {
+  if (typeof unlockAudio === 'function' && !audioUnlocked) {
+    unlockAudio(true);
+  }
+  if (lastSpokenCallId === null) {
+    lastSpokenCallId = 0;
+  }
   if (btn) { btn.disabled = true; btn.innerHTML = '⏳...'; }
   try {
+    const profLimpo = (prof || '').trim();
+    const temProfDesignado = profLimpo && !/sem designa|se dirija|2ª escuta|segunda escuta/i.test(profLimpo);
+    const destino = temProfDesignado ? `2ª Escuta - ${profLimpo}` : '2ª Escuta';
     await fetch(`${API_URL}/acolhimento/${id}/chamar`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ destino: `2ª Escuta - ${prof}` })
+      body: JSON.stringify({ destino })
     });
     showToast(`🔊 Chamando ${nome}...`);
     loadAcolhimentoFluxo();
+    loadHistory();
   } catch(e) { showToast('Erro ao chamar no painel', true); }
   finally { if (btn) setTimeout(() => { btn.disabled = false; btn.innerHTML = '🔊 Chamar'; }, 2500); }
 }

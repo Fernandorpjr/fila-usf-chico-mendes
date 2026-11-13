@@ -1657,13 +1657,16 @@ app.post('/api/call-next/:setor', async (req, res) => {
 
     const next = chosenPatient;
 
-    const medicoFinal = medico || null;
-    const consultorioFinal = consultorio || null;
+    let consultorioFinal = setor === 'Odontologia' ? 'Odontológico' : (consultorio || null);
     let profissionalFinal = profissional || null;
     if (!profissionalFinal) {
-      if (setor && setor.toLowerCase().includes('regula')) profissionalFinal = 'Vivi';
+      if (setor === 'Odontologia') profissionalFinal = 'Dra. Juliana Cavalcante';
+      else if (setor && setor.toLowerCase().includes('regula')) profissionalFinal = 'Vivi';
       else if (setor && setor.toLowerCase().includes('farm')) profissionalFinal = 'Leandra';
     }
+    const medicoFinal = setor === 'Odontologia'
+      ? `Consultório Odontológico - ${profissionalFinal}`
+      : (medico || null);
 
     // Update patient status and assign medico/consultorio/profissional (limpa sort_order ao ser chamado)
     await client.query(
@@ -4617,10 +4620,14 @@ app.post('/api/acolhimento/:id/chamar', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Paciente não encontrado' });
     const patient = result.rows[0];
     
+    let destinoLimpo = (destino || '2ª Escuta').trim();
+    if (/sem designa|se dirija/i.test(destinoLimpo)) {
+      destinoLimpo = '2ª Escuta';
+    }
     // Insere no histórico para o painel (TV) buscar via polling e tocar o áudio correto
     await pool.query(
       `INSERT INTO call_history (patient_id, nome, setor, medico, horario_chamada) VALUES ($1, $2, $3, $4, $5)`,
-      [patient.id, patient.nome, 'Acolhimento', destino || '2ª Escuta', new Date().toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit' })]
+      [patient.id, patient.nome, 'Acolhimento', destinoLimpo, new Date().toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit' })]
     );
 
     res.json({ message: 'Chamado disparado' });
