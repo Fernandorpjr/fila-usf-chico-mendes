@@ -118,6 +118,173 @@ function preservarOuElevarPrioridade(patientAntes, novosDados = {}) {
   };
 }
 
+// ====== REGRAS DE PRIORIDADE E HORÁRIO MARCADO EXCLUSIVAS PARA ODONTOLOGIA (Lei nº 10.048/2000) ======
+// Ordem estrita de Atendimento Prioritário conforme a imagem (1 a 10):
+//  1. Idosos com 80 anos ou mais – prioridade especial.
+//  2. Pessoas com deficiência – incluindo cadeirantes.
+//  3. Pessoas com TEA.
+//  4. Gestantes.
+//  5. Lactantes.
+//  6. Pessoas acompanhadas de criança de colo (incluindo bebês e crianças menores de 2 anos).
+//  7. Pessoas com mobilidade reduzida.
+//  8. Pessoas com obesidade.
+//  9. Demais pessoas idosas (60 anos ou mais).
+// 10. Doadores de sangue, após os demais grupos prioritários.
+// 99. Atendimento Geral (sem prioridade legal).
+function normalizarHorarioMarcado(val) {
+  if (!val) return null;
+  const s = String(val).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?$/);
+  if (m) {
+    const hh = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+    const mm = m[2] ? Math.min(59, Math.max(0, parseInt(m[2], 10))) : 0;
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  }
+  return s.slice(0, 5);
+}
+
+function calcularOrdemPrioridadeOdonto(idadeVal, prioridadeManual, tipoPrioridade, condicoesEspeciais) {
+  let idadeNum = null;
+  if (idadeVal !== undefined && idadeVal !== null && String(idadeVal).trim() !== '') {
+    const parsed = Number(idadeVal);
+    if (Number.isInteger(parsed) && parsed >= 0 && parsed <= 120) {
+      idadeNum = parsed;
+    }
+  }
+
+  const tipoNorm = String(tipoPrioridade || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const condNorm = String(condicoesEspeciais || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  const matches = [];
+
+  // 1. Idosos com 80 anos ou mais – prioridade especial
+  if (
+    (idadeNum !== null && idadeNum >= 80) ||
+    tipoNorm.includes('80') ||
+    tipoNorm.startsWith('1.')
+  ) {
+    matches.push({ ordem: 1, label: '1. Idoso 80+ (Prioridade Especial)', nivel: 1 });
+  }
+
+  // 2. Pessoas com deficiência – incluindo cadeirantes
+  if (
+    tipoNorm.startsWith('2.') ||
+    tipoNorm.includes('deficiencia') ||
+    tipoNorm.includes('pcd') ||
+    tipoNorm.includes('cadeirante') ||
+    condNorm.includes('pcd') ||
+    condNorm.includes('deficiencia')
+  ) {
+    matches.push({ ordem: 2, label: '2. Pessoa com Deficiência (PCD)', nivel: 2 });
+  }
+
+  // 3. Pessoas com TEA
+  if (
+    tipoNorm.startsWith('3.') ||
+    tipoNorm.includes('tea') ||
+    tipoNorm.includes('autismo') ||
+    condNorm.includes('tea') ||
+    condNorm.includes('autismo')
+  ) {
+    matches.push({ ordem: 3, label: '3. Pessoa com TEA', nivel: 2 });
+  }
+
+  // 4. Gestantes
+  if (
+    tipoNorm.startsWith('4.') ||
+    tipoNorm.includes('gestante') ||
+    condNorm.includes('gestante')
+  ) {
+    matches.push({ ordem: 4, label: '4. Gestante', nivel: 2 });
+  }
+
+  // 5. Lactantes
+  if (
+    tipoNorm.startsWith('5.') ||
+    tipoNorm.includes('lactante') ||
+    condNorm.includes('lactante')
+  ) {
+    matches.push({ ordem: 5, label: '5. Lactante', nivel: 2 });
+  }
+
+  // 6. Pessoas acompanhadas de criança de colo (incluindo bebês e crianças menores de 2 anos)
+  if (
+    tipoNorm.startsWith('6.') ||
+    tipoNorm.includes('colo') ||
+    condNorm.includes('crianca_colo') ||
+    prioridadeManual === 'crianca_colo' ||
+    (idadeNum !== null && idadeNum >= 0 && idadeNum < 2)
+  ) {
+    matches.push({ ordem: 6, label: '6. Criança de Colo (< 2 anos)', nivel: 2 });
+  }
+
+  // 7. Pessoas com mobilidade reduzida
+  if (
+    tipoNorm.startsWith('7.') ||
+    tipoNorm.includes('mobilidade')
+  ) {
+    matches.push({ ordem: 7, label: '7. Mobilidade Reduzida', nivel: 2 });
+  }
+
+  // 8. Pessoas com obesidade
+  if (
+    tipoNorm.startsWith('8.') ||
+    tipoNorm.includes('obesidade') ||
+    tipoNorm.includes('obeso')
+  ) {
+    matches.push({ ordem: 8, label: '8. Obesidade', nivel: 2 });
+  }
+
+  // 9. Demais pessoas idosas (60 anos ou mais)
+  if (
+    tipoNorm.startsWith('9.') ||
+    (idadeNum !== null && idadeNum >= 60 && idadeNum < 80) ||
+    tipoNorm.includes('60') ||
+    (tipoNorm.includes('idoso') && !tipoNorm.includes('80'))
+  ) {
+    matches.push({ ordem: 9, label: '9. Idoso 60+', nivel: 2 });
+  }
+
+  // 10. Doadores de sangue, após os demais grupos prioritários
+  if (
+    tipoNorm.startsWith('10.') ||
+    tipoNorm.includes('doador') ||
+    tipoNorm.includes('sangue')
+  ) {
+    matches.push({ ordem: 10, label: '10. Doador de Sangue', nivel: 2 });
+  }
+
+  if (matches.length > 0) {
+    matches.sort((a, b) => a.ordem - b.ordem);
+    const best = matches[0];
+    return {
+      ordem_prioridade_odonto: best.ordem,
+      prioridade: 'prioritario',
+      tipo_prioridade: best.label,
+      nivel: best.nivel
+    };
+  }
+
+  if (prioridadeManual === 'prioritario') {
+    return {
+      ordem_prioridade_odonto: 9,
+      prioridade: 'prioritario',
+      tipo_prioridade: tipoPrioridade ? String(tipoPrioridade).trim() : '9. Idoso 60+',
+      nivel: 2
+    };
+  }
+
+  return {
+    ordem_prioridade_odonto: 99,
+    prioridade: 'geral',
+    tipo_prioridade: null,
+    nivel: 3
+  };
+}
+
 function sanitizarPacientePublico(p) {
   if (!p) return p;
   const clone = { ...p };
@@ -739,11 +906,14 @@ async function garantirColunasEscuta(dbClientOrPool) {
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN NOT NULL DEFAULT false`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS setor_destino TEXT`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS profissional_destino TEXT`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS horario_marcado TEXT`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS ordem_prioridade_odonto SMALLINT`);
 
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS equipe_paciente TEXT`);
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS motivo_primeira_escuta TEXT`);
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN DEFAULT false`);
+    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS horario_marcado TEXT`);
     _colunasEscutaGarantidas = true;
   } catch (e) {
     console.warn('[garantirColunasEscuta] Aviso ao verificar colunas:', e.message);
@@ -802,13 +972,64 @@ app.get('/api/config-prioridade', (req, res) => {
 //   da transferência) e segue o fluxo dinâmico conforme novos pacientes chegam.
 const SQL_NIVEL_EFETIVO = `CASE WHEN COALESCE(nivel_prioridade, 3) IN (1, 2) THEN nivel_prioridade WHEN prioridade = 'prioritario' THEN 2 ELSE 3 END`;
 const SQL_PRIO_EFETIVA = `CASE WHEN prioridade = 'prioritario' OR COALESCE(nivel_prioridade, 3) IN (1, 2) THEN 0 ELSE 1 END`;
+const SQL_ODONTO_PRIO_RANK = `CASE
+  WHEN setor = 'Odontologia' THEN COALESCE(ordem_prioridade_odonto, CASE WHEN COALESCE(nivel_prioridade, 3) = 1 THEN 1 WHEN prioridade = 'prioritario' OR COALESCE(nivel_prioridade, 3) = 2 THEN 9 ELSE 99 END)
+  ELSE 99
+END`;
+const SQL_ODONTO_HORARIO_MARCADO = `CASE
+  WHEN setor = 'Odontologia' THEN COALESCE(NULLIF(TRIM(horario_marcado), ''), '99:99')
+  ELSE '00:00'
+END`;
 const SQL_ORDEM_FILA = `
          CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
          COALESCE(sort_order, 2147483647) ASC,
+         ${SQL_ODONTO_PRIO_RANK} ASC,
          ${SQL_NIVEL_EFETIVO} ASC,
          ${SQL_PRIO_EFETIVA} ASC,
+         ${SQL_ODONTO_HORARIO_MARCADO} ASC,
          created_at ASC,
          id ASC`;
+
+// Reordena automaticamente a fila de Odontologia segundo a regra em teste:
+// 1º Preferenciais na ordem estrita de 1 a 10 da Lei nº 10.048/2000 (desempatando por horário marcado e chegada);
+// 2º Pacientes sem prioridade ordenados pelo Horário Marcado (ex: 09:00 antes de 10:00) e depois pelo Horário de Chegada
+//    (ex: Fernando marcado 09:00 chegou 09:00 -> Andreia marcada 09:00 chegou 09:20 -> Carlos marcado 10:00 chegou 07:00).
+async function reordenarFilaOdontologia(db) {
+  const res = await db.query(
+    `SELECT id, idade, prioridade, tipo_prioridade, condicoes_especiais, ordem_prioridade_odonto, horario_marcado, created_at
+     FROM patients
+     WHERE setor = 'Odontologia' AND status = 'aguardando'`
+  );
+  if (res.rows.length === 0) return;
+
+  const rows = res.rows.map(r => {
+    let rank = Number(r.ordem_prioridade_odonto);
+    if (!Number.isInteger(rank) || rank < 1 || rank > 99) {
+      const calcOdonto = calcularOrdemPrioridadeOdonto(r.idade, r.prioridade, r.tipo_prioridade, r.condicoes_especiais);
+      rank = calcOdonto.ordem_prioridade_odonto;
+    }
+    const hm = normalizarHorarioMarcado(r.horario_marcado) || '99:99';
+    const createdMs = r.created_at ? new Date(r.created_at).getTime() : 0;
+    return { id: r.id, rank, hm, createdMs };
+  });
+
+  rows.sort((a, b) => {
+    // 1. Grupo Preferencial (1 a 10) sempre na frente do Geral (99), seguindo a ordem 1 -> 10 da imagem
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    // 2. Dentro da mesma categoria (ou entre pacientes Gerais): Horário Marcado primeiro (ex: 09:00 antes de 10:00)
+    if (a.hm !== b.hm) return a.hm.localeCompare(b.hm);
+    // 3. Mesmo horário marcado: ordem de chegada (ex: chegou 09:00 antes de quem chegou 09:20)
+    if (a.createdMs !== b.createdMs) return a.createdMs - b.createdMs;
+    return a.id - b.id;
+  });
+
+  for (let i = 0; i < rows.length; i++) {
+    await db.query(
+      'UPDATE patients SET sort_order = $1, ordem_prioridade_odonto = $2 WHERE id = $3',
+      [i + 1, rows[i].rank, rows[i].id]
+    );
+  }
+}
 
 // Garante que pacientes prioritários fiquem fixados no topo da fila (acima dos pacientes normais, mesmo quando
 // já existiam pacientes na fila com sort_order preenchido).
@@ -879,6 +1100,7 @@ function isParRegulacaoFarmacia(origem, destino) {
 
 app.get('/api/queues', async (req, res) => {
   try {
+    await garantirColunasEscuta(pool);
     const queues = {};
     SETORES.forEach(s => queues[s] = []);
 
@@ -1146,7 +1368,8 @@ app.post('/api/patients', async (req, res) => {
       idade,
       equipe_paciente,
       motivo_primeira_escuta,
-      queixa
+      queixa,
+      horario_marcado
     } = req.body;
 
     if (!nome || !setor) {
@@ -1158,8 +1381,20 @@ app.post('/api/patients', async (req, res) => {
       return res.status(400).json({ error: calc.erro });
     }
 
-    const prioridadeFinal = calc.prioridade;
-    const tipoPrioridadeFinal = calc.tipo_prioridade;
+    let prioridadeFinal = calc.prioridade;
+    let tipoPrioridadeFinal = calc.tipo_prioridade;
+    let nivelFinal = calc.nivel;
+    let ordemPrioridadeOdontoFinal = null;
+    let horarioMarcadoFinal = null;
+
+    if (setor === 'Odontologia') {
+      const calcOdonto = calcularOrdemPrioridadeOdonto(idade, prioridade, tipo_prioridade, condicoes_especiais);
+      prioridadeFinal = calcOdonto.prioridade;
+      tipoPrioridadeFinal = calcOdonto.tipo_prioridade;
+      nivelFinal = calcOdonto.nivel;
+      ordemPrioridadeOdontoFinal = calcOdonto.ordem_prioridade_odonto;
+      horarioMarcadoFinal = normalizarHorarioMarcado(horario_marcado);
+    }
 
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     const equipeFinal = equipe_paciente ? String(equipe_paciente).trim().slice(0, 80) : null;
@@ -1171,9 +1406,10 @@ app.post('/api/patients', async (req, res) => {
       `INSERT INTO patients (
          nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento,
          profissional, condicoes_especiais, etapa_fluxo, idade, nivel_prioridade,
-         equipe_paciente, motivo_primeira_escuta, queixa, setor_destino, profissional_destino, updated_at
+         equipe_paciente, motivo_primeira_escuta, queixa, setor_destino, profissional_destino,
+         horario_marcado, ordem_prioridade_odonto, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP)
        RETURNING *`,
       [
         nome,
@@ -1187,17 +1423,21 @@ app.post('/api/patients', async (req, res) => {
         condicoes_especiais || null,
         etapa_fluxo || 'recepcao',
         calc.idade,
-        calc.nivel,
+        nivelFinal,
         equipeFinal,
         motivoEscuta1Final,
         motivoEscuta1Final,
         setor,
-        profissional || null
+        profissional || null,
+        horarioMarcadoFinal,
+        ordemPrioridadeOdontoFinal
       ]
     );
 
     const novoPaciente = result.rows[0];
-    if (prioridadeFinal === 'prioritario') {
+    if (setor === 'Odontologia') {
+      await reordenarFilaOdontologia(pool);
+    } else if (prioridadeFinal === 'prioritario') {
       await fixarPrioritarioNoTopoDaFila(pool, novoPaciente, { fixarPrimeiroDireto: true });
     }
     novoPaciente.busca_ativa_detalhes = [];
@@ -1213,10 +1453,11 @@ app.post('/api/patients', async (req, res) => {
 // Patient status for QR Code (público — lista explícita sem expor idade nem busca_ativa)
 app.get('/api/patients/:id/status', async (req, res) => {
   try {
+    await garantirColunasEscuta(pool);
     const { id } = req.params;
     
     const pResult = await pool.query(
-      `SELECT id, nome, setor, horario, status, medico, consultorio, profissional,
+      `SELECT id, nome, setor, horario, horario_marcado, ordem_prioridade_odonto, status, medico, consultorio, profissional,
               prioridade, tipo_prioridade, tipo_atendimento, etapa_fluxo, created_at, updated_at
        FROM patients WHERE id = $1`,
       [id]
@@ -1280,21 +1521,42 @@ app.post('/api/call-next/:setor', async (req, res) => {
     let chosenPatient = null;
     let regraAplicada = 'd';
 
+    // === REGRA ESPECÍFICA EM TESTE PARA ODONTOLOGIA ===
+    // Na Odontologia, respeita estritamente a ordem 1 a 10 da Lei nº 10.048/2000 + Horário Marcado + Chegada
+    // (sem aplicar alternância 1x1 nem puxar paciente agendado para 10h que chegou às 7h antes do agendado das 9h).
+    if (setor === 'Odontologia') {
+      const odontoNextRes = await client.query(
+        `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
+         FROM patients
+         WHERE ${baseWhere}
+         ORDER BY ${SQL_ORDEM_FILA}
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED`,
+        baseParams
+      );
+      if (odontoNextRes.rows.length > 0) {
+        chosenPatient = odontoNextRes.rows[0];
+        regraAplicada = chosenPatient.prioridade === 'prioritario' ? 'c' : 'd';
+      }
+    }
+
     // Prioridade manual do especialista / exceção de 3ª posição: se existe paciente com posição fixada (sort_order),
     // respeitar EXATAMENTE a ordem exibida na tela (menor sort_order primeiro).
-    const manualTopRes = await client.query(
-      `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
-       FROM patients
-       WHERE ${baseWhere}
-         AND sort_order IS NOT NULL
-       ORDER BY sort_order ASC, created_at ASC
-       LIMIT 1
-       FOR UPDATE SKIP LOCKED`,
-      baseParams
-    );
-    if (manualTopRes.rows.length > 0) {
-      chosenPatient = manualTopRes.rows[0];
-      regraAplicada = 'd';
+    if (!chosenPatient) {
+      const manualTopRes = await client.query(
+        `SELECT *, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0 AS espera_calc_min
+         FROM patients
+         WHERE ${baseWhere}
+           AND sort_order IS NOT NULL
+         ORDER BY sort_order ASC, created_at ASC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED`,
+        baseParams
+      );
+      if (manualTopRes.rows.length > 0) {
+        chosenPatient = manualTopRes.rows[0];
+        regraAplicada = 'd';
+      }
     }
 
     // Regra (a): Há paciente normal (nivel_prioridade = 3) esperando no setor há mais de LIMITE_ESPERA_NORMAL_MIN minutos -> chamar o normal mais antigo (created_at ASC estrito)
@@ -1582,6 +1844,7 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       novoProfissional,
       observacao_segunda_escuta,
       is_intercorrencia_acolhimento,
+      horario_marcado,
       senha
     } = req.body;
 
@@ -1625,7 +1888,25 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       : patientAntes.setor;
 
     // Preservar ou elevar prioridade do paciente ao transferir
-    const prioInfo = preservarOuElevarPrioridade(patientAntes);
+    let prioInfo = preservarOuElevarPrioridade(patientAntes);
+    let ordemOdontoTransfer = patientAntes.ordem_prioridade_odonto || null;
+    const horarioMarcadoTransfer = horario_marcado !== undefined
+      ? normalizarHorarioMarcado(horario_marcado)
+      : (patientAntes.horario_marcado || null);
+    if (novoSetor === 'Odontologia') {
+      const calcOd = calcularOrdemPrioridadeOdonto(
+        patientAntes.idade,
+        prioInfo.prioridade,
+        prioInfo.tipo_prioridade,
+        patientAntes.condicoes_especiais
+      );
+      prioInfo = {
+        prioridade: calcOd.prioridade,
+        nivel_prioridade: calcOd.nivel,
+        tipo_prioridade: calcOd.tipo_prioridade
+      };
+      ordemOdontoTransfer = calcOd.ordem_prioridade_odonto;
+    }
     const novoSortOrder = null;
 
     const result = await client.query(
@@ -1646,6 +1927,8 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
            prioridade = $15,
            nivel_prioridade = $16,
            tipo_prioridade = COALESCE($17::text, tipo_prioridade),
+           horario_marcado = $18,
+           ordem_prioridade_odonto = $19,
            status = 'aguardando',
            created_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
@@ -1668,7 +1951,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
         obs2Preservada,
         prioInfo.prioridade,
         prioInfo.nivel_prioridade,
-        prioInfo.tipo_prioridade
+        prioInfo.tipo_prioridade,
+        horarioMarcadoTransfer,
+        ordemOdontoTransfer
       ]
     );
     const patient = result.rows[0];
@@ -1677,7 +1962,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     // (relacionada ao botão "Chamar 3 Próximos"). Só fixa a posição dos 2 primeiros e do encaminhado;
     // os demais pacientes mantêm exatamente a ordem relativa que já tinham.
     let posicaoAplicada = null;
-    if (isParRegulacaoFarmacia(patientAntes.setor, novoSetor)) {
+    if (novoSetor === 'Odontologia') {
+      await reordenarFilaOdontologia(client);
+    } else if (isParRegulacaoFarmacia(patientAntes.setor, novoSetor)) {
       const filaDestino = await client.query(
         `SELECT id, sort_order FROM patients
          WHERE setor = $1 AND status = 'aguardando' AND id <> $2
@@ -4256,7 +4543,9 @@ async function handleEncaminharIntercorrenciaAcolhimento(req, res) {
     );
 
     const updatedPatient = updateRes.rows[0];
-    if (prioEscuta2.prioridade === 'prioritario') {
+    if (setorReal === 'Odontologia') {
+      await reordenarFilaOdontologia(client);
+    } else if (prioEscuta2.prioridade === 'prioritario') {
       await fixarPrioritarioNoTopoDaFila(client, updatedPatient, { fixarPrimeiroDireto: false });
     }
 
