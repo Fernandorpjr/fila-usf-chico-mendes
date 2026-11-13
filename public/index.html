@@ -1328,7 +1328,7 @@
       min-width: 780px;
       text-align: left;
       background: #ffffff;
-      table-layout: auto;
+      table-layout: fixed;
     }
     .fila-clean-table thead th {
       background: #f1f5f9;
@@ -1338,46 +1338,63 @@
       font-weight: 900;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 9px 12px;
+      padding: 10px 14px;
       border-bottom: 2px solid #cbd5e1;
       white-space: nowrap;
       vertical-align: middle;
     }
-    .fila-clean-table th.col-pos { width: 105px; min-width: 95px; }
-    .fila-clean-table th.col-paciente { width: 23%; min-width: 170px; }
-    .fila-clean-table th.col-historico { width: 29%; min-width: 190px; }
-    .fila-clean-table th.col-status { width: 18%; min-width: 145px; }
-    .fila-clean-table th.col-acoes { text-align: right; min-width: 220px; width: auto; }
-    .fila-clean-table tbody tr {
+    .fila-clean-table th.col-pos { width: 130px; }
+    .fila-clean-table th.col-paciente { width: 25%; }
+    .fila-clean-table th.col-historico { width: 27%; }
+    .fila-clean-table th.col-status { width: 18%; }
+    .fila-clean-table th.col-acoes { text-align: right; width: 20%; }
+    .fila-clean-table tbody tr,
+    .fila-clean-table tbody tr.queue-item {
+      display: table-row;
+      padding: 0;
+      background: #ffffff;
+      border: none;
+      border-radius: 0;
       border-bottom: 1px solid #e2e8f0;
+      box-shadow: none;
       transition: background-color 0.15s ease;
     }
-    .fila-clean-table tbody tr:last-child {
+    .fila-clean-table tbody tr:last-child,
+    .fila-clean-table tbody tr.queue-item:last-child {
       border-bottom: none;
     }
-    .fila-clean-table tbody tr:hover {
+    .fila-clean-table tbody tr:hover,
+    .fila-clean-table tbody tr.queue-item:hover {
       background-color: #f8fafc;
+      border-color: #e2e8f0;
     }
-    .fila-clean-table tbody tr.calling {
+    .fila-clean-table tbody tr.calling,
+    .fila-clean-table tbody tr.queue-item.calling {
       background: linear-gradient(135deg, #fffbeb, #fef3c7) !important;
+      border-bottom: 1px solid #fde68a;
+      box-shadow: none;
     }
-    .fila-clean-table tbody tr.row-intercorrencia {
+    .fila-clean-table tbody tr.row-intercorrencia,
+    .fila-clean-table tbody tr.queue-item.row-intercorrencia {
       background-color: #fff7ed;
     }
-    .fila-clean-table tbody tr.row-intercorrencia:hover {
+    .fila-clean-table tbody tr.row-intercorrencia:hover,
+    .fila-clean-table tbody tr.queue-item.row-intercorrencia:hover {
       background-color: #ffedd5;
     }
     .fila-clean-table td {
-      padding: 9px 12px;
+      display: table-cell;
+      padding: 12px 14px;
       vertical-align: middle;
       color: #1e293b;
       font-size: 13px;
       line-height: 1.35;
       word-wrap: break-word;
+      overflow-wrap: break-word;
     }
     .fila-pos-cell {
       white-space: nowrap;
-      width: 105px;
+      width: 130px;
     }
     .fila-pos-badge {
       display: inline-flex;
@@ -3674,7 +3691,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js"></script>
-<script src="dispositivos.js?v=4.4"></script>
-<script src="app.js?v=4.4"></script>
+<script src="dispositivos.js?v=4.5"></script>
+<script src="app.js?v=4.5"></script>
 </body>
 </html>
