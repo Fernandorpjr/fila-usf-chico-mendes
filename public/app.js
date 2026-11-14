@@ -540,12 +540,12 @@ function initSectorScreens() {
         </div>`;
     }
 
-    const odontoRegraBanner = setor === 'Odontologia' ? `
+    const odontoRegraBanner = `
       <div style="margin-bottom:14px;padding:10px 14px;border-radius:10px;background:rgba(139,92,246,0.10);border:1.5px solid rgba(139,92,246,0.35);font-size:12px;color:#5b21b6;line-height:1.45;">
-        <strong>🦷 Regra de Fila em Teste (Exclusiva Odontologia — Lei nº 10.048/2000):</strong><br>
+        <strong>⭐ Regra de Prioridade (Lei nº 10.048/2000 — 1 a 10):</strong><br>
         <strong>1º Preferenciais na ordem legal (1 a 10):</strong> 1. Idoso 80+ → 2. PCD → 3. TEA → 4. Gestante → 5. Lactante → 6. Criança de colo (&lt;2a) → 7. Mobilidade reduzida → 8. Obesidade → 9. Idoso 60+ → 10. Doador de sangue.<br>
-        <strong>2º Ordem por Horário Marcado + Chegada:</strong> Pacientes de 09:00 atendem antes de 10:00 (mesmo que o de 10:00 chegue às 07:00, salvo se for preferencial). No mesmo horário marcado, vale a ordem de chegada (ex: 09:00 antes de 09:20).
-      </div>` : '';
+        <strong>2º Ordem por Horário Marcado + Chegada:</strong> Pacientes de 09:00 atendem antes de 10:00 (salvo preferencial). No mesmo horário marcado, vale a ordem de chegada.
+      </div>`;
 
     screenEl.innerHTML = `
       <div class="sector-page-header">
@@ -931,7 +931,7 @@ function toggleTransferTipoAtendimento() {
   const tipoGrupo = document.getElementById('transfer-tipo-atendimento-grupo');
   const profGrupo = document.getElementById('transfer-profissional-grupo');
   const transferHmGrupo = document.getElementById('transfer-horario-marcado-grupo');
-  if (transferHmGrupo) transferHmGrupo.style.display = setor === 'Odontologia' ? 'block' : 'none';
+  if (transferHmGrupo) transferHmGrupo.style.display = setor && setor !== 'Sala de Agendamento' ? 'block' : 'none';
 
   if (setor === 'Sala de Agendamento') {
     if (motivoGrupo) motivoGrupo.style.display = 'block';
@@ -1015,7 +1015,7 @@ async function confirmTransfer() {
   const novoTipoAtendimento = document.getElementById('transfer-tipo-atendimento').value;
   const novoProfissional = document.getElementById('transfer-profissional').value;
   const motivoAgendamento = document.getElementById('transfer-motivo-agendamento')?.value;
-  const horarioMarcadoTransfer = novoSetor === 'Odontologia' ? (document.getElementById('transfer-horario-marcado')?.value || null) : null;
+  const horarioMarcadoTransfer = novoSetor && novoSetor !== 'Sala de Agendamento' ? (document.getElementById('transfer-horario-marcado')?.value || null) : null;
 
   if (!novoSetor) { showToast('Selecione o setor de destino!', true); return; }
   if (novoSetor === setor) { showToast('O setor de destino deve ser diferente do atual!', true); return; }
@@ -1303,29 +1303,18 @@ function atualizarOpcoesPrioridadePorSetor(setor) {
   const selectPrioTipo = document.getElementById('input-tipo-prioridade');
   if (!selectPrioTipo) return;
   const valorAtual = selectPrioTipo.value;
-  if (setor === 'Odontologia') {
-    selectPrioTipo.innerHTML = `
-      <option value="1. Idoso 80+ (Prioridade Especial)">1º Idosos com 80 anos ou mais – prioridade especial</option>
-      <option value="2. Pessoa com Deficiência (PCD)">2º Pessoas com deficiência – incluindo cadeirantes</option>
-      <option value="3. Pessoa com TEA">3º Pessoas com TEA (Autismo)</option>
-      <option value="4. Gestante">4º Gestantes</option>
-      <option value="5. Lactante">5º Lactantes</option>
-      <option value="6. Criança de Colo (< 2 anos)">6º Pessoas acompanhadas de criança de colo (&lt; 2 anos)</option>
-      <option value="7. Mobilidade Reduzida">7º Pessoas com mobilidade reduzida</option>
-      <option value="8. Obesidade">8º Pessoas com obesidade</option>
-      <option value="9. Idoso 60+">9º Demais pessoas idosas (60 anos ou mais)</option>
-      <option value="10. Doador de Sangue">10º Doadores de sangue</option>
-    `;
-  } else {
-    selectPrioTipo.innerHTML = `
-      <option value="Criança de Colo">👶 Criança de Colo (Meses — Superprioridade = 80+)</option>
-      <option value="Idoso (60+)">👴 Idoso (60+)</option>
-      <option value="Gestante">🤰 Gestante</option>
-      <option value="Lactante">🤱 Lactante</option>
-      <option value="Autismo (TEA)">🧩 Autismo (TEA)</option>
-      <option value="Deficiência (PCD)">♿ Deficiência (PCD)</option>
-    `;
-  }
+  selectPrioTipo.innerHTML = `
+    <option value="1. Idoso 80+ (Prioridade Especial)">1º Idosos com 80 anos ou mais – prioridade especial</option>
+    <option value="2. Pessoa com Deficiência (PCD)">2º Pessoas com deficiência – incluindo cadeirantes</option>
+    <option value="3. Pessoa com TEA">3º Pessoas com TEA (Autismo)</option>
+    <option value="4. Gestante">4º Gestantes</option>
+    <option value="5. Lactante">5º Lactantes</option>
+    <option value="6. Criança de Colo (< 2 anos)">6º Pessoas acompanhadas de criança de colo (&lt; 2 anos)</option>
+    <option value="7. Mobilidade Reduzida">7º Pessoas com mobilidade reduzida</option>
+    <option value="8. Obesidade">8º Pessoas com obesidade</option>
+    <option value="9. Idoso 60+">9º Demais pessoas idosas (60 anos ou mais)</option>
+    <option value="10. Doador de Sangue">10º Doadores de sangue</option>
+  `;
   if (valorAtual && [...selectPrioTipo.options].some(o => o.value === valorAtual)) {
     selectPrioTipo.value = valorAtual;
   }
@@ -1335,11 +1324,11 @@ function toggleTipoAtendimento() {
   const setor = document.getElementById('input-setor').value;
   document.getElementById('tipo-atendimento-grupo').style.display = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? 'flex' : 'none';
 
-  // Exibir Horário Marcado e 10 categorias da Lei 10.048/2000 EXCLUSIVAMENTE quando o setor for Odontologia
+  // Exibir Horário Marcado e 10 categorias da Lei 10.048/2000 para todos os setores
   const odontoHmGrupo = document.getElementById('odonto-horario-marcado-grupo');
   const odontoHmChips = document.getElementById('odonto-horario-chips');
-  if (odontoHmGrupo) odontoHmGrupo.style.display = setor === 'Odontologia' ? 'flex' : 'none';
-  if (odontoHmChips) odontoHmChips.style.display = setor === 'Odontologia' ? 'block' : 'none';
+  if (odontoHmGrupo) odontoHmGrupo.style.display = setor ? 'flex' : 'none';
+  if (odontoHmChips) odontoHmChips.style.display = setor ? 'block' : 'none';
   atualizarOpcoesPrioridadePorSetor(setor);
 
   // Sincroniza botões rápidos de setor na Recepção
@@ -1455,7 +1444,7 @@ async function addPatient(btn) {
   const motivoInput = document.getElementById('input-motivo-primeira-escuta');
   const motivo_primeira_escuta = motivoInput && motivoInput.value.trim() ? motivoInput.value.trim() : null;
   const horarioMarcadoInput = document.getElementById('input-horario-marcado');
-  const horario_marcado = setor === 'Odontologia' && horarioMarcadoInput && horarioMarcadoInput.value ? horarioMarcadoInput.value.trim() : null;
+  const horario_marcado = horarioMarcadoInput && horarioMarcadoInput.value ? horarioMarcadoInput.value.trim() : null;
 
   if (!nome) { showToast('Digite o nome do paciente!', true); return; }
   if (!setor) { showToast('Selecione o setor de destino!', true); return; }
@@ -2407,16 +2396,14 @@ function renderPrioridadeIdadeBadge(p) {
   const nv = Number(p.nivel_prioridade || (p.prioridade === 'prioritario' ? 2 : 3));
   const tipoStr = String(p.tipo_prioridade || '').toLowerCase();
   const condStr = String(p.condicoes_especiais || '').toLowerCase();
-  // Na Odontologia, exibe a categoria exata da Lei nº 10.048/2000 (1º a 10º)
-  if (p.setor === 'Odontologia') {
-    const ordOdonto = Number(p.ordem_prioridade_odonto || 99);
-    if (ordOdonto >= 1 && ordOdonto <= 10) {
-      const labelOdonto = p.tipo_prioridade ? escapeText(p.tipo_prioridade) : `Prioridade (${ordOdonto}º)`;
-      const bgOdonto = ordOdonto === 1
-        ? 'background:linear-gradient(135deg,#be123c,#e11d48);'
-        : 'background:linear-gradient(135deg,#6d28d9,#7c3aed);';
-      return `<span class="badge-prioridade-idade" style="${bgOdonto}" title="Atendimento Prioritário Legal — Lei nº 10.048/2000 (Odontologia)">⭐ ${labelOdonto}</span>`;
-    }
+  // Exibe a categoria exata da Lei nº 10.048/2000 (1º a 10º) em todos os setores
+  const ordOdonto = Number(p.ordem_prioridade_odonto || 99);
+  if (ordOdonto >= 1 && ordOdonto <= 10) {
+    const labelOdonto = p.tipo_prioridade ? escapeText(p.tipo_prioridade) : `Prioridade (${ordOdonto}º)`;
+    const bgOdonto = ordOdonto === 1
+      ? 'background:linear-gradient(135deg,#be123c,#e11d48);'
+      : 'background:linear-gradient(135deg,#6d28d9,#7c3aed);';
+    return `<span class="badge-prioridade-idade" style="${bgOdonto}" title="Atendimento Prioritário Legal — Lei nº 10.048/2000">⭐ ${labelOdonto}</span>`;
   }
   const isCriancaColo = tipoStr.includes('colo') || condStr.includes('crianca_colo');
   if (isCriancaColo) {
@@ -2646,7 +2633,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
           <span style="font-size:12px;font-weight:800;color:#475569;" title="Horário de chegada na recepção">🕐 ${p.horario || '—'}</span>
         </div>
         ${nextUpBadge ? `<div style="margin-top:4px;">${nextUpBadge}</div>` : ''}
-        ${(setor === 'Odontologia' && p.horario_marcado) ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado na Odontologia">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
+        ${p.horario_marcado ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
         ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
       </td>
       <td>
@@ -2798,7 +2785,7 @@ function updateMiniQueues() {
             <span style="font-size:12px;font-weight:800;color:#475569;" title="Horário de chegada na recepção">🕐 ${p.horario || '—'}</span>
           </div>
           ${nextUpBadge ? `<div style="margin-top:4px;">${nextUpBadge}</div>` : ''}
-          ${(s === 'Odontologia' && p.horario_marcado) ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado na Odontologia">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
+          ${p.horario_marcado ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
           ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
         </td>
         <td>
