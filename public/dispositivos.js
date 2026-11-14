@@ -7,8 +7,11 @@ let _dispositivoAtualSetor = '';
 let _timerHeartbeat = null;
 let _dispositivosAdminDados = [];
 
-// Helper para verificar se está no horário de expediente (06:00 às 18:00 Recife)
+// Helper para verificar se está no horário de expediente (06:00 às 20:00 Recife | Seg-Sex ou Mutirão)
 function isHorarioHeartbeatRecife() {
+  if (typeof isDentroDoHorario === 'function') {
+    return isDentroDoHorario();
+  }
   const now = new Date();
   const dateStr = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Recife',
@@ -20,22 +23,27 @@ function isHorarioHeartbeatRecife() {
   const midnight = new Date(dateStr + 'T00:00:00Z');
   const day = midnight.getUTCDay(); // 0=Dom, 6=Sab
   const DATAS_MUTIRAO = ['2026-09-26', '2026-11-07', '2026-04-11', '2026-11-14', '2026-04-18'];
-  if ((day === 0 || day === 6) && !DATAS_MUTIRAO.includes(dateStr)) return false;
-  return (hour >= 6 && hour < 18);
+  const mutiraoAtivo = typeof _mutiraoLiberadoData === 'string' && _mutiraoLiberadoData === dateStr;
+  if ((day === 0 || day === 6) && !DATAS_MUTIRAO.includes(dateStr) && !mutiraoAtivo) return false;
+  return (hour >= 6 && hour < 20);
 }
 
-// Inicializar identificação do dispositivo e heartbeat a cada 60s
+// Inicializar identificação do dispositivo e heartbeat a cada 30s
 function iniciarIdentificacaoDispositivo() {
   _dispositivoAtualId = localStorage.getItem('usf_device_id') || null;
 
   // Primeiro heartbeat imediato
   executarHeartbeatDispositivo();
 
-  // Polling leve a cada 60s
+  // Polling leve a cada 30s
   if (_timerHeartbeat) clearInterval(_timerHeartbeat);
   _timerHeartbeat = setInterval(() => {
     executarHeartbeatDispositivo();
-  }, 60000);
+  }, 30000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) executarHeartbeatDispositivo();
+  });
 }
 
 async function executarHeartbeatDispositivo() {
@@ -73,6 +81,9 @@ async function executarHeartbeatDispositivo() {
 
       if (data.ativo === false) {
         mostrarAlertaDispositivoBloqueado();
+      } else {
+        const existingOverlay = document.getElementById('bloqueio-overlay');
+        if (existingOverlay) existingOverlay.remove();
       }
     }
   } catch (err) {
@@ -104,6 +115,7 @@ async function registrarAcessoDispositivo() {
 }
 
 function mostrarAlertaDispositivoBloqueado() {
+  if (document.getElementById('bloqueio-overlay')) return;
   const overlay = document.createElement('div');
   overlay.id = 'bloqueio-overlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(185,28,28,0.95);color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:sans-serif;';
