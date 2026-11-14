@@ -372,33 +372,49 @@ async function salvarEditarDispositivo() {
 
 // Bloquear / Desbloquear Aparelho
 async function alternarBloqueioDispositivo(id, statusAtivoAtual) {
-  const novoStatus = !statusAtivoAtual;
+  const estaAtivo = statusAtivoAtual !== false && statusAtivoAtual !== 'false';
+  const novoStatus = !estaAtivo;
   const acaoNome = novoStatus ? 'desbloquear' : 'BLOQUEAR';
 
   if (!confirm(`Tem certeza de que deseja ${acaoNome} este dispositivo? ${novoStatus ? 'Ele voltará a ter acesso às requisições do sistema.' : 'Ele perderá todo o acesso às requisições do sistema.'}`)) {
     return;
   }
 
-  try {
-    const res = await fetch(`${API_URL}/admin/dispositivos/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        senha: adminPassword,
-        ativo: novoStatus
-      })
-    });
+  const executar = async (senhaAdmin) => {
+    try {
+      const res = await fetch(`${API_URL}/admin/dispositivos/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': senhaAdmin
+        },
+        body: JSON.stringify({
+          senha: senhaAdmin,
+          ativo: novoStatus
+        })
+      });
 
-    if (res.status === 403) {
-      showToast('❌ Senha administrativa incorreta!', true);
-      return;
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        showToast('❌ Senha administrativa incorreta!', true);
+        return;
+      }
+      if (!res.ok) {
+        showToast(data.error || 'Erro ao alterar status do dispositivo!', true);
+        return;
+      }
+
+      showToast(`✅ Dispositivo ${novoStatus ? 'desbloqueado' : 'bloqueado'} com sucesso!`);
+      await carregarDispositivosAdmin();
+    } catch (err) {
+      showToast('Erro de conexão ao alterar status do dispositivo!', true);
     }
-    if (!res.ok) throw new Error();
+  };
 
-    showToast(`✅ Dispositivo ${novoStatus ? 'desbloqueado' : 'bloqueado'} com sucesso!`);
-    carregarDispositivosAdmin();
-  } catch (err) {
-    showToast('Erro ao alterar status do dispositivo!', true);
+  if (typeof pedirSenhaAdmin === 'function') {
+    pedirSenhaAdmin(`${acaoNome} dispositivo`, executar);
+  } else {
+    executar(adminPassword || '');
   }
 }
 
@@ -522,59 +538,85 @@ async function limparDispositivosAntigos() {
   }
 }
 
-// Impressão A4 de dispositivos conectados
+// Impressão / PDF A4 de dispositivos conectados (usa jsPDF para não conflitar com @media print da etiqueta 58mm)
 function imprimirListaDispositivos() {
-  const container = document.getElementById('disp-print-area');
-  if (!container) return;
-
   const listaImpressao = obterDispositivosFiltrados();
+  if (!listaImpressao.length) {
+    showToast('Nenhum dispositivo para imprimir.', true);
+    return;
+  }
+
   const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' });
+
+  if (window.jspdf && window.jspdf.jsPDF) {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14);
+      doc.setTextColor(26, 79, 196);
+      doc.text('USF Chico Mendes — Dispositivos Conectados e Auditoria', 14, 16);
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Total de aparelhos: ${listaImpressao.length}  |  Emitido em: ${agora} (Fuso Recife)`, 14, 22);
+
+      const bodyRows = listaImpressao.map((d, idx) => {
+        const statusLabel = d.ativo === false ? 'Bloqueado' : (d.online ? 'Online' : 'Offline');
+        const dtUltimo = d.ultimo_acesso
+          ? new Date(d.ultimo_acesso).toLocaleString('pt-BR', { timeZone: 'America/Recife' })
+          : 'Nunca';
+        return [
+          String(idx + 1),
+          `${d.nome || 'Sem nome'}\n${String(d.id || '').slice(0, 13)}...`,
+          d.setor || '-',
+          statusLabel,
+          `${d.ultimo_ip || '-'}\n${d.user_agent || '-'}`,
+          dtUltimo
+        ];
+      });
+
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
+          startY: 26,
+          head: [['Nº', 'Dispositivo / ID', 'Setor', 'Status', 'IP & Navegador', 'Último Acesso']],
+          body: bodyRows,
+          styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+          headStyles: { fillColor: [26, 79, 196], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 3: { cellWidth: 20, halign: 'center' } }
+        });
+      }
+
+      doc.save(`dispositivos-usf-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showToast('📄 PDF A4 dos dispositivos gerado com sucesso!');
+      return;
+    } catch (err) {
+      console.warn('Erro ao gerar PDF com jsPDF, usando janela de impressão:', err);
+    }
+  }
+
+  // Fallback: janela dedicada A4 (sem conflito com etiqueta 58mm)
   const linhas = listaImpressao.map((d, idx) => {
     const statusLabel = d.ativo === false ? 'Bloqueado' : (d.online ? 'Online' : 'Offline');
-    const badgeClass = d.ativo === false ? 'badge-cancelado' : (d.online ? 'badge-reagendado' : '');
     const dtUltimo = d.ultimo_acesso ? new Date(d.ultimo_acesso).toLocaleString('pt-BR', { timeZone: 'America/Recife' }) : 'Nunca';
-
-    return `
-      <tr>
-        <td style="text-align:center;">${idx + 1}</td>
-        <td><b>${escHtml(d.nome || 'Sem nome')}</b><br><span style="font-size:7pt;color:#6b7280;">${escHtml(d.id)}</span></td>
-        <td>${escHtml(d.setor || '-')}</td>
-        <td style="text-align:center;"><span class="badge-print ${badgeClass}">${statusLabel}</span></td>
-        <td>${escHtml(d.ultimo_ip || '-')}<br><span style="font-size:7pt;color:#6b7280;">${escHtml(d.user_agent || '-')}</span></td>
-        <td>${dtUltimo}</td>
-      </tr>
-    `;
+    return `<tr>
+      <td style="text-align:center;">${idx + 1}</td>
+      <td><b>${escHtml(d.nome || 'Sem nome')}</b><br><small>${escHtml(d.id)}</small></td>
+      <td>${escHtml(d.setor || '-')}</td>
+      <td style="text-align:center;">${statusLabel}</td>
+      <td>${escHtml(d.ultimo_ip || '-')}<br><small>${escHtml(d.user_agent || '-')}</small></td>
+      <td>${dtUltimo}</td>
+    </tr>`;
   }).join('');
-
-  container.innerHTML = `
-    <div class="print-header">
-      <h1>USF Chico Mendes — Dispositivos Conectados e Auditoria</h1>
-      <p class="print-sub">Unidade de Saúde da Família Chico Mendes • Controle de Acesso e Aparelhos</p>
-      <div class="print-meta">
-        <b>Total de aparelhos:</b> ${listaImpressao.length} | <b>Emitido em:</b> ${agora} (Fuso Recife)
-      </div>
-    </div>
-    <table class="print-table">
-      <thead>
-        <tr>
-          <th style="width:25px;text-align:center;">Nº</th>
-          <th>Dispositivo / UUID</th>
-          <th>Setor</th>
-          <th style="text-align:center;">Status</th>
-          <th>IP & Navegador</th>
-          <th>Último Acesso</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${linhas}
-      </tbody>
-    </table>
-  `;
-
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('print-active'));
-  document.getElementById('screen-dispositivos')?.classList.add('print-active');
-
-  window.print();
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { showToast('Permita pop-ups para imprimir a lista.', true); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Dispositivos USF</title>
+    <style>body{font-family:Arial,sans-serif;padding:18px;color:#111}h2{color:#1a4fc4;margin:0 0 4px}table{width:100%;border-collapse:collapse;font-size:11px;margin-top:12px}th,td{border:1px solid #cbd5e1;padding:6px;text-align:left}th{background:#1a4fc4;color:#fff}@page{size:A4 portrait;margin:12mm}</style>
+    </head><body><h2>USF Chico Mendes — Dispositivos Conectados</h2><small>Total: ${listaImpressao.length} | Emitido em: ${agora}</small>
+    <table><thead><tr><th>Nº</th><th>Dispositivo</th><th>Setor</th><th>Status</th><th>IP & Navegador</th><th>Último Acesso</th></tr></thead><tbody>${linhas}</tbody></table>
+    </body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 300);
 }
 
 // Iniciar ao carregar DOM
