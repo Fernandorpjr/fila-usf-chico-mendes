@@ -2910,8 +2910,11 @@ function updatePainel() {
     const prioBadge = p.prioridade === 'prioritario' ? ' <span style="color:#fbbf24;font-weight:800;">⭐</span>' : '';
     const destino = formatarDestinoPainel(p);
     const profText = p.profissional ? p.profissional : (p.medico ? String(p.medico).replace(/\s*\(sem designa[çc][aã]o\)/gi, '').trim() : '');
+    const horaExibida = p.created_at
+      ? safeDate(p.created_at).toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' })
+      : (p.horario_chamada || '--:--');
     return `<div class="painel-fids-row ${i === 0 ? 'is-latest' : ''}">
-      <div class="painel-fids-time">${escapeText(p.horario_chamada || '--:--')}</div>
+      <div class="painel-fids-time">${escapeText(horaExibida)}</div>
       <div class="painel-fids-name">${escapeText(p.nome)}${prioBadge}</div>
       <div class="painel-fids-dest">${escapeText(destino)}${profText ? `<small>${escapeText(profText)}</small>` : ''}</div>
       <div style="text-align:center;">
