@@ -477,10 +477,12 @@ function renderizarGraficosHistorico(data) {
   }
 }
 
-// Impressão A4 estilizada do histórico
+// Impressão / PDF A4 estilizado do histórico (usa jsPDF para não conflitar com @media print da etiqueta 58mm)
 function imprimirHistorico() {
-  const container = document.getElementById('hist-print-area');
-  if (!container) return;
+  if (!_historicoDados || _historicoDados.length === 0) {
+    if (typeof showToast === 'function') showToast('Nenhum registro no histórico para gerar PDF.', true);
+    return;
+  }
 
   const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' });
   const dtInicio = document.getElementById('hist-filtro-inicio')?.value;
@@ -493,6 +495,52 @@ function imprimirHistorico() {
   if (tipo) filtrosTexto.push(`Tipo: ${tipo.toUpperCase()}`);
   if (prof) filtrosTexto.push(`Profissional: ${prof}`);
   const filtrosInfo = filtrosTexto.length > 0 ? filtrosTexto.join(' | ') : 'Todos os registros ativos';
+
+  if (window.jspdf && window.jspdf.jsPDF) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('USF Chico Mendes — Histórico de Cancelamentos e Reagendamentos', 148, 14, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.text(`${filtrosInfo} | Total: ${_historicoDados.length} | Emitido em: ${agora}`, 148, 21, { align: 'center' });
+
+    const rows = _historicoDados.map((item, idx) => {
+      const statusLabel = item.novo_status === 'cancelado' ? 'Cancelado' : 'Reagendado';
+      const dtOriginal = formatarDataBR(item.data_anterior);
+      const dtNova = item.nova_data ? formatarDataBR(item.nova_data) : '-';
+      const datasTxt = item.novo_status === 'reagendado'
+        ? `Orig: ${dtOriginal} ${item.horario_anterior || ''}\nNova: ${dtNova} ${item.novo_horario || ''}`
+        : `Orig: ${dtOriginal} ${item.horario_anterior || ''}`;
+      return [
+        idx + 1,
+        `${item.paciente || '-'}\n${item.telefone || '-'}`,
+        `${item.tipo_atendimento || 'Consulta'}\n${item.profissional || '-'}`,
+        statusLabel,
+        datasTxt,
+        item.motivo || '-',
+        item.vaga_reaproveitada ? 'Sim' : 'Não'
+      ];
+    });
+
+    doc.autoTable({
+      startY: 27,
+      head: [['Nº', 'Paciente / Tel', 'Atendimento / Profissional', 'Status', 'Datas', 'Motivo', 'Reaproveitada']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [26, 79, 196], fontSize: 8.5 },
+      bodyStyles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [240, 244, 255] }
+    });
+
+    doc.save(`historico_cancelamentos_reagendamentos_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+    if (typeof showToast === 'function') showToast('✅ PDF do histórico gerado com sucesso!');
+    return;
+  }
+
+  const container = document.getElementById('hist-print-area');
+  if (!container) return;
 
   let linhasPrint = _historicoDados.map((item, idx) => {
     const isCanc = item.novo_status === 'cancelado';

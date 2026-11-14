@@ -2822,6 +2822,7 @@
             <div class="form-group"><label>Data</label><input type="date" id="agend-filter-data"></div>
             <div class="form-group"><label>Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="reagendado">Reagendado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
             <button class="btn btn-primary btn-sm" onclick="loadAgendamentos()">🔍 Filtrar</button>
+            <button class="btn btn-green btn-sm" onclick="exportarListaAgendamentosPDF()" title="Gerar PDF da lista de agendamentos filtrada">📄 Gerar PDF</button>
           </div>
           <div style="overflow-x:auto;">
             <table class="agend-table" id="agend-table"><thead><tr><th>Paciente</th><th>Data</th><th>Hora</th><th>Profissional</th><th>Status</th><th>Ações</th></tr></thead><tbody id="agend-tbody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr></tbody></table>
@@ -2835,6 +2836,7 @@
         <div class="filter-row" style="margin-bottom:16px;">
           <div class="form-group"><label>Data</label><input type="date" id="rel-msg-data" onchange="loadRelatorioMensagens()"></div>
           <button class="btn btn-primary btn-sm" onclick="loadRelatorioMensagens()">🔍 Consultar</button>
+          <button class="btn btn-green btn-sm" onclick="exportarRelatorioMensagensPDF()" title="Gerar PDF do relatório de mensagens">📄 Gerar PDF</button>
         </div>
         <div id="rel-msg-content">
           <div style="text-align:center;padding:24px;color:var(--gray-600);">Selecione uma data e clique em Consultar</div>
@@ -3373,6 +3375,20 @@
         </div>
       </div>
 
+      <!-- Preview e Copiar Imagem no Lote -->
+      <div id="fila-disparo-img-box" style="display:none;margin-bottom:12px;padding:10px 12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;text-align:left;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img id="fila-disparo-img-preview" src="" alt="Imagem da consulta" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #cbd5e1;background:#fff;">
+          <div>
+            <div id="fila-disparo-img-label" style="font-size:12.5px;font-weight:800;color:#166534;">📎 Imagem pronta para colar no WhatsApp</div>
+            <div style="font-size:11px;color:#475569;">Ao clicar em "Disparar WhatsApp", a imagem também é copiada automaticamente.</div>
+          </div>
+        </div>
+        <button type="button" onclick="copiarImagemLote()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 2px 6px rgba(22,163,74,0.25);">
+          🖼️ Copiar Imagem (Ctrl+V)
+        </button>
+      </div>
+
       <div id="fila-disparo-lista" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
         <!-- Itens da fila gerados via JS -->
       </div>
@@ -3903,8 +3919,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="historico.js"></script>
+<script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.7"></script>
-<script src="app.js?v=4.9"></script>
+<script src="app.js?v=5.0"></script>
 </body>
 </html>

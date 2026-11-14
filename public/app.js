@@ -4021,6 +4021,8 @@ async function criarAgendamento() {
   } catch { showToast('❌ Erro ao agendar! Verifique sua conexão.', true); }
 }
 
+let _agendamentosAtuais = [];
+
 async function loadAgendamentos() {
   const data = document.getElementById('agend-filter-data')?.value || '';
   const status = document.getElementById('agend-filter-status')?.value || '';
@@ -4028,7 +4030,8 @@ async function loadAgendamentos() {
   try {
     const r = await fetch(`${API_URL}/agendamentos?${params}`);
     const list = await r.json();
-    renderAgendamentos(list);
+    _agendamentosAtuais = Array.isArray(list) ? list : [];
+    renderAgendamentos(_agendamentosAtuais);
     loadColetasStats();
     loadRelatorioMensagens();
     loadHistoricoAgendamentos();
@@ -4897,10 +4900,41 @@ function salvarMensagemIndividualLote(index) {
   showToast(`✏️ Mensagem de ${item.nome} atualizada!`);
 }
 
+let _loteCurrentImgSrc = '/img/confirmacao.jpg';
+
+function atualizarImagemBoxLote(imgSrc, tipoAtendimento) {
+  _loteCurrentImgSrc = imgSrc || '/img/confirmacao.jpg';
+  const box = document.getElementById('fila-disparo-img-box');
+  const preview = document.getElementById('fila-disparo-img-preview');
+  const label = document.getElementById('fila-disparo-img-label');
+  if (box && preview) {
+    preview.src = _loteCurrentImgSrc;
+    box.style.display = 'flex';
+    if (label) {
+      label.textContent = `📎 Imagem: ${tipoAtendimento || 'Consulta'} (pronta para Ctrl+V)`;
+    }
+  }
+}
+
+async function copiarImagemLote() {
+  await copiarImagemParaClipboard(_loteCurrentImgSrc, false);
+}
+
+async function copiarImagemItemLote(index) {
+  const item = _filaDisparoLote[index];
+  if (!item) return;
+  atualizarImagemBoxLote(item.imgSrc, item.tipo_atendimento);
+  await copiarImagemParaClipboard(item.imgSrc, false);
+}
+
 function iniciarFilaDisparoLote(agendamentos, novoStatus, motivo, novaData, novoHorario) {
   _filaDisparoLote = agendamentos.map(a => {
     const msg = gerarMensagemEditarEnvio(a, novoStatus, motivo, novaData, novoHorario);
     const phone = (a.telefone || '').replace(/\D/g, '');
+    const tipoAtend = a.tipo_atendimento || 'Consulta';
+    const imgSrc = typeof getImagemTipoConsulta === 'function'
+      ? getImagemTipoConsulta(tipoAtend, a.profissional)
+      : '/img/confirmacao.jpg';
     return {
       id: a.id,
       nome: a.nome,
@@ -4910,6 +4944,8 @@ function iniciarFilaDisparoLote(agendamentos, novoStatus, motivo, novaData, novo
       msg,
       msgOriginal: msg,
       profissional: a.profissional,
+      tipo_atendimento: tipoAtend,
+      imgSrc,
       novoStatus,
       enviado: false
     };
@@ -4920,6 +4956,10 @@ function iniciarFilaDisparoLote(agendamentos, novoStatus, motivo, novaData, novo
   if (txtTpl) txtTpl.value = _templatePadraoLote;
   const boxEditor = document.getElementById('box-editor-msg-lote');
   if (boxEditor) boxEditor.style.display = 'none';
+
+  if (_filaDisparoLote.length > 0) {
+    atualizarImagemBoxLote(_filaDisparoLote[0].imgSrc, _filaDisparoLote[0].tipo_atendimento);
+  }
 
   renderFilaDisparoLote();
   document.getElementById('modal-fila-disparo-lote').classList.add('show');
@@ -4937,10 +4977,12 @@ function renderFilaDisparoLote() {
     const btnHtml = item.enviado
       ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
            <span style="background:rgba(74,171,60,0.15);color:#2d7a22;font-size:11px;font-weight:800;padding:5px 10px;border-radius:6px;">✅ Enviado</span>
+           <button type="button" onclick="copiarImagemItemLote(${index})" title="Copiar imagem deste paciente para colar no WhatsApp" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;">🖼️ Img</button>
            <button type="button" onclick="editarMensagemIndividualLote(${index})" title="Ver ou editar mensagem deste paciente" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;">✏️ Msg</button>
            <button type="button" onclick="dispararItemFila(${index})" title="Reenviar WhatsApp com texto corrigido" style="background:#25D366;color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Reenviar</button>
          </div>`
       : `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+           <button type="button" onclick="copiarImagemItemLote(${index})" title="Copiar imagem deste paciente para colar no WhatsApp" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:6px 9px;font-size:11.5px;font-weight:700;cursor:pointer;">🖼️ Img</button>
            <button type="button" onclick="editarMensagemIndividualLote(${index})" title="Ver ou editar mensagem deste paciente" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:6px;padding:6px 9px;font-size:11.5px;font-weight:700;cursor:pointer;">✏️ Msg</button>
            <button type="button" onclick="dispararItemFila(${index})" style="background:#25D366;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(37,211,102,0.3);transition:all 0.15s;" onmouseover="this.style.background='#1fb855'" onmouseout="this.style.background='#25D366'">
              📲 Disparar WhatsApp
@@ -4951,7 +4993,7 @@ function renderFilaDisparoLote() {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
         <div>
           <div style="font-weight:800;font-size:13px;color:var(--blue-dark);">${escapeText(item.nome)}</div>
-          <div style="font-size:11px;color:var(--gray-600);">${escapeText(item.telefone)} • Horário: ${escapeText(item.horario)}</div>
+          <div style="font-size:11px;color:var(--gray-600);">${escapeText(item.telefone)} • Horário: ${escapeText(item.horario)} • ${escapeText(item.tipo_atendimento || 'Consulta')}</div>
         </div>
         <div>${btnHtml}</div>
       </div>
@@ -4968,6 +5010,9 @@ function renderFilaDisparoLote() {
 async function dispararItemFila(index) {
   const item = _filaDisparoLote[index];
   if (!item) return;
+
+  atualizarImagemBoxLote(item.imgSrc, item.tipo_atendimento);
+  await copiarImagemParaClipboard(item.imgSrc, true);
 
   const url = `https://web.whatsapp.com/send?phone=${item.phone}&text=${encodeURIComponent(item.msg)}`;
   window.open(url, '_blank');
@@ -6769,38 +6814,42 @@ function exportarAgendamentosPDF() {
     showToast('Nenhum agendamento para exportar', true);
     return;
   }
-  const dataHoje = new Date().toLocaleDateString('pt-BR');
-  let html = `
-    <html><head><title>Relatório de Agendamentos USF Chico Mendes - ${dataHoje}</title>
-    <style>
-      body { font-family: sans-serif; padding: 20px; }
-      h2 { text-align: center; color: #333; margin-bottom: 24px; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 13px; }
-      th { background-color: #f4f4f4; color: #333; }
-      .badge-pendente { color: #d32f2f; font-weight: bold; }
-      .badge-agendado { color: #2e7d32; font-weight: bold; }
-    </style></head><body>
-    <h2>Relatório de Agendamentos USF Chico Mendes<br><span style="font-size:18px;color:#666;">Acolhimento (PEC Recife) - ${dataHoje}</span></h2>
-    <table>
-      <thead><tr><th>Hora</th><th>Paciente</th><th>Equipe</th><th>CPF (6)</th><th>Motivo</th><th>Status</th></tr></thead>
-      <tbody>
-  `;
-  ctrlAgendamentos.forEach(a => {
-    const statusClass = a.status === 'pendente' ? 'badge-pendente' : 'badge-agendado';
-    const statusText = a.status === 'pendente' ? 'Pendente' : 'Agendado';
-    html += `<tr>
-      <td>${a.horario}</td>
-      <td>${a.nome}</td>
-      <td>${a.equipe || '-'}</td>
-      <td>${a.cpf6 || '-'}</td>
-      <td>${a.queixa || '-'}</td>
-      <td class="${statusClass}">${statusText}</td>
-    </tr>`;
-  });
-  html += `</tbody></table>`;
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('Carregando biblioteca PDF...', true);
+    return;
+  }
 
-  // === Soma total por equipe ===
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('l');
+  const dataHoje = new Date().toLocaleDateString('pt-BR');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('Controle de Agendamentos (Acolhimento PEC Recife) — USF Chico Mendes', 148, 14, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Emitido em: ${dataHoje} | Total de registros: ${ctrlAgendamentos.length}`, 148, 21, { align: 'center' });
+
+  const bodyRows = ctrlAgendamentos.map((a, idx) => [
+    idx + 1,
+    a.horario || '-',
+    a.nome || '-',
+    a.equipe || '-',
+    a.cpf6 || '-',
+    a.queixa || '-',
+    a.status === 'pendente' ? 'Pendente' : 'Agendado'
+  ]);
+
+  doc.autoTable({
+    startY: 27,
+    head: [['Nº', 'Hora', 'Paciente', 'Equipe', 'CPF (6)', 'Motivo', 'Status']],
+    body: bodyRows,
+    theme: 'grid',
+    headStyles: { fillColor: [26, 79, 196], fontSize: 9 },
+    bodyStyles: { fontSize: 8.5 },
+    alternateRowStyles: { fillColor: [240, 244, 255] }
+  });
+
   const equipeTotals = {};
   ctrlAgendamentos.forEach(a => {
     const eq = a.equipe || 'Sem Equipe';
@@ -6812,37 +6861,32 @@ function exportarAgendamentosPDF() {
 
   const equipeKeys = Object.keys(equipeTotals).sort();
   if (equipeKeys.length > 0) {
-    html += `<h3 style="margin-top:24px;color:#333;">Resumo por Equipe</h3>`;
-    html += `<table><thead><tr><th>Equipe</th><th>Pendentes</th><th>Agendados</th><th>Total</th></tr></thead><tbody>`;
+    const nextY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 30) + 10;
     let grandPendente = 0, grandAgendado = 0, grandTotal = 0;
-    equipeKeys.forEach(eq => {
+    const resumoRows = equipeKeys.map(eq => {
       const t = equipeTotals[eq];
       grandPendente += t.pendente;
       grandAgendado += t.agendado;
       grandTotal += t.total;
-      html += `<tr>
-        <td style="font-weight:bold;">${eq}</td>
-        <td class="badge-pendente">${t.pendente}</td>
-        <td class="badge-agendado">${t.agendado}</td>
-        <td style="font-weight:bold;">${t.total}</td>
-      </tr>`;
+      return [eq, t.pendente, t.agendado, t.total];
     });
-    html += `<tr style="background:#f0f4ff;font-weight:bold;">
-      <td>TOTAL GERAL</td>
-      <td class="badge-pendente">${grandPendente}</td>
-      <td class="badge-agendado">${grandAgendado}</td>
-      <td>${grandTotal}</td>
-    </tr>`;
-    html += `</tbody></table>`;
+    resumoRows.push(['TOTAL GERAL', grandPendente, grandAgendado, grandTotal]);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Resumo por Equipe', 14, nextY);
+    doc.autoTable({
+      startY: nextY + 4,
+      head: [['Equipe', 'Pendentes', 'Agendados', 'Total']],
+      body: resumoRows,
+      theme: 'grid',
+      headStyles: { fillColor: [15, 118, 110], fontSize: 9 },
+      bodyStyles: { fontSize: 8.5 }
+    });
   }
 
-  html += `</body></html>`;
-  
-  const win = window.open('', '_blank');
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 500);
+  doc.save(`controle_agendamentos_${dataHoje.replace(/\//g, '-')}.pdf`);
+  showToast('✅ PDF gerado com sucesso!');
 }
 
 // Polling dedicado para a aba de agendamento (8s foreground / 60s background)
@@ -7158,30 +7202,43 @@ intervalAgend = setInterval(() => {
 // --- MELHORIA F: verificação inicial de expediente (após todos os intervalos estarem criados) ---
 checkExpediente();
 
+function copiarImagemParaClipboard(imgSrc, silencioso) {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onerror = () => {
+        if (!silencioso) showToast('Não foi possível carregar a imagem.', true);
+        resolve(false);
+      };
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(async (blob) => {
+          if (!blob) { resolve(false); return; }
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            showToast('🖼️ Imagem copiada! Cole (Ctrl+V) no WhatsApp.');
+            resolve(true);
+          } catch (e) {
+            if (!silencioso) showToast('Erro ao copiar imagem: ' + e.message, true);
+            resolve(false);
+          }
+        }, 'image/png');
+      };
+      img.src = imgSrc || '/img/confirmacao.jpg';
+    } catch (err) {
+      if (!silencioso) showToast('Erro: ' + err.message, true);
+      resolve(false);
+    }
+  });
+}
+
 async function copyWaImageToClipboard() {
-  try {
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.onload = async function() {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      canvas.toBlob(async (blob) => {
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ "image/png": blob })
-          ]);
-          showToast("🖼️ Imagem copiada! Cole (Ctrl+V) no WhatsApp.");
-        } catch(e) { showToast("Erro ao copiar imagem: " + e.message, true); }
-      }, "image/png");
-    };
-    // Usa a imagem dinâmica por tipo de consulta (definida por openWaPreview/updateWaImagePreview)
-    img.src = _waCurrentImageSrc || '/img/confirmacao.jpg';
-  } catch (err) {
-    showToast("Erro: " + err.message, true);
-  }
+  await copiarImagemParaClipboard(_waCurrentImageSrc || '/img/confirmacao.jpg', false);
 }
 
 // === MELHORIA 4: CHAMADAS DE VOZ LOCAIS ===
@@ -7376,6 +7433,8 @@ async function salvarVagasMedico(medico) {
 // === FIM MELHORIA 3 ===
 
 // ====== RELATÓRIO DE MENSAGENS ENVIADAS ======
+let _ultimoRelatorioMensagens = null;
+
 async function loadRelatorioMensagens() {
   const dataInput = document.getElementById('rel-msg-data');
   const content = document.getElementById('rel-msg-content');
@@ -7386,8 +7445,94 @@ async function loadRelatorioMensagens() {
     const r = await fetch(`${API_URL}/mensagens-enviadas/relatorio?data=${data}`);
     if (!r.ok) throw new Error();
     const rel = await r.json();
+    _ultimoRelatorioMensagens = rel;
     renderRelatorioMensagens(rel, content);
   } catch { showToast('Erro ao carregar relatório!', true); }
+}
+
+function exportarListaAgendamentosPDF() {
+  if (!_agendamentosAtuais || _agendamentosAtuais.length === 0) {
+    showToast('Nenhum agendamento carregado para gerar PDF.', true);
+    return;
+  }
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('Carregando biblioteca PDF...', true);
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('l');
+  const dataFiltro = document.getElementById('agend-filter-data')?.value || '';
+  const statusFiltro = document.getElementById('agend-filter-status')?.value || 'Todos';
+  const dataRef = dataFiltro ? dataFiltro.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('Relatório de Agendamentos — USF Chico Mendes', 148, 14, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Data: ${dataRef} | Status: ${statusFiltro || 'Todos'} | Total: ${_agendamentosAtuais.length}`, 148, 21, { align: 'center' });
+
+  const rows = _agendamentosAtuais.map((a, i) => [
+    i + 1,
+    a.nome || '-',
+    a.telefone || '-',
+    a.data_agendamento ? String(a.data_agendamento).split('T')[0].split('-').reverse().join('/') : '-',
+    a.horario || '-',
+    a.profissional || '-',
+    a.tipo_atendimento || '-',
+    a.status || '-'
+  ]);
+
+  doc.autoTable({
+    startY: 27,
+    head: [['Nº', 'Paciente', 'Telefone', 'Data', 'Hora', 'Profissional', 'Tipo', 'Status']],
+    body: rows,
+    theme: 'grid',
+    headStyles: { fillColor: [26, 79, 196], fontSize: 9 },
+    bodyStyles: { fontSize: 8.5 },
+    alternateRowStyles: { fillColor: [240, 244, 255] }
+  });
+
+  doc.save(`agendamentos_${dataRef.replace(/\//g, '-')}.pdf`);
+  showToast('✅ PDF de agendamentos gerado com sucesso!');
+}
+
+async function exportarRelatorioMensagensPDF() {
+  if (!_ultimoRelatorioMensagens) {
+    await loadRelatorioMensagens();
+  }
+  if (!_ultimoRelatorioMensagens || !_ultimoRelatorioMensagens.total) {
+    showToast('Nenhuma mensagem registrada para esta data.', true);
+    return;
+  }
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('Carregando biblioteca PDF...', true);
+    return;
+  }
+  const rel = _ultimoRelatorioMensagens;
+  const dataFmt = new Date(rel.data + 'T12:00:00').toLocaleDateString('pt-BR');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text('Relatório de Mensagens Enviadas (WhatsApp)', 105, 16, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`USF Chico Mendes | Data: ${dataFmt} | Total de Disparos: ${rel.total}`, 105, 23, { align: 'center' });
+
+  const rows = (rel.porProfissional || []).map((p, i) => [i + 1, p.profissional, p.total]);
+  doc.autoTable({
+    startY: 30,
+    head: [['Nº', 'Profissional', 'Mensagens Enviadas']],
+    body: rows,
+    theme: 'grid',
+    headStyles: { fillColor: [26, 79, 196], fontSize: 10 },
+    bodyStyles: { fontSize: 9.5 }
+  });
+
+  doc.save(`relatorio_mensagens_${dataFmt.replace(/\//g, '-')}.pdf`);
+  showToast('✅ PDF do relatório de mensagens gerado!');
 }
 
 function renderRelatorioMensagens(rel, container) {
