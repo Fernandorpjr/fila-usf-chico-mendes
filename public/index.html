@@ -430,9 +430,26 @@
 
   #chat-fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: white; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 4px 16px rgba(0,0,0,0.3); font-size: 24px; cursor: pointer; z-index: 950; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, box-shadow 0.2s; }
   #chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
-  #chat-drawer-overlay { position: fixed; bottom: 90px; right: 24px; width: 440px; max-width: calc(100vw - 32px); height: 580px; max-height: calc(100vh - 110px); background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 940; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.25s ease, transform 0.25s ease; border: 1px solid rgba(0,0,0,0.15); }
+  #chat-drawer-overlay { position: fixed; bottom: 90px; right: 24px; width: 460px; max-width: calc(100vw - 32px); height: 610px; max-height: calc(100vh - 110px); background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 940; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.2s ease; border: 1px solid rgba(0,0,0,0.15); }
   #chat-drawer-overlay.chat-drawer-hidden { opacity: 0; pointer-events: none; transform: translateY(20px) scale(0.95); }
+  #chat-drawer-overlay.chat-drop-active { box-shadow: 0 0 0 4px #3b82f6, 0 12px 36px rgba(37,99,235,0.35); }
   .chat-drawer-header { background: linear-gradient(135deg, var(--blue-dark), #0a1f5c); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+  .chat-canais-bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #eef3ff; border-bottom: 1px solid #dbe4ff; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+  .chat-canais-bar::-webkit-scrollbar { display: none; }
+  .chat-canal-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .chat-canal-pill:hover { border-color: var(--blue); color: var(--blue-dark); }
+  .chat-canal-pill.active { background: var(--blue); color: #ffffff; border-color: var(--blue-dark); box-shadow: 0 2px 6px rgba(26,79,196,0.25); }
+  .chat-canal-pill .chat-canal-badge { background: var(--red); color: #fff; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px; margin-left: 2px; }
+  .chat-quick-replies { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+  .chat-quick-replies::-webkit-scrollbar { display: none; }
+  .chat-quick-chip { padding: 4px 10px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .chat-quick-chip:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+  .chat-ciente-btn { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.85); color: #334155; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .chat-ciente-btn:hover { background: #dcfce7; border-color: #86efac; color: #166534; }
+  #chat-fab.chat-fab-urgent { background: linear-gradient(135deg, #ef4444, #b91c1c); animation: urgentPulse 1.3s infinite; }
+  #chat-image-modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.85); align-items: center; justify-content: center; padding: 20px; flex-direction: column; gap: 14px; }
+  #chat-image-modal.show { display: flex; }
+  #chat-image-modal img { max-width: 92vw; max-height: 80vh; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); background: #fff; }
 
   @media(max-width:768px){.chat-layout{grid-template-columns:1fr;height:auto;}.chat-sidebar{max-height:160px;}}
 
@@ -2613,8 +2630,8 @@
           
           <div style="margin-left:auto; display:flex; align-items:center; gap: 8px;">
             <label style="font-size:11px;color:var(--gray-300);font-weight:700;">Identificação:</label>
-            <input type="text" id="chat-remetente-nome" placeholder="Seu nome" style="padding:4px; border-radius:4px; border:1px solid #ddd; font-size:12px; width: 90px;">
-            <select id="chat-remetente" title="Selecione seu setor" onchange="onChatSetorChange()" style="padding:4px; border-radius:4px; border:1px solid #ddd; font-size:12px;">
+            <input type="text" id="chat-remetente-nome" placeholder="Seu nome" oninput="onChatNomeChange()" style="padding:4px 6px; border-radius:6px; border:1px solid #ddd; font-size:12px; width: 105px;">
+            <select id="chat-remetente" title="Selecione seu setor" onchange="onChatSetorChange()" style="padding:4px 6px; border-radius:6px; border:1px solid #ddd; font-size:12px;">
               <option value="Recepção">🏢 Recepção</option>
               <option value="Acolhimento">💜 Acolhimento</option>
               <option value="Farmácia">💊 Farmácia</option>
@@ -2626,6 +2643,8 @@
             </select>
           </div>
         </div>
+        <!-- Barra de Canais + Presença Online -->
+        <div class="chat-canais-bar" id="chat-canal-list"></div>
         <!-- === MELHORIA C: PIN BANNER === -->
         <div class="chat-pin-banner" id="chat-pin-banner" style="display:none;">
           <span>📌</span>
@@ -2635,25 +2654,41 @@
         <!-- === FIM MELHORIA C === -->
         <div class="chat-messages-area" id="chat-messages"></div>
         <div class="chat-typing-indicator" id="chat-typing"></div>
+        <div class="chat-quick-replies">
+          <button type="button" class="chat-quick-chip" onclick="enviarRespostaRapidaChat('👍 Ciente!')">👍 Ciente</button>
+          <button type="button" class="chat-quick-chip" onclick="usarAtalhoChat('Paciente aguardando na recepção: ')">🏢 Paciente aguardando</button>
+          <button type="button" class="chat-quick-chip" onclick="usarAtalhoChat('Pode encaminhar para cá.')">✅ Pode encaminhar</button>
+          <button type="button" class="chat-quick-chip" onclick="usarAtalhoChat('Preciso de apoio na sala.')">🩺 Apoio na sala</button>
+        </div>
         <div class="chat-input-area">
           <div class="emoji-picker" id="emoji-picker"></div>
           
-          <input type="file" id="chat-file-input" style="display:none;" accept=".pdf,.doc,.docx,.xlsx,.png,.jpg,.jpeg">
-          <button onclick="document.getElementById('chat-file-input').click()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Anexar Arquivo">📎</button>
+          <input type="file" id="chat-file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">
+          <button type="button" onclick="document.getElementById('chat-file-input').click()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Anexar Imagem ou Arquivo (ou cole com Ctrl+V)">📎</button>
           
-          <button onclick="toggleEmojiPicker()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Emojis">😊</button>
+          <button type="button" onclick="toggleEmojiPicker()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Emojis">😊</button>
           
           <!-- Container de preview do anexo -->
-          <div id="chat-file-preview" style="display:none; position:absolute; bottom: 60px; left: 10px; background: white; padding: 8px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); align-items:center; gap:8px;">
-             <span id="chat-file-name" style="font-size: 12px; font-weight: bold; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
-             <button onclick="removeChatAttachment()" style="background: #f44336; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer;">✕</button>
+          <div id="chat-file-preview" style="display:none; position:absolute; bottom: 64px; left: 10px; z-index: 25; background: white; padding: 8px 10px; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.18); border: 1px solid #cbd5e1; align-items:center; gap:8px;">
+             <img id="chat-file-thumb" src="" alt="" style="display:none; width:38px; height:38px; object-fit:cover; border-radius:6px; border:1px solid #e2e8f0;">
+             <span id="chat-file-name" style="font-size: 12px; font-weight: bold; max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color:#1e293b;"></span>
+             <button type="button" onclick="removeChatAttachment()" style="background: #f44336; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; flex-shrink:0;" title="Remover anexo">✕</button>
           </div>
 
-          <textarea id="chat-input" placeholder="Digite sua mensagem..." rows="1" onkeydown="handleChatKeydown(event)" oninput="handleChatTyping()"></textarea>
-          <button class="chat-urgent-toggle" id="chat-urgent-btn" onclick="toggleUrgent()" title="Marcar como urgente">🔴</button>
-          <button class="chat-send-btn" onclick="sendChatChannelMessage()" title="Enviar">🚀</button>
+          <textarea id="chat-input" placeholder="Digite sua mensagem ou cole um print (Ctrl+V)..." rows="1" onkeydown="handleChatKeydown(event)" oninput="handleChatTyping()"></textarea>
+          <button type="button" class="chat-urgent-toggle" id="chat-urgent-btn" onclick="toggleUrgent()" title="Marcar como urgente">🔴</button>
+          <button type="button" class="chat-send-btn" id="chat-send-btn" onclick="sendChatChannelMessage()" title="Enviar">🚀</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Lightbox para Imagens do Chat -->
+  <div id="chat-image-modal" onclick="fecharImagemChatModal()">
+    <img id="chat-image-modal-img" src="" alt="Imagem do chat" onclick="event.stopPropagation()">
+    <div style="display:flex; gap:10px;" onclick="event.stopPropagation()">
+      <a id="chat-image-modal-download" href="" download="imagem-chat.jpg" class="btn btn-primary" style="text-decoration:none;">⬇️ Baixar Imagem</a>
+      <button type="button" onclick="fecharImagemChatModal()" class="btn btn-secondary">✕ Fechar</button>
     </div>
   </div>
 
@@ -3849,6 +3884,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js"></script>
 <script src="dispositivos.js?v=4.7"></script>
-<script src="app.js?v=4.7"></script>
+<script src="app.js?v=4.8"></script>
 </body>
 </html>

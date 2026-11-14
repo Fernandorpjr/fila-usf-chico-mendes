@@ -2987,10 +2987,19 @@ function toggleChatPanel() {
   chatPanelOpen = !chatPanelOpen;
   if (chatPanelOpen) {
     overlay.classList.remove('chat-drawer-hidden');
+    const fab = document.getElementById('chat-fab');
+    if (fab) fab.classList.remove('chat-fab-urgent');
     markCanalAsRead(activeCanal);
     registerPresenca();
+    renderCanalList();
     updateChatBadge();
-    setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
+    loadChatPin(activeCanal);
+    setTimeout(() => {
+      const c = document.getElementById('chat-messages');
+      if (c) c.scrollTop = c.scrollHeight;
+      const inp = document.getElementById('chat-input');
+      if (inp) inp.focus();
+    }, 50);
   } else {
     overlay.classList.add('chat-drawer-hidden');
   }
@@ -3012,15 +3021,21 @@ let chatUrgent = false;
 let typingTimeout = null;
 CANAIS.forEach(c => { channelMessages[c.id] = []; channelUnread[c.id] = 0; });
 
-// Restore saved setor
+// Restore saved setor e nome
 const savedSetor = localStorage.getItem('chatSetor');
 if (savedSetor) { setTimeout(() => { const sel = document.getElementById('chat-remetente'); if (sel) sel.value = savedSetor; }, 100); }
+const savedChatNome = localStorage.getItem('chatNome');
+if (savedChatNome) { setTimeout(() => { const inpNome = document.getElementById('chat-remetente-nome'); if (inpNome) inpNome.value = savedChatNome; }, 100); }
+
+function onChatNomeChange() {
+  const inpNome = document.getElementById('chat-remetente-nome');
+  if (inpNome) localStorage.setItem('chatNome', inpNome.value.trim());
+}
 
 function onChatSetorChange() {
   const v = document.getElementById('chat-remetente').value;
   localStorage.setItem('chatSetor', v);
-  // Auto-switch to general on sector change to ensure a valid canal is active
-  switchCanal('geral');
+  renderCanalList();
 }
 
 function getVisibleCanais() {
@@ -3095,11 +3110,11 @@ function renderCanalList() {
   el.innerHTML = visible.map(c => {
     const unread = channelUnread[c.id] || 0;
     const badge = unread > 0 ? `<span class="chat-canal-badge">${unread}</span>` : '';
-    /* === MELHORIA C: Presença + Preview === */
     const presenceDot = getPresenceDot(c.id);
-    const preview = getLastMessagePreview(c.id);
-    /* === FIM MELHORIA C === */
-    return `<button class="chat-canal-btn ${c.id===activeCanal?'active':''}" onclick="switchCanal('${c.id}')">${presenceDot}${c.nome}${badge}${preview}</button>`;
+    const msgs = channelMessages[c.id] || [];
+    const last = msgs.length ? msgs[msgs.length - 1] : null;
+    const titleTip = last ? `${last.autor}: ${(last.texto || last.anexo_nome || '').slice(0, 60)}` : c.desc;
+    return `<button type="button" class="chat-canal-pill ${c.id===activeCanal?'active':''}" onclick="switchCanal('${c.id}')" title="${escapeText(titleTip)}">${presenceDot}${c.nome}${badge}</button>`;
   }).join('');
 }
 
@@ -3162,9 +3177,17 @@ async function loadChannelMessages(canalId) {
         const meuNome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
         const meuIdentificador = meuNome ? `${meuNome} (${meuSetor})` : meuSetor;
         
-        // Só toca o som se a mensagem não foi enviada por mim
+        // Só toca o som e alerta se a mensagem não foi enviada por mim
         if (newLast.autor !== meuIdentificador && newLast.autor !== meuSetor) {
           playChatSound();
+          if (newLast.urgente) {
+            const fab = document.getElementById('chat-fab');
+            if (fab && !chatPanelOpen) fab.classList.add('chat-fab-urgent');
+          }
+          if (!chatPanelOpen || activeCanal !== canalId) {
+            const resumo = (newLast.texto || (newLast.anexo_nome ? `📎 ${newLast.anexo_nome}` : 'Nova mensagem')).slice(0, 55);
+            showToast(`${newLast.urgente ? '🚨 URGENTE' : '💬'} ${newLast.autor}: ${resumo}`, Boolean(newLast.urgente));
+          }
         }
       }
     }
@@ -3199,34 +3222,129 @@ function renderChannelChat() {
     
     let anexoHtml = '';
     if (m.anexo_base64 && m.anexo_nome) {
-      const isImg = m.anexo_nome.match(/\.(jpeg|jpg|png|gif)$/i);
+      const isImg = /\.(jpeg|jpg|png|gif|webp|bmp)$/i.test(m.anexo_nome) || String(m.anexo_base64).startsWith('data:image/');
+      const safeAnexoNome = escapeText(m.anexo_nome).replace(/'/g, "\\'");
       if (isImg) {
-        anexoHtml = `<div style="margin-top:8px;"><img src="${m.anexo_base64}" style="max-width:100%; max-height:200px; border-radius:8px; cursor:pointer;" onclick="window.open('${m.anexo_base64}', '_blank')"></div>`;
+        anexoHtml = `<div style="margin-top:8px;"><img src="${m.anexo_base64}" alt="${escapeText(m.anexo_nome)}" style="max-width:100%; max-height:200px; border-radius:8px; cursor:pointer; border:1px solid rgba(0,0,0,0.1);" onclick="abrirImagemChatModal(this.src, '${safeAnexoNome}')"></div>`;
       } else {
-        anexoHtml = `<div style="margin-top:8px; background:rgba(0,0,0,0.05); padding:8px; border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <span style="font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">📎 ${m.anexo_nome}</span>
-          <a href="${m.anexo_base64}" download="${m.anexo_nome}" class="btn btn-sm btn-primary" style="padding:4px 8px; font-size:11px;">Baixar</a>
+        anexoHtml = `<div style="margin-top:8px; background:rgba(0,0,0,0.06); padding:8px; border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <span style="font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">📎 ${escapeText(m.anexo_nome)}</span>
+          <a href="${m.anexo_base64}" download="${escapeText(m.anexo_nome)}" class="btn btn-sm btn-primary" style="padding:4px 8px; font-size:11px; text-decoration:none;">⬇️ Baixar</a>
         </div>`;
       }
     }
 
-    const pinBtn = `<button class="pin-btn" onclick="event.stopPropagation();pinChatMessage('${m.texto.replace(/'/g,"\\\\'")}','${m.autor}')" title="Fixar mensagem">📌</button>`;
+    const safePinTxt = (m.texto || m.anexo_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const safeAutorJs = (m.autor || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const pinBtn = `<button class="pin-btn" onclick="event.stopPropagation();pinChatMessage('${safePinTxt}','${safeAutorJs}')" title="Fixar mensagem">📌</button>`;
+    const cienteBtn = !isMe
+      ? `<div><button type="button" class="chat-ciente-btn" onclick="enviarRespostaRapidaChat('👍 Ciente (${safeAutorJs})')">👍 Ciente</button></div>`
+      : '';
     
     // Se não tiver texto, não renderiza a div de texto vazia
-    const textHtml = m.texto ? `<div>${m.texto}</div>` : '';
+    const textHtml = m.texto ? `<div style="white-space:pre-wrap; word-break:break-word;">${escapeText(m.texto)}</div>` : '';
 
-    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}">${pinBtn}<div class="chat-meta"><span>${urgTag}${m.autor}</span></div>${textHtml}${anexoHtml}<div class="chat-time">${t}</div></div>`;
+    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}">${pinBtn}<div class="chat-meta"><span>${urgTag}${escapeText(m.autor)}</span></div>${textHtml}${anexoHtml}${cienteBtn}<div class="chat-time">${t}</div></div>`;
   }).join('');
   c.scrollTop = c.scrollHeight;
 }
 
 let chatAttachment = null;
 
+function abrirImagemChatModal(src, nome) {
+  const modal = document.getElementById('chat-image-modal');
+  const img = document.getElementById('chat-image-modal-img');
+  const dl = document.getElementById('chat-image-modal-download');
+  if (!modal || !img) return;
+  img.src = src;
+  if (dl) {
+    dl.href = src;
+    dl.download = nome || 'imagem-chat.jpg';
+  }
+  modal.classList.add('show');
+}
+
+function fecharImagemChatModal() {
+  const modal = document.getElementById('chat-image-modal');
+  if (modal) modal.classList.remove('show');
+}
+
 function removeChatAttachment() {
   chatAttachment = null;
-  document.getElementById('chat-file-input').value = '';
-  document.getElementById('chat-file-preview').style.display = 'none';
-  document.getElementById('chat-file-name').textContent = '';
+  const inp = document.getElementById('chat-file-input');
+  if (inp) inp.value = '';
+  const prev = document.getElementById('chat-file-preview');
+  if (prev) prev.style.display = 'none';
+  const thumb = document.getElementById('chat-file-thumb');
+  if (thumb) { thumb.src = ''; thumb.style.display = 'none'; }
+  const nameEl = document.getElementById('chat-file-name');
+  if (nameEl) nameEl.textContent = '';
+}
+
+function compressChatImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onerror = () => resolve({ nome: file.name, base64: ev.target.result, isImage: true });
+      img.onload = () => {
+        const MAX_DIM = 1400;
+        let w = img.width;
+        let h = img.height;
+        if (w > MAX_DIM || h > MAX_DIM) {
+          if (w > h) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
+          else { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', 0.82);
+        const baseName = (file.name || 'imagem').replace(/\.[^.]+$/, '') + '.jpg';
+        resolve({ nome: baseName, base64: compressed, isImage: true });
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function processarArquivoChat(file) {
+  if (!file) return;
+  const isImage = (file.type && file.type.startsWith('image/')) || /\.(jpeg|jpg|png|gif|webp|bmp)$/i.test(file.name || '');
+
+  try {
+    if (isImage) {
+      const result = await compressChatImage(file);
+      if (result.base64.length > 3500000) {
+        showToast('Imagem muito grande mesmo após compressão.', true);
+        return;
+      }
+      chatAttachment = { nome: result.nome, base64: result.base64 };
+      const thumb = document.getElementById('chat-file-thumb');
+      if (thumb) { thumb.src = result.base64; thumb.style.display = 'block'; }
+      document.getElementById('chat-file-name').textContent = '🖼️ ' + result.nome;
+      document.getElementById('chat-file-preview').style.display = 'flex';
+    } else {
+      if (file.size > 2.5 * 1024 * 1024) {
+        showToast('Arquivo deve ter no máximo 2,5 MB.', true);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        chatAttachment = { nome: file.name, base64: ev.target.result };
+        const thumb = document.getElementById('chat-file-thumb');
+        if (thumb) { thumb.src = ''; thumb.style.display = 'none'; }
+        document.getElementById('chat-file-name').textContent = '📎 ' + file.name;
+        document.getElementById('chat-file-preview').style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    }
+  } catch (err) {
+    showToast('Não foi possível processar o anexo.', true);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -3234,33 +3352,74 @@ document.addEventListener('DOMContentLoaded', () => {
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
-      if (!file) return;
-      if (file.size > 2 * 1024 * 1024) { // 2MB limite
-        showToast('O arquivo deve ter no máximo 2MB.', true);
-        fileInput.value = '';
-        return;
+      if (file) processarArquivoChat(file);
+    });
+  }
+
+  const chatInput = document.getElementById('chat-input');
+  if (chatInput) {
+    chatInput.addEventListener('paste', (e) => {
+      const items = (e.clipboardData || window.clipboardData)?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type && item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            processarArquivoChat(new File([file], `print-${Date.now()}.png`, { type: file.type }));
+            break;
+          }
+        }
       }
-      
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        chatAttachment = {
-          nome: file.name,
-          base64: ev.target.result
-        };
-        document.getElementById('chat-file-name').textContent = '📎 ' + file.name;
-        document.getElementById('chat-file-preview').style.display = 'flex';
-      };
-      reader.readAsDataURL(file);
+    });
+  }
+
+  const drawer = document.getElementById('chat-drawer-overlay');
+  if (drawer) {
+    drawer.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      drawer.classList.add('chat-drop-active');
+    });
+    drawer.addEventListener('dragleave', () => {
+      drawer.classList.remove('chat-drop-active');
+    });
+    drawer.addEventListener('drop', (e) => {
+      e.preventDefault();
+      drawer.classList.remove('chat-drop-active');
+      const file = e.dataTransfer?.files?.[0];
+      if (file) processarArquivoChat(file);
     });
   }
 });
 
+function usarAtalhoChat(texto) {
+  const inp = document.getElementById('chat-input');
+  if (!inp) return;
+  inp.value = texto;
+  inp.focus();
+  handleChatTyping();
+}
+
+async function enviarRespostaRapidaChat(texto) {
+  const inp = document.getElementById('chat-input');
+  if (!inp) return;
+  inp.value = texto;
+  await sendChatChannelMessage();
+}
+
 async function sendChatChannelMessage() {
+  if (navigator.onLine === false) {
+    if (typeof atualizarStatusConexao === 'function') atualizarStatusConexao('offline', 'Navegador sem internet');
+    showToast('🔴 Sem internet! Não foi possível enviar a mensagem.', true);
+    return;
+  }
   const setor = document.getElementById('chat-remetente')?.value || 'Equipe';
   const nome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
+  if (nome) localStorage.setItem('chatNome', nome);
   const autor = nome ? `${nome} (${setor})` : setor;
   
   const inp = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('chat-send-btn');
   const texto = inp.value.trim();
   
   if (!texto && !chatAttachment) return;
@@ -3268,6 +3427,7 @@ async function sendChatChannelMessage() {
   
   try {
     inp.disabled = true;
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '⏳'; }
     const payload = { 
       autor, 
       texto, 
@@ -3284,8 +3444,10 @@ async function sendChatChannelMessage() {
       body:JSON.stringify(payload) 
     });
     if (r.ok) { 
+      if (typeof registrarSucessoRede === 'function') registrarSucessoRede();
       const msg = await r.json();
       inp.value = ''; 
+      inp.style.height = 'auto';
       chatUrgent = false; 
       document.getElementById('chat-urgent-btn').classList.remove('active');
       removeChatAttachment(); // Limpar anexo após envio
@@ -3296,17 +3458,27 @@ async function sendChatChannelMessage() {
         channelMessages[activeCanal].push(msg);
       }
       renderChannelChat();
+      renderCanalList();
       setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
     }
     else {
-      const err = await r.json();
+      const err = await r.json().catch(() => ({}));
       showToast(`Erro: ${err.error || 'Falha ao enviar'}`, true);
     }
   } catch (e) { 
     console.error('Chat send error:', e);
-    showToast('Erro de conexão com o chat!', true); 
+    if (typeof isErroDeRede === 'function' && isErroDeRede(e)) {
+      if (typeof registrarFalhaRede === 'function') registrarFalhaRede(e);
+      showToast('🔴 Sem conexão com a internet ao enviar no chat!', true);
+    } else {
+      showToast('Erro de conexão com o chat!', true); 
+    }
   }
-  finally { inp.disabled = false; inp.focus(); }
+  finally {
+    inp.disabled = false;
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '🚀'; }
+    inp.focus();
+  }
 }
 
 function handleChatKeydown(e) {
@@ -6813,13 +6985,13 @@ function filtrarVisaoGeralPacientes() {
   });
 
   if (matches.length === 0) {
-    resultEl.innerHTML = `Nenhum paciente encontrado para "<strong>${escapeHtml(input.value.trim())}</strong>" nas filas ativas.`;
+    resultEl.innerHTML = `Nenhum paciente encontrado para "<strong>${escapeText(input.value.trim())}</strong>" nas filas ativas.`;
   } else {
     resultEl.innerHTML = matches.slice(0, 6).map(m => {
       const posTxt = m.status === 'chamando'
         ? '<span style="color:#b45309;font-weight:700;">🔊 Chamando agora</span>'
         : `<span style="color:#0369a1;font-weight:700;">#${m.pos} na fila</span>`;
-      return `<div style="padding:3px 0;">• <strong>${escapeHtml(m.nome)}</strong> — ${escapeHtml(m.setorNome)} (${posTxt})</div>`;
+      return `<div style="padding:3px 0;">• <strong>${escapeText(m.nome)}</strong> — ${escapeText(m.setorNome)} (${posTxt})</div>`;
     }).join('') + (matches.length > 6 ? `<div style="margin-top:4px;color:#64748b;">+ ${matches.length - 6} outros resultados</div>` : '');
   }
   resultEl.classList.add('show');
