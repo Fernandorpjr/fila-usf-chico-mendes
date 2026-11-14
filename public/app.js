@@ -5270,8 +5270,14 @@ function renderAcolhimentoFluxo() {
   const el1 = document.getElementById('acol-filter-cnt-primeira'); if (el1) el1.textContent = `(${cnt1})`;
   const el2 = document.getElementById('acol-filter-cnt-segunda'); if (el2) el2.textContent = `(${cnt2})`;
 
+  const gridEl = document.querySelector('#screen-acolhimento .acol-stages-grid');
+  if (gridEl) {
+    const isSingle = ['recepcao', 'primeira_escuta', 'segunda_escuta'].includes(acolhimentoFilter);
+    gridEl.classList.toggle('single-col', isSingle);
+  }
+
   etapas.forEach(etapa => {
-    let pacientes = acolhimentoFluxo[etapa] || [];
+    let pacientes = (acolhimentoFluxo[etapa] || []).map((p, idx) => ({ ...p, _posOriginal: idx + 1 }));
     if (busca) {
       pacientes = pacientes.filter(p => (p.nome || '').toLowerCase().includes(busca));
     }
@@ -5317,6 +5323,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     return;
   }
   const cardsHtml = pacientes.map((p, i) => {
+    const posReal = p._posOriginal || (i + 1);
     const prioBadge = renderPrioridadeIdadeBadge(p);
     const waitBadge = renderEsperaNormalBadge(p);
     const equipeBadge = renderEquipePacienteBadge(p);
@@ -5330,7 +5337,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
         ? 'background:#fef3c7;color:#b45309;border:1px solid #fcd34d;'
         : 'background:#dcfce7;color:#15803d;border:1px solid #86efac;';
     const tempoBadge = `<span class="acol-tempo-badge" style="${tempoStyle}" title="Tempo nesta etapa">⏱ ${tempoMin} min</span>`;
-    const nextBadge = (i === 0 && p.status !== 'chamado') ? '<span class="badge-proximo-fila">👉 Próximo</span>' : '';
+    const nextBadge = (posReal === 1 && p.status !== 'chamado') ? '<span class="badge-proximo-fila">👉 Próximo</span>' : '';
     const callingBadge = p.status === 'chamado' ? '<span class="queue-status status-calling">📢 Chamando</span>' : '';
     const acsLabel = p.acs_responsavel ? `<div style="font-size:11.5px;color:#475569;font-weight:700;">👤 ACS: ${escapeText(p.acs_responsavel)}</div>` : '';
     const profLabel = p.profissional_destino
@@ -5374,12 +5381,12 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
       <button class="btn-danger" style="font-size:11px;padding:4px 8px;background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${nomeSafe}')" title="Excluir">🔥</button>
     ` : '';
     const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:#475569;background:#f1f5f9;padding:2px 6px;border-radius:4px;border:1px solid #cbd5e1;font-weight:700;">🔙 de: ${escapeText(p.origem_transferencia)}</span>` : '';
-    const cardCls = ['acol-patient-card', i === 0 ? 'is-next' : '', p.status === 'chamado' ? 'is-calling' : ''].filter(Boolean).join(' ');
+    const cardCls = ['acol-patient-card', posReal === 1 ? 'is-next' : '', p.status === 'chamado' ? 'is-calling' : ''].filter(Boolean).join(' ');
 
     return `<div class="${cardCls}">
       <div class="acol-card-top">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span class="fila-pos-badge">${i + 1}º</span>
+          <span class="fila-pos-badge">${posReal}º</span>
           <span style="font-size:11.5px;color:#64748b;font-weight:700;">🕐 ${p.horario || ''}</span>
           ${tempoBadge}
           ${waitBadge}
