@@ -1020,8 +1020,12 @@ app.post('/api/config/mutirao-hoje', async (req, res) => {
 //   da transferência) e segue o fluxo dinâmico conforme novos pacientes chegam.
 const SQL_NIVEL_EFETIVO = `CASE WHEN COALESCE(nivel_prioridade, 3) IN (1, 2) THEN nivel_prioridade WHEN prioridade = 'prioritario' THEN 2 ELSE 3 END`;
 const SQL_PRIO_EFETIVA = `CASE WHEN prioridade = 'prioritario' OR COALESCE(nivel_prioridade, 3) IN (1, 2) THEN 0 ELSE 1 END`;
+const SETORES_HORARIO_MARCADO = ['Médico', 'Odontologia', 'Enfermagem'];
 const SQL_ODONTO_PRIO_RANK = `COALESCE(ordem_prioridade_odonto, CASE WHEN COALESCE(nivel_prioridade, 3) = 1 THEN 1 WHEN prioridade = 'prioritario' OR COALESCE(nivel_prioridade, 3) = 2 THEN 9 ELSE 99 END)`;
-const SQL_ODONTO_HORARIO_MARCADO = `COALESCE(NULLIF(TRIM(horario_marcado), ''), '99:99')`;
+const SQL_ODONTO_HORARIO_MARCADO = `CASE
+  WHEN setor IN ('Médico', 'Odontologia', 'Enfermagem') THEN COALESCE(NULLIF(TRIM(horario_marcado), ''), '99:99')
+  ELSE '00:00'
+END`;
 const SQL_ORDEM_FILA = `
          CASE WHEN sort_order IS NOT NULL THEN 0 ELSE 1 END ASC,
          COALESCE(sort_order, 2147483647) ASC,
@@ -1055,12 +1059,13 @@ async function reordenarFilaSetor(db, setor = 'Odontologia') {
     return { id: r.id, rank, hm, createdMs };
   });
 
+  const usaHorarioMarcado = SETORES_HORARIO_MARCADO.includes(setor);
   rows.sort((a, b) => {
     // 1. Grupo Preferencial (1 a 10) sempre na frente do Geral (99), seguindo a ordem 1 -> 10
     if (a.rank !== b.rank) return a.rank - b.rank;
-    // 2. Dentro da mesma categoria (ou entre pacientes Gerais): Horário Marcado primeiro (ex: 09:00 antes de 10:00)
-    if (a.hm !== b.hm) return a.hm.localeCompare(b.hm);
-    // 3. Mesmo horário marcado: ordem de chegada
+    // 2. Para Médico, Odontologia e Enfermagem: Horário Marcado primeiro (ex: 09:00 antes de 10:00)
+    if (usaHorarioMarcado && a.hm !== b.hm) return a.hm.localeCompare(b.hm);
+    // 3. Demais setores (demanda espontânea) ou mesmo horário marcado: ordem de chegada
     if (a.createdMs !== b.createdMs) return a.createdMs - b.createdMs;
     return a.id - b.id;
   });
@@ -1435,7 +1440,7 @@ app.post('/api/patients', async (req, res) => {
     tipoPrioridadeFinal = calcOdonto.tipo_prioridade;
     nivelFinal = calcOdonto.nivel;
     let ordemPrioridadeOdontoFinal = calcOdonto.ordem_prioridade_odonto;
-    let horarioMarcadoFinal = normalizarHorarioMarcado(horario_marcado);
+    let horarioMarcadoFinal = SETORES_HORARIO_MARCADO.includes(setor) ? normalizarHorarioMarcado(horario_marcado) : null;
 
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     const equipeFinal = equipe_paciente ? String(equipe_paciente).trim().slice(0, 80) : null;
@@ -1955,9 +1960,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
 
     // Preservar ou elevar prioridade do paciente ao transferir (regra 1 a 10 para todos os setores)
     let prioInfo = preservarOuElevarPrioridade(patientAntes);
-    const horarioMarcadoTransfer = horario_marcado !== undefined
-      ? normalizarHorarioMarcado(horario_marcado)
-      : (patientAntes.horario_marcado || null);
+    const horarioMarcadoTransfer = SETORES_HORARIO_MARCADO.includes(novoSetor)
+      ? (horario_marcado !== undefined ? normalizarHorarioMarcado(horario_marcado) : (patientAntes.horario_marcado || null))
+      : null;
     const calcOd = calcularOrdemPrioridadeOdonto(
       patientAntes.idade,
       prioInfo.prioridade,

@@ -437,6 +437,7 @@ async function confirmarPresenca(id, nome) {
 /* === FIM MELHORIA E === */
 
 const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'];
+const SETORES_HORARIO_MARCADO = ['Médico', 'Odontologia', 'Enfermagem'];
 
 const SECTOR_CONFIG = {
   'Acolhimento': { icon: '💜', color: 'var(--purple)', colorDark: 'var(--purple-dark)', btnClass: 'btn-purple', tagClass: 'tag-acolhimento', key: 'acolhimento' },
@@ -540,11 +541,14 @@ function initSectorScreens() {
         </div>`;
     }
 
+    const usaHorarioMarcadoSetor = SETORES_HORARIO_MARCADO.includes(setor);
     const odontoRegraBanner = `
       <div style="margin-bottom:14px;padding:10px 14px;border-radius:10px;background:rgba(139,92,246,0.10);border:1.5px solid rgba(139,92,246,0.35);font-size:12px;color:#5b21b6;line-height:1.45;">
         <strong>⭐ Regra de Prioridade (Lei nº 10.048/2000 — 1 a 10):</strong><br>
         <strong>1º Preferenciais na ordem legal (1 a 10):</strong> 1. Idoso 80+ → 2. PCD → 3. TEA → 4. Gestante → 5. Lactante → 6. Criança de colo (&lt;2a) → 7. Mobilidade reduzida → 8. Obesidade → 9. Idoso 60+ → 10. Doador de sangue.<br>
-        <strong>2º Ordem por Horário Marcado + Chegada:</strong> Pacientes de 09:00 atendem antes de 10:00 (salvo preferencial). No mesmo horário marcado, vale a ordem de chegada.
+        ${usaHorarioMarcadoSetor
+          ? '<strong>2º Ordem por Horário Marcado + Chegada:</strong> Pacientes de 09:00 atendem antes de 10:00 (salvo preferencial). No mesmo horário marcado, vale a ordem de chegada.'
+          : '<strong>2º Demanda Espontânea (Ordem de Chegada):</strong> Setor sem horário marcado; após os preferenciais, o atendimento segue a ordem de chegada na recepção.'}
       </div>`;
 
     screenEl.innerHTML = `
@@ -931,7 +935,7 @@ function toggleTransferTipoAtendimento() {
   const tipoGrupo = document.getElementById('transfer-tipo-atendimento-grupo');
   const profGrupo = document.getElementById('transfer-profissional-grupo');
   const transferHmGrupo = document.getElementById('transfer-horario-marcado-grupo');
-  if (transferHmGrupo) transferHmGrupo.style.display = setor && setor !== 'Sala de Agendamento' ? 'block' : 'none';
+  if (transferHmGrupo) transferHmGrupo.style.display = SETORES_HORARIO_MARCADO.includes(setor) ? 'block' : 'none';
 
   if (setor === 'Sala de Agendamento') {
     if (motivoGrupo) motivoGrupo.style.display = 'block';
@@ -1015,7 +1019,7 @@ async function confirmTransfer() {
   const novoTipoAtendimento = document.getElementById('transfer-tipo-atendimento').value;
   const novoProfissional = document.getElementById('transfer-profissional').value;
   const motivoAgendamento = document.getElementById('transfer-motivo-agendamento')?.value;
-  const horarioMarcadoTransfer = novoSetor && novoSetor !== 'Sala de Agendamento' ? (document.getElementById('transfer-horario-marcado')?.value || null) : null;
+  const horarioMarcadoTransfer = SETORES_HORARIO_MARCADO.includes(novoSetor) ? (document.getElementById('transfer-horario-marcado')?.value || null) : null;
 
   if (!novoSetor) { showToast('Selecione o setor de destino!', true); return; }
   if (novoSetor === setor) { showToast('O setor de destino deve ser diferente do atual!', true); return; }
@@ -1324,11 +1328,16 @@ function toggleTipoAtendimento() {
   const setor = document.getElementById('input-setor').value;
   document.getElementById('tipo-atendimento-grupo').style.display = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? 'flex' : 'none';
 
-  // Exibir Horário Marcado e 10 categorias da Lei 10.048/2000 sempre disponíveis (antes mesmo de escolher o setor)
+  // Exibir Horário Marcado apenas para Médico, Odontologia e Enfermagem (demais setores são demanda espontânea)
+  const usaHm = SETORES_HORARIO_MARCADO.includes(setor);
   const odontoHmGrupo = document.getElementById('odonto-horario-marcado-grupo');
   const odontoHmChips = document.getElementById('odonto-horario-chips');
-  if (odontoHmGrupo) odontoHmGrupo.style.display = 'flex';
-  if (odontoHmChips) odontoHmChips.style.display = 'block';
+  if (odontoHmGrupo) odontoHmGrupo.style.display = usaHm ? 'flex' : 'none';
+  if (odontoHmChips) odontoHmChips.style.display = usaHm ? 'block' : 'none';
+  if (!usaHm) {
+    const inpHm = document.getElementById('input-horario-marcado');
+    if (inpHm) inpHm.value = '';
+  }
   atualizarOpcoesPrioridadePorSetor(setor);
 
   // Sincroniza botões rápidos de setor na Recepção
@@ -1444,7 +1453,7 @@ async function addPatient(btn) {
   const motivoInput = document.getElementById('input-motivo-primeira-escuta');
   const motivo_primeira_escuta = motivoInput && motivoInput.value.trim() ? motivoInput.value.trim() : null;
   const horarioMarcadoInput = document.getElementById('input-horario-marcado');
-  const horario_marcado = horarioMarcadoInput && horarioMarcadoInput.value ? horarioMarcadoInput.value.trim() : null;
+  const horario_marcado = SETORES_HORARIO_MARCADO.includes(setor) && horarioMarcadoInput && horarioMarcadoInput.value ? horarioMarcadoInput.value.trim() : null;
 
   if (!nome) { showToast('Digite o nome do paciente!', true); return; }
   if (!setor) { showToast('Selecione o setor de destino!', true); return; }
@@ -2673,7 +2682,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
           <span style="font-size:12px;font-weight:800;color:#475569;" title="Horário de chegada na recepção">🕐 ${p.horario || '—'}</span>
         </div>
         ${nextUpBadge ? `<div style="margin-top:4px;">${nextUpBadge}</div>` : ''}
-        ${p.horario_marcado ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
+        ${(SETORES_HORARIO_MARCADO.includes(setor) && p.horario_marcado) ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
         ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
       </td>
       <td>
@@ -2827,7 +2836,7 @@ function updateMiniQueues() {
             <span style="font-size:12px;font-weight:800;color:#475569;" title="Horário de chegada na recepção">🕐 ${p.horario || '—'}</span>
           </div>
           ${nextUpBadge ? `<div style="margin-top:4px;">${nextUpBadge}</div>` : ''}
-          ${p.horario_marcado ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
+          ${(SETORES_HORARIO_MARCADO.includes(s) && p.horario_marcado) ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
           ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
         </td>
         <td>
