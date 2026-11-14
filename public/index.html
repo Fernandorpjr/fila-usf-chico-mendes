@@ -331,23 +331,55 @@
   .calling-banner .cb-name { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; }
   .calling-banner .cb-sector { font-size: 14px; font-weight: 600; opacity: 0.9; margin-top: 2px; }
 
-  .painel-screen { min-height: calc(100vh - 130px); padding: 32px; background: var(--blue-bg); }
-  .painel-header { text-align: center; margin-bottom: 40px; }
-  .painel-title { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: var(--white); letter-spacing: 1px; }
-  .painel-main-call { background: linear-gradient(135deg, var(--orange), var(--orange-dark)); border-radius: 24px; padding: 48px; text-align: center; margin-bottom: 32px; box-shadow: var(--shadow-lg); min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-  .painel-main-call::before { content:''; position:absolute; top:-60px; right:-60px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.08); }
-  .painel-call-label { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; opacity: 0.85; margin-bottom: 12px; }
-  .painel-call-name { font-family: 'Nunito', sans-serif; font-size: 52px; font-weight: 900; line-height: 1.1; margin-bottom: 12px; position: relative; z-index: 1; }
-  .painel-call-sector { font-size: 22px; font-weight: 700; opacity: 0.92; position: relative; z-index: 1; }
-  .painel-empty { font-family: 'Nunito', sans-serif; font-size: 24px; color: rgba(255,255,255,0.4); font-weight: 700; }
-  .painel-history-title { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 800; color: var(--gray-300); margin-bottom: 16px; letter-spacing: 1px; text-transform: uppercase; }
-  .painel-history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-  .painel-history-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); padding: 14px 18px; display: flex; align-items: center; gap: 14px; animation: fadeIn 0.4s ease; }
+  /* === PAINEL TV ESTILO AEROPORTO (FIDS) === */
+  .painel-screen { min-height: calc(100vh - 110px); padding: 24px 28px; background: linear-gradient(160deg, #050b18 0%, #0a162e 55%, #071022 100%); color: #f8fafc; display: flex; flex-direction: column; gap: 20px; }
+  .painel-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 2px solid rgba(56, 189, 248, 0.22); }
+  .painel-brand-wrap { display: flex; align-items: center; gap: 16px; }
+  .painel-logo-text { font-family: 'Nunito', sans-serif; font-size: 34px; font-weight: 900; letter-spacing: 0.5px; line-height: 1; }
+  .painel-title { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: #38bdf8; letter-spacing: 2.5px; text-transform: uppercase; margin-top: 4px; }
+  .painel-topbar-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .painel-clock-box { text-align: right; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 12px; padding: 8px 16px; }
+  .painel-clock-time { font-family: 'Nunito', monospace; font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 900; color: #fbbf24; letter-spacing: 1.5px; line-height: 1.05; }
+  .painel-clock-date { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+
+  .painel-board-grid { display: grid; grid-template-columns: 1.05fr 1.25fr; gap: 22px; flex: 1; align-items: stretch; }
+  .painel-main-call { background: linear-gradient(145deg, #0f172a 0%, #172554 100%); border: 2.5px solid #f59e0b; border-radius: 20px; padding: 32px 28px; text-align: center; box-shadow: 0 14px 40px rgba(245, 158, 11, 0.16), inset 0 1px 0 rgba(255,255,255,0.08); min-height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .painel-main-call::before { content:''; position:absolute; top:-80px; right:-80px; width:240px; height:240px; border-radius:50%; background:radial-gradient(circle, rgba(251,191,36,0.14), transparent 70%); pointer-events:none; }
+  @keyframes painelFlash { 0% { box-shadow: 0 0 0 0 rgba(251,191,36,0.75); transform: scale(1.01); } 100% { box-shadow: 0 14px 40px rgba(245,158,11,0.16); transform: scale(1); } }
+  .painel-main-call.painel-flash { animation: painelFlash 0.9s ease-out; }
+  .painel-call-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(251, 191, 36, 0.55); color: #fcd34d; font-size: 13px; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; padding: 6px 16px; border-radius: 999px; margin-bottom: 18px; }
+  .painel-call-dot { width: 9px; height: 9px; border-radius: 50%; background: #fbbf24; box-shadow: 0 0 10px #fbbf24; animation: pulse 1.3s infinite; }
+  .painel-call-name { font-family: 'Nunito', sans-serif; font-size: 46px; font-weight: 900; line-height: 1.12; color: #ffffff; margin-bottom: 18px; text-shadow: 0 2px 12px rgba(0,0,0,0.45); word-break: break-word; }
+  .painel-gate-box { background: linear-gradient(135deg, #f59e0b, #d97706); color: #0f172a; border-radius: 14px; padding: 12px 26px; display: inline-flex; flex-direction: column; align-items: center; gap: 2px; box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35); margin-bottom: 10px; }
+  .painel-gate-label { font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; }
+  .painel-gate-value { font-family: 'Nunito', sans-serif; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; }
+  .painel-prof-line { font-size: 17px; font-weight: 700; color: #cbd5e1; margin-top: 6px; }
+  .painel-empty { font-family: 'Nunito', sans-serif; font-size: 24px; color: rgba(255,255,255,0.42); font-weight: 700; }
+  .priority-badge-tv { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 13px; font-weight: 900; padding: 6px 16px; border-radius: 999px; display: inline-block; margin-top: 12px; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(239,68,68,0.35); }
+
+  .painel-history-board { background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
+  .painel-history-title { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 900; color: #e2e8f0; padding: 14px 20px; background: rgba(30, 41, 59, 0.9); border-bottom: 1px solid rgba(148, 163, 184, 0.2); letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
+  .painel-fids-head { display: grid; grid-template-columns: 78px 1.35fr 1.15fr 46px; gap: 10px; padding: 10px 18px; background: rgba(2, 6, 23, 0.55); font-size: 11px; font-weight: 900; color: #38bdf8; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid rgba(148, 163, 184, 0.15); }
+  .painel-history-grid { flex: 1; overflow-y: auto; max-height: 440px; scrollbar-width: thin; }
+  .painel-fids-row { display: grid; grid-template-columns: 78px 1.35fr 1.15fr 46px; gap: 10px; align-items: center; padding: 12px 18px; border-bottom: 1px solid rgba(148, 163, 184, 0.12); transition: background 0.2s; animation: fadeIn 0.35s ease; }
+  .painel-fids-row:nth-child(even) { background: rgba(255, 255, 255, 0.025); }
+  .painel-fids-row.is-latest { background: rgba(245, 158, 11, 0.1); border-left: 4px solid #fbbf24; padding-left: 14px; }
+  .painel-fids-time { font-family: 'Nunito', monospace; font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 900; color: #fbbf24; background: rgba(251, 191, 36, 0.1); padding: 4px 8px; border-radius: 6px; text-align: center; }
+  .painel-fids-name { font-family: 'Nunito', sans-serif; font-size: 17px; font-weight: 800; color: #ffffff; line-height: 1.2; }
+  .painel-fids-dest { font-size: 13.5px; font-weight: 700; color: #cbd5e1; line-height: 1.25; }
+  .painel-fids-dest small { display: block; font-size: 11.5px; color: #94a3b8; font-weight: 600; margin-top: 2px; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-  .ph-number { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; color: var(--gray-300); min-width: 40px; }
-  .ph-info { flex: 1; } .ph-name { font-weight: 700; font-size: 15px; } .ph-sector { font-size: 12px; color: var(--gray-300); margin-top: 2px; }
-  .ph-time { font-size: 12px; color: var(--gray-300); font-family: 'Nunito', sans-serif; font-weight: 700; }
-  .priority-badge-tv { background: linear-gradient(135deg, #ff6f00, #ff8f00); color: white; font-size: 14px; font-weight: 900; padding: 6px 16px; border-radius: 20px; display: inline-block; margin-top: 8px; letter-spacing: 1px; }
+
+  .painel-footer-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 12px 18px; background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 14px; }
+  .painel-ticker-msg { font-size: 13px; font-weight: 700; color: #94a3b8; }
+  .painel-controls-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  @media (max-width: 1024px) {
+    .painel-board-grid { grid-template-columns: 1fr; }
+    .painel-call-name { font-size: 36px; }
+  }
+  @media (max-width: 640px) {
+    .painel-fids-head, .painel-fids-row { grid-template-columns: 64px 1fr 1fr 40px; padding: 10px 12px; }
+  }
 
   .sector-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .tag-farmacia { background: rgba(74,171,60,0.15); color: #2d7a22; border: 1px solid rgba(74,171,60,0.3); }
@@ -2581,40 +2613,74 @@
   <!-- ============ TÉC. ENFERMAGEM ============ -->
   <div class="screen" id="screen-tec_enfermagem"></div>
 
-  <!-- ============ PAINEL PÚBLICO ============ -->
+  <!-- ============ PAINEL PÚBLICO (ESTILO AEROPORTO) ============ -->
   <div class="screen" id="screen-painel">
     <div class="painel-screen">
-      <div class="painel-header">
-        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:8px;">
-          <div style="font-family:'Nunito',sans-serif;font-size:40px;font-weight:900;"><span style="color:#fff;">U</span><span style="color:var(--green);">S</span><span style="color:var(--orange);">F</span><span style="color:#fff;font-size:32px;margin-left:8px;">Chico Mendes</span></div>
+      <!-- Faixa Superior estilo Aeroporto -->
+      <div class="painel-topbar">
+        <div class="painel-brand-wrap">
+          <div>
+            <div class="painel-logo-text"><span style="color:#fff;">U</span><span style="color:var(--green);">S</span><span style="color:var(--orange);">F</span><span style="color:#fff;margin-left:8px;">Chico Mendes</span></div>
+            <div class="painel-title">✈️ Painel de Chamadas ao Vivo</div>
+          </div>
         </div>
-        <div class="painel-title" style="font-size:18px;color:var(--gray-300);font-weight:600;letter-spacing:2px;text-transform:uppercase;">Painel de Chamadas</div>
-        <div style="margin-top:8px;display:flex;justify-content:center;">
+        <div class="painel-topbar-right">
           <div id="painel-net-status" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da internet no Painel TV">
             <span class="net-dot"></span>
             <span id="painel-net-status-text">Conectado</span>
           </div>
+          <div class="painel-clock-box">
+            <div class="painel-clock-time" id="painel-clock-time">--:--:--</div>
+            <div class="painel-clock-date" id="painel-clock-date">--/--/----</div>
+          </div>
         </div>
       </div>
-      <div class="painel-main-call" id="painel-main"><div class="painel-empty">Aguardando chamadas...</div></div>
-      <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-bottom:24px;flex-wrap:wrap;">
-        <button class="btn-3d" onclick="speakPatientName(this)" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(74,171,60,0.4);display:flex;align-items:center;gap:8px;">🔊 Chamar pelo Nome</button>
-        <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:2px solid rgba(255,255,255,0.25);border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">🔁 Repetir Última</button>
-        <div class="admin-only" style="align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:8px 12px;">
-          <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:8px 10px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;">
-            <option value="feminina_br">🇧🇷👩 Francisca (Feminina Padrão)</option>
-            <option value="elza_br">🇧🇷👩‍🦳 Elza (Feminina mais Madura)</option>
-            <option value="brenda_br">🇧🇷👩 Brenda (Alternativa Feminina)</option>
-            <option value="thalita_br">🇧🇷👩‍⚕️ Thalita (Feminina Suave)</option>
-            <option value="masculina_br">🇧🇷👨 Antônio (Masculina Padrão)</option>
-            <option value="donato_br">🇧🇷🧔 Donato (Masculina mais Grave)</option>
-            <option value="humberto_br">🇧🇷👨 Humberto (Alternativa Masculina)</option>
-          </select>
-          <button type="button" onclick="testarVozSistema()" style="background:rgba(74,171,60,0.3);color:#fff;border:1px solid rgba(74,171,60,0.6);border-radius:8px;padding:8px 12px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">🎙️ Testar Voz</button>
+
+      <!-- Grade Principal 2 Colunas -->
+      <div class="painel-board-grid">
+        <!-- Esquerda: Chamada Atual -->
+        <div class="painel-main-call" id="painel-main">
+          <div class="painel-empty">⏳ Aguardando chamadas...</div>
+        </div>
+
+        <!-- Direita: Tabela estilo Painel de Embarque -->
+        <div class="painel-history-board">
+          <div class="painel-history-title">
+            <span>🛫 Últimas Chamadas</span>
+            <span style="font-size:11px;color:#94a3b8;font-weight:700;" id="painel-history-count">0 chamadas</span>
+          </div>
+          <div class="painel-fids-head">
+            <span>HORA</span>
+            <span>PACIENTE</span>
+            <span>DESTINO / SETOR</span>
+            <span style="text-align:center;">VOZ</span>
+          </div>
+          <div class="painel-history-grid" id="painel-history">
+            <div style="text-align:center;color:rgba(255,255,255,0.35);padding:32px;font-size:14px;font-weight:600;">Nenhuma chamada registrada</div>
+          </div>
         </div>
       </div>
-      <div class="painel-history-title">🕐 Histórico de Chamadas</div>
-      <div class="painel-history-grid" id="painel-history" style="max-height:420px;overflow-y:auto;scrollbar-width:thin;"><div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;font-size:14px;font-weight:600;">Nenhuma chamada registrada</div></div>
+
+      <!-- Rodapé discreto com Ticker e Controles -->
+      <div class="painel-footer-bar">
+        <div class="painel-ticker-msg">🏥 USF Chico Mendes • Acompanhe seu nome e destino no painel • Em caso de dúvida, procure a Recepção</div>
+        <div class="painel-controls-row">
+          <button class="btn-3d" onclick="speakPatientName(this)" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:10px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(74,171,60,0.35);display:flex;align-items:center;gap:6px;">🔊 Chamar pelo Nome</button>
+          <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:1.5px solid rgba(255,255,255,0.25);border-radius:10px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;">🔁 Repetir Última</button>
+          <div class="admin-only" style="align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:6px 10px;">
+            <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.9);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">
+              <option value="feminina_br">🇧🇷👩 Francisca (Feminina Padrão)</option>
+              <option value="elza_br">🇧🇷👩‍🦳 Elza (Feminina mais Madura)</option>
+              <option value="brenda_br">🇧🇷👩 Brenda (Alternativa Feminina)</option>
+              <option value="thalita_br">🇧🇷👩‍⚕️ Thalita (Feminina Suave)</option>
+              <option value="masculina_br">🇧🇷👨 Antônio (Masculina Padrão)</option>
+              <option value="donato_br">🇧🇷🧔 Donato (Masculina mais Grave)</option>
+              <option value="humberto_br">🇧🇷👨 Humberto (Alternativa Masculina)</option>
+            </select>
+            <button type="button" onclick="testarVozSistema()" style="background:rgba(74,171,60,0.3);color:#fff;border:1px solid rgba(74,171,60,0.6);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">🎙️ Testar Voz</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3921,6 +3987,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.7"></script>
-<script src="app.js?v=5.0"></script>
+<script src="app.js?v=5.1"></script>
 </body>
 </html>

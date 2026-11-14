@@ -2825,45 +2825,97 @@ function updateBanners() {
   });
 }
 
+let _lastPainelCallKey = null;
+
+function updatePainelClock() {
+  const timeEl = document.getElementById('painel-clock-time');
+  const dateEl = document.getElementById('painel-clock-date');
+  if (!timeEl && !dateEl) return;
+  const now = new Date();
+  if (timeEl) {
+    timeEl.textContent = now.toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
+  if (dateEl) {
+    dateEl.textContent = now.toLocaleDateString('pt-BR', {
+      timeZone: 'America/Recife', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+  }
+}
+updatePainelClock();
+setInterval(updatePainelClock, 1000);
+
+function formatarDestinoPainel(p) {
+  const consEfetivo = p.setor === 'Odontologia' ? 'Odontológico' : p.consultorio;
+  if (consEfetivo === 'Odontológico') return '🦷 Consultório Odontológico';
+  if (consEfetivo === 'Sala de Procedimentos' || consEfetivo === 'Sala de Vacina') return `🏥 ${consEfetivo}`;
+  if (consEfetivo) return `🏠 Consultório ${consEfetivo}`;
+  const medLimpo = String(p.medico || '').replace(/\s*\(sem designa[çc][aã]o\)/gi, '').trim();
+  if (medLimpo === '2ª Escuta' || /se dirija.*2ª escuta/i.test(medLimpo)) return '📍 Se dirija à 2ª Escuta';
+  return `${(SECTOR_CONFIG[p.setor] || {}).icon || '📋'} ${p.setor}`;
+}
+
 function updatePainel() {
   const main = document.getElementById('painel-main');
+  const countEl = document.getElementById('painel-history-count');
   
   // Ignorar transferências no painel (para não tocar som nem mostrar como "chamada")
   const callsOnly = (callHistory || []).filter(h => !(h.profissional || '').startsWith('➡️ Encaminhado'));
+  if (countEl) countEl.textContent = `${callsOnly.length} ${callsOnly.length === 1 ? 'chamada' : 'chamadas'}`;
 
   if (callsOnly.length) {
-    const l = callsOnly[0]; const cfg = SECTOR_CONFIG[l.setor] || {};
-    const prioBadge = l.prioridade === 'prioritario' ? `<div class="priority-badge-tv">⭐ ${l.tipo_prioridade || 'PRIORITÁRIO'}</div>` : '';
-    let details = '';
-    const consEfetivo = l.setor === 'Odontologia' ? 'Odontológico' : l.consultorio;
-    if (consEfetivo) details += `<div style="font-size:18px;opacity:0.9;margin-top:6px;font-weight:700;">🏠 ${consEfetivo === 'Odontológico' ? 'Consultório Odontológico' : (consEfetivo === 'Sala de Procedimentos' || consEfetivo === 'Sala de Vacina') ? consEfetivo : 'Consultório ' + consEfetivo}</div>`;
-    if (l.profissional) details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${l.profissional}</div>`;
-    else if (l.medico) {
+    const l = callsOnly[0];
+    const cfg = SECTOR_CONFIG[l.setor] || {};
+    const prioBadge = l.prioridade === 'prioritario' ? `<div class="priority-badge-tv">⭐ ${escapeText(l.tipo_prioridade || 'PRIORITÁRIO')}</div>` : '';
+    const destinoPrincipal = formatarDestinoPainel(l);
+    let profLine = '';
+    if (l.profissional) {
+      profLine = `<div class="painel-prof-line">👨‍⚕️ ${escapeText(l.profissional)}</div>`;
+    } else if (l.medico) {
       const medLimpo = String(l.medico).replace(/\s*\(sem designa[çc][aã]o\)/gi, '').trim();
-      if (medLimpo === '2ª Escuta' || /se dirija.*2ª escuta/i.test(medLimpo)) {
-        details += `<div style="font-size:18px;opacity:0.95;margin-top:6px;font-weight:800;">📍 Se dirija à 2ª Escuta</div>`;
-      } else {
-        details += `<div style="font-size:16px;opacity:0.85;margin-top:4px;font-weight:600;">👨‍⚕️ ${medLimpo}</div>`;
+      if (medLimpo && medLimpo !== '2ª Escuta' && !/se dirija.*2ª escuta/i.test(medLimpo)) {
+        profLine = `<div class="painel-prof-line">👨‍⚕️ ${escapeText(medLimpo)}</div>`;
       }
     }
-    main.innerHTML = `<div class="painel-call-label">🔔 Chamando agora</div><div class="painel-call-name">${l.nome}</div><div class="painel-call-sector">${cfg.icon||'📋'} ${l.setor}${details}</div>${prioBadge}`;
-  } else { main.innerHTML = '<div class="painel-empty">⏳ Aguardando chamadas...</div>'; }
+
+    const callKey = `${l.id || ''}_${l.nome}_${l.horario_chamada || ''}`;
+    if (_lastPainelCallKey && _lastPainelCallKey !== callKey && main) {
+      main.classList.remove('painel-flash');
+      void main.offsetWidth;
+      main.classList.add('painel-flash');
+    }
+    _lastPainelCallKey = callKey;
+
+    main.innerHTML = `
+      <div class="painel-call-pill"><span class="painel-call-dot"></span> CHAMANDO AGORA</div>
+      <div class="painel-call-name">${escapeText(l.nome)}</div>
+      <div class="painel-gate-box">
+        <span class="painel-gate-label">DIRIJA-SE AO DESTINO (${escapeText(l.setor)})</span>
+        <span class="painel-gate-value">${escapeText(destinoPrincipal)}</span>
+      </div>
+      ${profLine}
+      ${prioBadge}
+    `;
+  } else {
+    main.innerHTML = '<div class="painel-empty">⏳ Aguardando chamadas...</div>';
+  }
 
   const histEl = document.getElementById('painel-history');
-  if (!callsOnly.length) { histEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:24px;">Nenhuma chamada registrada</div>'; return; }
+  if (!callsOnly.length) {
+    histEl.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:32px;font-size:14px;font-weight:600;">Nenhuma chamada registrada</div>';
+    return;
+  }
   histEl.innerHTML = callsOnly.map((p, i) => {
-    const cfg = SECTOR_CONFIG[p.setor] || {};
-    const prioBadge = p.prioridade === 'prioritario' ? ' <span style="color:#ff8f00;font-weight:800;">⭐</span>' : '';
-    const profDisplay = p.profissional ? ` · <b>${p.profissional}</b>` : p.medico ? ` · <b>${p.medico}</b>` : '';
-    const consDisplay = p.consultorio ? ` · Cons. ${p.consultorio}` : '';
-    return `<div class="painel-history-item" style="justify-content:space-between;">
-      <div style="display:flex;align-items:center;gap:16px;">
-        <div class="ph-number">${i+1}</div>
-        <div class="ph-info"><div class="ph-name">${p.nome}${prioBadge}</div><div class="ph-sector">${cfg.icon||''} ${p.setor}${profDisplay}${consDisplay}</div></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div class="ph-time">${p.horario_chamada}</div>
-        <button class="btn btn-ghost" onclick="speakViaSynthesis('${p.nome.replace(/'/g,"\\\\'")}','${p.setor}','${(p.medico||'').replace(/'/g,"\\\\'")}')" style="padding:6px 12px;font-size:13px;">🔊</button>
+    const prioBadge = p.prioridade === 'prioritario' ? ' <span style="color:#fbbf24;font-weight:800;">⭐</span>' : '';
+    const destino = formatarDestinoPainel(p);
+    const profText = p.profissional ? p.profissional : (p.medico ? String(p.medico).replace(/\s*\(sem designa[çc][aã]o\)/gi, '').trim() : '');
+    return `<div class="painel-fids-row ${i === 0 ? 'is-latest' : ''}">
+      <div class="painel-fids-time">${escapeText(p.horario_chamada || '--:--')}</div>
+      <div class="painel-fids-name">${escapeText(p.nome)}${prioBadge}</div>
+      <div class="painel-fids-dest">${escapeText(destino)}${profText ? `<small>${escapeText(profText)}</small>` : ''}</div>
+      <div style="text-align:center;">
+        <button class="btn btn-ghost" onclick="speakViaSynthesis('${p.nome.replace(/'/g,"\\\\'")}','${p.setor}','${(p.medico||'').replace(/'/g,"\\\\'")}')" style="padding:5px 8px;font-size:13px;border-radius:8px;" title="Chamar novamente">🔊</button>
       </div>
     </div>`;
   }).join('');
