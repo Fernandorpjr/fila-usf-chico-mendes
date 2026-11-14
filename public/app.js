@@ -986,6 +986,7 @@ function toggleTransferTipoAtendimento() {
       selectTipo.innerHTML = `
         <option value="">— Opcional —</option>
         <option value="Consulta">🩺 Consulta</option>
+        <option value="Consulta Agendada (Conecta Recife)">📱 Consulta Agendada (Conecta Recife)</option>
         <option value="Acolhimento">💜 Acolhimento</option>
         <option value="Urgência">🚨 Urgência</option>
         <option value="Intercorrência">⚠️ Intercorrência</option>
@@ -995,6 +996,7 @@ function toggleTransferTipoAtendimento() {
       selectTipo.innerHTML = `
         <option value="">— Opcional —</option>
         <option value="Consulta">🩺 Consulta</option>
+        <option value="Consulta Agendada (Conecta Recife)">📱 Consulta Agendada (Conecta Recife)</option>
         <option value="Renovação de Receita">📄 Renovação de Receita</option>
         <option value="Hiperdia">❤️ Hiperdia</option>
         <option value="Puericultura">👶 Puericultura</option>
@@ -1388,6 +1390,7 @@ function toggleTipoAtendimento() {
     } else if (setor === 'Odontologia') {
       selectTipo.innerHTML = `
         <option value="Consulta">🩺 Consulta</option>
+        <option value="Consulta Agendada (Conecta Recife)">📱 Consulta Agendada (Conecta Recife)</option>
         <option value="Acolhimento">💜 Acolhimento</option>
         <option value="Urgência">🚨 Urgência</option>
         <option value="Intercorrência">⚠️ Intercorrência</option>
@@ -1397,6 +1400,7 @@ function toggleTipoAtendimento() {
     } else {
       selectTipo.innerHTML = `
         <option value="Consulta">🩺 Consulta</option>
+        <option value="Consulta Agendada (Conecta Recife)">📱 Consulta Agendada (Conecta Recife)</option>
         <option value="Renovação de Receita">📄 Renovação de Receita</option>
         <option value="Hiperdia">❤️ Hiperdia</option>
         <option value="Puericultura">👶 Puericultura</option>
@@ -2416,6 +2420,7 @@ const TIPO_ATENDIMENTO_CORES = {
   'Curativo':                      { bg: 'rgba(251,146,60,0.15)',  color: '#9a3412' },
   'Procedimento':                  { bg: 'rgba(45,212,191,0.15)',  color: '#115e59' },
   'Agendamento de Coleta':         { bg: 'rgba(16,185,129,0.15)',  color: '#064e3b' },
+  'Consulta Agendada (Conecta Recife)': { bg: 'rgba(14,165,233,0.16)', color: '#0369a1' },
   // Fluxo interno
   '1ª Escuta (ACS)':               { bg: 'rgba(251,146,60,0.15)',  color: '#9a3412' },
   '2ª Escuta':                     { bg: 'rgba(239,68,68,0.15)',   color: '#991b1b' },
