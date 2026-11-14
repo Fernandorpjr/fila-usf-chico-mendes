@@ -2974,12 +2974,20 @@ async function applyFilters() {
 
 // ====== CHAT AVANÇADO COM CANAIS ======
 const CANAIS = [
-  { id:'geral', nome:'📢 Canal Geral', desc:'Todos os setores e profissionais' },
-  { id:'medico', nome:'🩺 Canal Médico', desc:'Comunicação da equipe médica' },
-  { id:'enfermagem', nome:'👩‍⚕️ Canal Enfermagem', desc:'Comunicação da equipe de enfermagem' },
-  { id:'odontologia', nome:'🦷 Canal Odontologia', desc:'Comunicação da equipe de odontologia' }
+  { id:'geral', nome:'📢 Geral', desc:'Todos os setores e profissionais' },
+  { id:'recepcao', nome:'🏢 Recepção', desc:'Comunicação da Recepção' },
+  { id:'acolhimento', nome:'💜 Acolhimento', desc:'1ª e 2ª Escuta / Triagem' },
+  { id:'medico', nome:'🩺 Médico', desc:'Comunicação da equipe médica' },
+  { id:'enfermagem', nome:'👩‍⚕️ Enfermagem', desc:'Comunicação da equipe de enfermagem' },
+  { id:'odontologia', nome:'🦷 Odontologia', desc:'Comunicação da equipe de odontologia' },
+  { id:'farmacia', nome:'💊 Farmácia', desc:'Comunicação da Farmácia' },
+  { id:'regulacao', nome:'📋 Regulação', desc:'Comunicação da Regulação' },
+  { id:'gerencia', nome:'🏛️ Gerência', desc:'Comunicação da Gerência / Coordenação' }
 ];
 let chatPanelOpen = false;
+let chatNotifCanalDestino = 'geral';
+let chatNotifTimer = null;
+const ORIGINAL_DOC_TITLE = document.title;
 
 function toggleChatPanel() {
   const overlay = document.getElementById('chat-drawer-overlay');
@@ -2987,8 +2995,12 @@ function toggleChatPanel() {
   chatPanelOpen = !chatPanelOpen;
   if (chatPanelOpen) {
     overlay.classList.remove('chat-drawer-hidden');
+    fecharNotificacaoChatPopup();
     const fab = document.getElementById('chat-fab');
-    if (fab) fab.classList.remove('chat-fab-urgent');
+    if (fab) fab.classList.remove('chat-fab-urgent', 'chat-fab-unread');
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
     markCanalAsRead(activeCanal);
     registerPresenca();
     renderCanalList();
@@ -3061,7 +3073,7 @@ function registerPresenca() {
 
 function getPresenceDot(canalId) {
   // Map canal ID to setor name for presence lookup
-  const canalToSetor = { geral:null, acolhimento:'Acolhimento', farmacia:'Farmácia', regulacao:'Regulação', medico:'Médico', enfermagem:'Enfermagem', odontologia:'Odontologia', gerencia:'Gerência' };
+  const canalToSetor = { geral:null, recepcao:'Recepção', acolhimento:'Acolhimento', farmacia:'Farmácia', regulacao:'Regulação', medico:'Médico', enfermagem:'Enfermagem', odontologia:'Odontologia', gerencia:'Gerência' };
   const setorName = canalToSetor[canalId];
   if (!setorName) return ''; // 'geral' has no specific setor
   const lastSeen = chatPresencaMap[setorName];
@@ -3110,11 +3122,12 @@ function renderCanalList() {
   el.innerHTML = visible.map(c => {
     const unread = channelUnread[c.id] || 0;
     const badge = unread > 0 ? `<span class="chat-canal-badge">${unread}</span>` : '';
+    const unreadCls = unread > 0 ? ' has-unread' : '';
     const presenceDot = getPresenceDot(c.id);
     const msgs = channelMessages[c.id] || [];
     const last = msgs.length ? msgs[msgs.length - 1] : null;
     const titleTip = last ? `${last.autor}: ${(last.texto || last.anexo_nome || '').slice(0, 60)}` : c.desc;
-    return `<button type="button" class="chat-canal-pill ${c.id===activeCanal?'active':''}" onclick="switchCanal('${c.id}')" title="${escapeText(titleTip)}">${presenceDot}${c.nome}${badge}</button>`;
+    return `<button type="button" class="chat-canal-pill ${c.id===activeCanal?'active':''}${unreadCls}" onclick="switchCanal('${c.id}')" title="${escapeText(titleTip)}">${presenceDot}${c.nome}${badge}</button>`;
   }).join('');
 }
 
@@ -3161,6 +3174,41 @@ function switchCanal(canalId) {
   loadChatPin(canalId);
 }
 
+function mostrarNotificacaoChatPopup(canalId, msg) {
+  const popup = document.getElementById('chat-notif-popup');
+  if (!popup) return;
+  const canalInfo = CANAIS.find(c => c.id === canalId) || { nome: '📢 Geral' };
+  chatNotifCanalDestino = canalId;
+
+  const canalEl = document.getElementById('chat-notif-canal');
+  const autorEl = document.getElementById('chat-notif-autor');
+  const textoEl = document.getElementById('chat-notif-texto');
+  if (canalEl) canalEl.textContent = msg.urgente ? `🚨 URGENTE • ${canalInfo.nome}` : canalInfo.nome;
+  if (autorEl) autorEl.textContent = msg.autor || 'Equipe';
+  if (textoEl) textoEl.textContent = msg.texto || (msg.anexo_nome ? `📎 Anexo: ${msg.anexo_nome}` : 'Nova mensagem');
+
+  popup.classList.toggle('urgent', Boolean(msg.urgente));
+  popup.classList.add('show');
+
+  if (chatNotifTimer) clearTimeout(chatNotifTimer);
+  if (!msg.urgente) {
+    chatNotifTimer = setTimeout(() => { fecharNotificacaoChatPopup(); }, 18000);
+  }
+}
+
+function fecharNotificacaoChatPopup() {
+  const popup = document.getElementById('chat-notif-popup');
+  if (popup) popup.classList.remove('show');
+  if (chatNotifTimer) { clearTimeout(chatNotifTimer); chatNotifTimer = null; }
+}
+
+function abrirChatNotificacao() {
+  const targetCanal = chatNotifCanalDestino || 'geral';
+  fecharNotificacaoChatPopup();
+  if (!chatPanelOpen) toggleChatPanel();
+  switchCanal(targetCanal);
+}
+
 async function loadChannelMessages(canalId) {
   try { 
     const r = await fetch(`${API_URL}/chat/canais/${canalId}`); 
@@ -3185,8 +3233,13 @@ async function loadChannelMessages(canalId) {
             if (fab && !chatPanelOpen) fab.classList.add('chat-fab-urgent');
           }
           if (!chatPanelOpen || activeCanal !== canalId) {
-            const resumo = (newLast.texto || (newLast.anexo_nome ? `📎 ${newLast.anexo_nome}` : 'Nova mensagem')).slice(0, 55);
-            showToast(`${newLast.urgente ? '🚨 URGENTE' : '💬'} ${newLast.autor}: ${resumo}`, Boolean(newLast.urgente));
+            mostrarNotificacaoChatPopup(canalId, newLast);
+            if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+              const canalNome = (CANAIS.find(c => c.id === canalId)?.nome || canalId);
+              const corpo = newLast.texto || (newLast.anexo_nome ? `📎 ${newLast.anexo_nome}` : 'Nova mensagem');
+              const n = new Notification(`${newLast.urgente ? '🚨 URGENTE - ' : ''}${newLast.autor} (${canalNome})`, { body: corpo });
+              n.onclick = () => { window.focus(); abrirChatNotificacao(); n.close(); };
+            }
           }
         }
       }
@@ -3197,7 +3250,7 @@ async function loadChannelMessages(canalId) {
 }
 
 async function loadAllChannels() {
-  for (const c of getVisibleCanais()) { await loadChannelMessages(c.id); }
+  await Promise.all(getVisibleCanais().map(c => loadChannelMessages(c.id)));
   renderChannelChat();
   // Load unread counts
   const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
@@ -3531,11 +3584,24 @@ async function clearChatCanal() {
 
 function updateChatBadge() {
   const b = document.getElementById('badge-chat');
-  const total = Object.values(channelUnread).reduce((s,v) => s+v, 0);
+  const fab = document.getElementById('chat-fab');
+  const hdrAlert = document.getElementById('header-chat-alert');
+  const hdrTxt = document.getElementById('header-chat-alert-text');
+  const total = Object.values(channelUnread).reduce((s,v) => s+(v||0), 0);
   if (b) {
     if (total > 0) { b.textContent = total; b.style.display = 'inline-block'; b.classList.add('badge-pulse'); }
     else { b.style.display = 'none'; b.classList.remove('badge-pulse'); }
   }
+  if (fab) {
+    fab.classList.toggle('chat-fab-unread', total > 0 && !chatPanelOpen);
+  }
+  if (hdrAlert && hdrTxt) {
+    hdrAlert.classList.toggle('show', total > 0 && !chatPanelOpen);
+    hdrTxt.textContent = total === 1 ? '1 nova msg' : `${total} novas msgs`;
+  }
+  document.title = (total > 0 && !chatPanelOpen)
+    ? `(${total}) 💬 Nova mensagem! - ${ORIGINAL_DOC_TITLE}`
+    : ORIGINAL_DOC_TITLE;
 }
 
 /* === MELHORIA C: PIN FUNCTIONS === */
