@@ -2024,14 +2024,18 @@
             </div>
 
             <div class="form-group" style="margin-bottom:10px;display:none;" id="prioridade-detalhes">
-              <label>Tipo de Prioridade Legal</label>
+              <label>Tipo de Prioridade Legal (Ordem 1º a 10º — Lei nº 10.048/2000)</label>
               <select id="input-tipo-prioridade" style="padding:10px 12px;font-size:13.5px;">
-                <option value="Criança de Colo">👶 Criança de Colo (meses — Prioridade 80+)</option>
-                <option value="Gestante">🤰 Gestante</option>
-                <option value="Autismo/TEA">🧩 Autismo/TEA</option>
-                <option value="PCD">♿ PCD</option>
-                <option value="Idoso 60+">🧓 Idoso 60+</option>
-                <option value="Idoso 80+ (Prioridade Especial)">🚨 Idoso 80+ (Superprioridade)</option>
+                <option value="1. Idoso 80+ (Prioridade Especial)">1º Idosos com 80 anos ou mais – prioridade especial</option>
+                <option value="2. Pessoa com Deficiência (PCD)">2º Pessoas com deficiência – incluindo cadeirantes</option>
+                <option value="3. Pessoa com TEA">3º Pessoas com TEA (Autismo)</option>
+                <option value="4. Gestante">4º Gestantes</option>
+                <option value="5. Lactante">5º Lactantes</option>
+                <option value="6. Criança de Colo (< 2 anos)">6º Pessoas acompanhadas de criança de colo (&lt; 2 anos)</option>
+                <option value="7. Mobilidade Reduzida">7º Pessoas com mobilidade reduzida</option>
+                <option value="8. Obesidade">8º Pessoas com obesidade</option>
+                <option value="9. Idoso 60+">9º Demais pessoas idosas (60 anos ou mais)</option>
+                <option value="10. Doador de Sangue">10º Doadores de sangue</option>
               </select>
             </div>
 
@@ -2155,15 +2159,15 @@
                     <option value="">— Selecione o profissional —</option>
                   </select>
                 </div>
-                <div class="form-group" style="margin-bottom:0;display:none;" id="odonto-horario-marcado-grupo">
-                  <label title="Horário agendado na Odontologia (ex: 09:00, 10:00)">⏰ Horário Marcado (Odonto)</label>
-                  <input type="time" id="input-horario-marcado" style="padding:9px 12px;font-size:13.5px;font-weight:800;color:#be185d;border:2px solid #fbcfe8;border-radius:10px;background:#fdf2f8;">
+                <div class="form-group" style="margin-bottom:0;display:flex;" id="odonto-horario-marcado-grupo">
+                  <label title="Horário agendado (ex: 09:00, 10:00)">⏰ Horário Marcado</label>
+                  <input type="time" id="input-horario-marcado" style="padding:9px 12px;font-size:13.5px;font-weight:800;color:#6d28d9;border:2px solid #ddd6fe;border-radius:10px;background:#f5f3ff;">
                 </div>
               </div>
-              <div id="odonto-horario-chips" style="display:none;margin-top:8px;padding:8px 10px;background:#fdf2f8;border:1.5px solid #fbcfe8;border-radius:10px;">
-                <div style="font-size:11px;font-weight:800;color:#9d174d;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
-                  <span>🦷 Regra Odontologia (Teste): Preferenciais (1º a 10º Lei 10.048) → Horário Marcado → Chegada</span>
-                  <button type="button" onclick="definirHorarioMarcadoRapido('')" style="background:transparent;border:none;color:#be185d;font-size:11px;font-weight:800;cursor:pointer;text-decoration:underline;">Limpar hora</button>
+              <div id="odonto-horario-chips" style="display:block;margin-top:8px;padding:8px 10px;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:10px;">
+                <div style="font-size:11px;font-weight:800;color:#5b21b6;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+                  <span>⭐ Regra de Prioridade: Preferenciais (1º a 10º Lei 10.048) → Horário Marcado → Chegada</span>
+                  <button type="button" onclick="definirHorarioMarcadoRapido('')" style="background:transparent;border:none;color:#6d28d9;font-size:11px;font-weight:800;cursor:pointer;text-decoration:underline;">Limpar hora</button>
                 </div>
                 <div style="display:flex;gap:5px;flex-wrap:wrap;">
                   <button type="button" class="motivo-chip" style="background:#fff;border-color:#f9a8d4;color:#9d174d;" onclick="definirHorarioMarcadoRapido('07:00')">⏰ 07:00</button>
@@ -3998,6 +4002,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.7"></script>
-<script src="app.js?v=5.5"></script>
+<script src="app.js?v=5.6"></script>
 </body>
 </html>

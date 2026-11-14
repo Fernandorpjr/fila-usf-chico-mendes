@@ -1324,11 +1324,11 @@ function toggleTipoAtendimento() {
   const setor = document.getElementById('input-setor').value;
   document.getElementById('tipo-atendimento-grupo').style.display = ['Médico','Enfermagem','Odontologia','Téc. Enfermagem'].includes(setor) ? 'flex' : 'none';
 
-  // Exibir Horário Marcado e 10 categorias da Lei 10.048/2000 para todos os setores
+  // Exibir Horário Marcado e 10 categorias da Lei 10.048/2000 sempre disponíveis (antes mesmo de escolher o setor)
   const odontoHmGrupo = document.getElementById('odonto-horario-marcado-grupo');
   const odontoHmChips = document.getElementById('odonto-horario-chips');
-  if (odontoHmGrupo) odontoHmGrupo.style.display = setor ? 'flex' : 'none';
-  if (odontoHmChips) odontoHmChips.style.display = setor ? 'block' : 'none';
+  if (odontoHmGrupo) odontoHmGrupo.style.display = 'flex';
+  if (odontoHmChips) odontoHmChips.style.display = 'block';
   atualizarOpcoesPrioridadePorSetor(setor);
 
   // Sincroniza botões rápidos de setor na Recepção
@@ -1860,10 +1860,24 @@ function speakAgain(setor, btnElement) {
   if (currentCalling[setor]) { const p = currentCalling[setor]; speakViaSynthesis(p.nome, setor, p.medico); } else showToast('Nenhum paciente sendo chamado!', true);
 }
 
-function rechamarPacienteNaFila(id, nome, setor, medico) {
+async function rechamarPacienteNaFila(id, nome, setor, medico) {
   unlockAudio(true);
-  speakViaSynthesis(nome, setor, medico || undefined);
-  showToast(`🔊 Rechamando ${nome} (${setor})!`);
+  try {
+    const res = await fetch(`${API_URL}/patients/${id}/rechamar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'Erro ao rechamar paciente.', true);
+      return;
+    }
+    showToast(`🔊 Rechamando ${nome} (${setor}) em todos os painéis!`);
+    await loadHistory();
+    await loadCurrentCalling();
+  } catch (e) {
+    showToast('Erro de conexão ao rechamar paciente.', true);
+  }
 }
 
 function updatePainelFullscreenBtn() {

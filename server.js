@@ -1769,6 +1769,36 @@ app.post('/api/call-next/:setor', async (req, res) => {
   }
 });
 
+// POST /api/patients/:id/rechamar — Rechamar paciente em TODOS os computadores e Painel de TV
+app.post('/api/patients/:id/rechamar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pRes = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    if (pRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    const p = pRes.rows[0];
+    await pool.query('UPDATE patients SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [id]);
+
+    const horarioChamada = new Date().toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Recife',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const profLabel = p.profissional ? `🔊 Rechamar · ${p.profissional}` : '🔊 Rechamar';
+    await pool.query(
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, medico, prioridade, tipo_prioridade, tipo_atendimento, consultorio, profissional)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [p.id, p.nome, p.setor, horarioChamada, p.medico || null, p.prioridade || 'geral', p.tipo_prioridade || null, p.tipo_atendimento || null, p.consultorio || null, profLabel]
+    );
+
+    io.emit('queueUpdate');
+    res.json({ success: true, patient: p });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ====== MELHORIA G: REORDENAÇÃO E TRANSFERÊNCIA (Admin RBAC) ======
 
 // PUT /api/patients/:id/reorder — Reposicionar paciente na fila (requer senha admin)
