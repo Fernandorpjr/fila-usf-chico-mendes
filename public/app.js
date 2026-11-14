@@ -302,12 +302,13 @@ function checkExpediente() {
 setInterval(checkExpediente, 60000); // verifica a cada minuto
 
 // --- Botão de Pausa Manual para Palestras da Gestora ---
-function togglePausaPalestra() {
+async function togglePausaPalestra() {
   if (!isPausado) {
-    // Ativar pausa — requer senha simples
+    // Ativar pausa — requer senha validada no servidor
     const senha = prompt('🎙️ Pausar para Palestra\n\nDigite a senha para ativar o modo pausa:');
     if (!senha) return;
-    if (!isValidAdminPass(senha)) { showToast('❌ Senha incorreta!', true); return; }
+    const ok = await verifyAdminPasswordServer(senha);
+    if (!ok) { showToast('❌ Senha incorreta!', true); return; }
     isPausado = true;
     // Fechar qualquer modal aberto
     document.querySelectorAll('.modal, .modal-overlay, [id$="-modal"]').forEach(el => {
@@ -472,16 +473,50 @@ let currentCalling = {}; SETORES.forEach(s => currentCalling[s] = null);
 let callHistory = [], attendedPatients = [], totalAtendidos = 0, totalDesistencias = 0;
 let lastSpokenCallId = null, chatMessages = [], unreadChatCount = 0;
 let isAdmin = false, adminPassword = null, alertedPatients = new Set();
-const VALID_ADMIN_PASSWORDS = ['chico123', '0177', 'usf2026'];
 function isValidAdminPass(pwd) {
-  return VALID_ADMIN_PASSWORDS.includes(String(pwd || '').trim());
+  return Boolean(pwd && String(pwd).trim().length > 0);
+}
+async function verifyAdminPasswordServer(pwd) {
+  const s = String(pwd || '').trim();
+  if (!s) return false;
+  try {
+    const r = await fetch(`${API_URL}/verify-admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senha: s })
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
 }
 try {
   const _savedAdmin = sessionStorage.getItem('usf_admin_pwd');
-  if (_savedAdmin && isValidAdminPass(_savedAdmin)) {
-    isAdmin = true;
-    adminPassword = _savedAdmin;
+  if (_savedAdmin) {
+    verifyAdminPasswordServer(_savedAdmin).then(ok => {
+      if (ok) {
+        isAdmin = true;
+        adminPassword = _savedAdmin;
+        if (typeof updateAdminUI === 'function') updateAdminUI();
+      } else {
+        try { sessionStorage.removeItem('usf_admin_pwd'); } catch (e) {}
+      }
+    });
   }
+} catch (e) {}
+
+function applyDarkModeUI(isDark) {
+  document.body.classList.toggle('dark-mode', Boolean(isDark));
+  const btn = document.getElementById('btn-dark-mode');
+  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+}
+function toggleDarkMode() {
+  const isDark = !document.body.classList.contains('dark-mode');
+  applyDarkModeUI(isDark);
+  try { localStorage.setItem('usf_dark_mode', isDark ? '1' : '0'); } catch (e) {}
+}
+try {
+  if (localStorage.getItem('usf_dark_mode') === '1') applyDarkModeUI(true);
 } catch (e) {}
 let sectorFilters = { medico: null, enfermagem: null };
 
@@ -643,30 +678,17 @@ function toggleAdmin() {
   if (!senha) return;
   const s = senha.trim();
 
-  // Validação instantânea local para senhas padrão
-  if (isValidAdminPass(s)) {
-    isAdmin = true;
-    adminPassword = s;
-    try { sessionStorage.setItem('usf_admin_pwd', s); } catch (e) {}
-    showToast('🔓 Modo administrador ativado!');
-    updateAdminUI();
-    fetch(`${API_URL}/verify-admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: s }) }).catch(() => {});
-    return;
-  }
-
-  fetch(`${API_URL}/verify-admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: s }) })
-    .then(r => {
-      if (r.ok) {
-        isAdmin = true;
-        adminPassword = s;
-        try { sessionStorage.setItem('usf_admin_pwd', s); } catch (e) {}
-        showToast('🔓 Modo administrador ativado!');
-      } else {
-        showToast('❌ Senha incorreta!', true);
-      }
+  verifyAdminPasswordServer(s).then(ok => {
+    if (ok) {
+      isAdmin = true;
+      adminPassword = s;
+      try { sessionStorage.setItem('usf_admin_pwd', s); } catch (e) {}
+      showToast('🔓 Modo administrador ativado!');
       updateAdminUI();
-    })
-    .catch(() => showToast('Erro de conexão ou senha incorreta', true));
+    } else {
+      showToast('❌ Senha incorreta!', true);
+    }
+  });
 }
 
 function updateAdminUI() {
@@ -703,14 +725,15 @@ const AdminGuard = {
 };
 
 // Helper centralizado para ações que exigem senha administrativa
-function pedirSenhaAdmin(acaoNome, callback) {
-  if (isAdmin && isValidAdminPass(adminPassword)) {
+async function pedirSenhaAdmin(acaoNome, callback) {
+  if (isAdmin && adminPassword) {
     return callback(adminPassword);
   }
   const senha = prompt(`🔒 Confirmação requerida para ${acaoNome}:\n\nDigite a senha de administrador:`);
   if (!senha) return;
   const s = senha.trim();
-  if (!isValidAdminPass(s)) {
+  const ok = await verifyAdminPasswordServer(s);
+  if (!ok) {
     showToast('❌ Senha incorreta! Ação cancelada.', true);
     return;
   }
@@ -1536,6 +1559,7 @@ async function addPatient(btn) {
 
     await loadQueues();
     if (setor === 'Acolhimento') loadAcolhimentoFluxo();
+    document.getElementById('input-nome')?.focus();
     // showQrModal(newPatient); // 🚫 Desativado a pedido: Não mostrar modal de QR automático
   } catch (e) { showToast(e.message || 'Erro ao adicionar paciente!', true); }
   if (btn) btn.disabled = false;
@@ -2608,6 +2632,13 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const prioBadge = renderPrioridadeIdadeBadge(p);
     const waitBadge = renderEsperaNormalBadge(p);
+    let chamadoTempoBadge = '';
+    if (p.status === 'chamado' && (p.updated_at || p.created_at)) {
+      const minsChamado = Math.floor((Date.now() - new Date(p.updated_at || p.created_at).getTime()) / 60000);
+      if (minsChamado >= 5) {
+        chamadoTempoBadge = `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(239,68,68,0.14);color:#b91c1c;border:1px solid rgba(239,68,68,0.35);font-size:10.5px;font-weight:900;" title="Paciente chamado sem comparecimento até o momento">⏱️ Chamado há ${minsChamado} min</span></div>`;
+      }
+    }
     const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
     const equipeBadge = renderEquipePacienteBadge(p);
     const isInterc = Boolean(p.is_intercorrencia_acolhimento) || p.tipo_atendimento === 'Intercorrência (Acolhimento)';
@@ -2684,6 +2715,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
         ${nextUpBadge ? `<div style="margin-top:4px;">${nextUpBadge}</div>` : ''}
         ${(SETORES_HORARIO_MARCADO.includes(setor) && p.horario_marcado) ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
         ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
+        ${chamadoTempoBadge}
       </td>
       <td>
         <div class="fila-paciente-nome">
@@ -2770,6 +2802,13 @@ function updateMiniQueues() {
       const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const prioBadge = renderPrioridadeIdadeBadge(p);
       const waitBadge = renderEsperaNormalBadge(p);
+    let chamadoTempoBadge = '';
+    if (p.status === 'chamado' && (p.updated_at || p.created_at)) {
+      const minsChamado = Math.floor((Date.now() - new Date(p.updated_at || p.created_at).getTime()) / 60000);
+      if (minsChamado >= 5) {
+        chamadoTempoBadge = `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(239,68,68,0.14);color:#b91c1c;border:1px solid rgba(239,68,68,0.35);font-size:10.5px;font-weight:900;" title="Paciente chamado sem comparecimento até o momento">⏱️ Chamado há ${minsChamado} min</span></div>`;
+      }
+    }
       const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
       const equipeBadge = renderEquipePacienteBadge(p);
       const isInterc = Boolean(p.is_intercorrencia_acolhimento) || p.tipo_atendimento === 'Intercorrência (Acolhimento)';
@@ -2838,6 +2877,7 @@ function updateMiniQueues() {
           ${nextUpBadge ? `<div style="margin-top:4px;">${nextUpBadge}</div>` : ''}
           ${(SETORES_HORARIO_MARCADO.includes(s) && p.horario_marcado) ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
           ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
+        ${chamadoTempoBadge}
         </td>
         <td>
           <div class="fila-paciente-nome">
@@ -5456,6 +5496,13 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     const posReal = p._posOriginal || (i + 1);
     const prioBadge = renderPrioridadeIdadeBadge(p);
     const waitBadge = renderEsperaNormalBadge(p);
+    let chamadoTempoBadge = '';
+    if (p.status === 'chamado' && (p.updated_at || p.created_at)) {
+      const minsChamado = Math.floor((Date.now() - new Date(p.updated_at || p.created_at).getTime()) / 60000);
+      if (minsChamado >= 5) {
+        chamadoTempoBadge = `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(239,68,68,0.14);color:#b91c1c;border:1px solid rgba(239,68,68,0.35);font-size:10.5px;font-weight:900;" title="Paciente chamado sem comparecimento até o momento">⏱️ Chamado há ${minsChamado} min</span></div>`;
+      }
+    }
     const equipeBadge = renderEquipePacienteBadge(p);
     const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
     const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde' ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴 ALTO' : p.risco_clinico === 'amarelo' ? '🟡 MODERADO' : p.risco_clinico === 'azul' ? '🟦 SEM RISCO' : ''}</span>` : '';
@@ -6346,6 +6393,13 @@ function renderAcsEscutaScreen() {
                 const nomeSafe = p.nome.replace(/'/g, "\\'");
                 const prioBadge = renderPrioridadeIdadeBadge(p);
                 const waitBadge = renderEsperaNormalBadge(p);
+    let chamadoTempoBadge = '';
+    if (p.status === 'chamado' && (p.updated_at || p.created_at)) {
+      const minsChamado = Math.floor((Date.now() - new Date(p.updated_at || p.created_at).getTime()) / 60000);
+      if (minsChamado >= 5) {
+        chamadoTempoBadge = `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(239,68,68,0.14);color:#b91c1c;border:1px solid rgba(239,68,68,0.35);font-size:10.5px;font-weight:900;" title="Paciente chamado sem comparecimento até o momento">⏱️ Chamado há ${minsChamado} min</span></div>`;
+      }
+    }
                 const equipeBadge = renderEquipePacienteBadge(p);
                 const riscoBadge = p.risco_clinico && p.risco_clinico !== 'verde'
                   ? `<span class="acol-risco-badge ${p.risco_clinico}">${p.risco_clinico === 'vermelho' ? '🔴' : p.risco_clinico === 'amarelo' ? '🟡' : '🟦'}</span>` : '';
@@ -6557,6 +6611,13 @@ function renderSegundaEscutaScreen() {
       const nomeSafe = p.nome.replace(/'/g, "\\'");
       const prioBadge = renderPrioridadeIdadeBadge(p);
       const waitBadge = renderEsperaNormalBadge(p);
+    let chamadoTempoBadge = '';
+    if (p.status === 'chamado' && (p.updated_at || p.created_at)) {
+      const minsChamado = Math.floor((Date.now() - new Date(p.updated_at || p.created_at).getTime()) / 60000);
+      if (minsChamado >= 5) {
+        chamadoTempoBadge = `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(239,68,68,0.14);color:#b91c1c;border:1px solid rgba(239,68,68,0.35);font-size:10.5px;font-weight:900;" title="Paciente chamado sem comparecimento até o momento">⏱️ Chamado há ${minsChamado} min</span></div>`;
+      }
+    }
       const equipeBadge = renderEquipePacienteBadge(p);
       const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
       const riscoBadge = p.risco_clinico

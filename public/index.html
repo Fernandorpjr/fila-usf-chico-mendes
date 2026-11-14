@@ -1830,6 +1830,45 @@
       .fila-paciente-nome {
         font-size: 15px !important;
       }
+      .btn-call-next, .btn-reorder-arrow, .btn-transfer-sector, .motivo-chip {
+        min-height: 38px !important;
+      }
+    }
+    /* ====== DESTAQUE CHAMANDO + MODO ESCURO OPCIONAL ====== */
+    .queue-item.calling {
+      background: rgba(245, 158, 11, 0.14) !important;
+      border-left: 4px solid #f59e0b !important;
+    }
+    body.dark-mode {
+      background: #0f172a !important;
+      color: #e2e8f0 !important;
+    }
+    body.dark-mode .card-white,
+    body.dark-mode .mini-queue-card,
+    body.dark-mode .stat-card,
+    body.dark-mode .acol-card,
+    body.dark-mode .acol-modal,
+    body.dark-mode .reorder-modal,
+    body.dark-mode .wa-modal {
+      background: #1e293b !important;
+      color: #e2e8f0 !important;
+      border-color: #334155 !important;
+    }
+    body.dark-mode .fila-clean-table th {
+      background: #0f172a !important;
+      color: #cbd5e1 !important;
+      border-color: #334155 !important;
+    }
+    body.dark-mode .fila-clean-table td {
+      border-color: #334155 !important;
+      color: #e2e8f0 !important;
+    }
+    body.dark-mode input,
+    body.dark-mode select,
+    body.dark-mode textarea {
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      border-color: #475569 !important;
     }
     /* ====== FIM CLEAN TABLE UI ====== */
 </style>
@@ -1928,6 +1967,7 @@
       <option value="donato_br">🎙️ Donato (Masc Grave)</option>
       <option value="humberto_br">🎙️ Humberto (Masc Alt)</option>
     </select>
+    <button id="btn-dark-mode" class="btn-reset" onclick="toggleDarkMode()" title="Alternar Modo Claro/Escuro">🌙</button>
     <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
     <div style="flex-shrink:0;white-space:nowrap;text-align:right;">
       <div class="date-display" id="dateDisplay"></div>
@@ -4002,6 +4042,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.7"></script>
-<script src="app.js?v=5.8"></script>
+<script src="app.js?v=5.9"></script>
 </body>
 </html>

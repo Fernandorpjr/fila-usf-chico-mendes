@@ -15,10 +15,19 @@ const io = { emit: () => {} };
 
 const { setupDispositivos, getDeviceId } = require('./lib/dispositivos');
 const { setupHistorico } = require('./lib/historico');
+const {
+  SETORES_HORARIO_MARCADO,
+  normalizarHorarioMarcado,
+  calcularOrdemPrioridadeOdonto,
+  sortQueueRows
+} = require('./lib/prioridade');
 
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = 'chico123';
-const ADMIN_PASSWORDS = ['chico123', '0177', 'usf2026'];
+const ADMIN_PASSWORDS = (process.env.ADMIN_PASSWORDS || 'chico123,0177,usf2026')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const ADMIN_PASSWORD = ADMIN_PASSWORDS[0] || 'chico123';
 function isValidAdminPass(senha) {
   if (!senha) return false;
   return ADMIN_PASSWORDS.includes(String(senha).trim());
@@ -140,159 +149,7 @@ function preservarOuElevarPrioridade(patientAntes, novosDados = {}) {
 //  9. Demais pessoas idosas (60 anos ou mais).
 // 10. Doadores de sangue, após os demais grupos prioritários.
 // 99. Atendimento Geral (sem prioridade legal).
-function normalizarHorarioMarcado(val) {
-  if (!val) return null;
-  const s = String(val).trim();
-  if (!s) return null;
-  const m = s.match(/^(\d{1,2})(?::(\d{2}))?$/);
-  if (m) {
-    const hh = Math.min(23, Math.max(0, parseInt(m[1], 10)));
-    const mm = m[2] ? Math.min(59, Math.max(0, parseInt(m[2], 10))) : 0;
-    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-  }
-  return s.slice(0, 5);
-}
-
-function calcularOrdemPrioridadeOdonto(idadeVal, prioridadeManual, tipoPrioridade, condicoesEspeciais) {
-  let idadeNum = null;
-  if (idadeVal !== undefined && idadeVal !== null && String(idadeVal).trim() !== '') {
-    const parsed = Number(idadeVal);
-    if (Number.isInteger(parsed) && parsed >= 0 && parsed <= 120) {
-      idadeNum = parsed;
-    }
-  }
-
-  const tipoNorm = String(tipoPrioridade || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const condNorm = String(condicoesEspeciais || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-  const matches = [];
-
-  // 1. Idosos com 80 anos ou mais – prioridade especial
-  if (
-    (idadeNum !== null && idadeNum >= 80) ||
-    tipoNorm.includes('80') ||
-    tipoNorm.startsWith('1.')
-  ) {
-    matches.push({ ordem: 1, label: '1. Idoso 80+ (Prioridade Especial)', nivel: 1 });
-  }
-
-  // 2. Pessoas com deficiência – incluindo cadeirantes
-  if (
-    tipoNorm.startsWith('2.') ||
-    tipoNorm.includes('deficiencia') ||
-    tipoNorm.includes('pcd') ||
-    tipoNorm.includes('cadeirante') ||
-    condNorm.includes('pcd') ||
-    condNorm.includes('deficiencia')
-  ) {
-    matches.push({ ordem: 2, label: '2. Pessoa com Deficiência (PCD)', nivel: 2 });
-  }
-
-  // 3. Pessoas com TEA
-  if (
-    tipoNorm.startsWith('3.') ||
-    tipoNorm.includes('tea') ||
-    tipoNorm.includes('autismo') ||
-    condNorm.includes('tea') ||
-    condNorm.includes('autismo')
-  ) {
-    matches.push({ ordem: 3, label: '3. Pessoa com TEA', nivel: 2 });
-  }
-
-  // 4. Gestantes
-  if (
-    tipoNorm.startsWith('4.') ||
-    tipoNorm.includes('gestante') ||
-    condNorm.includes('gestante')
-  ) {
-    matches.push({ ordem: 4, label: '4. Gestante', nivel: 2 });
-  }
-
-  // 5. Lactantes
-  if (
-    tipoNorm.startsWith('5.') ||
-    tipoNorm.includes('lactante') ||
-    condNorm.includes('lactante')
-  ) {
-    matches.push({ ordem: 5, label: '5. Lactante', nivel: 2 });
-  }
-
-  // 6. Pessoas acompanhadas de criança de colo (incluindo bebês e crianças menores de 2 anos)
-  if (
-    tipoNorm.startsWith('6.') ||
-    tipoNorm.includes('colo') ||
-    condNorm.includes('crianca_colo') ||
-    prioridadeManual === 'crianca_colo' ||
-    (idadeNum !== null && idadeNum >= 0 && idadeNum < 2)
-  ) {
-    matches.push({ ordem: 6, label: '6. Criança de Colo (< 2 anos)', nivel: 2 });
-  }
-
-  // 7. Pessoas com mobilidade reduzida
-  if (
-    tipoNorm.startsWith('7.') ||
-    tipoNorm.includes('mobilidade')
-  ) {
-    matches.push({ ordem: 7, label: '7. Mobilidade Reduzida', nivel: 2 });
-  }
-
-  // 8. Pessoas com obesidade
-  if (
-    tipoNorm.startsWith('8.') ||
-    tipoNorm.includes('obesidade') ||
-    tipoNorm.includes('obeso')
-  ) {
-    matches.push({ ordem: 8, label: '8. Obesidade', nivel: 2 });
-  }
-
-  // 9. Demais pessoas idosas (60 anos ou mais)
-  if (
-    tipoNorm.startsWith('9.') ||
-    (idadeNum !== null && idadeNum >= 60 && idadeNum < 80) ||
-    tipoNorm.includes('60') ||
-    (tipoNorm.includes('idoso') && !tipoNorm.includes('80'))
-  ) {
-    matches.push({ ordem: 9, label: '9. Idoso 60+', nivel: 2 });
-  }
-
-  // 10. Doadores de sangue, após os demais grupos prioritários
-  if (
-    tipoNorm.startsWith('10.') ||
-    tipoNorm.includes('doador') ||
-    tipoNorm.includes('sangue')
-  ) {
-    matches.push({ ordem: 10, label: '10. Doador de Sangue', nivel: 2 });
-  }
-
-  if (matches.length > 0) {
-    matches.sort((a, b) => a.ordem - b.ordem);
-    const best = matches[0];
-    return {
-      ordem_prioridade_odonto: best.ordem,
-      prioridade: 'prioritario',
-      tipo_prioridade: best.label,
-      nivel: best.nivel
-    };
-  }
-
-  if (prioridadeManual === 'prioritario') {
-    return {
-      ordem_prioridade_odonto: 9,
-      prioridade: 'prioritario',
-      tipo_prioridade: tipoPrioridade ? String(tipoPrioridade).trim() : '9. Idoso 60+',
-      nivel: 2
-    };
-  }
-
-  return {
-    ordem_prioridade_odonto: 99,
-    prioridade: 'geral',
-    tipo_prioridade: null,
-    nivel: 3
-  };
-}
+// Regras de prioridade (1 a 10) e Horário Marcado importadas de ./lib/prioridade
 
 function sanitizarPacientePublico(p) {
   if (!p) return p;
@@ -358,25 +215,53 @@ async function anexarBuscaAtivaDetalhes(rows, dbPool) {
 
 // Middleware
 app.use(cors());
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 app.use(express.static('public'));
 
-// === BLOQUEIO POR HORÁRIO (06:00 - 20:00 BRT) ===
-function isDentroDoHorario() {
-  const date = new Date();
-  const options = { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false };
-  const formatter = new Intl.DateTimeFormat('pt-BR', options);
-  const timeString = formatter.format(date);
-  const hour = parseInt(timeString.split(':')[0], 10);
-  return (hour >= 6 && hour < 20);
+// === BLOQUEIO POR HORÁRIO (06:00 - 20:00 America/Recife | Seg-Sex ou Mutirão liberado) ===
+const _mutiraoServerCache = { data: '', checkedAt: 0 };
+async function isMutiraoLiberadoHojeServer() {
+  const hoje = getDataHojeRecife();
+  const now = Date.now();
+  if (now - _mutiraoServerCache.checkedAt < 30000) {
+    return _mutiraoServerCache.data === hoje;
+  }
+  try {
+    const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'mutirao_data_liberada'`);
+    _mutiraoServerCache.data = r.rows[0]?.valor || '';
+    _mutiraoServerCache.checkedAt = now;
+    return _mutiraoServerCache.data === hoje;
+  } catch {
+    return false;
+  }
 }
 
-app.use('/api', (req, res, next) => {
+async function isDentroDoHorario() {
+  const now = new Date();
+  const hoje = getDataHojeRecife();
+  const hour = parseInt(new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Recife', hour: '2-digit', hour12: false
+  }).format(now), 10);
+  if (hour < 6 || hour >= 20) return false;
+  const day = new Date(hoje + 'T00:00:00Z').getUTCDay();
+  if (day >= 1 && day <= 5) return true;
+  const DATAS_MUTIRAO = ['2026-09-26', '2026-11-07', '2026-04-11', '2026-11-14', '2026-04-18'];
+  if (DATAS_MUTIRAO.includes(hoje)) return true;
+  return await isMutiraoLiberadoHojeServer();
+}
+
+app.use('/api', async (req, res, next) => {
   if (req.method === 'GET') {
     // Permite cache no Edge Server da Vercel por 3 segundos para abater requisições repetidas (Economia de Invocations)
     // EXCEÇÃO: Rotas administrativas, dispositivos ou histórico não devem ser expostas em cache público
-    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico') || req.path.startsWith('/motivos-busca-ativa') || req.path.includes('/busca-ativa') || req.path.startsWith('/config-prioridade')) {
+    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico') || req.path.startsWith('/motivos-busca-ativa') || req.path.includes('/busca-ativa') || req.path.startsWith('/config-prioridade') || req.path.startsWith('/config/mutirao-hoje')) {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     } else {
       res.set('Cache-Control', 'public, s-maxage=3, stale-while-revalidate=2');
@@ -388,9 +273,10 @@ app.use('/api', (req, res, next) => {
     res.set('Surrogate-Control', 'no-store');
   }
 
-  if (!isDentroDoHorario()) {
+  const isExempt = req.path === '/health' || req.path === '/verify-admin' || req.path.startsWith('/config/mutirao-hoje');
+  if (!isExempt && !(await isDentroDoHorario())) {
     return res.status(503).json({ 
-      error: 'Sistema fora do horário de funcionamento (20:00 às 06:00). Banco de dados suspenso para economia.'
+      error: 'Sistema fora do horário de funcionamento. Banco de dados suspenso para economia.'
     });
   }
   
@@ -963,12 +849,32 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, ts: Date.now() });
 });
 
+// Rate limiter simples em memória para tentativas de senha admin
+const _adminAttempts = new Map();
+function checkAdminRateLimit(ip) {
+  const now = Date.now();
+  const entry = _adminAttempts.get(ip) || { count: 0, resetAt: now + 5 * 60 * 1000 };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + 5 * 60 * 1000;
+  }
+  _adminAttempts.set(ip, entry);
+  return entry;
+}
+
 // Verify admin password
 app.post('/api/verify-admin', (req, res) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const entry = checkAdminRateLimit(ip);
+  if (entry.count >= 10) {
+    return res.status(429).json({ valid: false, error: 'Muitas tentativas. Aguarde alguns minutos.' });
+  }
   const { senha } = req.body;
   if (isValidAdminPass(senha)) {
+    entry.count = 0;
     res.json({ valid: true });
   } else {
+    entry.count += 1;
     res.status(403).json({ valid: false, error: 'Senha incorreta' });
   }
 });
@@ -1005,6 +911,8 @@ app.post('/api/config/mutirao-hoje', async (req, res) => {
        ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
       [novoValor]
     );
+    _mutiraoServerCache.data = novoValor;
+    _mutiraoServerCache.checkedAt = Date.now();
     res.json({ success: true, liberado, data: novoValor || null, hoje });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1020,7 +928,6 @@ app.post('/api/config/mutirao-hoje', async (req, res) => {
 //   da transferência) e segue o fluxo dinâmico conforme novos pacientes chegam.
 const SQL_NIVEL_EFETIVO = `CASE WHEN COALESCE(nivel_prioridade, 3) IN (1, 2) THEN nivel_prioridade WHEN prioridade = 'prioritario' THEN 2 ELSE 3 END`;
 const SQL_PRIO_EFETIVA = `CASE WHEN prioridade = 'prioritario' OR COALESCE(nivel_prioridade, 3) IN (1, 2) THEN 0 ELSE 1 END`;
-const SETORES_HORARIO_MARCADO = ['Médico', 'Odontologia', 'Enfermagem'];
 const SQL_ODONTO_PRIO_RANK = `COALESCE(ordem_prioridade_odonto, CASE WHEN COALESCE(nivel_prioridade, 3) = 1 THEN 1 WHEN prioridade = 'prioritario' OR COALESCE(nivel_prioridade, 3) = 2 THEN 9 ELSE 99 END)`;
 const SQL_ODONTO_HORARIO_MARCADO = `CASE
   WHEN setor IN ('Médico', 'Odontologia', 'Enfermagem') THEN COALESCE(NULLIF(TRIM(horario_marcado), ''), '99:99')
@@ -1048,27 +955,7 @@ async function reordenarFilaSetor(db, setor = 'Odontologia') {
   );
   if (res.rows.length === 0) return;
 
-  const rows = res.rows.map(r => {
-    let rank = Number(r.ordem_prioridade_odonto);
-    if (!Number.isInteger(rank) || rank < 1 || rank > 99) {
-      const calcOdonto = calcularOrdemPrioridadeOdonto(r.idade, r.prioridade, r.tipo_prioridade, r.condicoes_especiais);
-      rank = calcOdonto.ordem_prioridade_odonto;
-    }
-    const hm = normalizarHorarioMarcado(r.horario_marcado) || '99:99';
-    const createdMs = r.created_at ? new Date(r.created_at).getTime() : 0;
-    return { id: r.id, rank, hm, createdMs };
-  });
-
-  const usaHorarioMarcado = SETORES_HORARIO_MARCADO.includes(setor);
-  rows.sort((a, b) => {
-    // 1. Grupo Preferencial (1 a 10) sempre na frente do Geral (99), seguindo a ordem 1 -> 10
-    if (a.rank !== b.rank) return a.rank - b.rank;
-    // 2. Para Médico, Odontologia e Enfermagem: Horário Marcado primeiro (ex: 09:00 antes de 10:00)
-    if (usaHorarioMarcado && a.hm !== b.hm) return a.hm.localeCompare(b.hm);
-    // 3. Demais setores (demanda espontânea) ou mesmo horário marcado: ordem de chegada
-    if (a.createdMs !== b.createdMs) return a.createdMs - b.createdMs;
-    return a.id - b.id;
-  });
+  const rows = sortQueueRows(res.rows, setor);
 
   for (let i = 0; i < rows.length; i++) {
     await db.query(
