@@ -43,6 +43,11 @@
     padding: 0 !important;
   }
 
+  #disp-print-area,
+  .no-screen {
+    display: block !important;
+  }
+
   /* Cabeçalho padrão de impressão */
   .print-header {
     display: block !important;

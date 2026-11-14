@@ -275,6 +275,9 @@ function renderizarTabelaDispositivos(lista, container) {
             <button class="btn btn-outline btn-sm" onclick="abrirModalHistoricoLogins('${d.id}', '${escHtml(d.nome)}')" title="Ver histórico de logins (30 dias)" style="padding:4px 8px;font-size:11px;">
               📜 Logins
             </button>
+            <button class="btn btn-outline btn-sm" onclick="excluirDispositivo('${d.id}', '${escHtml(d.nome || 'Sem nome').replace(/'/g, "\\'")}')" title="Excluir aparelho permanentemente" style="padding:4px 8px;font-size:11px;color:#b91c1c;border-color:#fca5a5;">
+              🗑️ Excluir
+            </button>
           </div>
         </td>
       </tr>
@@ -457,13 +460,76 @@ function fecharModalHistoricoLogins() {
   if (modal) modal.classList.remove('show');
 }
 
+function obterDispositivosFiltrados() {
+  const q = (document.getElementById('disp-filtro-busca')?.value || '').trim().toLowerCase();
+  if (!q) return _dispositivosAdminDados;
+  return _dispositivosAdminDados.filter(d =>
+    String(d.nome || '').toLowerCase().includes(q) ||
+    String(d.setor || '').toLowerCase().includes(q) ||
+    String(d.ultimo_ip || '').toLowerCase().includes(q) ||
+    String(d.id || '').toLowerCase().includes(q)
+  );
+}
+
+function filtrarDispositivosLocal() {
+  const container = document.getElementById('disp-lista-container');
+  if (container) renderizarTabelaDispositivos(obterDispositivosFiltrados(), container);
+}
+
+async function excluirDispositivo(id, nome) {
+  if (!confirm(`🗑️ Deseja EXCLUIR permanentemente o aparelho "${nome}"?\n\nIsso removerá o registro e o histórico de acessos dele.`)) return;
+  try {
+    const res = await fetch(`${API_URL}/admin/dispositivos/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': adminPassword || ''
+      },
+      body: JSON.stringify({ senha: adminPassword || '' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(data.error || 'Erro ao excluir aparelho.', true);
+      return;
+    }
+    showToast(`🗑️ Aparelho "${nome}" excluído com sucesso!`);
+    await carregarDispositivosAdmin();
+  } catch (err) {
+    showToast('Erro de conexão ao excluir aparelho.', true);
+  }
+}
+
+async function limparDispositivosAntigos() {
+  if (!confirm('🧹 Remover todos os aparelhos sem acesso há mais de 30 dias?')) return;
+  try {
+    const res = await fetch(`${API_URL}/admin/dispositivos/limpar-antigos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': adminPassword || ''
+      },
+      body: JSON.stringify({ senha: adminPassword || '' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(data.error || 'Erro ao limpar aparelhos antigos.', true);
+      return;
+    }
+    showToast(`🧹 ${data.removidos || 0} aparelho(s) antigo(s) removido(s)!`);
+    await carregarDispositivosAdmin();
+  } catch (err) {
+    showToast('Erro de conexão ao limpar aparelhos antigos.', true);
+  }
+}
+
 // Impressão A4 de dispositivos conectados
 function imprimirListaDispositivos() {
   const container = document.getElementById('disp-print-area');
   if (!container) return;
 
+  const listaImpressao = obterDispositivosFiltrados();
   const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' });
-  const linhas = _dispositivosAdminDados.map((d, idx) => {
+  const linhas = listaImpressao.map((d, idx) => {
     const statusLabel = d.ativo === false ? 'Bloqueado' : (d.online ? 'Online' : 'Offline');
     const badgeClass = d.ativo === false ? 'badge-cancelado' : (d.online ? 'badge-reagendado' : '');
     const dtUltimo = d.ultimo_acesso ? new Date(d.ultimo_acesso).toLocaleString('pt-BR', { timeZone: 'America/Recife' }) : 'Nunca';
@@ -485,7 +551,7 @@ function imprimirListaDispositivos() {
       <h1>USF Chico Mendes — Dispositivos Conectados e Auditoria</h1>
       <p class="print-sub">Unidade de Saúde da Família Chico Mendes • Controle de Acesso e Aparelhos</p>
       <div class="print-meta">
-        <b>Total de aparelhos:</b> ${_dispositivosAdminDados.length} | <b>Emitido em:</b> ${agora} (Fuso Recife)
+        <b>Total de aparelhos:</b> ${listaImpressao.length} | <b>Emitido em:</b> ${agora} (Fuso Recife)
       </div>
     </div>
     <table class="print-table">

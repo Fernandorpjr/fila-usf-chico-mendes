@@ -919,6 +919,36 @@ app.post('/api/config/mutirao-hoje', async (req, res) => {
   }
 });
 
+// Jingle de chamada compartilhado entre todas as estações e TVs
+app.get('/api/config/jingle', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'jingle_chamada'`);
+    res.json({ jingle: r.rows[0]?.valor || 'classic' });
+  } catch (err) {
+    res.json({ jingle: 'classic' });
+  }
+});
+
+app.post('/api/config/jingle', async (req, res) => {
+  try {
+    const senha = req.body?.senha || req.headers['x-admin-password'];
+    if (!isValidAdminPass(senha)) {
+      return res.status(401).json({ error: 'Senha de administrador inválida.' });
+    }
+    const permitidos = ['classic', 'airport', 'natal', 'soft', 'none'];
+    const jingle = permitidos.includes(req.body?.jingle) ? req.body.jingle : 'classic';
+    await pool.query(
+      `INSERT INTO configuracoes (chave, valor)
+       VALUES ('jingle_chamada', $1)
+       ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+      [jingle]
+    );
+    res.json({ success: true, jingle });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all queues (sorted: priority level first, then arrival order)
 // ====== ORDEM PADRÃO DA FILA (única fonte de verdade para tela, QR Code e reordenação) ======
 // - sort_order (posição manual, fixação de prioridade no topo ou exceção de 3ª posição) vem sempre primeiro;

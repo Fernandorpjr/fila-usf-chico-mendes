@@ -1942,9 +1942,84 @@ document.addEventListener('fullscreenchange', updatePainelFullscreenBtn);
 let speechQueue = [];
 let isSpeaking = false;
 
+// ====== JINGLE CONFIGURÁVEL DE CHAMADA ======
+let jinglePreferido = 'classic';
+try {
+  const savedJ = localStorage.getItem('usf_jingle_chamada');
+  if (savedJ) jinglePreferido = savedJ;
+} catch (e) {}
+
+function sincronizarSeletoresJingle() {
+  ['select-jingle-sistema', 'select-jingle-painel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = jinglePreferido;
+  });
+}
+
+async function carregarJinglePreferido() {
+  try {
+    const r = await fetch(`${API_URL}/config/jingle`);
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d && d.jingle) {
+      jinglePreferido = d.jingle;
+      try { localStorage.setItem('usf_jingle_chamada', jinglePreferido); } catch (e) {}
+      sincronizarSeletoresJingle();
+    }
+  } catch (_) {}
+}
+
+async function alterarJinglePreferido(novoJingle, testar = true) {
+  jinglePreferido = novoJingle || 'classic';
+  try { localStorage.setItem('usf_jingle_chamada', jinglePreferido); } catch (e) {}
+  sincronizarSeletoresJingle();
+  if (adminPassword) {
+    fetch(`${API_URL}/config/jingle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senha: adminPassword, jingle: jinglePreferido })
+    }).catch(() => {});
+  }
+  if (testar) {
+    await playChime();
+    showToast('🎵 Jingle atualizado!');
+  }
+}
+
+async function testarJingleSistema() {
+  unlockAudio(true);
+  await playChime();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  sincronizarSeletoresJingle();
+  carregarJinglePreferido();
+});
+
+// Desbloquear áudio automaticamente no primeiro clique/tecla na página (ajuda som do chat e TV)
+['pointerdown', 'keydown'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    try { unlockAudio(false); } catch (e) {}
+  }, { once: true, passive: true });
+});
+
+function tocarNotaWebAudio(ctx, freq, startOffset, duration, type = 'sine', vol = 0.24) {
+  const t = ctx.currentTime + startOffset;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + duration);
+}
+
 function playChime() {
   return new Promise((resolve) => {
-    if (isMuted) {
+    if (isMuted || jinglePreferido === 'none') {
       return resolve();
     }
     try {
@@ -1953,31 +2028,35 @@ function playChime() {
 
       const startChime = () => {
         try {
-          // Nota 1 (Ding - 587.33Hz / D5)
-          const osc1 = ctx.createOscillator();
-          const gain1 = ctx.createGain();
-          osc1.type = 'sine';
-          osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
-          gain1.gain.setValueAtTime(0.24, ctx.currentTime);
-          gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-          osc1.connect(gain1);
-          gain1.connect(ctx.destination);
-          osc1.start(ctx.currentTime);
-          osc1.stop(ctx.currentTime + 0.45);
-
-          // Nota 2 (Dong - 880Hz / A5)
-          const osc2 = ctx.createOscillator();
-          const gain2 = ctx.createGain();
-          osc2.type = 'sine';
-          osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.18);
-          gain2.gain.setValueAtTime(0.27, ctx.currentTime + 0.18);
-          gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.75);
-          osc2.connect(gain2);
-          gain2.connect(ctx.destination);
-          osc2.start(ctx.currentTime + 0.18);
-          osc2.stop(ctx.currentTime + 0.75);
-
-          setTimeout(resolve, 750);
+          if (jinglePreferido === 'airport') {
+            // 4 notas ascendentes estilo aeroporto (C5 - E5 - G5 - C6)
+            tocarNotaWebAudio(ctx, 523.25, 0.00, 0.28, 'triangle', 0.22);
+            tocarNotaWebAudio(ctx, 659.25, 0.16, 0.28, 'triangle', 0.23);
+            tocarNotaWebAudio(ctx, 783.99, 0.32, 0.30, 'triangle', 0.24);
+            tocarNotaWebAudio(ctx, 1046.50, 0.48, 0.55, 'sine', 0.26);
+            setTimeout(resolve, 1050);
+          } else if (jinglePreferido === 'natal') {
+            // Natalino (Jingle Bells: E5 E5 E5 | E5 E5 E5 | E5 G5 C5 D5 E5)
+            const notas = [
+              [659.25, 0.00, 0.16], [659.25, 0.17, 0.16], [659.25, 0.34, 0.30],
+              [659.25, 0.68, 0.16], [659.25, 0.85, 0.16], [659.25, 1.02, 0.30],
+              [659.25, 1.36, 0.16], [783.99, 1.53, 0.16], [523.25, 1.70, 0.22],
+              [587.33, 1.93, 0.14], [659.25, 2.08, 0.50]
+            ];
+            notas.forEach(([f, off, dur]) => tocarNotaWebAudio(ctx, f, off, dur, 'triangle', 0.22));
+            setTimeout(resolve, 2600);
+          } else if (jinglePreferido === 'soft') {
+            // Campainha suave (E5 - G#5 - B5)
+            tocarNotaWebAudio(ctx, 659.25, 0.00, 0.35, 'sine', 0.18);
+            tocarNotaWebAudio(ctx, 830.61, 0.15, 0.38, 'sine', 0.20);
+            tocarNotaWebAudio(ctx, 987.77, 0.30, 0.55, 'sine', 0.22);
+            setTimeout(resolve, 880);
+          } else {
+            // Clássico Ding-Dong (D5 -> A5)
+            tocarNotaWebAudio(ctx, 587.33, 0.00, 0.45, 'sine', 0.24);
+            tocarNotaWebAudio(ctx, 880.00, 0.18, 0.57, 'sine', 0.27);
+            setTimeout(resolve, 750);
+          }
         } catch (err) {
           resolve();
         }
@@ -2261,29 +2340,21 @@ function repeatLastCall(btnElement) {
 // ====== CHAT SOUND ======
 function playChatSound() {
   if (typeof isMuted !== 'undefined' && isMuted) return;
-  if (typeof audioUnlocked !== 'undefined' && !audioUnlocked) return;
   try {
     const ctx = getSharedAudioContext();
     if (!ctx) return;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880; osc.type = 'sine'; gain.gain.value = 0.3;
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.stop(ctx.currentTime + 0.4);
-    setTimeout(() => {
+    const tocar = () => {
       try {
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2); gain2.connect(ctx.destination);
-        osc2.frequency.value = 1100; osc2.type = 'sine'; gain2.gain.value = 0.3;
-        osc2.start();
-        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-        osc2.stop(ctx.currentTime + 0.4);
+        tocarNotaWebAudio(ctx, 880, 0.00, 0.25, 'sine', 0.24);
+        tocarNotaWebAudio(ctx, 1174.66, 0.15, 0.35, 'sine', 0.26);
       } catch (e) {}
-    }, 200);
-  } catch(e) { /* ignore audio errors */ }
+    };
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(tocar).catch(() => {});
+    } else {
+      tocar();
+    }
+  } catch (e) { /* ignore audio errors */ }
 }
 
 // ====== LOAD DATA ======
@@ -3809,12 +3880,17 @@ async function clearChatCanal() {
   });
 }
 
+let _prevTotalUnreadChat = 0;
 function updateChatBadge() {
   const b = document.getElementById('badge-chat');
   const fab = document.getElementById('chat-fab');
   const hdrAlert = document.getElementById('header-chat-alert');
   const hdrTxt = document.getElementById('header-chat-alert-text');
   const total = Object.values(channelUnread).reduce((s,v) => s+(v||0), 0);
+  if (total > _prevTotalUnreadChat) {
+    playChatSound();
+  }
+  _prevTotalUnreadChat = total;
   if (b) {
     if (total > 0) { b.textContent = total; b.style.display = 'inline-block'; b.classList.add('badge-pulse'); }
     else { b.style.display = 'none'; b.classList.remove('badge-pulse'); }

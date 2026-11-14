@@ -1967,6 +1967,13 @@
       <option value="donato_br">🎙️ Donato (Masc Grave)</option>
       <option value="humberto_br">🎙️ Humberto (Masc Alt)</option>
     </select>
+    <select id="select-jingle-sistema" class="select-voz-admin admin-only" onchange="alterarJinglePreferido(this.value, true)" title="Escolher jingle antes da chamada">
+      <option value="classic">🔔 Ding-Dong Clássico</option>
+      <option value="airport">✈️ Embarque Aeroporto</option>
+      <option value="natal">🎄 Natalino (Jingle Bells)</option>
+      <option value="soft">✨ Campainha Suave</option>
+      <option value="none">🔇 Sem Jingle</option>
+    </select>
     <button id="btn-dark-mode" class="btn-reset" onclick="toggleDarkMode()" title="Alternar Modo Claro/Escuro">🌙</button>
     <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
     <div style="flex-shrink:0;white-space:nowrap;text-align:right;">
@@ -2734,6 +2741,14 @@
               <option value="humberto_br">🇧🇷👨 Humberto (Alternativa Masculina)</option>
             </select>
             <button type="button" onclick="testarVozSistema()" style="background:rgba(74,171,60,0.3);color:#fff;border:1px solid rgba(74,171,60,0.6);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">🎙️ Testar Voz</button>
+            <select id="select-jingle-painel" onchange="alterarJinglePreferido(this.value, true)" style="background:rgba(15,23,42,0.9);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;" title="Escolher jingle antes da chamada">
+              <option value="classic">🔔 Ding-Dong Clássico</option>
+              <option value="airport">✈️ Embarque Aeroporto</option>
+              <option value="natal">🎄 Natalino (Jingle Bells)</option>
+              <option value="soft">✨ Campainha Suave</option>
+              <option value="none">🔇 Sem Jingle</option>
+            </select>
+            <button type="button" onclick="testarJingleSistema()" style="background:rgba(245,158,11,0.3);color:#fff;border:1px solid rgba(245,158,11,0.6);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">🎵 Testar Jingle</button>
           </div>
         </div>
       </div>
@@ -3149,16 +3164,16 @@
 
   <!-- ============ PAINEL ADMIN: DISPOSITIVOS CONECTADOS ============ -->
   <div class="screen" id="screen-dispositivos">
-    <div class="sector-page-header">
+    <div class="sector-page-header no-print">
       <div class="sector-icon-big" style="background:rgba(26,79,196,0.2);">💻</div>
       <div><div class="sector-page-title">Dispositivos Conectados</div><div class="sector-page-sub">Controle de acessos, identificação por consultório e auditoria de aparelhos</div></div>
     </div>
 
     <!-- Alertas dinâmicos de dispositivos -->
-    <div id="disp-alertas-container"></div>
+    <div id="disp-alertas-container" class="no-print"></div>
 
     <!-- Card de Aviso sobre IP compartilhado -->
-    <div class="card-white" style="margin-bottom:18px;padding:16px;border-left:5px solid var(--blue);background:#f0f7ff;">
+    <div class="card-white no-print" style="margin-bottom:18px;padding:16px;border-left:5px solid var(--blue);background:#f0f7ff;">
       <div style="display:flex;align-items:flex-start;gap:10px;">
         <span style="font-size:22px;">ℹ️</span>
         <div style="font-size:13px;color:#1e3a8a;line-height:1.5;">
@@ -3170,9 +3185,12 @@
     </div>
 
     <!-- Barra de Filtros e Ações de Dispositivos -->
-    <div class="card-white" style="padding:18px;margin-bottom:20px;">
+    <div class="card-white no-print" style="padding:18px;margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <div class="form-group" style="margin-bottom:0;">
+            <input type="text" id="disp-filtro-busca" oninput="filtrarDispositivosLocal()" placeholder="🔍 Buscar nome, IP ou setor..." style="padding:8px 12px;font-size:13px;min-width:200px;">
+          </div>
           <div class="form-group" style="margin-bottom:0;">
             <select id="disp-filtro-setor" onchange="carregarDispositivosAdmin()" style="padding:8px 12px;font-size:13px;">
               <option value="">Todos os Setores</option>
@@ -3195,15 +3213,16 @@
             </select>
           </div>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary btn-sm" onclick="carregarDispositivosAdmin()">🔄 Atualizar</button>
           <button class="btn btn-outline btn-sm" onclick="imprimirListaDispositivos()">🖨️ Imprimir Lista (A4)</button>
+          <button class="btn btn-outline btn-sm" onclick="limparDispositivosAntigos()" style="color:#b91c1c;border-color:#fca5a5;">🧹 Limpar Antigos (+30d)</button>
         </div>
       </div>
     </div>
 
     <!-- Tabela de Dispositivos -->
-    <div class="card-white" style="padding:20px;" id="disp-lista-container">
+    <div class="card-white no-print" style="padding:20px;" id="disp-lista-container">
       <div style="text-align:center;padding:20px;color:var(--gray-500);">Carregando dispositivos...</div>
     </div>
 
@@ -4043,6 +4062,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.7"></script>
-<script src="app.js?v=6.0"></script>
+<script src="app.js?v=6.1"></script>
 </body>
 </html>
