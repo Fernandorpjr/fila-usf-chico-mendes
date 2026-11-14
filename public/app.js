@@ -147,6 +147,18 @@ document.addEventListener('DOMContentLoaded', () => {
 let isPausado = false;
 let intervalChat = null;   // referência ao setInterval do chat (~linha 2422)
 let intervalAgend = null;  // referência ao setInterval de agendamentos (~linha 2447)
+let _mutiraoLiberadoData = '';
+
+function getDataHojeRecife() {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Recife',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+  } catch (e) {
+    return new Date().toISOString().split('T')[0];
+  }
+}
 
 // --- Helper: retorna { day: 0-6, hour: 0-23 } no fuso America/Recife ---
 function getDayAndHourRecife(date) {
@@ -176,7 +188,7 @@ function isDentroDoHorario() {
     year: 'numeric', month: '2-digit', day: '2-digit'
   }).format(now);
   const DATAS_MUTIRAO = ['2026-09-26', '2026-11-07', '2026-04-11', '2026-11-14', '2026-04-18']; // Sábados liberados para mutirão
-  if (DATAS_MUTIRAO.includes(dateStrRecife)) {
+  if (DATAS_MUTIRAO.includes(dateStrRecife) || _mutiraoLiberadoData === dateStrRecife) {
     // No mutirão, só bloqueia fora do horário (06h–18h)
     if (hour < 6 || hour >= 18) return false;
     return true;
@@ -186,6 +198,53 @@ function isDentroDoHorario() {
   if (day === 0 || day === 6) return false; // Domingo (0) ou Sábado (6)
   if (hour < 6 || hour >= 18) return false; // Fora de 06h–18h
   return true;
+}
+
+function atualizarBotaoMutirao() {
+  const btn = document.getElementById('btn-mutirao-hoje');
+  if (!btn) return;
+  const ativo = _mutiraoLiberadoData === getDataHojeRecife();
+  btn.textContent = ativo ? '✅ Mutirão Ativo' : '🗓️ Mutirão Hoje';
+  btn.style.background = ativo ? 'rgba(74, 171, 60, 0.25)' : '';
+  btn.style.borderColor = ativo ? 'rgba(74, 171, 60, 0.7)' : '';
+}
+
+async function carregarStatusMutiraoHoje() {
+  try {
+    const res = await fetch(`${API_URL}/config/mutirao-hoje`);
+    if (!res.ok) return;
+    const data = await res.json();
+    _mutiraoLiberadoData = data.liberado ? (data.hoje || getDataHojeRecife()) : '';
+    atualizarBotaoMutirao();
+    checkExpediente();
+  } catch (_) {}
+}
+
+async function toggleMutiraoHoje(forceLiberar) {
+  const hoje = getDataHojeRecife();
+  const jaAtivo = _mutiraoLiberadoData === hoje;
+  const novoEstado = forceLiberar !== undefined ? Boolean(forceLiberar) : !jaAtivo;
+  const acaoTexto = novoEstado ? 'LIBERAR expediente extra / mutirão hoje' : 'ENCERRAR liberação de mutirão hoje';
+  const senha = prompt(`🗓️ ${acaoTexto}\n\nDigite a senha de administrador:`);
+  if (!senha) return;
+  try {
+    const res = await fetch(`${API_URL}/config/mutirao-hoje`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senha, liberado: novoEstado })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(data.error || '❌ Senha incorreta!', true);
+      return;
+    }
+    _mutiraoLiberadoData = data.liberado ? (data.hoje || hoje) : '';
+    atualizarBotaoMutirao();
+    checkExpediente();
+    showToast(data.liberado ? '✅ Mutirão liberado para hoje! Sistema ativo até 18h.' : '🔒 Liberação de mutirão encerrada.');
+  } catch (err) {
+    showToast('Erro ao atualizar modo mutirão.', true);
+  }
 }
 
 // --- Parar TODOS os loops e timers de polling (garante ZERO tráfego ao banco) ---
@@ -1812,6 +1871,34 @@ function speakAgain(setor, btnElement) {
   if (currentCalling[setor]) { const p = currentCalling[setor]; speakViaSynthesis(p.nome, setor, p.medico); } else showToast('Nenhum paciente sendo chamado!', true);
 }
 
+function rechamarPacienteNaFila(id, nome, setor, medico) {
+  unlockAudio(true);
+  speakViaSynthesis(nome, setor, medico || undefined);
+  showToast(`🔊 Rechamando ${nome} (${setor})!`);
+}
+
+function updatePainelFullscreenBtn() {
+  const btn = document.getElementById('btn-painel-fullscreen');
+  if (!btn) return;
+  const isFs = Boolean(document.fullscreenElement);
+  btn.textContent = isFs ? '✕ Sair Tela Cheia' : '⛶ Tela Cheia';
+}
+
+function togglePainelFullscreen() {
+  const target = document.getElementById('screen-painel') || document.documentElement;
+  if (!document.fullscreenElement) {
+    if (target.requestFullscreen) {
+      target.requestFullscreen().catch(() => showToast('Não foi possível ativar tela cheia neste navegador.', true));
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+}
+
+document.addEventListener('fullscreenchange', updatePainelFullscreenBtn);
+
 let speechQueue = [];
 let isSpeaking = false;
 
@@ -2586,6 +2673,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       </td>
       <td style="text-align:right;">
         <div class="fila-actions-cell">
+          ${p.status === 'chamado' ? `<button class="btn-call-next" style="padding:5px 10px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente no Painel e Voz" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button>` : ''}
           ${radarBtn}
           ${ actionButtons }
           ${qrBtn}
@@ -3974,7 +4062,7 @@ function handleAgendTipoChange() {
 async function loadColetasStats() {
   const dashboardContent = document.getElementById('coleta-dashboard-content');
   if (!dashboardContent) return;
-  const data = document.getElementById('agend-filter-data')?.value || new Date().toISOString().split('T')[0];
+  const data = document.getElementById('agend-filter-data')?.value || getDataHojeRecife();
   try {
     const r = await fetch(`${API_URL}/agendamentos/coletas/stats?data=${data}`);
     const stats = await r.json();
@@ -4037,7 +4125,7 @@ async function criarAgendamento() {
   if (!horario || !/^\d{2}:\d{2}$/.test(horario)) { showToast('⚠️ Horário inválido! Use o formato HH:MM (ex: 08:30)', true); return; }
   
   // Validar se data não é no passado (exceto coletas que podem ser retroativas)
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = getDataHojeRecife();
   if (data_agendamento < hoje && tipo_atendimento !== 'Coleta de Sangue') {
     if (!confirm(`⚠️ A data selecionada (${new Date(data_agendamento + 'T12:00:00').toLocaleDateString('pt-BR')}) é anterior a hoje. Deseja continuar mesmo assim?`)) return;
   }
@@ -6124,7 +6212,7 @@ function validarCampoAgend(id) {
 function validarDataAgend() {
   const el = document.getElementById('agend-data');
   if (!el || !el.value) return;
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = getDataHojeRecife();
   el.style.borderColor = el.value >= hoje ? 'var(--green)' : '#f4821e';
 }
 
@@ -7242,13 +7330,11 @@ setTimeout(() => loadChatPin(activeCanal), 1000);
 function initAgendamentoDefaults() {
   const dataInput = document.getElementById('agend-data');
   if (dataInput && !dataInput.value) {
-    const today = new Date();
-    dataInput.value = today.toISOString().split('T')[0];
+    dataInput.value = getDataHojeRecife();
   }
   const filterInput = document.getElementById('agend-filter-data');
   if (filterInput && !filterInput.value) {
-    const today = new Date();
-    filterInput.value = today.toISOString().split('T')[0];
+    filterInput.value = getDataHojeRecife();
   }
 }
 
@@ -7262,6 +7348,7 @@ intervalAgend = setInterval(() => {
 
 // --- MELHORIA F: verificação inicial de expediente (após todos os intervalos estarem criados) ---
 checkExpediente();
+carregarStatusMutiraoHoje();
 
 function copiarImagemParaClipboard(imgSrc, silencioso) {
   return new Promise((resolve) => {
@@ -7628,7 +7715,7 @@ function renderRelatorioMensagens(rel, container) {
 // Inicializar data do relatório com hoje
 (function initRelatorioData() {
   const el = document.getElementById('rel-msg-data');
-  if (el) el.value = new Date().toISOString().split('T')[0];
+  if (el) el.value = getDataHojeRecife();
 })();
 
 // ====== RESPONSÁVEIS DE SETORES DE APOIO ======

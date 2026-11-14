@@ -1862,6 +1862,7 @@
     <div class="offhours-schedule">🗓️&nbsp; Segunda a Sexta &nbsp;·&nbsp; 06h às 18h</div>
     <div class="offhours-clock-display" id="offhours-clock">--:--:--</div>
     <div class="offhours-hint">O sistema retomará automaticamente ao início do expediente</div>
+    <button type="button" onclick="toggleMutiraoHoje(true)" style="margin-top:20px;background:rgba(255,255,255,0.12);color:#e2e8f0;border:1px solid rgba(255,255,255,0.28);padding:10px 18px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;">🔓 Liberar Mutirão / Sábado Hoje (Admin)</button>
   </div>
 </div>
 <!-- === FIM MELHORIA F: TELA FORA DO EXPEDIENTE === -->
@@ -1917,6 +1918,7 @@
     <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
     <button id="btn-palestra" class="btn-palestra admin-only" onclick="togglePausaPalestra()" title="Pausar sistema para palestra da gestora">🎙️ Pausar</button>
     <!-- === FIM MELHORIA F === -->
+    <button id="btn-mutirao-hoje" class="btn-reset admin-only" onclick="toggleMutiraoHoje()" title="Liberar ou encerrar expediente extra / mutirão hoje">🗓️ Mutirão Hoje</button>
     <select id="select-voz-sistema" class="select-voz-admin admin-only" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas (Somente Admin — toca teste ao trocar)">
       <option value="feminina_br">🎙️ Francisca (Fem)</option>
       <option value="elza_br">🎙️ Elza (Fem Madura)</option>
@@ -2675,6 +2677,7 @@
         <div class="painel-controls-row">
           <button class="btn-3d" onclick="speakPatientName(this)" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:10px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(74,171,60,0.35);display:flex;align-items:center;gap:6px;">🔊 Chamar pelo Nome</button>
           <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:1.5px solid rgba(255,255,255,0.25);border-radius:10px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;">🔁 Repetir Última</button>
+          <button id="btn-painel-fullscreen" class="btn-3d" onclick="togglePainelFullscreen()" style="background:rgba(56,189,248,0.18);color:#e0f2fe;border:1.5px solid rgba(56,189,248,0.45);border-radius:10px;padding:10px 16px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;" title="Abrir ou sair da Tela Cheia na TV">⛶ Tela Cheia</button>
           <div class="admin-only" style="align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:6px 10px;">
             <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.9);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">
               <option value="feminina_br">🇧🇷👩 Francisca (Feminina Padrão)</option>
@@ -3995,6 +3998,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.7"></script>
-<script src="app.js?v=5.3"></script>
+<script src="app.js?v=5.4"></script>
 </body>
 </html>

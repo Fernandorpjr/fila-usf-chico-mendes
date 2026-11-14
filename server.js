@@ -24,6 +24,15 @@ function isValidAdminPass(senha) {
   return ADMIN_PASSWORDS.includes(String(senha).trim());
 }
 
+function getDataHojeRecife() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Recife',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+}
+
 // ====== CONFIGURAÇÃO ÚNICA: PRIORIDADE POR IDADE (PARTE A) ======
 const CONFIG_PRIORIDADE = {
   PROPORCAO_PRIORITARIOS: 1,
@@ -967,6 +976,39 @@ app.post('/api/verify-admin', (req, res) => {
 // Get config de prioridade (Parte A)
 app.get('/api/config-prioridade', (req, res) => {
   res.json(CONFIG_PRIORIDADE);
+});
+
+// Mutirão / Sábado liberado hoje (persistido no banco para todas as estações)
+app.get('/api/config/mutirao-hoje', async (req, res) => {
+  try {
+    const hoje = getDataHojeRecife();
+    const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'mutirao_data_liberada'`);
+    const data = r.rows[0]?.valor || '';
+    res.json({ liberado: data === hoje, data: data || null, hoje });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/config/mutirao-hoje', async (req, res) => {
+  try {
+    const senha = req.body?.senha || req.headers['x-admin-password'];
+    if (!isValidAdminPass(senha)) {
+      return res.status(401).json({ error: 'Senha de administrador inválida.' });
+    }
+    const hoje = getDataHojeRecife();
+    const liberado = req.body?.liberado !== undefined ? Boolean(req.body.liberado) : true;
+    const novoValor = liberado ? hoje : '';
+    await pool.query(
+      `INSERT INTO configuracoes (chave, valor)
+       VALUES ('mutirao_data_liberada', $1)
+       ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+      [novoValor]
+    );
+    res.json({ success: true, liberado, data: novoValor || null, hoje });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Get all queues (sorted: priority level first, then arrival order)
@@ -2265,7 +2307,7 @@ app.get('/api/dashboard/metrics', async (req, res) => {
        WHERE status = 'aguardando'
        AND created_at < (CASE WHEN $1::date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date THEN NOW() AT TIME ZONE 'America/Sao_Paulo' ELSE ($1::date + INTERVAL '23 hours 59 minutes') END) - INTERVAL '30 minutes'
        GROUP BY setor`,
-      [data || new Date().toISOString().split('T')[0]]
+      [data || getDataHojeRecife()]
     );
     
     // Atendidos por turno (manhã < 12h, tarde >= 12h)
@@ -4898,7 +4940,7 @@ app.get('/api/mensagens-enviadas/relatorio', async (req, res) => {
       )
     `);
     const { data } = req.query;
-    const targetDate = data || new Date().toISOString().split('T')[0];
+    const targetDate = data || getDataHojeRecife();
 
     const porProfissional = await pool.query(
       `SELECT COALESCE(NULLIF(TRIM(profissional), ''), 'Sem profissional') as profissional, COUNT(*) as total
