@@ -2552,6 +2552,32 @@ function renderBlocoBuscaAtivaEquipe(p, setorContexto) {
   </div>`;
 }
 
+const _lastQueueHtmlCache = {};
+function setQueueHtmlPreservingScroll(el, html) {
+  if (!el) return false;
+  const key = el.id || '';
+  if (key && _lastQueueHtmlCache[key] === html) {
+    return false;
+  }
+  const prevWrap = el.querySelector('.fila-table-wrap');
+  const prevElTop = el.scrollTop;
+  const prevElLeft = el.scrollLeft;
+  const prevWrapTop = prevWrap ? prevWrap.scrollTop : 0;
+  const prevWrapLeft = prevWrap ? prevWrap.scrollLeft : 0;
+
+  el.innerHTML = html;
+  if (key) _lastQueueHtmlCache[key] = html;
+
+  el.scrollTop = prevElTop;
+  el.scrollLeft = prevElLeft;
+  const nextWrap = el.querySelector('.fila-table-wrap');
+  if (nextWrap) {
+    nextWrap.scrollTop = prevWrapTop;
+    nextWrap.scrollLeft = prevWrapLeft;
+  }
+  return true;
+}
+
 function renderQueueItems(containerId, setor, filterProfissional) {
   const el = document.getElementById(containerId); if (!el) return;
   let items = (queues[setor] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
@@ -2560,7 +2586,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     items = items.filter(p => !p.profissional || p.profissional === filterProfissional);
   }
   if (!items.length) {
-    el.innerHTML = '<div class="empty-state"><div class="es-icon">\u2705</div><p>Fila vazia</p></div>';
+    setQueueHtmlPreservingScroll(el, '<div class="empty-state"><div class="es-icon">\u2705</div><p>Fila vazia</p></div>');
     return;
   }
   const isSectorQueue = containerId.startsWith('queue-');
@@ -2683,7 +2709,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     </tr>`;
   }).join('');
 
-  el.innerHTML = `<div class="fila-table-wrap">
+  const html = `<div class="fila-table-wrap">
     <table class="fila-clean-table">
       <thead>
         <tr>
@@ -2700,9 +2726,11 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     </table>
   </div>`;
 
+  const changed = setQueueHtmlPreservingScroll(el, html);
+
   // Inicializa D&D se for fila de setor e admin ativo
   if (isSectorQueue && isAdmin) {
-    initSortable(containerId, setor);
+    if (changed || !_sortableInstances[containerId]) initSortable(containerId, setor);
   } else if (_sortableInstances[containerId]) {
     _sortableInstances[containerId].destroy();
     delete _sortableInstances[containerId];
@@ -2723,7 +2751,7 @@ function updateMiniQueues() {
     const cfg = SECTOR_CONFIG[s];
     const el = document.getElementById('mini-queue-' + cfg.key); if (!el) return;
     const items = (queues[s] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
-    if (!items.length) { el.innerHTML = '<div class="empty-state" style="padding:18px;"><div class="es-icon">✅</div><p>Fila vazia</p></div>'; return; }
+    if (!items.length) { setQueueHtmlPreservingScroll(el, '<div class="empty-state" style="padding:18px;"><div class="es-icon">✅</div><p>Fila vazia</p></div>'); return; }
 
     let waitCounter = 0;
     const rowsHtml = items.map((p) => {
@@ -2836,7 +2864,7 @@ function updateMiniQueues() {
       </tr>`;
     }).join('');
 
-    el.innerHTML = `<div class="fila-table-wrap">
+    const html = `<div class="fila-table-wrap">
       <table class="fila-clean-table">
         <thead>
           <tr>
@@ -2852,6 +2880,7 @@ function updateMiniQueues() {
         </tbody>
       </table>
     </div>`;
+    setQueueHtmlPreservingScroll(el, html);
   });
 }
 
