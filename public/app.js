@@ -1558,11 +1558,24 @@ async function callNext(setor, btnElement) {
           : 'Consultório ' + consultorio;
       medico = profissional ? `${consLabel} - ${profissional}` : consLabel;
     }
+    if (navigator.onLine === false) {
+      atualizarStatusConexao('offline', 'Navegador sem internet');
+      showToast('🔴 Sem internet! Verifique a conexão antes de chamar.', true);
+      return;
+    }
     const r = await fetch(`${API_URL}/call-next/${setor}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medico, consultorio, profissional, filtro_profissional, filtro_etapa }) });
-    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || `HTTP ${r.status}`); }
+    registrarSucessoRede();
     // Carrega imediatamente o histórico para disparar a fala na mesma hora!
     loadQueues(); loadCurrentCalling(); loadHistory();
-  } catch (e) { showToast(e.message || `Fila de ${setor} está vazia!`, true); }
+  } catch (e) {
+    if (isErroDeRede(e)) {
+      registrarFalhaRede(e);
+      showToast('🔴 Sem conexão com a internet! Não foi possível chamar.', true);
+    } else {
+      showToast(e.message || `Fila de ${setor} está vazia!`, true);
+    }
+  }
 }
 
 async function callNextMulti(setor, btnElement, count = 3) {
@@ -2153,7 +2166,9 @@ async function loadQueues() {
       fetch(`${API_URL}/queues`),
       fetch(`${API_URL}/busca-ativa/resumo`).catch(() => null)
     ]);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     queues = await r.json();
+    registrarSucessoRede();
     let resumoBa = null;
     if (rBa && rBa.ok) {
       resumoBa = await rBa.json().catch(() => null);
@@ -2176,9 +2191,11 @@ async function loadQueues() {
       }
     });
     updateAll();
-  } catch (e) { console.error(e); }
+    const overviewSearch = document.getElementById('overview-search-input');
+    if (overviewSearch && overviewSearch.value.trim()) filtrarVisaoGeralPacientes();
+  } catch (e) { registrarFalhaRede(e); console.error(e); }
 }
-async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); const d = await r.json(); currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { console.error(e); } }
+async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
 async function loadHistory() {
   try {
     const r = await fetch(`${API_URL}/history`);
@@ -2380,18 +2397,21 @@ function renderEsperaNormalBadge(p) {
     mins = Math.max(0, Math.floor((Date.now() - safeDate(p.created_at).getTime()) / 60000));
   }
   let cls = 'wait-badge-normal';
-  let icon = '⏱';
-  let title = 'Tempo de espera na fila normal';
+  let icon = '🟢';
+  let extraStyle = 'background:rgba(34,197,94,0.12);color:#15803d;border:1px solid rgba(34,197,94,0.3);';
+  let title = 'Tempo de espera na fila normal (menos de 30 min)';
   if (mins >= LIMITE_ESPERA_NORMAL_MIN_UI) {
     cls += ' danger';
-    icon = '🚨';
-    title = `Acima do limite de ${LIMITE_ESPERA_NORMAL_MIN_UI} min! Prioridade anti-starvation (Regra a) ativa.`;
-  } else if (mins >= Math.floor(LIMITE_ESPERA_NORMAL_MIN_UI * 0.75)) {
+    icon = '🔴';
+    extraStyle = '';
+    title = `Acima de ${LIMITE_ESPERA_NORMAL_MIN_UI} min! Prioridade anti-starvation (Regra a) ativa.`;
+  } else if (mins >= 30) {
     cls += ' warn';
-    icon = '⚠️';
-    title = `Próximo ao limite de ${LIMITE_ESPERA_NORMAL_MIN_UI} min de espera.`;
+    icon = '🟡';
+    extraStyle = '';
+    title = `Espera moderada (${mins} min). Limite anti-starvation em ${LIMITE_ESPERA_NORMAL_MIN_UI} min.`;
   }
-  return `<span class="${cls}" title="${title}">${icon} ${mins} min</span>`;
+  return `<span class="${cls}" style="${extraStyle}" title="${title}">${icon} ${mins} min</span>`;
 }
 
 function renderBotaoBuscaAtivaCard(p, setorContexto) {
@@ -2460,6 +2480,8 @@ function renderQueueItems(containerId, setor, filterProfissional) {
   let waitCounter = 0;
   const rowsHtml = items.map((p) => {
     const posLabel = p.status === 'chamado' ? '📢' : `#${++waitCounter}`;
+    const isNextUp = p.status === 'aguardando' && waitCounter === 1;
+    const nextUpBadge = isNextUp ? '<span class="badge-proximo-fila">👉 Próximo</span>' : '';
     const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const prioBadge = renderPrioridadeIdadeBadge(p);
     const waitBadge = renderEsperaNormalBadge(p);
@@ -2525,6 +2547,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const rowCls = [
       'queue-item',
       p.status === 'chamado' ? 'calling' : '',
+      isNextUp ? 'row-next-up' : '',
       isInterc ? 'row-intercorrencia' : ''
     ].filter(Boolean).join(' ');
 
@@ -2535,6 +2558,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
           <span class="fila-pos-badge" style="background:${p.status==='chamado'?'#b8860b':getColor(setor)}">${posLabel}</span>
           <span style="font-size:12px;font-weight:800;color:#475569;" title="Horário de chegada na recepção">🕐 ${p.horario || '—'}</span>
         </div>
+        ${nextUpBadge ? `<div style="margin-top:4px;">${nextUpBadge}</div>` : ''}
         ${(setor === 'Odontologia' && p.horario_marcado) ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado na Odontologia">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
         ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
       </td>
@@ -2615,6 +2639,8 @@ function updateMiniQueues() {
     let waitCounter = 0;
     const rowsHtml = items.map((p) => {
       const posLabel = p.status === 'chamado' ? '📢' : `#${++waitCounter}`;
+      const isNextUp = p.status === 'aguardando' && waitCounter === 1;
+      const nextUpBadge = isNextUp ? '<span class="badge-proximo-fila">👉 Próximo</span>' : '';
       const safeNome = p.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const prioBadge = renderPrioridadeIdadeBadge(p);
       const waitBadge = renderEsperaNormalBadge(p);
@@ -2673,6 +2699,7 @@ function updateMiniQueues() {
 
       const rowCls = [
         p.status === 'chamado' ? 'calling' : '',
+        isNextUp ? 'row-next-up' : '',
         isInterc ? 'row-intercorrencia' : ''
       ].filter(Boolean).join(' ');
 
@@ -2682,6 +2709,7 @@ function updateMiniQueues() {
             <span class="fila-pos-badge" style="background:${p.status==='chamado'?'#b8860b':getColor(s)}">${posLabel}</span>
             <span style="font-size:12px;font-weight:800;color:#475569;" title="Horário de chegada na recepção">🕐 ${p.horario || '—'}</span>
           </div>
+          ${nextUpBadge ? `<div style="margin-top:4px;">${nextUpBadge}</div>` : ''}
           ${(s === 'Odontologia' && p.horario_marcado) ? `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.14);color:#5b21b6;border:1px solid rgba(139,92,246,0.35);font-size:11px;font-weight:900;" title="Horário marcado na Odontologia">📅 Marcado: ${escapeText(p.horario_marcado)}</span></div>` : ''}
           ${waitBadge ? `<div style="margin-top:4px;">${waitBadge}</div>` : ''}
         </td>
@@ -5182,17 +5210,28 @@ async function chamarNoPainel(source, btn) {
     btn.disabled = true;
   }
   
+  if (navigator.onLine === false) {
+    atualizarStatusConexao('offline', 'Navegador sem internet');
+    showToast('🔴 Sem internet! Verifique a conexão antes de chamar.', true);
+    return;
+  }
   try {
     const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ destino })
     });
-    if (!r.ok) throw new Error();
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    registrarSucessoRede();
     showToast(`🔊 Chamando ${nome} no painel...`);
     loadHistory();
   } catch (e) { 
-    showToast('Erro ao chamar no painel', true); 
+    if (isErroDeRede(e)) {
+      registrarFalhaRede(e);
+      showToast('🔴 Sem conexão com a internet! Não foi possível chamar.', true);
+    } else {
+      showToast('Erro ao chamar no painel', true); 
+    }
   } finally {
     if (btn) {
       setTimeout(() => {
@@ -5918,15 +5957,29 @@ async function chamarProximoParaAcs(acs, btn) {
 }
 
 async function chamarAcsPaciente(id, nome, acs, btn) {
+  if (navigator.onLine === false) {
+    atualizarStatusConexao('offline', 'Navegador sem internet');
+    showToast('🔴 Sem internet! Verifique a conexão antes de chamar.', true);
+    return;
+  }
   if (btn) { btn.disabled = true; btn.innerHTML = '⏳...'; }
   try {
-    await fetch(`${API_URL}/acolhimento/${id}/chamar`, {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ destino: `1ª Escuta - ${acs}` })
     });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    registrarSucessoRede();
     showToast(`🔊 Chamando ${nome}...`);
     loadAcolhimentoFluxo();
-  } catch(e) { showToast('Erro ao chamar no painel', true); }
+  } catch(e) {
+    if (isErroDeRede(e)) {
+      registrarFalhaRede(e);
+      showToast('🔴 Sem conexão com a internet! Não foi possível chamar.', true);
+    } else {
+      showToast('Erro ao chamar no painel', true);
+    }
+  }
   finally { if (btn) setTimeout(() => { btn.disabled = false; btn.innerHTML = '🔊 Chamar'; }, 2500); }
 }
 
@@ -6110,6 +6163,11 @@ function renderSegundaEscutaScreen() {
 }
 
 async function chamarSegundaEscutaPaciente(id, nome, prof, btn) {
+  if (navigator.onLine === false) {
+    atualizarStatusConexao('offline', 'Navegador sem internet');
+    showToast('🔴 Sem internet! Verifique a conexão antes de chamar.', true);
+    return;
+  }
   if (typeof unlockAudio === 'function' && !audioUnlocked) {
     unlockAudio(true);
   }
@@ -6121,14 +6179,23 @@ async function chamarSegundaEscutaPaciente(id, nome, prof, btn) {
     const profLimpo = (prof || '').trim();
     const temProfDesignado = profLimpo && !/sem designa|se dirija|2ª escuta|segunda escuta/i.test(profLimpo);
     const destino = temProfDesignado ? `2ª Escuta - ${profLimpo}` : '2ª Escuta';
-    await fetch(`${API_URL}/acolhimento/${id}/chamar`, {
+    const r = await fetch(`${API_URL}/acolhimento/${id}/chamar`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ destino })
     });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    registrarSucessoRede();
     showToast(`🔊 Chamando ${nome}...`);
     loadAcolhimentoFluxo();
     loadHistory();
-  } catch(e) { showToast('Erro ao chamar no painel', true); }
+  } catch(e) {
+    if (isErroDeRede(e)) {
+      registrarFalhaRede(e);
+      showToast('🔴 Sem conexão com a internet! Não foi possível chamar.', true);
+    } else {
+      showToast('Erro ao chamar no painel', true);
+    }
+  }
   finally { if (btn) setTimeout(() => { btn.disabled = false; btn.innerHTML = '🔊 Chamar'; }, 2500); }
 }
 
@@ -6568,18 +6635,204 @@ document.addEventListener('visibilitychange', () => {
 });
 // ====== FIM CTRL AGENDAMENTOS ======
 
-// Connection status indicator
-let socketConnected = false;
-(function addSocketIndicator() {
-  const hr = document.querySelector('.header-right');
-  if (hr) {
-    const dot = document.createElement('div');
-    dot.id = 'socket-status-dot';
-    dot.title = 'Conectado via API Polling (Vercel)';
-    dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#4aab3c;flex-shrink:0;';
-    hr.insertBefore(dot, hr.firstChild);
+// === MONITOR DE CONEXÃO (SEMÁFORO DE INTERNET) + BUSCA RÁPIDA NA VISÃO GERAL ===
+let socketConnected = navigator.onLine !== false;
+let netEstadoAtual = navigator.onLine === false ? 'offline' : 'online';
+let netFalhasConsecutivas = 0;
+let netHealthTimer = null;
+
+function isErroDeRede(err) {
+  if (navigator.onLine === false) return true;
+  if (!err) return false;
+  const msg = String(err.message || err || '').toLowerCase();
+  return (
+    err.name === 'TypeError' ||
+    err.name === 'AbortError' ||
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('network request failed') ||
+    msg.includes('load failed') ||
+    msg.includes('err_internet_disconnected') ||
+    msg.includes('err_network') ||
+    msg.includes('timeout')
+  );
+}
+
+function atualizarStatusConexao(estado, motivo) {
+  const estadoAnterior = netEstadoAtual;
+  netEstadoAtual = estado;
+  socketConnected = estado !== 'offline';
+
+  const pill = document.getElementById('net-status-pill');
+  const textEl = document.getElementById('net-status-text');
+  const banner = document.getElementById('offline-banner');
+  const painelPill = document.getElementById('painel-net-status');
+  const painelText = document.getElementById('painel-net-status-text');
+
+  const cfg = {
+    online: { label: 'Online', painelLabel: 'Conectado', title: 'Internet e servidor funcionando normalmente. Clique para testar.' },
+    unstable: { label: 'Instável', painelLabel: 'Conexão Instável', title: motivo || 'Conexão lenta ou falhando. Clique para testar.' },
+    offline: { label: 'Sem Internet', painelLabel: 'Sem Internet', title: motivo || 'Sem conexão com a internet ou servidor. Clique para tentar reconectar.' }
+  }[estado] || { label: 'Online', painelLabel: 'Conectado', title: '' };
+
+  if (pill) {
+    pill.classList.remove('unstable', 'offline');
+    if (estado !== 'online') pill.classList.add(estado);
+    pill.title = cfg.title;
   }
+  if (textEl) textEl.textContent = cfg.label;
+
+  if (painelPill) {
+    painelPill.classList.remove('unstable', 'offline');
+    if (estado !== 'online') painelPill.classList.add(estado);
+  }
+  if (painelText) painelText.textContent = cfg.painelLabel;
+
+  if (banner) {
+    banner.classList.toggle('show', estado === 'offline');
+  }
+
+  if (estadoAnterior !== estado) {
+    if (estado === 'offline') {
+      showToast('🔴 Sem internet! Verifique a conexão antes de chamar pacientes.', true);
+    } else if (estadoAnterior === 'offline' && estado === 'online') {
+      showToast('🟢 Conexão restabelecida! Atualizando filas...');
+      Promise.all([
+        typeof loadQueues === 'function' ? loadQueues() : Promise.resolve(),
+        typeof loadCurrentCalling === 'function' ? loadCurrentCalling() : Promise.resolve(),
+        typeof loadHistory === 'function' ? loadHistory() : Promise.resolve(),
+        typeof loadAcolhimentoFluxo === 'function' ? loadAcolhimentoFluxo() : Promise.resolve()
+      ]).catch(() => {});
+    }
+  }
+}
+
+function registrarSucessoRede() {
+  netFalhasConsecutivas = 0;
+  if (navigator.onLine === false) {
+    atualizarStatusConexao('offline', 'Navegador sem rede');
+    return;
+  }
+  if (netEstadoAtual !== 'online') {
+    atualizarStatusConexao('online');
+  }
+}
+
+function registrarFalhaRede(err) {
+  if (navigator.onLine === false) {
+    netFalhasConsecutivas = 3;
+    atualizarStatusConexao('offline', 'Navegador offline');
+    return;
+  }
+  if (isErroDeRede(err)) {
+    netFalhasConsecutivas++;
+    if (netFalhasConsecutivas >= 2) {
+      atualizarStatusConexao('offline', err && err.message ? err.message : 'Falha de conexão');
+    } else {
+      atualizarStatusConexao('unstable', 'Oscilação de rede detectada');
+    }
+  }
+}
+
+async function verificarConexaoAgora(manual) {
+  if (navigator.onLine === false) {
+    atualizarStatusConexao('offline', 'Navegador sem internet');
+    if (manual) showToast('🔴 Sem internet no dispositivo.', true);
+    return false;
+  }
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 5000) : null;
+  try {
+    const r = await fetch(`${API_URL}/health?_t=${Date.now()}`, {
+      cache: 'no-store',
+      signal: ctrl ? ctrl.signal : undefined
+    });
+    if (timer) clearTimeout(timer);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    registrarSucessoRede();
+    if (manual) showToast('🟢 Conexão com a internet e servidor OK!');
+    return true;
+  } catch (e) {
+    if (timer) clearTimeout(timer);
+    registrarFalhaRede(e);
+    if (manual) showToast('🔴 Sem resposta do servidor ou sem internet.', true);
+    return false;
+  }
+}
+
+window.addEventListener('online', () => {
+  atualizarStatusConexao('unstable', 'Rede retornou, verificando servidor...');
+  verificarConexaoAgora(false);
+});
+window.addEventListener('offline', () => {
+  netFalhasConsecutivas = 3;
+  atualizarStatusConexao('offline', 'Navegador perdeu conexão');
+});
+
+(function initNetworkMonitor() {
+  atualizarStatusConexao(navigator.onLine === false ? 'offline' : 'online');
+  if (netHealthTimer) clearInterval(netHealthTimer);
+  netHealthTimer = setInterval(() => {
+    if (netEstadoAtual !== 'online' || navigator.onLine === false) {
+      verificarConexaoAgora(false);
+    }
+  }, 15000);
 })();
+
+function filtrarVisaoGeralPacientes() {
+  const input = document.getElementById('overview-search-input');
+  const clearBtn = document.getElementById('overview-search-clear');
+  const resultEl = document.getElementById('overview-search-result');
+  if (!input || !resultEl) return;
+
+  const q = (input.value || '').trim().toLowerCase();
+  if (clearBtn) clearBtn.style.display = q ? 'inline-flex' : 'none';
+
+  if (!q) {
+    resultEl.classList.remove('show');
+    resultEl.innerHTML = '';
+    return;
+  }
+
+  const matches = [];
+  (SETORES || []).forEach(setor => {
+    const lista = (queues && queues[setor.id]) || [];
+    let pos = 0;
+    lista.forEach(p => {
+      if (p.status === 'aguardando') pos++;
+      if ((p.nome || '').toLowerCase().includes(q)) {
+        matches.push({
+          nome: p.nome,
+          setorNome: setor.nome,
+          setorId: setor.id,
+          status: p.status,
+          pos: p.status === 'aguardando' ? pos : null
+        });
+      }
+    });
+  });
+
+  if (matches.length === 0) {
+    resultEl.innerHTML = `Nenhum paciente encontrado para "<strong>${escapeHtml(input.value.trim())}</strong>" nas filas ativas.`;
+  } else {
+    resultEl.innerHTML = matches.slice(0, 6).map(m => {
+      const posTxt = m.status === 'chamando'
+        ? '<span style="color:#b45309;font-weight:700;">🔊 Chamando agora</span>'
+        : `<span style="color:#0369a1;font-weight:700;">#${m.pos} na fila</span>`;
+      return `<div style="padding:3px 0;">• <strong>${escapeHtml(m.nome)}</strong> — ${escapeHtml(m.setorNome)} (${posTxt})</div>`;
+    }).join('') + (matches.length > 6 ? `<div style="margin-top:4px;color:#64748b;">+ ${matches.length - 6} outros resultados</div>` : '');
+  }
+  resultEl.classList.add('show');
+}
+
+function limparBuscaVisaoGeral() {
+  const input = document.getElementById('overview-search-input');
+  if (input) {
+    input.value = '';
+    filtrarVisaoGeralPacientes();
+    input.focus();
+  }
+}
 
 // ====== ADAPTATIVE POLLING (Page Visibility) ======
 let pollingTimer1 = null;

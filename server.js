@@ -948,6 +948,12 @@ setupHistorico(app, pool, isValidAdminPass);
 
 // ====== API Routes ======
 
+// Healthcheck leve para o semáforo de internet no frontend (sem tocar no banco)
+app.get('/api/health', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.json({ ok: true, ts: Date.now() });
+});
+
 // Verify admin password
 app.post('/api/verify-admin', (req, res) => {
   const { senha } = req.body;

@@ -233,9 +233,9 @@
 
   .nav-tabs { background: var(--blue-dark); display: flex; padding: 0 16px; gap: 2px; border-bottom: 2px solid rgba(255,255,255,0.1); overflow-x: auto; scrollbar-width: none; }
   .nav-tabs::-webkit-scrollbar { display: none; }
-  .nav-tab { padding: 12px 16px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; color: var(--gray-300); cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px; margin-bottom: -2px; white-space: nowrap; }
-  .nav-tab:hover { color: var(--white); }
-  .nav-tab.active { color: var(--white); border-bottom-color: var(--orange); }
+  .nav-tab { padding: 12px 16px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; color: var(--gray-300); cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px; margin-bottom: -2px; white-space: nowrap; border-radius: 10px 10px 0 0; }
+  .nav-tab:hover { color: var(--white); background: rgba(255,255,255,0.06); }
+  .nav-tab.active { color: var(--white); border-bottom-color: var(--orange); background: rgba(255,255,255,0.11); font-weight: 900; }
   .nav-tab .tab-badge { background: var(--orange); color: var(--white); font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 20px; min-width: 20px; text-align: center; }
   .nav-tab .tab-badge.green { background: var(--green); } .nav-tab .tab-badge.blue { background: var(--blue-light); }
 
@@ -1382,6 +1382,140 @@
     .fila-clean-table tbody tr.queue-item.row-intercorrencia:hover {
       background-color: #ffedd5;
     }
+    .fila-clean-table tbody tr.row-next-up,
+    .fila-clean-table tbody tr.queue-item.row-next-up {
+      background: linear-gradient(90deg, rgba(26,79,196,0.06) 0%, #ffffff 35%);
+      box-shadow: inset 4px 0 0 #1a4fc4;
+    }
+    .badge-proximo-fila {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+      font-family: 'Nunito', sans-serif;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-top: 3px;
+    }
+
+    /* ====== SEMÁFORO DE INTERNET (VERDE / AMARELO / VERMELHO) ====== */
+    .net-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      border: 1.5px solid rgba(74, 171, 60, 0.55);
+      background: rgba(74, 171, 60, 0.16);
+      color: #bbf7d0;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+    .net-status-pill .net-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.9);
+      flex-shrink: 0;
+    }
+    .net-status-pill.unstable {
+      border-color: rgba(245, 158, 11, 0.7);
+      background: rgba(245, 158, 11, 0.2);
+      color: #fde68a;
+    }
+    .net-status-pill.unstable .net-dot {
+      background: #f59e0b;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.9);
+    }
+    .net-status-pill.offline {
+      border-color: rgba(239, 68, 68, 0.9);
+      background: #dc2626;
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(220, 38, 38, 0.65);
+      animation: netOfflinePulse 1.1s infinite;
+    }
+    .net-status-pill.offline .net-dot {
+      background: #ffffff;
+      box-shadow: 0 0 8px #ffffff;
+    }
+    @keyframes netOfflinePulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.04); opacity: 0.85; }
+    }
+    .offline-banner {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: linear-gradient(90deg, #b91c1c, #dc2626, #b91c1c);
+      color: #ffffff;
+      font-family: 'Nunito', sans-serif;
+      font-size: 13.5px;
+      font-weight: 800;
+      text-align: center;
+      border-bottom: 2px solid #fca5a5;
+      box-shadow: 0 4px 12px rgba(185, 28, 28, 0.35);
+    }
+    .offline-banner.show {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .offline-banner button {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .overview-search-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+    }
+    .overview-search-box input {
+      flex: 1;
+      min-width: 220px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1.5px solid #cbd5e1;
+      font-family: 'Nunito Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      background: #f8fafc;
+      outline: none;
+    }
+    .overview-search-box input:focus {
+      border-color: var(--blue);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(26,79,196,0.12);
+    }
     .fila-clean-table td {
       display: table-cell;
       padding: 12px 14px;
@@ -1698,6 +1832,10 @@
     </div>
   </div>
   <div class="header-right">
+    <div id="net-status-pill" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da conexão com a internet e servidor (clique para testar agora)">
+      <span class="net-dot"></span>
+      <span id="net-status-text">Online</span>
+    </div>
     <button class="btn-admin-lock" id="btn-admin" onclick="toggleAdmin()" title="Modo Administrador">🔒 Modo Público</button>
     <a href="/dashboard" target="_blank" class="btn-reset admin-only" style="text-decoration:none;" title="Abrir Painel de Métricas">📊 Dashboard</a>
     <button class="btn-reset admin-only" onclick="resetData()" title="Zerar fila diária">🗑️ Resetar Diário</button>
@@ -1723,6 +1861,11 @@
     </div>
   </div>
 </header>
+
+<div id="offline-banner" class="offline-banner" role="alert">
+  <span>🔴 <strong>SEM INTERNET:</strong> A conexão caiu — as filas e chamadas estão pausadas até a internet voltar.</span>
+  <button type="button" onclick="verificarConexaoAgora(true)">🔄 Testar conexão</button>
+</div>
 
 <nav class="nav-tabs">
   <button class="nav-tab active" onclick="showScreen('recepcao')" id="tab-recepcao">🏥 Recepção</button>
@@ -2034,6 +2177,14 @@
         <div id="recent-list">
           <div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>
         </div>
+      </div>
+
+      <!-- BUSCA RÁPIDA NA VISÃO GERAL -->
+      <div class="overview-search-box">
+        <span style="font-weight:900;color:var(--blue-dark);font-size:13.5px;white-space:nowrap;">🔍 Localizar Paciente na Fila:</span>
+        <input type="text" id="overview-search-input" placeholder="Digite o nome do paciente para descobrir setor e posição..." oninput="filtrarVisaoGeralPacientes()" />
+        <button type="button" id="overview-search-clear" onclick="limparBuscaVisaoGeral()" style="display:none;background:#e2e8f0;color:#334155;border:none;border-radius:8px;padding:8px 12px;font-weight:800;font-size:12px;cursor:pointer;">✕ Limpar</button>
+        <div id="overview-search-result" style="width:100%;display:none;font-size:13px;font-weight:700;color:#1e293b;"></div>
       </div>
 
       <!-- TABELAS DE FILAS POR SETOR NA RECEPÇÃO -->
@@ -2411,6 +2562,12 @@
           <div style="font-family:'Nunito',sans-serif;font-size:40px;font-weight:900;"><span style="color:#fff;">U</span><span style="color:var(--green);">S</span><span style="color:var(--orange);">F</span><span style="color:#fff;font-size:32px;margin-left:8px;">Chico Mendes</span></div>
         </div>
         <div class="painel-title" style="font-size:18px;color:var(--gray-300);font-weight:600;letter-spacing:2px;text-transform:uppercase;">Painel de Chamadas</div>
+        <div style="margin-top:8px;display:flex;justify-content:center;">
+          <div id="painel-net-status" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da internet no Painel TV">
+            <span class="net-dot"></span>
+            <span id="painel-net-status-text">Conectado</span>
+          </div>
+        </div>
       </div>
       <div class="painel-main-call" id="painel-main"><div class="painel-empty">Aguardando chamadas...</div></div>
       <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-bottom:24px;flex-wrap:wrap;">
@@ -3691,7 +3848,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js"></script>
-<script src="dispositivos.js?v=4.6"></script>
-<script src="app.js?v=4.6"></script>
+<script src="dispositivos.js?v=4.7"></script>
+<script src="app.js?v=4.7"></script>
 </body>
 </html>
