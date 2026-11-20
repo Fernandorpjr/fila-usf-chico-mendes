@@ -41,15 +41,32 @@
   .capacity-alert .stat-value, .capacity-alert .stat-label { color: var(--red) !important; font-weight: 800; }
   .capacity-alert .stat-icon { background-color: var(--red) !important; color: var(--white) !important; }
 
-  .header { background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; min-height: 72px; gap: 12px; border-bottom: 3px solid var(--orange); box-shadow: 0 4px 20px rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 100; }
+  .header { background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%); padding: 0; display: flex; flex-direction: column; border-bottom: 3px solid var(--orange); box-shadow: 0 4px 20px rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 100; }
+  .header-top-row { display: flex; align-items: center; justify-content: space-between; min-height: 68px; padding: 8px 20px; gap: 12px; width: 100%; }
   .logo-area { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   .logo-text { font-family: 'Nunito', sans-serif; font-size: 26px; font-weight: 900; line-height: 1; white-space: nowrap; }
   .logo-text .u { color: var(--white); } .logo-text .s { color: var(--green); } .logo-text .f { color: var(--orange); }
   .logo-text .nome { color: var(--white); font-size: 20px; margin-left: 6px; }
   .header-subtitle { font-size: 10.5px; color: var(--gray-300); font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 2px; white-space: nowrap; }
-  .header-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: nowrap; flex-shrink: 1; min-width: 0; }
+  .header-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; flex-shrink: 1; min-width: 0; }
   .header-right > * { flex-shrink: 0; white-space: nowrap; }
   .header-right::-webkit-scrollbar { display: none; }
+
+  .admin-toolbar {
+    display: none !important;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    padding: 8px 20px;
+    background: rgba(7, 20, 48, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    width: 100%;
+  }
+  .admin-active .admin-toolbar { display: flex !important; }
+  .admin-toolbar-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .admin-toolbar-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; color: rgba(255, 255, 255, 0.58); margin-right: 2px; white-space: nowrap; }
+  .admin-toolbar-divider { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.16); }
 
   .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
   .btn-admin-lock:hover { background: rgba(255,255,255,0.1); }
@@ -1706,12 +1723,20 @@
     /* ====== RESPONSIVIDADE COMPLETA PARA TABLET E CELULAR (<= 960px e <= 600px) ====== */
     @media (max-width: 960px) {
       .header {
-        padding: 8px 14px !important;
+        padding: 0 !important;
         height: auto !important;
+      }
+      .header-top-row {
+        padding: 8px 14px !important;
         min-height: 60px;
         flex-wrap: wrap;
         gap: 8px;
       }
+      .admin-toolbar {
+        padding: 8px 14px !important;
+        gap: 8px !important;
+      }
+      .admin-toolbar-divider { display: none; }
       .logo-text { font-size: 20px !important; }
       .logo-text .nome { font-size: 16px !important; }
       .header-subtitle { font-size: 9.5px !important; }
@@ -1834,41 +1859,10 @@
         min-height: 38px !important;
       }
     }
-    /* ====== DESTAQUE CHAMANDO + MODO ESCURO OPCIONAL ====== */
+    /* ====== DESTAQUE CHAMANDO ====== */
     .queue-item.calling {
       background: rgba(245, 158, 11, 0.14) !important;
       border-left: 4px solid #f59e0b !important;
-    }
-    body.dark-mode {
-      background: #0f172a !important;
-      color: #e2e8f0 !important;
-    }
-    body.dark-mode .card-white,
-    body.dark-mode .mini-queue-card,
-    body.dark-mode .stat-card,
-    body.dark-mode .acol-card,
-    body.dark-mode .acol-modal,
-    body.dark-mode .reorder-modal,
-    body.dark-mode .wa-modal {
-      background: #1e293b !important;
-      color: #e2e8f0 !important;
-      border-color: #334155 !important;
-    }
-    body.dark-mode .fila-clean-table th {
-      background: #0f172a !important;
-      color: #cbd5e1 !important;
-      border-color: #334155 !important;
-    }
-    body.dark-mode .fila-clean-table td {
-      border-color: #334155 !important;
-      color: #e2e8f0 !important;
-    }
-    body.dark-mode input,
-    body.dark-mode select,
-    body.dark-mode textarea {
-      background: #0f172a !important;
-      color: #f8fafc !important;
-      border-color: #475569 !important;
     }
     /* ====== FIM CLEAN TABLE UI ====== */
 </style>
@@ -1911,9 +1905,9 @@
   <div class="pause-card">
     <div class="pause-icon">🎙️</div>
     <div class="pause-title">Atendimento Pausado</div>
-    <div class="pause-sub">Atendimento pausado temporariamente para realização de atividade interna / palestra na recepção.</div>
+    <div class="pause-sub" id="pause-sub-text">Atendimento pausado temporariamente para realização de atividade interna / palestra na recepção.</div>
     <div class="pause-badge">Aguarde — retornaremos em breve</div>
-    <button onclick="togglePausaPalestra()" style="margin-top:32px;background:rgba(255,255,255,0.12);color:#fff;border:1.5px solid rgba(255,255,255,0.3);padding:12px 28px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;pointer-events:all;">▶️ Retomar Atendimento</button>
+    <button onclick="togglePausaPalestra()" style="margin-top:32px;background:rgba(255,255,255,0.12);color:#fff;border:1.5px solid rgba(255,255,255,0.3);padding:12px 28px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;pointer-events:all;">🔓 Retomar Atendimento (Admin)</button>
   </div>
 </div>
 <!-- === FIM MELHORIA F: TELA PAUSA PALESTRA === -->
@@ -1934,51 +1928,65 @@
 <div id="app-wrapper" style="display:none;">
 
 <header class="header">
-  <div class="logo-area">
-    <div>
-      <div class="logo-text"><span class="u">U</span><span class="s">S</span><span class="f">F</span><span class="nome">Chico Mendes</span></div>
-      <div class="header-subtitle">Sistema de Gestão de Filas</div>
+  <div class="header-top-row">
+    <div class="logo-area">
+      <div>
+        <div class="logo-text"><span class="u">U</span><span class="s">S</span><span class="f">F</span><span class="nome">Chico Mendes</span></div>
+        <div class="header-subtitle">Sistema de Gestão de Filas</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button type="button" id="header-chat-alert" class="header-chat-alert" onclick="toggleChatPanel()" title="Você tem mensagens não lidas no Chat Interno">
+        💬 <span id="header-chat-alert-text">Nova msg</span>
+      </button>
+      <div id="net-status-pill" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da conexão com a internet e servidor (clique para testar agora)">
+        <span class="net-dot"></span>
+        <span id="net-status-text">Online</span>
+      </div>
+      <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
+      <button class="btn-admin-lock" id="btn-admin" onclick="toggleAdmin()" title="Modo Administrador">🔒 Modo Público</button>
+      <!-- === MELHORIA A: BOTÃO LOGOUT === -->
+      <button class="btn-logout-gate" id="btn-logout-gate" onclick="logoutGate()" title="Encerrar sessão do portão de entrada">🚪 Encerrar sessão</button>
+      <!-- === FIM MELHORIA A === -->
+      <div style="flex-shrink:0;white-space:nowrap;text-align:right;">
+        <div class="date-display" id="dateDisplay"></div>
+        <div class="clock" id="clockDisplay">00:00:00</div>
+      </div>
     </div>
   </div>
-  <div class="header-right">
-    <button type="button" id="header-chat-alert" class="header-chat-alert" onclick="toggleChatPanel()" title="Você tem mensagens não lidas no Chat Interno">
-      💬 <span id="header-chat-alert-text">Nova msg</span>
-    </button>
-    <div id="net-status-pill" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da conexão com a internet e servidor (clique para testar agora)">
-      <span class="net-dot"></span>
-      <span id="net-status-text">Online</span>
+  <div class="admin-toolbar" id="admin-toolbar">
+    <div class="admin-toolbar-group">
+      <span class="admin-toolbar-label">Operação</span>
+      <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
+      <button id="btn-palestra" class="btn-palestra" onclick="togglePausaPalestra()" title="Pausar atendimento em todos os computadores e TVs">🎙️ Pausar</button>
+      <!-- === FIM MELHORIA F === -->
+      <button id="btn-mutirao-hoje" class="btn-reset" onclick="toggleMutiraoHoje()" title="Liberar ou encerrar expediente extra / mutirão hoje">🗓️ Mutirão Hoje</button>
     </div>
-    <button class="btn-admin-lock" id="btn-admin" onclick="toggleAdmin()" title="Modo Administrador">🔒 Modo Público</button>
-    <a href="/dashboard" target="_blank" class="btn-reset admin-only" style="text-decoration:none;" title="Abrir Painel de Métricas">📊 Dashboard</a>
-    <button class="btn-reset admin-only" onclick="resetData()" title="Zerar fila diária">🗑️ Resetar Diário</button>
-    <!-- === MELHORIA A: BOTÃO LOGOUT === -->
-    <button class="btn-logout-gate" id="btn-logout-gate" onclick="logoutGate()" title="Encerrar sessão do portão de entrada">🚪 Encerrar sessão</button>
-    <!-- === FIM MELHORIA A === -->
-    <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
-    <button id="btn-palestra" class="btn-palestra admin-only" onclick="togglePausaPalestra()" title="Pausar sistema para palestra da gestora">🎙️ Pausar</button>
-    <!-- === FIM MELHORIA F === -->
-    <button id="btn-mutirao-hoje" class="btn-reset admin-only" onclick="toggleMutiraoHoje()" title="Liberar ou encerrar expediente extra / mutirão hoje">🗓️ Mutirão Hoje</button>
-    <select id="select-voz-sistema" class="select-voz-admin admin-only" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas (Somente Admin — toca teste ao trocar)">
-      <option value="feminina_br">🎙️ Francisca (Fem)</option>
-      <option value="elza_br">🎙️ Elza (Fem Madura)</option>
-      <option value="brenda_br">🎙️ Brenda (Fem Alt)</option>
-      <option value="thalita_br">🎙️ Thalita (Fem Suave)</option>
-      <option value="masculina_br">🎙️ Antônio (Masc)</option>
-      <option value="donato_br">🎙️ Donato (Masc Grave)</option>
-      <option value="humberto_br">🎙️ Humberto (Masc Alt)</option>
-    </select>
-    <select id="select-jingle-sistema" class="select-voz-admin admin-only" onchange="alterarJinglePreferido(this.value, true)" title="Escolher jingle antes da chamada">
-      <option value="classic">🔔 Ding-Dong Clássico</option>
-      <option value="airport">✈️ Embarque Aeroporto</option>
-      <option value="natal">🎄 Natalino (Jingle Bells)</option>
-      <option value="soft">✨ Campainha Suave</option>
-      <option value="none">🔇 Sem Jingle</option>
-    </select>
-    <button id="btn-dark-mode" class="btn-reset" onclick="toggleDarkMode()" title="Alternar Modo Claro/Escuro">🌙</button>
-    <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
-    <div style="flex-shrink:0;white-space:nowrap;text-align:right;">
-      <div class="date-display" id="dateDisplay"></div>
-      <div class="clock" id="clockDisplay">00:00:00</div>
+    <div class="admin-toolbar-divider"></div>
+    <div class="admin-toolbar-group">
+      <span class="admin-toolbar-label">Áudio / TV</span>
+      <select id="select-voz-sistema" class="select-voz-admin" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas (Somente Admin — toca teste ao trocar)">
+        <option value="feminina_br">🎙️ Francisca (Fem)</option>
+        <option value="elza_br">🎙️ Elza (Fem Madura)</option>
+        <option value="brenda_br">🎙️ Brenda (Fem Alt)</option>
+        <option value="thalita_br">🎙️ Thalita (Fem Suave)</option>
+        <option value="masculina_br">🎙️ Antônio (Masc)</option>
+        <option value="donato_br">🎙️ Donato (Masc Grave)</option>
+        <option value="humberto_br">🎙️ Humberto (Masc Alt)</option>
+      </select>
+      <select id="select-jingle-sistema" class="select-voz-admin" onchange="alterarJinglePreferido(this.value, true)" title="Escolher jingle antes da chamada">
+        <option value="classic">🔔 Ding-Dong Clássico</option>
+        <option value="airport">✈️ Embarque Aeroporto</option>
+        <option value="natal">🎄 Natalino (Jingle Bells)</option>
+        <option value="soft">✨ Campainha Suave</option>
+        <option value="none">🔇 Sem Jingle</option>
+      </select>
+    </div>
+    <div class="admin-toolbar-divider"></div>
+    <div class="admin-toolbar-group">
+      <span class="admin-toolbar-label">Gestão</span>
+      <a href="/dashboard" target="_blank" class="btn-reset" style="text-decoration:none;display:inline-flex;align-items:center;" title="Abrir Painel de Métricas">📊 Dashboard</a>
+      <button class="btn-reset" onclick="resetData()" title="Zerar fila diária">🗑️ Resetar Diário</button>
     </div>
   </div>
 </header>
@@ -4062,6 +4070,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.9"></script>
-<script src="app.js?v=6.2"></script>
+<script src="app.js?v=6.3"></script>
 </body>
 </html>

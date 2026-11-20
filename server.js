@@ -261,7 +261,7 @@ app.use('/api', async (req, res, next) => {
   if (req.method === 'GET') {
     // Permite cache no Edge Server da Vercel por 3 segundos para abater requisições repetidas (Economia de Invocations)
     // EXCEÇÃO: Rotas administrativas, dispositivos ou histórico não devem ser expostas em cache público
-    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico') || req.path.startsWith('/motivos-busca-ativa') || req.path.includes('/busca-ativa') || req.path.startsWith('/config-prioridade') || req.path.startsWith('/config/mutirao-hoje')) {
+    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico') || req.path.startsWith('/motivos-busca-ativa') || req.path.includes('/busca-ativa') || req.path.startsWith('/config-prioridade') || req.path.startsWith('/config/mutirao-hoje') || req.path.startsWith('/config/pausa')) {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     } else {
       res.set('Cache-Control', 'public, s-maxage=3, stale-while-revalidate=2');
@@ -273,7 +273,7 @@ app.use('/api', async (req, res, next) => {
     res.set('Surrogate-Control', 'no-store');
   }
 
-  const isExempt = req.path === '/health' || req.path === '/verify-admin' || req.path.startsWith('/config/mutirao-hoje');
+  const isExempt = req.path === '/health' || req.path === '/verify-admin' || req.path.startsWith('/config/mutirao-hoje') || req.path.startsWith('/config/pausa');
   if (!isExempt && !(await isDentroDoHorario())) {
     return res.status(503).json({ 
       error: 'Sistema fora do horário de funcionamento. Banco de dados suspenso para economia.'
@@ -944,6 +944,55 @@ app.post('/api/config/jingle', async (req, res) => {
       [jingle]
     );
     res.json({ success: true, jingle });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Pausa global do atendimento compartilhada entre todos os computadores e TVs
+async function getStatusPausaServer() {
+  try {
+    const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'sistema_pausado'`);
+    const raw = r.rows[0]?.valor || '';
+    if (!raw || raw === 'false') return { pausado: false, motivo: null, pausado_em: null };
+    if (raw === 'true') return { pausado: true, motivo: null, pausado_em: null };
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        pausado: Boolean(parsed.pausado),
+        motivo: parsed.motivo || null,
+        pausado_em: parsed.pausado_em || null
+      };
+    } catch {
+      return { pausado: raw === 'true', motivo: null, pausado_em: null };
+    }
+  } catch {
+    return { pausado: false, motivo: null, pausado_em: null };
+  }
+}
+
+app.get('/api/config/pausa', async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.json(await getStatusPausaServer());
+});
+
+app.post('/api/config/pausa', async (req, res) => {
+  try {
+    const senha = req.body?.senha || req.headers['x-admin-password'];
+    if (!isValidAdminPass(senha)) {
+      return res.status(401).json({ error: 'Senha de administrador inválida.' });
+    }
+    const pausado = Boolean(req.body?.pausado);
+    const motivo = req.body?.motivo ? String(req.body.motivo).trim().slice(0, 200) : null;
+    const pausado_em = pausado ? new Date().toISOString() : null;
+    const payload = JSON.stringify({ pausado, motivo, pausado_em });
+    await pool.query(
+      `INSERT INTO configuracoes (chave, valor)
+       VALUES ('sistema_pausado', $1)
+       ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+      [payload]
+    );
+    res.json({ success: true, pausado, motivo, pausado_em });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2188,8 +2237,15 @@ app.get('/api/current-calling', async (req, res) => {
        AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
     );
     const totalDesistencias = parseInt(desistResult.rows[0].count, 10);
+    const pausaStatus = await getStatusPausaServer();
 
-    res.json({ current, totalAtendidos, totalDesistencias });
+    res.json({
+      current,
+      totalAtendidos,
+      totalDesistencias,
+      sistemaPausado: pausaStatus.pausado,
+      pausaMotivo: pausaStatus.motivo
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

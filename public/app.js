@@ -147,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let isPausado = false;
 let intervalChat = null;   // referência ao setInterval do chat (~linha 2422)
 let intervalAgend = null;  // referência ao setInterval de agendamentos (~linha 2447)
+let intervalCheckPausa = null;
 let _mutiraoLiberadoData = '';
 
 function getDataHojeRecife() {
@@ -301,54 +302,111 @@ function checkExpediente() {
 }
 setInterval(checkExpediente, 60000); // verifica a cada minuto
 
-// --- Botão de Pausa Manual para Palestras da Gestora ---
-async function togglePausaPalestra() {
-  if (!isPausado) {
-    // Ativar pausa — requer senha validada no servidor
-    const senha = prompt('🎙️ Pausar para Palestra\n\nDigite a senha para ativar o modo pausa:');
-    if (!senha) return;
-    const ok = await verifyAdminPasswordServer(senha);
-    if (!ok) { showToast('❌ Senha incorreta!', true); return; }
+// --- Aplicar / sincronizar estado global de pausa em todas as estações ---
+const DEFAULT_PAUSE_MSG = 'Atendimento pausado temporariamente para realização de atividade interna / palestra na recepção.';
+
+function aplicarEstadoPausa(pausado, motivo) {
+  const overlay = document.getElementById('pause-overlay');
+  const subEl = document.getElementById('pause-sub-text');
+  const btn = document.getElementById('btn-palestra');
+
+  if (pausado) {
+    if (subEl) subEl.textContent = motivo || DEFAULT_PAUSE_MSG;
+    if (isPausado) {
+      if (overlay) overlay.classList.remove('hidden');
+      return;
+    }
     isPausado = true;
-    // Fechar qualquer modal aberto
     document.querySelectorAll('.modal, .modal-overlay, [id$="-modal"]').forEach(el => {
       if (el.classList.contains('show') || el.style.display === 'flex' || el.style.display === 'block') {
         el.classList.remove('show');
         el.style.display = 'none';
       }
     });
-    // Bloquear scroll e interação do body
     document.body.style.overflow = 'hidden';
-    document.body.style.pointerEvents = 'none';
-    // Atualizar botão
-    const btn = document.getElementById('btn-palestra');
     if (btn) {
-      btn.innerHTML = '▶️ Retomar Atendimento';
+      btn.innerHTML = '▶️ Retomar';
       btn.classList.add('btn-palestra-pausado');
-      btn.style.pointerEvents = 'all'; // Botão deve continuar clicavel
     }
-    // Mostrar overlay (não é afetado pelo pointer-events do body por ser position:fixed)
-    const overlay = document.getElementById('pause-overlay');
     if (overlay) overlay.classList.remove('hidden');
     stopAllPolling();
-    showToast('🎙️ Sistema pausado para palestra');
+    if (!intervalCheckPausa) {
+      intervalCheckPausa = setInterval(carregarStatusPausa, 5000);
+    }
   } else {
-    // Retomar — sem senha
+    if (intervalCheckPausa) {
+      clearInterval(intervalCheckPausa);
+      intervalCheckPausa = null;
+    }
+    if (!isPausado) {
+      if (overlay) overlay.classList.add('hidden');
+      return;
+    }
     isPausado = false;
-    // Desbloquear scroll e interação
     document.body.style.overflow = '';
     document.body.style.pointerEvents = '';
-    const btn = document.getElementById('btn-palestra');
     if (btn) {
-      btn.innerHTML = '🎙️ Pausar para Palestra';
+      btn.innerHTML = '🎙️ Pausar';
       btn.classList.remove('btn-palestra-pausado');
       btn.style.pointerEvents = '';
     }
-    const overlay = document.getElementById('pause-overlay');
     if (overlay) overlay.classList.add('hidden');
-    resumeAllPolling();
-    loadQueues(); loadCurrentCalling(); loadHistory();
-    showToast('✅ Atendimento retomado!');
+    if (subEl) subEl.textContent = DEFAULT_PAUSE_MSG;
+    checkExpediente();
+    if (isDentroDoHorario()) {
+      resumeAllPolling();
+      if (typeof loadQueues === 'function') loadQueues();
+      if (typeof loadCurrentCalling === 'function') loadCurrentCalling();
+      if (typeof loadHistory === 'function') loadHistory();
+    }
+  }
+}
+
+async function carregarStatusPausa() {
+  try {
+    const r = await fetch(`${API_URL}/config/pausa`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const d = await r.json();
+    aplicarEstadoPausa(Boolean(d.pausado), d.motivo);
+  } catch (_) {}
+}
+
+// --- Botão de Pausa Global para Palestras da Gestora ---
+async function togglePausaPalestra() {
+  const novoEstado = !isPausado;
+  let senhaUsada = (isAdmin && adminPassword) ? adminPassword : '';
+
+  if (!senhaUsada) {
+    const msgPrompt = novoEstado
+      ? '🎙️ Pausar atendimento em TODOS os computadores e TVs\n\nDigite a senha de administrador:'
+      : '🔓 Retomar atendimento em TODOS os computadores e TVs\n\nDigite a senha de administrador:';
+    const digitada = prompt(msgPrompt);
+    if (!digitada) return;
+    senhaUsada = digitada.trim();
+  } else if (novoEstado) {
+    if (!confirm('🎙️ Pausar o atendimento agora em TODOS os computadores e TVs?')) return;
+  } else {
+    if (!confirm('🔓 Retomar o atendimento agora em TODOS os computadores e TVs?')) return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/config/pausa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senha: senhaUsada, pausado: novoEstado })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(data.error || '❌ Senha incorreta!', true);
+      return;
+    }
+    aplicarEstadoPausa(Boolean(data.pausado), data.motivo);
+    showToast(data.pausado
+      ? '🎙️ Atendimento pausado em TODOS os computadores!'
+      : '✅ Atendimento retomado em TODOS os computadores!'
+    );
+  } catch (err) {
+    showToast('Erro de conexão ao alterar pausa global.', true);
   }
 }
 /* === FIM MELHORIA F === */
@@ -505,19 +563,7 @@ try {
   }
 } catch (e) {}
 
-function applyDarkModeUI(isDark) {
-  document.body.classList.toggle('dark-mode', Boolean(isDark));
-  const btn = document.getElementById('btn-dark-mode');
-  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
-}
-function toggleDarkMode() {
-  const isDark = !document.body.classList.contains('dark-mode');
-  applyDarkModeUI(isDark);
-  try { localStorage.setItem('usf_dark_mode', isDark ? '1' : '0'); } catch (e) {}
-}
-try {
-  if (localStorage.getItem('usf_dark_mode') === '1') applyDarkModeUI(true);
-} catch (e) {}
+try { document.body.classList.remove('dark-mode'); localStorage.removeItem('usf_dark_mode'); } catch (e) {}
 let sectorFilters = { medico: null, enfermagem: null };
 
 function safeDate(d) {
@@ -2393,7 +2439,7 @@ async function loadQueues() {
     if (overviewSearch && overviewSearch.value.trim()) filtrarVisaoGeralPacientes();
   } catch (e) { registrarFalhaRede(e); console.error(e); }
 }
-async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
+async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); if (typeof d.sistemaPausado === 'boolean' && d.sistemaPausado !== isPausado) { aplicarEstadoPausa(d.sistemaPausado, d.pausaMotivo); } currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
 async function loadHistory() {
   try {
     const r = await fetch(`${API_URL}/history`);
@@ -7530,6 +7576,7 @@ intervalAgend = setInterval(() => {
 // --- MELHORIA F: verificação inicial de expediente (após todos os intervalos estarem criados) ---
 checkExpediente();
 carregarStatusMutiraoHoje();
+carregarStatusPausa();
 
 function copiarImagemParaClipboard(imgSrc, silencioso) {
   return new Promise((resolve) => {
