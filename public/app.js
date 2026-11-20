@@ -3335,6 +3335,11 @@ let chatSearchQuery = '';
 let _lastRenderedChatKey = '';
 const ORIGINAL_DOC_TITLE = document.title;
 
+function syncChatExpandedBodyClass() {
+  const overlay = document.getElementById('chat-drawer-overlay');
+  document.body.classList.toggle('chat-is-expanded', Boolean(chatPanelOpen && overlay && overlay.classList.contains('chat-expanded')));
+}
+
 function toggleChatExpand(forceState) {
   const overlay = document.getElementById('chat-drawer-overlay');
   const btn = document.getElementById('btn-chat-expand');
@@ -3342,6 +3347,7 @@ function toggleChatExpand(forceState) {
   const expanded = forceState !== undefined ? Boolean(forceState) : !overlay.classList.contains('chat-expanded');
   overlay.classList.toggle('chat-expanded', expanded);
   if (btn) btn.textContent = expanded ? '⤡ Reduzir' : '⤢ Expandir';
+  syncChatExpandedBodyClass();
   try { localStorage.setItem('usf_chat_expanded', expanded ? '1' : '0'); } catch (e) {}
 }
 
@@ -3388,6 +3394,7 @@ function toggleChatPanel() {
   } else {
     overlay.classList.add('chat-drawer-hidden');
   }
+  syncChatExpandedBodyClass();
 }
 
 function updateChatBadge() {
