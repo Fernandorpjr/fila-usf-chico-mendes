@@ -3331,7 +3331,35 @@ const CANAIS = [
 let chatPanelOpen = false;
 let chatNotifCanalDestino = 'geral';
 let chatNotifTimer = null;
+let chatSearchQuery = '';
+let _lastRenderedChatKey = '';
 const ORIGINAL_DOC_TITLE = document.title;
+
+function toggleChatExpand(forceState) {
+  const overlay = document.getElementById('chat-drawer-overlay');
+  const btn = document.getElementById('btn-chat-expand');
+  if (!overlay) return;
+  const expanded = forceState !== undefined ? Boolean(forceState) : !overlay.classList.contains('chat-expanded');
+  overlay.classList.toggle('chat-expanded', expanded);
+  if (btn) btn.textContent = expanded ? '⤡ Reduzir' : '⤢ Expandir';
+  try { localStorage.setItem('usf_chat_expanded', expanded ? '1' : '0'); } catch (e) {}
+}
+
+function toggleChatSidebarMobile() {
+  document.getElementById('chat-sidebar')?.classList.toggle('open');
+}
+
+function onChatSearchInput() {
+  chatSearchQuery = (document.getElementById('chat-search-input')?.value || '').trim().toLowerCase();
+  _lastRenderedChatKey = '';
+  renderChannelChat(false);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (localStorage.getItem('usf_chat_expanded') === '1') toggleChatExpand(true);
+  } catch (e) {}
+});
 
 function toggleChatPanel() {
   const overlay = document.getElementById('chat-drawer-overlay');
@@ -3348,6 +3376,7 @@ function toggleChatPanel() {
     markCanalAsRead(activeCanal);
     registerPresenca();
     renderCanalList();
+    renderChannelChat(true);
     updateChatBadge();
     loadChatPin(activeCanal);
     setTimeout(() => {
@@ -3470,8 +3499,10 @@ function renderCanalList() {
     const presenceDot = getPresenceDot(c.id);
     const msgs = channelMessages[c.id] || [];
     const last = msgs.length ? msgs[msgs.length - 1] : null;
-    const titleTip = last ? `${last.autor}: ${(last.texto || last.anexo_nome || '').slice(0, 60)}` : c.desc;
-    return `<button type="button" class="chat-canal-pill ${c.id===activeCanal?'active':''}${unreadCls}" onclick="switchCanal('${c.id}')" title="${escapeText(titleTip)}">${presenceDot}${c.nome}${badge}</button>`;
+    const previewTxt = last
+      ? escapeText(`${last.autor}: ${(last.texto || (last.anexo_nome ? '📎 ' + last.anexo_nome : '')).replace(/\n/g, ' ')}`)
+      : escapeText(c.desc);
+    return `<button type="button" class="chat-canal-btn ${c.id===activeCanal?'active':''}${unreadCls}" onclick="switchCanal('${c.id}')" title="${escapeText(c.desc)}"><div class="chat-canal-row-top">${presenceDot}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.nome}</span>${badge}</div><div class="chat-canal-preview">${previewTxt}</div></button>`;
   }).join('');
 }
 
@@ -3482,13 +3513,21 @@ function switchCanal(canalId) {
   }
 
   activeCanal = canalId;
+  chatSearchQuery = '';
+  _lastRenderedChatKey = '';
+  const searchEl = document.getElementById('chat-search-input');
+  if (searchEl) searchEl.value = '';
+  document.getElementById('chat-sidebar')?.classList.remove('open');
 
-  // Atualizar título e subtítulo do canal
+  // Atualizar ícone, título e subtítulo do canal
   const canalInfo = CANAIS.find(c => c.id === canalId);
+  const iconEl = document.getElementById('chat-canal-icon');
   if (canalInfo) {
-    document.getElementById('chat-canal-title').textContent = canalInfo.nome.replace(/^\S+\s/, ''); // remove emoji
+    if (iconEl) iconEl.textContent = canalInfo.nome.split(' ')[0] || '💬';
+    document.getElementById('chat-canal-title').textContent = canalInfo.nome.replace(/^\S+\s/, '');
     document.getElementById('chat-canal-sub').textContent = canalInfo.desc;
   } else {
+    if (iconEl) iconEl.textContent = '📢';
     document.getElementById('chat-canal-title').textContent = 'Chat da Unidade';
     document.getElementById('chat-canal-sub').textContent = 'Todos os setores e profissionais';
   }
@@ -3496,23 +3535,17 @@ function switchCanal(canalId) {
   // Carregar mensagens do canal se ainda não estiverem em memória
   if (!channelMessages[canalId] || channelMessages[canalId].length === 0) {
     loadChannelMessages(canalId).then(() => {
-      renderChannelChat();
+      renderChannelChat(true);
       markCanalAsRead(canalId);
       updateChatBadge();
       renderCanalList();
     });
   } else {
-    renderChannelChat();
+    renderChannelChat(true);
     markCanalAsRead(canalId);
     updateChatBadge();
     renderCanalList();
   }
-
-  // Scroll para o final das mensagens
-  setTimeout(() => {
-    const c = document.getElementById('chat-messages');
-    if (c) c.scrollTop = c.scrollHeight;
-  }, 50);
 
   // Carregar pin do novo canal
   loadChatPin(canalId);
@@ -3603,47 +3636,86 @@ async function loadAllChannels() {
   updateChatBadge();
 }
 
-function renderChannelChat() {
+function formatarRotuloDataChatRecife(dateObj) {
+  const fmtIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Recife', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const msgIso = fmtIso.format(dateObj);
+  const hojeIso = fmtIso.format(new Date());
+  const ontemIso = fmtIso.format(new Date(Date.now() - 86400000));
+  if (msgIso === hojeIso) return 'Hoje';
+  if (msgIso === ontemIso) return 'Ontem';
+  return dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Recife', day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function renderChannelChat(forceScroll = false) {
   const c = document.getElementById('chat-messages'); if (!c) return;
-  const msgs = channelMessages[activeCanal] || [];
+  const allMsgs = channelMessages[activeCanal] || [];
+  const msgs = chatSearchQuery
+    ? allMsgs.filter(m =>
+        String(m.texto || '').toLowerCase().includes(chatSearchQuery) ||
+        String(m.autor || '').toLowerCase().includes(chatSearchQuery) ||
+        String(m.anexo_nome || '').toLowerCase().includes(chatSearchQuery)
+      )
+    : allMsgs;
   const meuSetor = document.getElementById('chat-remetente')?.value || '';
   const meuNome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
   const meuIdentificador = meuNome ? `${meuNome} (${meuSetor})` : meuSetor;
-  
-  if (!msgs.length) { c.innerHTML = '<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Nenhuma mensagem</p></div>'; return; }
-  c.innerHTML = msgs.map(m => {
-    const t = safeDate(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    const isMe = m.autor === meuIdentificador || m.autor === meuSetor;
-    const urgClass = m.urgente ? ' bubble-urgent bubble-urgent-anim' : '';
-    const urgTag = m.urgente ? '<span style="color:var(--red);font-weight:800;">🚨 URGENTE</span> ' : '';
-    
-    let anexoHtml = '';
-    if (m.anexo_base64 && m.anexo_nome) {
-      const isImg = /\.(jpeg|jpg|png|gif|webp|bmp)$/i.test(m.anexo_nome) || String(m.anexo_base64).startsWith('data:image/');
-      const safeAnexoNome = escapeText(m.anexo_nome).replace(/'/g, "\\'");
-      if (isImg) {
-        anexoHtml = `<div style="margin-top:8px;"><img src="${m.anexo_base64}" alt="${escapeText(m.anexo_nome)}" style="max-width:100%; max-height:200px; border-radius:8px; cursor:pointer; border:1px solid rgba(0,0,0,0.1);" onclick="abrirImagemChatModal(this.src, '${safeAnexoNome}')"></div>`;
-      } else {
-        anexoHtml = `<div style="margin-top:8px; background:rgba(0,0,0,0.06); padding:8px; border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <span style="font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">📎 ${escapeText(m.anexo_nome)}</span>
-          <a href="${m.anexo_base64}" download="${escapeText(m.anexo_nome)}" class="btn btn-sm btn-primary" style="padding:4px 8px; font-size:11px; text-decoration:none;">⬇️ Baixar</a>
-        </div>`;
+
+  let html = '';
+  if (!msgs.length) {
+    html = chatSearchQuery
+      ? `<div class="empty-state" style="margin:auto;"><div class="es-icon">🔍</div><p>Nenhuma mensagem encontrada para "${escapeText(chatSearchQuery)}"</p></div>`
+      : '<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div><p>Nenhuma mensagem neste canal ainda</p></div>';
+  } else {
+    let ultimoDiaRotulo = '';
+    html = msgs.map(m => {
+      const dt = safeDate(m.created_at);
+      const diaRotulo = formatarRotuloDataChatRecife(dt);
+      const dateDivider = diaRotulo !== ultimoDiaRotulo
+        ? `<div class="chat-date-divider">${diaRotulo}</div>`
+        : '';
+      ultimoDiaRotulo = diaRotulo;
+
+      const t = dt.toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
+      const isMe = m.autor === meuIdentificador || m.autor === meuSetor;
+      const urgClass = m.urgente ? ' bubble-urgent bubble-urgent-anim' : '';
+      const urgTag = m.urgente ? '<span style="color:var(--red);font-weight:800;">🚨 URGENTE</span> ' : '';
+      
+      let anexoHtml = '';
+      if (m.anexo_base64 && m.anexo_nome) {
+        const isImg = /\.(jpeg|jpg|png|gif|webp|bmp)$/i.test(m.anexo_nome) || String(m.anexo_base64).startsWith('data:image/');
+        const safeAnexoNome = escapeText(m.anexo_nome).replace(/'/g, "\\'");
+        if (isImg) {
+          anexoHtml = `<div style="margin-top:8px;"><img src="${m.anexo_base64}" alt="${escapeText(m.anexo_nome)}" style="max-width:100%; max-height:260px; border-radius:10px; cursor:pointer; border:1px solid rgba(0,0,0,0.1);" onclick="abrirImagemChatModal(this.src, '${safeAnexoNome}')"></div>`;
+        } else {
+          anexoHtml = `<div style="margin-top:8px; background:rgba(0,0,0,0.06); padding:8px; border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <span style="font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px;">📎 ${escapeText(m.anexo_nome)}</span>
+            <a href="${m.anexo_base64}" download="${escapeText(m.anexo_nome)}" class="btn btn-sm btn-primary" style="padding:4px 8px; font-size:11px; text-decoration:none;">⬇️ Baixar</a>
+          </div>`;
+        }
       }
-    }
 
-    const safePinTxt = (m.texto || m.anexo_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
-    const safeAutorJs = (m.autor || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const pinBtn = `<button class="pin-btn" onclick="event.stopPropagation();pinChatMessage('${safePinTxt}','${safeAutorJs}')" title="Fixar mensagem">📌</button>`;
-    const cienteBtn = !isMe
-      ? `<div><button type="button" class="chat-ciente-btn" onclick="enviarRespostaRapidaChat('👍 Ciente (${safeAutorJs})')">👍 Ciente</button></div>`
-      : '';
-    
-    // Se não tiver texto, não renderiza a div de texto vazia
-    const textHtml = m.texto ? `<div style="white-space:pre-wrap; word-break:break-word;">${escapeText(m.texto)}</div>` : '';
+      const safePinTxt = (m.texto || m.anexo_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+      const safeAutorJs = (m.autor || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const pinBtn = `<button class="pin-btn" onclick="event.stopPropagation();pinChatMessage('${safePinTxt}','${safeAutorJs}')" title="Fixar mensagem">📌</button>`;
+      const cienteBtn = !isMe
+        ? `<div><button type="button" class="chat-ciente-btn" onclick="enviarRespostaRapidaChat('👍 Ciente (${safeAutorJs})')">👍 Ciente</button></div>`
+        : '';
+      
+      const textHtml = m.texto ? `<div style="white-space:pre-wrap; word-break:break-word;">${escapeText(m.texto)}</div>` : '';
 
-    return `<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}">${pinBtn}<div class="chat-meta"><span>${urgTag}${escapeText(m.autor)}</span></div>${textHtml}${anexoHtml}${cienteBtn}<div class="chat-time">${t}</div></div>`;
-  }).join('');
-  c.scrollTop = c.scrollHeight;
+      return `${dateDivider}<div class="chat-bubble ${isMe?'bubble-sent':'bubble-received'}${urgClass}">${pinBtn}<div class="chat-meta"><span>${urgTag}${escapeText(m.autor)}</span></div>${textHtml}${anexoHtml}${cienteBtn}<div class="chat-time">${t}</div></div>`;
+    }).join('');
+  }
+
+  const renderKey = `${activeCanal}|${chatSearchQuery}|${html}`;
+  if (renderKey === _lastRenderedChatKey && !forceScroll) return;
+
+  const wasNearBottom = (c.scrollHeight - c.scrollTop - c.clientHeight) < 80;
+  const prevScrollTop = c.scrollTop;
+
+  _lastRenderedChatKey = renderKey;
+  c.innerHTML = html;
+  c.scrollTop = (forceScroll || wasNearBottom) ? c.scrollHeight : prevScrollTop;
 }
 
 let chatAttachment = null;
@@ -3854,7 +3926,7 @@ async function sendChatChannelMessage() {
       if (!channelMessages[activeCanal].some(m => m.id === msg.id)) {
         channelMessages[activeCanal].push(msg);
       }
-      renderChannelChat();
+      renderChannelChat(true);
       renderCanalList();
       setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
     }

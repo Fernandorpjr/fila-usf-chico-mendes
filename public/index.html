@@ -441,12 +441,12 @@
   ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
   @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .main { padding: 20px 16px; } .header { padding: 0 16px; } .nav-tabs { padding: 0 8px; } .painel-call-name { font-size: 36px; } }
 
-  .chat-bubble { padding: 12px 16px; border-radius: 18px; max-width: 85%; margin-bottom: 8px; position: relative; box-shadow: var(--shadow-sm); animation: messageIn 0.3s ease-out; }
+  .chat-bubble { padding: 11px 15px; border-radius: 16px; max-width: 76%; margin-bottom: 4px; position: relative; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.07); font-size: 14px; line-height: 1.45; animation: messageIn 0.25s ease-out; }
   @keyframes messageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  .bubble-received { align-self: flex-start; background: var(--white); color: var(--gray-700); border-bottom-left-radius: 4px; border: 1px solid var(--gray-200); }
-  .bubble-sent { align-self: flex-end; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: var(--white); border-bottom-right-radius: 4px; }
-  .chat-meta { font-size: 11px; font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; gap: 12px; }
-  .bubble-sent .chat-meta { color: rgba(255,255,255,0.8); } .bubble-received .chat-meta { color: var(--blue); }
+  .bubble-received { align-self: flex-start; background: #ffffff; color: #1e293b; border-bottom-left-radius: 4px; border: 1px solid #dce4f0; }
+  .bubble-sent { align-self: flex-end; background: linear-gradient(135deg, #1d4ed8, #1e3a8a); color: #ffffff; border-bottom-right-radius: 4px; }
+  .chat-meta { font-size: 11.5px; font-weight: 800; margin-bottom: 4px; display: flex; justify-content: space-between; gap: 12px; }
+  .bubble-sent .chat-meta { color: rgba(255,255,255,0.85); } .bubble-received .chat-meta { color: var(--blue); }
   .chat-time { font-size: 10px; opacity: 0.7; margin-top: 4px; text-align: right; }
 
   .filter-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
@@ -455,26 +455,33 @@
   .btn-filter:hover { border-color: var(--blue); color: var(--blue); background: rgba(26,79,196,0.05); }
   .btn-filter.active { background: var(--blue); color: var(--white); border-color: var(--blue); box-shadow: 0 2px 8px rgba(26,79,196,0.3); }
 
-   .chat-layout{display:grid;grid-template-columns:220px 1fr;height:650px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-lg);}
-   .chat-sidebar{background:linear-gradient(180deg,#0a1f5c,#0d2a7a);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.08);}
-   .chat-sidebar-header{padding:16px;border-bottom:1px solid rgba(255,255,255,0.1);}
-   .chat-sidebar-header h3{font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:#fff;margin:0;}
-   .chat-canal-list{flex:1;overflow-y:auto;padding:8px;}
-   .chat-canal-btn{width:100%;text-align:left;background:transparent;border:none;color:var(--gray-300);padding:10px 12px;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:2px;transition:all .2s;position:relative;}
-   .chat-canal-btn:hover{background:rgba(255,255,255,0.08);color:#fff;}
-   .chat-canal-btn.active{background:rgba(26,79,196,0.4);color:#fff;font-weight:800;}
+   .chat-layout{display:grid;grid-template-columns:245px 1fr;flex:1;min-height:0;border-radius:0;overflow:hidden;box-shadow:none;}
+   .chat-sidebar{background:linear-gradient(180deg,#0b1f56 0%,#0f2c73 100%);display:flex;flex-direction:column;min-height:0;border-right:1px solid rgba(255,255,255,0.1);}
+   .chat-sidebar-header{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;}
+   .chat-sidebar-header h3{font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:#fff;margin:0;letter-spacing:0.3px;}
+   .chat-canal-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;}
+   .chat-canal-btn{width:100%;text-align:left;background:transparent;border:1px solid transparent;color:#dbeafe;padding:10px 12px;border-radius:11px;font-family:'Nunito Sans',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:stretch;gap:3px;transition:all .18s;position:relative;}
+   .chat-canal-btn:hover{background:rgba(255,255,255,0.09);color:#fff;}
+   .chat-canal-btn.active{background:rgba(59,130,246,0.35);border-color:rgba(147,197,253,0.45);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.18);}
+   .chat-canal-btn.has-unread:not(.active){background:rgba(249,115,22,0.16);border-color:rgba(251,146,60,0.45);color:#fff;}
+   .chat-canal-row-top{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;width:100%;}
    .chat-canal-badge{background:var(--red);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;min-width:18px;text-align:center;margin-left:auto;}
-   .chat-setor-select{padding:12px;border-top:1px solid rgba(255,255,255,0.1);}
-   .chat-setor-select select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:600;}
-   .chat-setor-select select option{background:#1a2a5c;color:#fff;}
-   .chat-main{display:flex;flex-direction:column;background:#f8faff;min-height:0;overflow:hidden;}
-   .chat-main-header{background:linear-gradient(135deg,var(--blue-dark),var(--blue));padding:14px 20px;color:white;display:flex;align-items:center;gap:10px;}
-   .chat-main-header .ch-title{font-weight:800;font-size:15px;}
-   .chat-main-header .ch-sub{font-size:11px;opacity:.75;}
-   .chat-main-header .ch-actions{margin-left:auto;display:flex;gap:8px;}
-   .chat-messages-area{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;scrollbar-width:thin;}
-   .chat-typing-indicator{padding:4px 20px;font-size:12px;color:var(--gray-600);font-style:italic;min-height:20px;}
-   .chat-input-area{padding:14px 20px;background:white;border-top:1px solid var(--gray-200);display:flex;gap:10px;align-items:flex-end;position:relative;}
+   .chat-setor-select{padding:12px;border-top:1px solid rgba(255,255,255,0.12);background:rgba(7,17,46,0.35);display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+   .chat-setor-select label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:rgba(219,234,254,0.75);}
+   .chat-setor-select input,.chat-setor-select select{width:100%;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.22);background:rgba(255,255,255,0.1);color:#fff;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:700;outline:none;}
+   .chat-setor-select input::placeholder{color:rgba(255,255,255,0.5);}
+   .chat-setor-select select option{background:#0f2c73;color:#fff;}
+   .chat-main{display:flex;flex-direction:column;background:#edf2f9;min-height:0;overflow:hidden;}
+   .chat-main-header{background:#ffffff;padding:10px 16px;color:#0f172a;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e2e8f0;flex-shrink:0;flex-wrap:wrap;}
+   .chat-main-header .ch-title{font-weight:900;font-size:15px;color:#0f172a;}
+   .chat-main-header .ch-sub{font-size:11.5px;color:#64748b;font-weight:600;}
+   .chat-main-header .ch-actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
+   .chat-search-input{padding:6px 12px;border-radius:999px;border:1.5px solid #cbd5e1;font-size:12px;width:195px;outline:none;background:#f8fafc;color:#1e293b;font-family:'Nunito Sans',sans-serif;font-weight:600;transition:border-color 0.2s,background 0.2s;}
+   .chat-search-input:focus{border-color:var(--blue);background:#ffffff;}
+   .chat-messages-area{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:6px;background:#edf2f9;scrollbar-width:thin;}
+   .chat-date-divider{align-self:center;margin:10px 0 6px;padding:3px 12px;border-radius:999px;background:#dbe4f3;color:#334155;font-size:11px;font-weight:800;}
+   .chat-typing-indicator{padding:4px 18px;font-size:12px;color:var(--gray-600);font-style:italic;min-height:18px;background:#edf2f9;flex-shrink:0;}
+   .chat-input-area{padding:12px 16px;background:white;border-top:1px solid var(--gray-200);display:flex;gap:10px;align-items:flex-end;position:relative;flex-shrink:0;}
    .chat-input-area textarea{flex:1;resize:none;border:2px solid var(--gray-200);border-radius:12px;padding:10px 14px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);outline:none;min-height:42px;max-height:120px;transition:border-color .2s;}
    .chat-input-area textarea:focus{border-color:var(--blue);}
    .chat-urgent-toggle{background:transparent;border:2px solid var(--gray-200);border-radius:10px;width:42px;height:42px;font-size:18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
@@ -483,7 +490,6 @@
    .chat-send-btn:hover{transform:scale(1.1);}
    .bubble-urgent{border:2px solid var(--red)!important;background:rgba(229,57,53,0.06)!important;}
    @keyframes urgentPulse{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.4);}50%{box-shadow:0 0 0 8px rgba(229,57,53,0);}}
-}
   .bubble-urgent-anim{animation:urgentPulse 1.5s infinite;}
   .emoji-picker{position:absolute;bottom:60px;left:16px;background:white;border-radius:12px;box-shadow:var(--shadow-md);padding:10px;display:none;z-index:10;border:1px solid var(--gray-200);}
   .emoji-picker.show{display:flex;flex-wrap:wrap;gap:4px;max-width:240px;}
@@ -492,7 +498,8 @@
 
   #chat-fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: white; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 4px 16px rgba(0,0,0,0.3); font-size: 24px; cursor: pointer; z-index: 950; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, box-shadow 0.2s; }
   #chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
-  #chat-drawer-overlay { position: fixed; bottom: 90px; right: 24px; width: 460px; max-width: calc(100vw - 32px); height: 610px; max-height: calc(100vh - 110px); background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 940; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.2s ease; border: 1px solid rgba(0,0,0,0.15); }
+  #chat-drawer-overlay { position: fixed; bottom: 84px; right: 20px; width: 880px; max-width: calc(100vw - 32px); height: 82vh; max-height: calc(100vh - 96px); background: white; border-radius: 18px; box-shadow: 0 18px 50px rgba(10, 25, 65, 0.35); z-index: 940; overflow: hidden; display: flex; flex-direction: column; transition: width 0.2s ease, height 0.2s ease, opacity 0.25s ease, transform 0.25s ease, box-shadow 0.2s ease; border: 1px solid rgba(15, 23, 42, 0.14); }
+  #chat-drawer-overlay.chat-expanded { width: min(1240px, calc(100vw - 24px)); height: calc(100vh - 36px); max-height: calc(100vh - 36px); bottom: 18px; right: 12px; }
   #chat-drawer-overlay.chat-drawer-hidden { opacity: 0; pointer-events: none; transform: translateY(20px) scale(0.95); }
   #chat-drawer-overlay.chat-drop-active { box-shadow: 0 0 0 4px #3b82f6, 0 12px 36px rgba(37,99,235,0.35); }
   .chat-drawer-header { background: linear-gradient(135deg, var(--blue-dark), #0a1f5c); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
@@ -502,7 +509,7 @@
   .chat-canal-pill.active { background: var(--blue); color: #ffffff; border-color: var(--blue-dark); box-shadow: 0 2px 6px rgba(26,79,196,0.25); }
   .chat-canal-pill.has-unread:not(.active) { background: #fff7ed; border-color: #f97316; color: #9a3412; box-shadow: 0 1px 4px rgba(249,115,22,0.2); }
   .chat-canal-pill .chat-canal-badge { background: var(--red); color: #fff; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px; margin-left: 2px; }
-  .chat-quick-replies { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+  .chat-quick-replies { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
   .chat-quick-replies::-webkit-scrollbar { display: none; }
   .chat-quick-chip { padding: 4px 10px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
   .chat-quick-chip:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
@@ -519,8 +526,6 @@
   #chat-image-modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.85); align-items: center; justify-content: center; padding: 20px; flex-direction: column; gap: 14px; }
   #chat-image-modal.show { display: flex; }
   #chat-image-modal img { max-width: 92vw; max-height: 80vh; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); background: #fff; }
-
-  @media(max-width:768px){.chat-layout{grid-template-columns:1fr;height:auto;}.chat-sidebar{max-height:160px;}}
 
    .agend-grid{display:grid;grid-template-columns:400px 1fr;gap:24px;align-items:start;}
    .agend-table{width:100%;border-collapse:collapse;}
@@ -627,13 +632,16 @@
    .autocomplete-item-name { font-weight: 700; font-size: 14px; color: var(--blue-dark); }
    .autocomplete-item-meta { font-size: 11px; color: var(--gray-600); }
 
-   /* Chat mobile toggle */
-   .chat-sidebar-toggle{display:none;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;}
+   /* Chat mobile toggle e preview */
+   .chat-sidebar-toggle{display:none;background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.28);border-radius:8px;padding:4px 10px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;}
+   .chat-canal-preview{width:100%;font-size:11px;color:rgba(219,234,254,0.68);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
    @media(max-width:768px){
-     .chat-sidebar-toggle{display:inline-flex;align-items:center;gap:6px;}
-     .chat-layout{grid-template-columns:1fr;height:auto;}
-     .chat-sidebar{display:none;max-height:none;}
+     #chat-drawer-overlay{width:calc(100vw - 16px);right:8px;bottom:78px;height:84vh;max-height:calc(100vh - 88px);}
+     .chat-sidebar-toggle{display:inline-flex;align-items:center;gap:5px;}
+     .chat-layout{grid-template-columns:1fr;position:relative;}
+     .chat-sidebar{display:none;position:absolute;inset:0;z-index:30;}
      .chat-sidebar.open{display:flex;}
+     .chat-search-input{width:130px;}
    }
 
     /* === MELHORIA A: PORTÃO DE ENTRADA === */
@@ -2767,39 +2775,55 @@
   <div id="chat-drawer-overlay" class="chat-drawer-hidden">
     <div class="chat-drawer-header">
       <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" class="chat-sidebar-toggle" onclick="toggleChatSidebarMobile()" title="Ver canais">☰ Canais</button>
         <span style="font-size:20px;">💬</span>
         <span style="font-weight:800; font-size:15px; color:white;">Chat Interno USF</span>
       </div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <button onclick="clearChatCanal()" style="background:rgba(229,57,53,0.25); border:1px solid rgba(255,255,255,0.35); color:white; font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:4px; font-family:'Nunito',sans-serif; transition:background 0.2s;" title="Limpar conversa do canal ativo (requer senha chico123)">
-          🗑️ Limpar Chat
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" id="btn-chat-expand" onclick="toggleChatExpand()" style="background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.28); color:white; font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; cursor:pointer; font-family:'Nunito',sans-serif;" title="Expandir ou reduzir janela do chat">
+          ⤢ Expandir
+        </button>
+        <button type="button" onclick="playChatSound();showToast('🔊 Som de notificação do chat ativo!');" style="background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.28); color:white; font-size:12px; font-weight:800; padding:4px 9px; border-radius:8px; cursor:pointer; font-family:'Nunito',sans-serif;" title="Testar som de notificação do chat">
+          🔔
+        </button>
+        <button onclick="clearChatCanal()" style="background:rgba(229,57,53,0.25); border:1px solid rgba(255,255,255,0.35); color:white; font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:4px; font-family:'Nunito',sans-serif; transition:background 0.2s;" title="Limpar conversa do canal ativo (requer senha de administrador)">
+          🗑️ Limpar
         </button>
         <button onclick="toggleChatPanel()" style="background:transparent; border:none; color:white; font-size:20px; cursor:pointer; padding:4px; line-height:1;" title="Fechar Chat">✕</button>
       </div>
     </div>
-    <div class="chat-layout" style="grid-template-columns: 1fr; height: 100%; border-radius: 0; box-shadow: none;">
+    <div class="chat-layout">
+      <aside class="chat-sidebar" id="chat-sidebar">
+        <div class="chat-sidebar-header">
+          <h3>📋 Canais da Unidade</h3>
+        </div>
+        <div class="chat-canal-list" id="chat-canal-list"></div>
+        <div class="chat-setor-select">
+          <label>👤 Sua Identificação</label>
+          <input type="text" id="chat-remetente-nome" placeholder="Seu nome" oninput="onChatNomeChange()">
+          <select id="chat-remetente" title="Selecione seu setor" onchange="onChatSetorChange()">
+            <option value="Recepção">🏢 Recepção</option>
+            <option value="Acolhimento">💜 Acolhimento</option>
+            <option value="Farmácia">💊 Farmácia</option>
+            <option value="Regulação">📋 Regulação</option>
+            <option value="Médico">🩺 Médico</option>
+            <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
+            <option value="Odontologia">🦷 Odontologia</option>
+            <option value="Gerência">🏛️ Gerência</option>
+          </select>
+        </div>
+      </aside>
       <div class="chat-main">
-        <div class="chat-main-header" style="flex-wrap:wrap; gap:8px;">
+        <div class="chat-main-header">
           <div style="font-size:22px;" id="chat-canal-icon">📢</div>
-          <div><div class="ch-title" id="chat-canal-title">Chat da Unidade</div><div class="ch-sub" id="chat-canal-sub">Todos os setores e profissionais</div></div>
-          
-          <div style="margin-left:auto; display:flex; align-items:center; gap: 8px;">
-            <label style="font-size:11px;color:var(--gray-300);font-weight:700;">Identificação:</label>
-            <input type="text" id="chat-remetente-nome" placeholder="Seu nome" oninput="onChatNomeChange()" style="padding:4px 6px; border-radius:6px; border:1px solid #ddd; font-size:12px; width: 105px;">
-            <select id="chat-remetente" title="Selecione seu setor" onchange="onChatSetorChange()" style="padding:4px 6px; border-radius:6px; border:1px solid #ddd; font-size:12px;">
-              <option value="Recepção">🏢 Recepção</option>
-              <option value="Acolhimento">💜 Acolhimento</option>
-              <option value="Farmácia">💊 Farmácia</option>
-              <option value="Regulação">📋 Regulação</option>
-              <option value="Médico">🩺 Médico</option>
-              <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
-              <option value="Odontologia">🦷 Odontologia</option>
-              <option value="Gerência">🏛️ Gerência</option>
-            </select>
+          <div style="min-width:0;flex:1;">
+            <div class="ch-title" id="chat-canal-title">Chat da Unidade</div>
+            <div class="ch-sub" id="chat-canal-sub">Todos os setores e profissionais</div>
+          </div>
+          <div class="ch-actions">
+            <input type="search" id="chat-search-input" class="chat-search-input" placeholder="🔍 Buscar no canal..." oninput="onChatSearchInput()">
           </div>
         </div>
-        <!-- Barra de Canais + Presença Online -->
-        <div class="chat-canais-bar" id="chat-canal-list"></div>
         <!-- === MELHORIA C: PIN BANNER === -->
         <div class="chat-pin-banner" id="chat-pin-banner" style="display:none;">
           <span>📌</span>
@@ -4070,6 +4094,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.9"></script>
-<script src="app.js?v=6.3"></script>
+<script src="app.js?v=6.4"></script>
 </body>
 </html>
