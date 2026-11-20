@@ -19,7 +19,8 @@ const {
   SETORES_HORARIO_MARCADO,
   normalizarHorarioMarcado,
   calcularOrdemPrioridadeOdonto,
-  sortQueueRows
+  sortQueueRows,
+  isRegistroRechamadaOuEncaminhamento
 } = require('./lib/prioridade');
 
 const PORT = process.env.PORT || 3000;
@@ -1022,6 +1023,13 @@ const SQL_ORDEM_FILA = `
          created_at ASC,
          id ASC`;
 
+// Excluir rechamadas e logs de transferência das contagens de atendimento, mantendo 1 contagem por paciente/setor no dia
+const SQL_ONLY_REAL_ATTEND = `COALESCE(profissional, '') NOT LIKE '🔊 Rechamar%' AND COALESCE(profissional, '') NOT LIKE '➡️ Encaminhado%'`;
+const SQL_ONLY_REAL_ATTEND_C = `COALESCE(c.profissional, '') NOT LIKE '🔊 Rechamar%' AND COALESCE(c.profissional, '') NOT LIKE '➡️ Encaminhado%'`;
+const SQL_ONLY_REAL_ATTEND_CH = `COALESCE(ch.profissional, '') NOT LIKE '🔊 Rechamar%' AND COALESCE(ch.profissional, '') NOT LIKE '➡️ Encaminhado%'`;
+const SQL_PATIENT_KEY = `COALESCE(patient_id::text, LOWER(TRIM(nome)))`;
+const SQL_PATIENT_KEY_C = `COALESCE(c.patient_id::text, LOWER(TRIM(c.nome)))`;
+
 // Reordena automaticamente a fila do setor segundo a regra de prioridade (Lei nº 10.048/2000, 1 a 10):
 // 1º Preferenciais na ordem estrita de 1 a 10 (desempatando por horário marcado e chegada);
 // 2º Pacientes sem prioridade ordenados pelo Horário Marcado e depois pelo Horário de Chegada.
@@ -1203,13 +1211,14 @@ app.get('/api/relatorio-diario', async (req, res) => {
       }
     }
 
-    // Atendimentos por setor no dia
+    // Atendimentos por setor no dia (sem duplicar rechamada nem contar transferência)
     let porSetorRows = [];
     try {
       const porSetor = await pool.query(
-        `SELECT setor, COUNT(*) as total
+        `SELECT setor, COUNT(DISTINCT ${SQL_PATIENT_KEY}) as total
          FROM call_history
          WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+           AND ${SQL_ONLY_REAL_ATTEND}
          GROUP BY setor
          ORDER BY total DESC`,
         [dataFiltro]
@@ -1234,9 +1243,10 @@ app.get('/api/relatorio-diario', async (req, res) => {
              ELSE 'Não especificado'
            END as profissional,
            c.setor,
-           COUNT(*) as total
+           COUNT(DISTINCT ${SQL_PATIENT_KEY_C}) as total
          FROM call_history c
          WHERE DATE(c.created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+           AND ${SQL_ONLY_REAL_ATTEND_C}
          GROUP BY 
            CASE 
              WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
@@ -1259,9 +1269,11 @@ app.get('/api/relatorio-diario', async (req, res) => {
     let porTipoRows = [];
     try {
       const porTipo = await pool.query(
-        `SELECT tipo_atendimento, COUNT(*) as total
+        `SELECT tipo_atendimento, COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total
          FROM call_history
-         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date AND tipo_atendimento IS NOT NULL
+         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
+           AND tipo_atendimento IS NOT NULL
+           AND ${SQL_ONLY_REAL_ATTEND}
          GROUP BY tipo_atendimento
          ORDER BY total DESC`,
         [dataFiltro]
@@ -1308,9 +1320,10 @@ app.get('/api/relatorio-diario', async (req, res) => {
     let totalTarde = 0;
     try {
       const turnoManha = await pool.query(
-        `SELECT COUNT(*) as total FROM call_history
+        `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total FROM call_history
          WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
-         AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12`,
+         AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12
+         AND ${SQL_ONLY_REAL_ATTEND}`,
         [dataFiltro]
       );
       totalManha = parseInt(turnoManha.rows[0]?.total || 0, 10);
@@ -1320,9 +1333,10 @@ app.get('/api/relatorio-diario', async (req, res) => {
 
     try {
       const turnoTarde = await pool.query(
-        `SELECT COUNT(*) as total FROM call_history
+        `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total FROM call_history
          WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $1::date
-         AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12`,
+         AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12
+         AND ${SQL_ONLY_REAL_ATTEND}`,
         [dataFiltro]
       );
       totalTarde = parseInt(turnoTarde.rows[0]?.total || 0, 10);
@@ -1684,12 +1698,13 @@ app.post('/api/call-next/:setor', async (req, res) => {
       [setor, next.id]
     );
 
-    // Add to history
-    const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    // Add to history (inclui horario_marcado e is_intercorrencia_acolhimento para resumo do profissional)
+    const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
+    const isIntercCall = Boolean(next.is_intercorrencia_acolhimento || next.etapa_fluxo === 'encaminhado_intercorrencia');
     await client.query(
-      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, medico, prioridade, tipo_prioridade, tipo_atendimento, consultorio, profissional)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [next.id, next.nome, setor, horarioChamada, medicoFinal, next.prioridade, next.tipo_prioridade, next.tipo_atendimento, consultorioFinal, profissionalFinal]
+      `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, medico, prioridade, tipo_prioridade, tipo_atendimento, consultorio, profissional, horario_marcado, is_intercorrencia_acolhimento)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [next.id, next.nome, setor, horarioChamada, medicoFinal, next.prioridade, next.tipo_prioridade, next.tipo_atendimento, consultorioFinal, profissionalFinal, next.horario_marcado || null, isIntercCall]
     );
 
     // Registrar auditoria em log_prioridade (Parte A) usando COALESCE($3, '') para filtro_profissional
@@ -2165,11 +2180,22 @@ app.get('/api/history/monthly', async (req, res) => {
       `SELECT * FROM call_history
        WHERE EXTRACT(MONTH FROM created_at AT TIME ZONE 'America/Sao_Paulo') = $1
        AND EXTRACT(YEAR FROM created_at AT TIME ZONE 'America/Sao_Paulo') = $2
+       AND ${SQL_ONLY_REAL_ATTEND}
        ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`,
       [month, year]
     );
     
-    const records = result.rows;
+    const seenMonthly = new Set();
+    const records = [];
+    for (const r of result.rows) {
+      if (isRegistroRechamadaOuEncaminhamento(r)) continue;
+      const day = new Date(r.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Recife' });
+      const pKey = r.patient_id ? `id:${r.patient_id}` : `n:${String(r.nome || '').trim().toLowerCase()}`;
+      const uniq = `${day}|${r.setor || ''}|${pKey}`;
+      if (seenMonthly.has(uniq)) continue;
+      seenMonthly.add(uniq);
+      records.push(r);
+    }
     const bySetor = {};
     const byProfissional = {};
     const byDay = {};
@@ -2183,7 +2209,7 @@ app.get('/api/history/monthly', async (req, res) => {
         else prof = 'Não especificado';
       }
       byProfissional[prof] = (byProfissional[prof] || 0) + 1;
-      const day = new Date(r.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      const day = new Date(r.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Recife' });
       byDay[day] = (byDay[day] || 0) + 1;
     });
     
@@ -2193,13 +2219,18 @@ app.get('/api/history/monthly', async (req, res) => {
   }
 });
 
-// Get attended patients list (today only)
+// Get attended patients list (today only, 1 por paciente+setor, sem duplicar rechamada)
 app.get('/api/attended', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`
+      `SELECT * FROM (
+         SELECT DISTINCT ON (setor, ${SQL_PATIENT_KEY}) *
+         FROM call_history
+         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+           AND ${SQL_ONLY_REAL_ATTEND}
+         ORDER BY setor, ${SQL_PATIENT_KEY}, created_at DESC
+       ) dedup
+       ORDER BY created_at DESC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -2223,10 +2254,11 @@ app.get('/api/current-calling', async (req, res) => {
       if (result.rows.length > 0) current[setor] = result.rows[0];
     }
 
-    // Contar atendidos HOJE
+    // Contar atendidos HOJE (1 por paciente/setor, sem duplicar rechamada nem transferência)
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
+      `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+         AND ${SQL_ONLY_REAL_ATTEND}`
     );
     const totalAtendidos = parseInt(countResult.rows[0].count, 10);
 
@@ -2260,9 +2292,9 @@ app.get('/api/dashboard/metrics', async (req, res) => {
     const params = data ? [data] : [];
     const todayFilter = `DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}`;
     
-    // Attended today by sector
+    // Attended today by sector (sem duplicar rechamada nem transferência)
     const attendedResult = await pool.query(
-      `SELECT COUNT(*) as total, setor FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery} GROUP BY setor`,
+      `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY}) as total, setor FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery} AND ${SQL_ONLY_REAL_ATTEND} GROUP BY setor`,
       params
     );
     
@@ -2284,6 +2316,7 @@ app.get('/api/dashboard/metrics', async (req, res) => {
        FROM call_history ch
        JOIN patients p ON ch.patient_id = p.id
        WHERE DATE(ch.created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+         AND ${SQL_ONLY_REAL_ATTEND_CH}
        GROUP BY ch.setor`,
       params
     );
@@ -2299,15 +2332,17 @@ app.get('/api/dashboard/metrics', async (req, res) => {
     
     // Atendidos por turno (manhã < 12h, tarde >= 12h)
     const turnoManhaResult = await pool.query(
-      `SELECT COUNT(*) as total FROM call_history
+      `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total FROM call_history
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
-       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12`,
+       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12
+       AND ${SQL_ONLY_REAL_ATTEND}`,
       params
     );
     const turnoTardeResult = await pool.query(
-      `SELECT COUNT(*) as total FROM call_history
+      `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total FROM call_history
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
-       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12`,
+       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12
+       AND ${SQL_ONLY_REAL_ATTEND}`,
       params
     );
     
@@ -2354,9 +2389,10 @@ app.get('/api/dashboard/metrics', async (req, res) => {
              ELSE 'Não especificado'
            END as profissional,
            c.setor,
-           COUNT(*) as total
+           COUNT(DISTINCT ${SQL_PATIENT_KEY_C}) as total
          FROM call_history c
          WHERE DATE(c.created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+           AND ${SQL_ONLY_REAL_ATTEND_C}
          GROUP BY 
            CASE 
              WHEN NULLIF(TRIM(COALESCE(c.profissional, c.medico, '')), '') IS NOT NULL 
@@ -2415,8 +2451,8 @@ app.get('/api/dashboard/hourly', async (req, res) => {
     );
     
     const callsResult = await pool.query(
-      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
-       FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total
+       FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery} AND ${SQL_ONLY_REAL_ATTEND}
        GROUP BY hour
        ORDER BY hour`,
       params

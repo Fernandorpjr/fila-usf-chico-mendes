@@ -637,6 +637,7 @@ function initSectorScreens() {
         <div class="sector-icon-big" style="background:${cfg.color}22;">${cfg.icon}</div>
         <div><div class="sector-page-title">${setor}</div><div class="sector-page-sub">Chamada de pacientes para ${setor.toLowerCase()}</div></div>
       </div>
+      ${SETORES_HORARIO_MARCADO.includes(setor) ? `<div id="resumo-prof-${cfg.key}" class="prof-summary-wrap"></div>` : ''}
       <div class="calling-banner" id="banner-${cfg.key}">
         <div class="cb-icon">🔔</div>
         <div class="cb-text"><div class="cb-label">Chamando agora</div><div class="cb-name" id="banner-name-${cfg.key}">—</div><div class="cb-sector">${cfg.icon} ${setor}</div></div>
@@ -699,6 +700,7 @@ function filterSector(key, profissional) {
   updateQueues();
   updateBadges();
   renderAllSectorAttended();
+  if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais();
 }
 
 // ====== CLOCK ======
@@ -1337,6 +1339,7 @@ function verificarSubmodoOdontoRecepcao() {
   } else if (!['Acolhimento', 'Acolhimento ACS', 'Acolhimento 2ª Escuta'].includes(setor)) {
     definirModoEscutaRecepcao(false);
   }
+  if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
 }
 
 function selecionarEquipeRecepcao(equipe) {
@@ -1373,6 +1376,7 @@ function adicionarTagMotivoRecepcao(textoTag) {
 function definirHorarioMarcadoRapido(hora) {
   const inp = document.getElementById('input-horario-marcado');
   if (inp) inp.value = hora || '';
+  if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
 }
 
 function atualizarOpcoesPrioridadePorSetor(setor) {
@@ -1474,6 +1478,7 @@ function toggleTipoAtendimento() {
         (cfg.profissionais || []).map(p => `<option value="${p}">${p}</option>`).join('');
     }
   }
+  if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
 }
 
 // ====== HELPER: Condições Especiais ======
@@ -2468,12 +2473,13 @@ async function loadHistory() {
     }
     updatePainel();
     renderAllSectorAttended();
+    if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais();
   } catch (e) { console.error(e); }
 }
 async function loadAttended() { try { const r = await fetch(`${API_URL}/attended`); attendedPatients = await r.json(); renderAttended(); } catch (e) { console.error(e); } }
 
 // ====== UPDATE UI ======
-function updateAll() { updateStats(); updateBadges(); updateQueues(); updateMiniQueues(); updateRecent(); renderAllSectorAttended(); }
+function updateAll() { updateStats(); updateBadges(); updateQueues(); updateMiniQueues(); updateRecent(); renderAllSectorAttended(); if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais(); }
 
 function updateStats() {
   let total = 0;
@@ -3217,6 +3223,230 @@ function updatePainel() {
 }
 
 // ====== SECTOR ATTENDED HISTORY ======
+const LIMITE_AGENDADOS_PROF = 8;
+const LIMITE_INTERCORRENCIAS_PROF = 4;
+
+function isRegistroRechamadaOuEncaminhamento(rec) {
+  const prof = String(rec?.profissional || '');
+  return prof.startsWith('🔊 Rechamar') || prof.startsWith('➡️ Encaminhado');
+}
+
+function obterAtendimentosUnicosSetor(setor, profFiltro) {
+  const seen = new Set();
+  const out = [];
+  for (const p of callHistory || []) {
+    if (p.setor !== setor) continue;
+    if (isRegistroRechamadaOuEncaminhamento(p)) continue;
+    if (profFiltro) {
+      const matchProf = p.profissional === profFiltro || (p.medico && p.medico.includes(profFiltro));
+      if (!matchProf) continue;
+    }
+    const key = p.patient_id ? `id:${p.patient_id}` : `n:${String(p.nome || '').trim().toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+  return out;
+}
+
+function isPacienteIntercorrenciaClinica(p) {
+  if (!p) return false;
+  if (p.is_intercorrencia_acolhimento === true) return true;
+  if (p.etapa_fluxo === 'encaminhado_intercorrencia') return true;
+  const orig = String(p.origem_transferencia || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (orig.includes('acolhimento') || orig.includes('escuta')) return true;
+  const tipo = String(p.tipo_atendimento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (tipo.includes('intercorrencia') || tipo.includes('urgencia') || tipo.includes('acolhimento')) return true;
+  if (p.horario_marcado && String(p.horario_marcado).trim() !== '') return false;
+  if (tipo.includes('conecta recife') || tipo.includes('agendad')) return false;
+  return true;
+}
+
+function calcularResumoProfissionalDia(setor, profFiltro) {
+  const filaRaw = (queues[setor] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
+  const filaFiltrada = profFiltro
+    ? filaRaw.filter(p => p.profissional === profFiltro || (!p.profissional && setor === 'Odontologia') || (p.medico && p.medico.includes(profFiltro)))
+    : filaRaw;
+  const aguardando = filaFiltrada.filter(p => p.status === 'aguardando');
+  const chamando = filaFiltrada.filter(p => p.status === 'chamado');
+  const atendidos = obterAtendimentosUnicosSetor(setor, profFiltro);
+
+  const uniqueDay = new Map();
+  atendidos.forEach(a => {
+    const key = a.patient_id ? `id:${a.patient_id}` : `n:${String(a.nome || '').trim().toLowerCase()}`;
+    uniqueDay.set(key, a);
+  });
+  filaFiltrada.forEach(p => {
+    const key = p.id ? `id:${p.id}` : `n:${String(p.nome || '').trim().toLowerCase()}`;
+    const prev = uniqueDay.get(key) || {};
+    uniqueDay.set(key, { ...prev, ...p });
+  });
+
+  let agendados = 0;
+  let intercorrencias = 0;
+  let intercAcolhimento = 0;
+  let intercFila = 0;
+  uniqueDay.forEach(p => {
+    if (isPacienteIntercorrenciaClinica(p)) {
+      intercorrencias++;
+      const orig = String(p.origem_transferencia || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      if (p.is_intercorrencia_acolhimento || p.etapa_fluxo === 'encaminhado_intercorrencia' || orig.includes('acolhimento')) {
+        intercAcolhimento++;
+      } else {
+        intercFila++;
+      }
+    } else {
+      agendados++;
+    }
+  });
+
+  return {
+    faltam: aguardando.length,
+    chamando: chamando.length,
+    atendidos: atendidos.length,
+    agendados,
+    intercorrencias,
+    intercAcolhimento,
+    intercFila,
+    totalDia: uniqueDay.size
+  };
+}
+
+function renderResumoProfissionais() {
+  SETORES_HORARIO_MARCADO.forEach(setor => {
+    const cfg = SECTOR_CONFIG[setor];
+    if (!cfg) return;
+    const container = document.getElementById('resumo-prof-' + cfg.key);
+    if (!container) return;
+
+    const profSelecionado = setor === 'Odontologia'
+      ? (cfg.profissionais?.[0] || 'Dra. Juliana Cavalcante')
+      : (sectorFilters[cfg.key] || null);
+    const resumo = calcularResumoProfissionalDia(setor, profSelecionado);
+    const tituloProf = profSelecionado || `Todos de ${setor}`;
+
+    const pctAgend = Math.min(100, Math.round((resumo.agendados / LIMITE_AGENDADOS_PROF) * 100));
+    const pctInterc = Math.min(100, Math.round((resumo.intercorrencias / LIMITE_INTERCORRENCIAS_PROF) * 100));
+    const corInterc = resumo.intercorrencias > LIMITE_INTERCORRENCIAS_PROF
+      ? '#dc2626'
+      : resumo.intercorrencias >= 3
+        ? '#d97706'
+        : '#16a34a';
+    const bgInterc = resumo.intercorrencias > LIMITE_INTERCORRENCIAS_PROF
+      ? 'background:#fef2f2;border-color:#fca5a5;'
+      : resumo.intercorrencias >= 3
+        ? 'background:#fffbeb;border-color:#fcd34d;'
+        : 'background:#f0fdf4;border-color:#bbf7d0;';
+
+    let alertHtml = '';
+    let miniStripHtml = '';
+
+    if (profSelecionado) {
+      if (resumo.intercorrencias > LIMITE_INTERCORRENCIAS_PROF) {
+        alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>LIMITE EXCEDIDO: <strong>${escapeText(profSelecionado)}</strong> já possui <strong>${resumo.intercorrencias} intercorrências / não agendados</strong> hoje (limite previsto: ${LIMITE_INTERCORRENCIAS_PROF}).</span></div>`;
+      } else if (resumo.intercorrencias === LIMITE_INTERCORRENCIAS_PROF) {
+        alertHtml = `<div class="prof-alert-banner">⚠️ <span>ATENÇÃO: <strong>${escapeText(profSelecionado)}</strong> atingiu o limite de <strong>${LIMITE_INTERCORRENCIAS_PROF} intercorrências</strong> hoje.</span></div>`;
+      }
+    } else if (cfg.profissionais && cfg.profissionais.length > 1) {
+      const excedidos = [];
+      miniStripHtml = `<div class="prof-mini-strip">` + cfg.profissionais.map(pNome => {
+        const rp = calcularResumoProfissionalDia(setor, pNome);
+        let cls = '';
+        if (rp.intercorrencias > LIMITE_INTERCORRENCIAS_PROF) {
+          cls = 'over-limit';
+          excedidos.push(`${pNome} (${rp.intercorrencias})`);
+        } else if (rp.intercorrencias === LIMITE_INTERCORRENCIAS_PROF) {
+          cls = 'at-limit';
+        }
+        return `<button type="button" class="prof-mini-pill ${cls}" onclick="filterSector('${cfg.key}','${pNome.replace(/'/g, "\\'")}')" title="Filtrar ${escapeText(pNome)}">👤 ${escapeText(pNome)} · Agend: ${rp.agendados}/${LIMITE_AGENDADOS_PROF} · Interc: ${rp.intercorrencias}/${LIMITE_INTERCORRENCIAS_PROF}</button>`;
+      }).join('') + `</div>`;
+      if (excedidos.length > 0) {
+        alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>Acima do limite de ${LIMITE_INTERCORRENCIAS_PROF} intercorrências hoje: <strong>${escapeText(excedidos.join(', '))}</strong></span></div>`;
+      }
+    }
+
+    container.innerHTML = `
+      <div class="prof-summary-card">
+        <div class="prof-summary-head">
+          <div class="prof-summary-title">
+            <span>📊 Resumo do Dia — ${escapeText(tituloProf)}</span>
+          </div>
+          <span class="prof-summary-meta-pill">🔒 Visão Admin · Meta: ${LIMITE_AGENDADOS_PROF} Agendados | Limite: ${LIMITE_INTERCORRENCIAS_PROF} Intercorrências</span>
+        </div>
+        <div class="prof-kpi-grid">
+          <div class="prof-kpi-box" style="background:#f8fafc;">
+            <div class="prof-kpi-label">⏳ Faltam na Fila</div>
+            <div class="prof-kpi-val" style="color:#1d4ed8;">${resumo.faltam}</div>
+            <div class="prof-kpi-sub">${resumo.chamando > 0 ? `+${resumo.chamando} chamando agora` : 'Nenhum no consultório'}</div>
+          </div>
+          <div class="prof-kpi-box" style="background:#f0fdf4;border-color:#bbf7d0;">
+            <div class="prof-kpi-label">✅ Atendidos Hoje</div>
+            <div class="prof-kpi-val" style="color:#15803d;">${resumo.atendidos}</div>
+            <div class="prof-kpi-sub">Pacientes únicos (sem rechamada)</div>
+          </div>
+          <div class="prof-kpi-box" style="background:#eff6ff;border-color:#bfdbfe;">
+            <div class="prof-kpi-label">📅 Agendados</div>
+            <div class="prof-kpi-val" style="color:#1e40af;">${resumo.agendados} <span style="font-size:13px;color:#64748b;font-weight:800;">/ ${LIMITE_AGENDADOS_PROF}</span></div>
+            <div class="prof-progress-track"><div class="prof-progress-fill" style="width:${pctAgend}%;background:#2563eb;"></div></div>
+            <div class="prof-kpi-sub">Com horário / Conecta Recife</div>
+          </div>
+          <div class="prof-kpi-box" style="${bgInterc}">
+            <div class="prof-kpi-label">🚨 Intercorrências</div>
+            <div class="prof-kpi-val" style="color:${corInterc};">${resumo.intercorrencias} <span style="font-size:13px;color:#64748b;font-weight:800;">/ ${LIMITE_INTERCORRENCIAS_PROF}</span></div>
+            <div class="prof-progress-track"><div class="prof-progress-fill" style="width:${pctInterc}%;background:${corInterc};"></div></div>
+            <div class="prof-kpi-sub">Acolh.: ${resumo.intercAcolhimento} · Direto: ${resumo.intercFila}</div>
+          </div>
+          <div class="prof-kpi-box" style="background:#faf5ff;border-color:#ddd6fe;">
+            <div class="prof-kpi-label">📋 Total do Dia</div>
+            <div class="prof-kpi-val" style="color:#6d28d9;">${resumo.totalDia}</div>
+            <div class="prof-kpi-sub">${resumo.agendados} agend. + ${resumo.intercorrencias} interc.</div>
+          </div>
+        </div>
+        ${alertHtml}
+        ${miniStripHtml}
+      </div>
+    `;
+  });
+
+  if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') {
+    atualizarAlertaIntercorrenciaRecepcao();
+  }
+}
+
+function atualizarAlertaIntercorrenciaRecepcao() {
+  const box = document.getElementById('recepcao-interc-alerta');
+  if (!box) return;
+  const setor = document.getElementById('input-setor')?.value || '';
+  if (!isAdmin || !SETORES_HORARIO_MARCADO.includes(setor)) {
+    box.className = '';
+    box.innerHTML = '';
+    return;
+  }
+  const profSel = document.getElementById('input-profissional')?.value || '';
+  const prof = setor === 'Odontologia' ? (SECTOR_CONFIG['Odontologia']?.profissionais?.[0] || 'Dra. Juliana Cavalcante') : profSel;
+  if (!prof) {
+    box.className = '';
+    box.innerHTML = '';
+    return;
+  }
+  const hm = document.getElementById('input-horario-marcado')?.value?.trim() || '';
+  const tipo = document.getElementById('input-tipo-atendimento')?.value || '';
+  const ehInterc = isPacienteIntercorrenciaClinica({ horario_marcado: hm, tipo_atendimento: tipo });
+  if (!ehInterc) {
+    box.className = '';
+    box.innerHTML = '';
+    return;
+  }
+  const resumo = calcularResumoProfissionalDia(setor, prof);
+  if (resumo.intercorrencias >= LIMITE_INTERCORRENCIAS_PROF) {
+    box.className = 'show';
+    box.innerHTML = `<span style="font-size:16px;">🚨</span><div><strong>Alerta Admin (${escapeText(prof)}):</strong> Já possui <strong>${resumo.intercorrencias} intercorrências/não agendados</strong> hoje (limite previsto: ${LIMITE_INTERCORRENCIAS_PROF}). Este encaixe elevará para <strong>${resumo.intercorrencias + 1}</strong>.</div>`;
+  } else {
+    box.className = '';
+    box.innerHTML = '';
+  }
+}
+
 function renderAllSectorAttended() {
   SETORES.forEach(setor => {
     const cfg = SECTOR_CONFIG[setor];
@@ -3225,10 +3455,7 @@ function renderAllSectorAttended() {
     if (!el) return;
 
     const filter = sectorFilters[cfg.key] || null;
-    let items = (callHistory || []).filter(p => p.setor === setor);
-    if (filter) {
-      items = items.filter(p => p.profissional === filter);
-    }
+    const items = obterAtendimentosUnicosSetor(setor, filter);
 
     if (cntEl) cntEl.textContent = items.length;
 

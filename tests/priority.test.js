@@ -4,7 +4,9 @@ const {
   SETORES_HORARIO_MARCADO,
   normalizarHorarioMarcado,
   calcularOrdemPrioridadeOdonto,
-  sortQueueRows
+  sortQueueRows,
+  deduplicarAtendimentosPorSetor,
+  isPacienteIntercorrenciaClinica
 } = require('../lib/prioridade');
 
 test('normalizarHorarioMarcado formats HH:MM cleanly', () => {
@@ -47,4 +49,25 @@ test('sortQueueRows ignores Horario Marcado for spontaneous demand sectors', () 
     { id: 3, nome: 'Gestante', prioridade: 'prioritario', tipo_prioridade: '4. Gestante', created_at: '2026-11-14T09:00:00Z' }
   ], 'Farmácia');
   assert.deepEqual(sorted.map(r => r.nome), ['Gestante', 'Chegou Primeiro', 'Chegou Depois']);
+});
+
+test('deduplicarAtendimentosPorSetor ignores rechamar/transfers and counts once per sector', () => {
+  const records = [
+    { id: 10, patient_id: 1, nome: 'Maria', setor: 'Médico', profissional: '🔊 Rechamar · Dr. Israel' },
+    { id: 9, patient_id: 1, nome: 'Maria', setor: 'Médico', profissional: '➡️ Encaminhado p/ Farmácia' },
+    { id: 8, patient_id: 1, nome: 'Maria', setor: 'Farmácia', profissional: 'Leandra' },
+    { id: 7, patient_id: 1, nome: 'Maria', setor: 'Médico', profissional: 'Dr. Israel' },
+    { id: 6, patient_id: 1, nome: 'Maria', setor: 'Acolhimento', profissional: 'Ana Paula' }
+  ];
+  const dedup = deduplicarAtendimentosPorSetor(records);
+  assert.equal(dedup.length, 3);
+  assert.deepEqual(dedup.map(r => r.setor), ['Farmácia', 'Médico', 'Acolhimento']);
+});
+
+test('isPacienteIntercorrenciaClinica distinguishes scheduled vs unscheduled/intercorrencia', () => {
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: '09:00', tipo_atendimento: 'Consulta' }), false);
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Consulta Agendada (Conecta Recife)' }), false);
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: '09:00', is_intercorrencia_acolhimento: true }), true);
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Consulta' }), true);
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: '10:00', tipo_atendimento: 'Urgência' }), true);
 });

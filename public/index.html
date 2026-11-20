@@ -1873,6 +1873,109 @@
       background: rgba(245, 158, 11, 0.14) !important;
       border-left: 4px solid #f59e0b !important;
     }
+
+    /* ====== PAINEL RESUMO DO PROFISSIONAL (ADMIN-ONLY) ====== */
+    .prof-summary-wrap { display: none; margin-bottom: 18px; }
+    body.admin-active .prof-summary-wrap { display: block; }
+    .prof-summary-card {
+      border-radius: 16px;
+      border: 1.5px solid #cbd5e1;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+    .prof-summary-head {
+      background: linear-gradient(135deg, #0f2c73 0%, #1a4fc4 100%);
+      color: #fff;
+      padding: 11px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .prof-summary-title {
+      font-family: 'Nunito', sans-serif;
+      font-size: 14.5px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .prof-summary-meta-pill {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .prof-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+    .prof-kpi-box {
+      border-radius: 12px;
+      padding: 11px 12px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .prof-kpi-label { font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
+    .prof-kpi-val { font-family: 'Nunito', sans-serif; font-size: 24px; font-weight: 900; line-height: 1.1; color: #0f172a; }
+    .prof-kpi-sub { font-size: 11px; font-weight: 700; color: #64748b; }
+    .prof-progress-track { height: 6px; border-radius: 999px; background: rgba(15, 23, 42, 0.08); overflow: hidden; margin-top: 4px; }
+    .prof-progress-fill { height: 100%; border-radius: 999px; transition: width 0.25s ease; }
+    .prof-alert-banner {
+      margin: 0 14px 14px;
+      padding: 10px 14px;
+      border-radius: 11px;
+      font-size: 12.5px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fef3c7;
+      border: 1.5px solid #f59e0b;
+      color: #92400e;
+    }
+    .prof-alert-banner.prof-alert-danger {
+      background: #fee2e2;
+      border-color: #ef4444;
+      color: #991b1b;
+      animation: urgentPulse 1.8s infinite;
+    }
+    .prof-mini-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 14px 14px;
+    }
+    .prof-mini-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 800;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    .prof-mini-pill:hover { border-color: var(--blue); background: #eff6ff; }
+    .prof-mini-pill.over-limit { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+    .prof-mini-pill.at-limit { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+    #recepcao-interc-alerta { display: none; margin-top: 8px; padding: 9px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; line-height: 1.4; }
+    body.admin-active #recepcao-interc-alerta.show { display: flex; align-items: flex-start; gap: 8px; background: #fef2f2; border: 1.5px solid #ef4444; color: #991b1b; }
+    @media (max-width: 960px) {
+      .prof-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
     /* ====== FIM CLEAN TABLE UI ====== */
 </style>
 </head>
@@ -2220,13 +2323,13 @@
                 </div>
                 <div class="form-group" style="margin-bottom:0;display:none;" id="profissional-grupo">
                   <label>Profissional Responsável</label>
-                  <select id="input-profissional" style="padding:10px 12px;font-size:13px;">
+                  <select id="input-profissional" onchange="atualizarAlertaIntercorrenciaRecepcao()" style="padding:10px 12px;font-size:13px;">
                     <option value="">— Selecione o profissional —</option>
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom:0;display:none;" id="odonto-horario-marcado-grupo">
                   <label title="Horário agendado (Médico, Odontologia e Enfermagem)">⏰ Horário Marcado</label>
-                  <input type="time" id="input-horario-marcado" style="padding:9px 12px;font-size:13.5px;font-weight:800;color:#6d28d9;border:2px solid #ddd6fe;border-radius:10px;background:#f5f3ff;">
+                  <input type="time" id="input-horario-marcado" oninput="atualizarAlertaIntercorrenciaRecepcao()" onchange="atualizarAlertaIntercorrenciaRecepcao()" style="padding:9px 12px;font-size:13.5px;font-weight:800;color:#6d28d9;border:2px solid #ddd6fe;border-radius:10px;background:#f5f3ff;">
                 </div>
               </div>
               <div id="odonto-horario-chips" style="display:none;margin-top:8px;padding:8px 10px;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:10px;">
@@ -2245,6 +2348,7 @@
                   <button type="button" class="motivo-chip" style="background:#fff;border-color:#f9a8d4;color:#9d174d;" onclick="definirHorarioMarcadoRapido('15:00')">⏰ 15:00</button>
                 </div>
               </div>
+              <div id="recepcao-interc-alerta"></div>
             </div>
 
             <!-- Botão Cadastrar Direto (exibido na Coluna 2 quando em Modo Direto sem 1ª Escuta) -->
@@ -4095,6 +4199,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.9"></script>
-<script src="app.js?v=6.6"></script>
+<script src="app.js?v=6.7"></script>
 </body>
 </html>
