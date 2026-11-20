@@ -1,8 +1,12 @@
 // Módulo Frontend — Prévia de Receitas (Hiperdia / Renovação / Odontologia)
 window._previaReceitaPendente = null;
+window._previaModalDadosAtuais = null;
 let _previaImagemAtual = null;
+let _previaDadosExtrasAtual = null;
 let _previaZoom = 1;
 let _previaRot = 0;
+let _previaPanX = 0;
+let _previaPanY = 0;
 let _previaModalPacienteId = null;
 let _previaModalStatusAtual = 'pendente';
 
@@ -37,6 +41,7 @@ function atualizarBotaoPreviaReceitaRecepcao() {
 function limparPreviaReceitaPendente() {
   window._previaReceitaPendente = null;
   _previaImagemAtual = null;
+  _previaDadosExtrasAtual = null;
   atualizarBotaoPreviaReceitaRecepcao();
 }
 
@@ -45,6 +50,7 @@ function abrirModalCapturaReceita() {
   if (!modal) return;
   const p = window._previaReceitaPendente || {};
   _previaImagemAtual = p.imagem_base64 || null;
+  _previaDadosExtrasAtual = p.dados_extras || null;
 
   const setorAtual = document.getElementById('input-setor')?.value || '';
   const tipoDefault = p.tipo_receita || (setorAtual === 'Odontologia' ? 'odonto' : 'branca');
@@ -148,6 +154,7 @@ async function processarImagemReceitaFile(file) {
       if (o.data_emissao) document.getElementById('pr-data-emissao').value = o.data_emissao;
       if (o.medico_emitente) document.getElementById('pr-medico-emitente').value = o.medico_emitente;
       if (o.observacoes) document.getElementById('pr-observacoes').value = o.observacoes;
+      _previaDadosExtrasAtual = o.dados_extras || null;
 
       if (statusEl) {
         statusEl.className = 'pr-status-box ok';
@@ -221,7 +228,8 @@ function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
     medico_emitente: medico_emitente || null,
     observacoes: observacoes || null,
     fila_sugerida,
-    imagem_base64: _previaImagemAtual || null
+    imagem_base64: _previaImagemAtual || null,
+    dados_extras: _previaDadosExtrasAtual || null
   };
 
   // Preenche nome do paciente na recepção automaticamente se estiver em branco
@@ -308,6 +316,10 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
   _previaModalPacienteId = patientId;
   _previaZoom = 1;
   _previaRot = 0;
+  _previaPanX = 0;
+  _previaPanY = 0;
+  window._previaModalDadosAtuais = { patientId, nomePaciente, setor, previa: null };
+  inicializarPanZoomPreviaModal();
 
   document.getElementById('vp-titulo').textContent = `📄 Prévia da Receita — ${nomePaciente}`;
   document.getElementById('vp-subtitulo').textContent = `Setor: ${setor} · Carregando dados...`;
@@ -315,6 +327,12 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
   document.getElementById('vp-img').style.display = 'none';
   document.getElementById('vp-sem-img').style.display = 'flex';
   document.getElementById('vp-sem-img').textContent = '⏳ Carregando imagem...';
+  aplicarTransformImgPrevia();
+
+  const formsBox = document.getElementById('vp-formularios-box');
+  if (formsBox) {
+    formsBox.style.display = ['Médico', 'Enfermagem', 'Odontologia'].includes(setor) ? 'block' : 'none';
+  }
   modal.classList.add('show');
 
   try {
@@ -322,6 +340,14 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
     if (!r.ok) throw new Error('Prévia não encontrada');
     const pr = await r.json();
     _previaModalStatusAtual = pr.status_revisao || 'pendente';
+    window._previaModalDadosAtuais = { patientId, nomePaciente, setor, previa: pr };
+
+    const btnRec = document.getElementById('vp-btn-form-rec');
+    const btnEsp = document.getElementById('vp-btn-form-esp');
+    if (btnRec && btnEsp) {
+      btnEsp.classList.toggle('destaque', pr.tipo_receita === 'azul');
+      btnRec.classList.toggle('destaque', pr.tipo_receita !== 'azul');
+    }
 
     document.getElementById('vp-subtitulo').textContent = `Setor: ${setor}${pr.status_revisao === 'revisada' ? ' · ✅ Marcada como pronta' : ' · ⏳ Aguardando revisão'}`;
     document.getElementById('vp-nome-pac').textContent = pr.paciente_nome_ocr || nomePaciente;
@@ -368,11 +394,15 @@ function fecharModalVerPreviaReceita() {
 
 function aplicarTransformImgPrevia() {
   const img = document.getElementById('vp-img');
-  if (img) img.style.transform = `scale(${_previaZoom}) rotate(${_previaRot}deg)`;
+  if (img) {
+    img.style.transform = `translate(${_previaPanX}px, ${_previaPanY}px) scale(${_previaZoom}) rotate(${_previaRot}deg)`;
+  }
+  const lbl = document.getElementById('vp-zoom-label');
+  if (lbl) lbl.textContent = `${Math.round(_previaZoom * 100)}%`;
 }
 
 function zoomPreviaImg(delta) {
-  _previaZoom = Math.max(0.6, Math.min(3, Number((_previaZoom + delta).toFixed(2))));
+  _previaZoom = Math.max(0.5, Math.min(4.5, Number((_previaZoom + delta).toFixed(2))));
   aplicarTransformImgPrevia();
 }
 
@@ -380,6 +410,91 @@ function girarPreviaImg() {
   _previaRot = (_previaRot + 90) % 360;
   aplicarTransformImgPrevia();
 }
+
+function resetPreviaImgView() {
+  _previaZoom = 1;
+  _previaRot = 0;
+  _previaPanX = 0;
+  _previaPanY = 0;
+  aplicarTransformImgPrevia();
+}
+
+function initPreviaPanZoom(stageId, imgId, getState, setState, onRender) {
+  const stage = document.getElementById(stageId);
+  if (!stage || stage.dataset.pzBound === '1') return;
+  stage.dataset.pzBound = '1';
+
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let origPanX = 0;
+  let origPanY = 0;
+
+  stage.addEventListener('pointerdown', (e) => {
+    const img = document.getElementById(imgId);
+    if (!img || img.style.display === 'none') return;
+    if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    const st = getState();
+    origPanX = st.panX;
+    origPanY = st.panY;
+    stage.classList.add('grabbing');
+    try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    setState({ panX: origPanX + (e.clientX - startX), panY: origPanY + (e.clientY - startY) });
+    onRender();
+  });
+
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    stage.classList.remove('grabbing');
+    try {
+      if (e && e.pointerId !== undefined) stage.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  };
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+
+  stage.addEventListener('wheel', (e) => {
+    const img = document.getElementById(imgId);
+    if (!img || img.style.display === 'none') return;
+    e.preventDefault();
+    const st = getState();
+    const step = e.deltaY < 0 ? 0.2 : -0.2;
+    const nextZoom = Math.max(0.5, Math.min(4.5, Number((st.zoom + step).toFixed(2))));
+    setState({ zoom: nextZoom });
+    onRender();
+  }, { passive: false });
+
+  stage.addEventListener('dblclick', () => {
+    setState({ zoom: 1, rot: 0, panX: 0, panY: 0 });
+    onRender();
+  });
+}
+
+function inicializarPanZoomPreviaModal() {
+  initPreviaPanZoom(
+    'vp-img-stage',
+    'vp-img',
+    () => ({ zoom: _previaZoom, rot: _previaRot, panX: _previaPanX, panY: _previaPanY }),
+    (patch) => {
+      if (patch.zoom !== undefined) _previaZoom = patch.zoom;
+      if (patch.rot !== undefined) _previaRot = patch.rot;
+      if (patch.panX !== undefined) _previaPanX = patch.panX;
+      if (patch.panY !== undefined) _previaPanY = patch.panY;
+    },
+    aplicarTransformImgPrevia
+  );
+}
+
+window.initPreviaPanZoom = initPreviaPanZoom;
+document.addEventListener('DOMContentLoaded', inicializarPanZoomPreviaModal);
 
 function copiarTextoPrevia(elementId, label) {
   const txt = document.getElementById(elementId)?.textContent?.trim() || '';

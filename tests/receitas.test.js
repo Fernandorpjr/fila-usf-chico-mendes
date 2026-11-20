@@ -4,7 +4,9 @@ const {
   calcularDataVencimento,
   calcularDiasRestantes,
   classificarUrgencia,
-  classificarReceita
+  classificarReceita,
+  normalizarDadosExtras,
+  formatarPrescricaoParaFormulario
 } = require('../lib/receitas');
 
 test('calcularDataVencimento adds 2 or 6 months cleanly', () => {
@@ -49,4 +51,43 @@ test('classificarReceita routes branca with Sinvastatina or unknown med to Medic
 test('calcularDiasRestantes computes day difference properly', () => {
   const dias = calcularDiasRestantes('25/11/2026', new Date('2026-11-20T13:00:00Z'));
   assert.equal(dias, 5);
+});
+
+test('normalizarDadosExtras sanitizes optional OCR fields and normalizes sex', () => {
+  assert.equal(normalizarDadosExtras(null), null);
+  assert.equal(normalizarDadosExtras({ paciente_endereco: 'null', paciente_sexo: 'não informado' }), null);
+  const ext = normalizarDadosExtras({
+    medicamentos_posologia: '1) Losartana 50mg - 1 cp 12/12h',
+    paciente_endereco: 'Rua X, 123 - Varzea',
+    paciente_data_nascimento: '01/05/1970',
+    paciente_sexo: 'masculino',
+    paciente_telefone: '(81) 99999-0000',
+    paciente_mae: 'Maria da Silva'
+  });
+  assert.deepEqual(ext, {
+    medicamentos_posologia: '1) Losartana 50mg - 1 cp 12/12h',
+    paciente_endereco: 'Rua X, 123 - Varzea',
+    paciente_data_nascimento: '01/05/1970',
+    paciente_sexo: 'M',
+    paciente_telefone: '(81) 99999-0000',
+    paciente_mae: 'Maria da Silva'
+  });
+});
+
+test('formatarPrescricaoParaFormulario prefers posologia, falls back cleanly, and handles empty', () => {
+  assert.equal(formatarPrescricaoParaFormulario(null), '');
+  assert.equal(
+    formatarPrescricaoParaFormulario({
+      medicamentos: 'Losartana 50mg',
+      dados_extras: { medicamentos_posologia: '1) Losartana 50mg - 1 cp pela manhã' }
+    }),
+    '1) Losartana 50mg - 1 cp pela manhã'
+  );
+  assert.equal(
+    formatarPrescricaoParaFormulario({
+      medicamentos: 'Losartana 50mg, Metformina 850mg',
+      observacoes: 'Uso contínuo'
+    }),
+    '1) Losartana 50mg\n2) Metformina 850mg\nObs: Uso contínuo'
+  );
 });

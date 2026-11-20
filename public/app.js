@@ -647,6 +647,14 @@ function initSectorScreens() {
         ${odontoRegraBanner}
         ${filterHTML}
         ${profHTML}
+        ${['Médico', 'Enfermagem', 'Odontologia'].includes(setor) ? `
+          <div class="pec-forms-bar">
+            <span class="pec-forms-title">🖨️ Formulários Oficiais (PEC Offline):</span>
+            <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','receituario',false)">📄 Receituário</button>
+            <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','controle-especial',false)">🔵 Controle Especial</button>
+            <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','ficha-ambulatorial',false)">📋 Ficha Ambulatorial</button>
+            <button type="button" class="pec-form-btn branco" onclick="abrirFormularioAvulsoSetor('${setor}','receituario',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
+          </div>` : ''}
         <div class="btn-group" style="margin-bottom:20px;">
           <button class="btn ${cfg.btnClass} btn-3d" onclick="callNext('${setor}', this)" style="flex:1;">📢 Chamar Próximo</button>
           ${(setor === 'Farmácia' || setor === 'Regulação') ? `<button class="btn ${cfg.btnClass} btn-3d" onclick="callNextMulti('${setor}', this)" style="flex:1;">📢 Chamar 3 Próximos (Multi)</button>` : ''}
@@ -2880,6 +2888,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
         <div class="fila-actions-cell">
           ${p.status === 'chamado' ? `<button class="btn-call-next" style="padding:5px 10px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente no Painel e Voz" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button>` : ''}
           ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, setor) : ''}
+          ${typeof renderBotoesFormulariosLinha === 'function' ? renderBotoesFormulariosLinha(p, setor) : ''}
           ${radarBtn}
           ${ actionButtons }
           ${qrBtn}
