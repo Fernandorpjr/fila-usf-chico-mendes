@@ -1033,6 +1033,7 @@ function toggleTransferTipoAtendimento() {
         <option value="">— Opcional —</option>
         <option value="Consulta">🩺 Consulta</option>
         <option value="Consulta Agendada (Conecta Recife)">📱 Consulta Agendada (Conecta Recife)</option>
+        <option value="Remoção de Pontos">🪡 Remoção de Pontos</option>
         <option value="Acolhimento">💜 Acolhimento</option>
         <option value="Urgência">🚨 Urgência</option>
         <option value="Intercorrência">⚠️ Intercorrência</option>
@@ -1437,6 +1438,7 @@ function toggleTipoAtendimento() {
       selectTipo.innerHTML = `
         <option value="Consulta">🩺 Consulta</option>
         <option value="Consulta Agendada (Conecta Recife)">📱 Consulta Agendada (Conecta Recife)</option>
+        <option value="Remoção de Pontos">🪡 Remoção de Pontos</option>
         <option value="Acolhimento">💜 Acolhimento</option>
         <option value="Urgência">🚨 Urgência</option>
         <option value="Intercorrência">⚠️ Intercorrência</option>
@@ -2538,6 +2540,7 @@ const TIPO_ATENDIMENTO_CORES = {
   'Procedimento':                  { bg: 'rgba(45,212,191,0.15)',  color: '#115e59' },
   'Agendamento de Coleta':         { bg: 'rgba(16,185,129,0.15)',  color: '#064e3b' },
   'Consulta Agendada (Conecta Recife)': { bg: 'rgba(14,165,233,0.16)', color: '#0369a1' },
+  'Remoção de Pontos':             { bg: 'rgba(236,72,153,0.16)', color: '#be185d' },
   // Fluxo interno
   '1ª Escuta (ACS)':               { bg: 'rgba(251,146,60,0.15)',  color: '#9a3412' },
   '2ª Escuta':                     { bg: 'rgba(239,68,68,0.15)',   color: '#991b1b' },
@@ -6515,7 +6518,7 @@ const ACS_LIST = [
   'Ana Paula',
   'Ana Lúcia',
   'Lenilda',
-  'Ceça Conceição',
+  'Conceição',
   'Joselita',
   'Alda',
   'Simone',
