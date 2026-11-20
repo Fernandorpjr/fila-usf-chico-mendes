@@ -22,6 +22,11 @@ const {
   sortQueueRows,
   isRegistroRechamadaOuEncaminhamento
 } = require('./lib/prioridade');
+const {
+  setupReceitas,
+  anexarResumoPrevias,
+  salvarPreviaReceita
+} = require('./lib/receitas');
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORDS = (process.env.ADMIN_PASSWORDS || 'chico123,0177,usf2026')
@@ -161,6 +166,7 @@ function sanitizarPacientePublico(p) {
   delete clone.busca_ativa_detalhes;
   delete clone.motivo_primeira_escuta;
   delete clone.observacao_segunda_escuta;
+  delete clone.previa_receita;
   return clone;
 }
 
@@ -262,7 +268,7 @@ app.use('/api', async (req, res, next) => {
   if (req.method === 'GET') {
     // Permite cache no Edge Server da Vercel por 3 segundos para abater requisições repetidas (Economia de Invocations)
     // EXCEÇÃO: Rotas administrativas, dispositivos ou histórico não devem ser expostas em cache público
-    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico') || req.path.startsWith('/motivos-busca-ativa') || req.path.includes('/busca-ativa') || req.path.startsWith('/config-prioridade') || req.path.startsWith('/config/mutirao-hoje') || req.path.startsWith('/config/pausa')) {
+    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico') || req.path.startsWith('/motivos-busca-ativa') || req.path.includes('/busca-ativa') || req.path.includes('/previa-receita') || req.path.startsWith('/config-prioridade') || req.path.startsWith('/config/mutirao-hoje') || req.path.startsWith('/config/pausa')) {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     } else {
       res.set('Cache-Control', 'public, s-maxage=3, stale-while-revalidate=2');
@@ -841,6 +847,7 @@ initDB();
 // Configurar módulos integrados
 setupDispositivos(app, pool, isValidAdminPass);
 setupHistorico(app, pool, isValidAdminPass);
+setupReceitas(app, pool);
 
 // ====== API Routes ======
 
@@ -1140,6 +1147,7 @@ app.get('/api/queues', async (req, res) => {
     );
 
     await anexarBuscaAtivaDetalhes(result.rows, pool);
+    await anexarResumoPrevias(result.rows, pool);
 
     result.rows.forEach(patient => {
       if (queues[patient.setor]) {
@@ -1463,6 +1471,14 @@ app.post('/api/patients', async (req, res) => {
     const novoPaciente = result.rows[0];
     await reordenarFilaSetor(pool, setor);
     novoPaciente.busca_ativa_detalhes = [];
+    novoPaciente.previa_receita = null;
+    if (req.body?.previa_receita && typeof req.body.previa_receita === 'object') {
+      try {
+        novoPaciente.previa_receita = await salvarPreviaReceita(pool, novoPaciente.id, req.body.previa_receita);
+      } catch (prErr) {
+        console.warn('[receitas] Aviso ao salvar prévia no cadastro:', prErr.message);
+      }
+    }
 
     io.emit('queueUpdate');
 
@@ -2487,6 +2503,7 @@ app.post('/api/reset', async (req, res) => {
     
     // Full daily reset: clear active queue, today's call history, and chat
     await pool.query('DELETE FROM patients');
+    await pool.query('DELETE FROM receitas_previas').catch(() => {});
     await pool.query(
       `DELETE FROM call_history
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
@@ -4236,6 +4253,7 @@ app.get('/api/acolhimento/fluxo', async (req, res) => {
          created_at AT TIME ZONE 'America/Sao_Paulo' ASC`
     );
     await anexarBuscaAtivaDetalhes(result.rows, pool);
+    await anexarResumoPrevias(result.rows, pool);
     const grouped = { recepcao: [], primeira_escuta: [], segunda_escuta: [] };
     result.rows.forEach(p => {
       const etapa = p.etapa_fluxo || 'recepcao';

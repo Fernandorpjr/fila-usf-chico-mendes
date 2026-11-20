@@ -1340,6 +1340,7 @@ function verificarSubmodoOdontoRecepcao() {
     definirModoEscutaRecepcao(false);
   }
   if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
+  if (typeof atualizarBotaoPreviaReceitaRecepcao === 'function') atualizarBotaoPreviaReceitaRecepcao();
 }
 
 function selecionarEquipeRecepcao(equipe) {
@@ -1377,6 +1378,7 @@ function definirHorarioMarcadoRapido(hora) {
   const inp = document.getElementById('input-horario-marcado');
   if (inp) inp.value = hora || '';
   if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
+  if (typeof atualizarBotaoPreviaReceitaRecepcao === 'function') atualizarBotaoPreviaReceitaRecepcao();
 }
 
 function atualizarOpcoesPrioridadePorSetor(setor) {
@@ -1479,6 +1481,7 @@ function toggleTipoAtendimento() {
     }
   }
   if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
+  if (typeof atualizarBotaoPreviaReceitaRecepcao === 'function') atualizarBotaoPreviaReceitaRecepcao();
 }
 
 // ====== HELPER: Condições Especiais ======
@@ -1585,7 +1588,8 @@ async function addPatient(btn) {
         equipe_paciente,
         motivo_primeira_escuta,
         queixa: motivo_primeira_escuta,
-        horario_marcado
+        horario_marcado,
+        previa_receita: window._previaReceitaPendente || null
       })
     });
     if (!r.ok) {
@@ -1613,6 +1617,7 @@ async function addPatient(btn) {
 
     // Exibir banner rápido na recepção para marcar Busca ativa (alumIA) se necessário
     mostrarBannerPosCadastroAlumia(newPatient);
+    if (typeof limparPreviaReceitaPendente === 'function') limparPreviaReceitaPendente();
 
     await loadQueues();
     if (setor === 'Acolhimento') loadAcolhimentoFluxo();
@@ -2857,6 +2862,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
           ${equipeBadge || '<span style="font-size:11px;color:#94a3b8;font-weight:700;">Sem equipe informada</span>'}
           ${condBadges}
         </div>
+        ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
       </td>
       <td>
         ${historicoColHtml}
@@ -2873,6 +2879,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       <td style="text-align:right;">
         <div class="fila-actions-cell">
           ${p.status === 'chamado' ? `<button class="btn-call-next" style="padding:5px 10px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente no Painel e Voz" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button>` : ''}
+          ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, setor) : ''}
           ${radarBtn}
           ${ actionButtons }
           ${qrBtn}
