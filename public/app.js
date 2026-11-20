@@ -3253,13 +3253,9 @@ function isPacienteIntercorrenciaClinica(p) {
   if (!p) return false;
   if (p.is_intercorrencia_acolhimento === true) return true;
   if (p.etapa_fluxo === 'encaminhado_intercorrencia') return true;
-  const orig = String(p.origem_transferencia || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  if (orig.includes('acolhimento') || orig.includes('escuta')) return true;
   const tipo = String(p.tipo_atendimento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  if (tipo.includes('intercorrencia') || tipo.includes('urgencia') || tipo.includes('acolhimento')) return true;
-  if (p.horario_marcado && String(p.horario_marcado).trim() !== '') return false;
-  if (tipo.includes('conecta recife') || tipo.includes('agendad')) return false;
-  return true;
+  if (tipo.includes('intercorrencia')) return true;
+  return false;
 }
 
 function calcularResumoProfissionalDia(setor, profFiltro) {
@@ -3343,7 +3339,7 @@ function renderResumoProfissionais() {
 
     if (profSelecionado) {
       if (resumo.intercorrencias > LIMITE_INTERCORRENCIAS_PROF) {
-        alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>LIMITE EXCEDIDO: <strong>${escapeText(profSelecionado)}</strong> já possui <strong>${resumo.intercorrencias} intercorrências / não agendados</strong> hoje (limite previsto: ${LIMITE_INTERCORRENCIAS_PROF}).</span></div>`;
+        alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>LIMITE EXCEDIDO: <strong>${escapeText(profSelecionado)}</strong> já possui <strong>${resumo.intercorrencias} intercorrências</strong> hoje (limite previsto: ${LIMITE_INTERCORRENCIAS_PROF}).</span></div>`;
       } else if (resumo.intercorrencias === LIMITE_INTERCORRENCIAS_PROF) {
         alertHtml = `<div class="prof-alert-banner">⚠️ <span>ATENÇÃO: <strong>${escapeText(profSelecionado)}</strong> atingiu o limite de <strong>${LIMITE_INTERCORRENCIAS_PROF} intercorrências</strong> hoje.</span></div>`;
       }
@@ -3388,7 +3384,7 @@ function renderResumoProfissionais() {
             <div class="prof-kpi-label">📅 Agendados</div>
             <div class="prof-kpi-val" style="color:#1e40af;">${resumo.agendados} <span style="font-size:13px;color:#64748b;font-weight:800;">/ ${LIMITE_AGENDADOS_PROF}</span></div>
             <div class="prof-progress-track"><div class="prof-progress-fill" style="width:${pctAgend}%;background:#2563eb;"></div></div>
-            <div class="prof-kpi-sub">Com horário / Conecta Recife</div>
+            <div class="prof-kpi-sub">Consultas e atendimentos agendados</div>
           </div>
           <div class="prof-kpi-box" style="${bgInterc}">
             <div class="prof-kpi-label">🚨 Intercorrências</div>
@@ -3440,7 +3436,7 @@ function atualizarAlertaIntercorrenciaRecepcao() {
   const resumo = calcularResumoProfissionalDia(setor, prof);
   if (resumo.intercorrencias >= LIMITE_INTERCORRENCIAS_PROF) {
     box.className = 'show';
-    box.innerHTML = `<span style="font-size:16px;">🚨</span><div><strong>Alerta Admin (${escapeText(prof)}):</strong> Já possui <strong>${resumo.intercorrencias} intercorrências/não agendados</strong> hoje (limite previsto: ${LIMITE_INTERCORRENCIAS_PROF}). Este encaixe elevará para <strong>${resumo.intercorrencias + 1}</strong>.</div>`;
+    box.innerHTML = `<span style="font-size:16px;">🚨</span><div><strong>Alerta Admin (${escapeText(prof)}):</strong> Já possui <strong>${resumo.intercorrencias} intercorrências</strong> hoje (limite previsto: ${LIMITE_INTERCORRENCIAS_PROF}). Este paciente de intercorrência elevará para <strong>${resumo.intercorrencias + 1}</strong>.</div>`;
   } else {
     box.className = '';
     box.innerHTML = '';

@@ -64,10 +64,12 @@ test('deduplicarAtendimentosPorSetor ignores rechamar/transfers and counts once 
   assert.deepEqual(dedup.map(r => r.setor), ['Farmácia', 'Médico', 'Acolhimento']);
 });
 
-test('isPacienteIntercorrenciaClinica distinguishes scheduled vs unscheduled/intercorrencia', () => {
+test('isPacienteIntercorrenciaClinica counts only explicit intercorrencia/acolhimento intercorrencia', () => {
   assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: '09:00', tipo_atendimento: 'Consulta' }), false);
   assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Consulta Agendada (Conecta Recife)' }), false);
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Consulta' }), false);
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: '10:00', tipo_atendimento: 'Urgência' }), false);
   assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: '09:00', is_intercorrencia_acolhimento: true }), true);
-  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Consulta' }), true);
-  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: '10:00', tipo_atendimento: 'Urgência' }), true);
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Intercorrência' }), true);
+  assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Intercorrência (Acolhimento)' }), true);
 });
