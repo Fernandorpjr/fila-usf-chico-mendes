@@ -2027,6 +2027,20 @@
     .previa-pill-urgente { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
     .previa-pill-ok { background: #dcfce7; color: #166534; border-color: #86efac; }
     .previa-pill-pronta { background: #16a34a; color: #fff; }
+    .previa-pill-enc { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+    .previa-pill-exm { background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
+    .previa-pill-anexos { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
+    .pr-galeria-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; margin-top: 8px; }
+    .pr-thumb-card { position: relative; background: #fff; border: 1.5px solid #cbd5e1; border-radius: 9px; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
+    .pr-thumb-img { width: 100%; height: 82px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; }
+    .pr-thumb-rm { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(220,38,38,0.92); color: #fff; font-weight: 900; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .pr-thumb-cat { width: 100%; font-size: 10.5px; font-weight: 800; padding: 3px 4px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; }
+    .vp-nav-bar { display: none; align-items: center; gap: 8px; flex-wrap: wrap; background: #1e293b; color: #fff; border-radius: 9px; padding: 6px 10px; margin-bottom: 8px; }
+    .vp-thumbs-strip { display: none; gap: 6px; overflow-x: auto; padding: 6px 2px 2px; }
+    .vp-thumb-btn { flex: 0 0 auto; border: 2px solid transparent; background: #1e293b; border-radius: 8px; padding: 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: #e2e8f0; font-size: 10px; font-weight: 800; }
+    .vp-thumb-btn img { width: 58px; height: 48px; object-fit: cover; border-radius: 6px; display: block; }
+    .vp-thumb-btn.active { border-color: #38bdf8; background: #0f172a; color: #fff; }
+    .fo-ref-nav { display: inline-flex; align-items: center; gap: 4px; }
     .previa-med-resumo { width: 100%; font-size: 11px; color: #1e3a8a; font-weight: 700; margin-top: 2px; }
     .btn-previa-receita {
       padding: 5px 10px;
@@ -4305,29 +4319,32 @@
   </div>
 </div>
 
-<!-- Modal 1: Recepção — Capturar Prévia da Receita (Opcional) -->
+<!-- Modal 1: Recepção — Capturar Prévia da Receita / Encaminhamento (Opcional) -->
 <div id="modal-captura-receita" class="previa-modal-backdrop" onclick="if(event.target===this)fecharModalCapturaReceita()">
   <div class="previa-modal-card">
     <div class="previa-modal-head">
       <div>
-        <div style="font-weight:900;font-size:15px;">📷 Prévia da Receita (Opcional — Hiperdia / Renovação / Odonto)</div>
-        <div style="font-size:11.5px;opacity:0.85;">Tire foto, envie arquivo ou cole com Ctrl+V · A fila principal não trava se preencher manual</div>
+        <div style="font-weight:900;font-size:15px;">📷 Prévia de Receitas e Encaminhamentos (Opcional — até 6 fotos)</div>
+        <div style="font-size:11.5px;opacity:0.85;">Adicione receitas ou encaminhamentos (até 6 fotos), ou cole com Ctrl+V · A fila principal não trava</div>
       </div>
       <button type="button" onclick="fecharModalCapturaReceita()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
     </div>
     <div class="previa-modal-body">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <input type="file" id="pr-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files[0])processarImagemReceitaFile(this.files[0])">
-        <input type="file" id="pr-file-upload" accept="image/*" style="display:none;" onchange="if(this.files[0])processarImagemReceitaFile(this.files[0])">
+        <input type="file" id="pr-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarListaImagensReceita(this.files);this.value='';">
+        <input type="file" id="pr-file-upload" accept="image/*" multiple style="display:none;" onchange="if(this.files&&this.files.length)processarListaImagensReceita(this.files);this.value='';">
         <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('pr-file-camera').click()">📸 Tirar Foto (Câmera)</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('pr-file-upload').click()">🖼️ Escolher Imagem / Print (Ctrl+V)</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('pr-file-upload').click()">🖼️ Escolher Imagens / Print (Ctrl+V)</button>
       </div>
 
       <div id="pr-ocr-status" style="display:none;"></div>
 
-      <div id="pr-img-preview-wrap" style="display:none;align-items:center;gap:12px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:8px;margin-bottom:12px;">
-        <img id="pr-img-preview" src="" alt="Preview receita" style="max-height:95px;max-width:130px;border-radius:6px;object-fit:cover;border:1px solid #94a3b8;">
-        <div style="flex:1;font-size:12px;color:#334155;font-weight:700;">Foto comprimida pronta para enviar ao consultório.<br><button type="button" onclick="removerFotoCapturaReceita()" style="margin-top:4px;background:transparent;border:none;color:#dc2626;font-weight:800;cursor:pointer;padding:0;">🗑️ Remover foto</button></div>
+      <div id="pr-galeria-wrap" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:10px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <span id="pr-galeria-count" style="font-size:12px;font-weight:900;color:#0f172a;">📎 0 / 6 fotos anexadas</span>
+          <button type="button" onclick="limparTodasFotosCaptura()" style="background:transparent;border:none;color:#dc2626;font-size:12px;font-weight:800;cursor:pointer;padding:0;">🗑️ Limpar todas</button>
+        </div>
+        <div id="pr-galeria-grid" class="pr-galeria-grid"></div>
       </div>
 
       <div id="pr-sugestao-box" style="display:none;padding:9px 12px;border-radius:10px;background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;font-size:12px;margin-bottom:12px;"></div>
@@ -4391,6 +4408,12 @@
     <div class="previa-modal-body">
       <div class="previa-split-grid">
         <div>
+          <div id="vp-nav-bar" class="vp-nav-bar">
+            <button type="button" id="vp-btn-prev" class="btn btn-sm" style="background:#334155;color:#fff;border:1px solid #475569;" onclick="navegarFotoPrevia(-1)">◀ Anterior</button>
+            <span id="vp-foto-counter" style="font-size:12px;font-weight:900;">Foto 1 de 1</span>
+            <span id="vp-foto-cat-badge" style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#0ea5e9;color:#fff;"></span>
+            <button type="button" id="vp-btn-next" class="btn btn-sm" style="background:#334155;color:#fff;border:1px solid #475569;margin-left:auto;" onclick="navegarFotoPrevia(1)">Próxima ▶</button>
+          </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
             <button type="button" class="btn btn-outline btn-sm" onclick="zoomPreviaImg(-0.25)">➖ Zoom</button>
             <button type="button" class="btn btn-outline btn-sm" onclick="zoomPreviaImg(0.25)">➕ Zoom</button>
@@ -4404,6 +4427,7 @@
             <img id="vp-img" src="" alt="Foto da receita" draggable="false">
             <div id="vp-sem-img" style="color:#cbd5e1;font-size:13px;font-weight:700;text-align:center;padding:20px;">⏳ Carregando imagem...</div>
           </div>
+          <div id="vp-thumbs-strip" class="vp-thumbs-strip"></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px;">
@@ -4446,7 +4470,7 @@
           </div>
 
           <div id="vp-formularios-box" class="vp-forms-box" style="display:none;">
-            <div style="font-size:11.5px;font-weight:900;color:#1e3a8a;text-transform:uppercase;">🖨️ Transferir para Formulário Oficial (Renovação / PEC Offline)</div>
+            <div style="font-size:11.5px;font-weight:900;color:#1e3a8a;text-transform:uppercase;">🖨️ Transferir para Formulário (PEC Offline / Renovação)</div>
             <div class="vp-forms-grid">
               <button type="button" id="vp-btn-form-rec" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('receituario')">📄 Receituário</button>
               <button type="button" id="vp-btn-form-esp" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('controle-especial')">🔵 Controle Especial</button>
@@ -4464,12 +4488,12 @@
   </div>
 </div>
 
-<!-- Modal 3: Formulários Oficiais SUS/Recife (PEC Offline / Transferência de Receita) -->
+<!-- Modal 3: Formulários SUS/Recife (PEC Offline / Transferência de Receita) -->
 <div id="modal-formulario-oficial" class="previa-modal-backdrop fo-modal-backdrop" onclick="if(event.target===this)fecharModalFormularioOficial()">
   <div class="fo-modal-card">
     <div class="fo-head">
       <div>
-        <div id="fo-titulo" style="font-weight:900;font-size:15px;">📝 Formulário Oficial</div>
+        <div id="fo-titulo" style="font-weight:900;font-size:15px;">📝 Formulário (PEC Offline)</div>
         <div id="fo-subtitulo" style="font-size:11.5px;opacity:0.85;">Carregando...</div>
       </div>
       <div class="fo-tabs">
@@ -4489,7 +4513,12 @@
     <div class="fo-body-split">
       <div id="fo-ref-pane" class="fo-ref-pane">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-          <span style="color:#fff;font-size:12px;font-weight:800;">📷 Receita Antiga</span>
+          <span style="color:#fff;font-size:12px;font-weight:800;">📷 Documento Anexo</span>
+          <span id="fo-ref-nav" class="fo-ref-nav" style="display:none;">
+            <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="navegarRefFotoForm(-1)">◀</button>
+            <span id="fo-ref-counter" style="color:#e2e8f0;font-size:11px;font-weight:800;">1/1</span>
+            <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="navegarRefFotoForm(1)">▶</button>
+          </span>
           <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="zoomRefFotoForm(-0.25)">➖</button>
           <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="zoomRefFotoForm(0.25)">➕</button>
           <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="girarRefFotoForm()">🔄</button>
@@ -4497,10 +4526,10 @@
           <span style="color:#94a3b8;font-size:11px;margin-left:auto;">✋ Arraste p/ mover</span>
         </div>
         <div id="fo-ref-stage" class="fo-ref-stage">
-          <img id="fo-ref-img" src="" alt="Receita antiga de referência" draggable="false">
+          <img id="fo-ref-img" src="" alt="Documento anexo de referência" draggable="false">
         </div>
       </div>
-      <iframe id="fo-iframe" class="fo-iframe" title="Formulário Oficial SUS"></iframe>
+      <iframe id="fo-iframe" class="fo-iframe" title="Formulário (PEC Offline)"></iframe>
     </div>
   </div>
 </div>
@@ -4528,8 +4557,8 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.9"></script>
-<script src="receitas-previa.js?v=1.1"></script>
-<script src="formularios-pec.js?v=1.0"></script>
-<script src="app.js?v=7.0"></script>
+<script src="receitas-previa.js?v=1.2"></script>
+<script src="formularios-pec.js?v=1.1"></script>
+<script src="app.js?v=7.1"></script>
 </body>
 </html>

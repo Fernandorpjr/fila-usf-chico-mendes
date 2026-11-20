@@ -1,10 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  MAX_ANEXOS_PREVIA,
   calcularDataVencimento,
   calcularDiasRestantes,
   classificarUrgencia,
   classificarReceita,
+  normalizarCategoriaAnexo,
+  normalizarAnexosPrevia,
+  resumirAnexosSemImagem,
   normalizarDadosExtras,
   formatarPrescricaoParaFormulario
 } = require('../lib/receitas');
@@ -62,7 +66,9 @@ test('normalizarDadosExtras sanitizes optional OCR fields and normalizes sex', (
     paciente_data_nascimento: '01/05/1970',
     paciente_sexo: 'masculino',
     paciente_telefone: '(81) 99999-0000',
-    paciente_mae: 'Maria da Silva'
+    paciente_mae: 'Maria da Silva',
+    especialidade: 'Cardiologia',
+    cid10: 'I10'
   });
   assert.deepEqual(ext, {
     medicamentos_posologia: '1) Losartana 50mg - 1 cp 12/12h',
@@ -70,7 +76,11 @@ test('normalizarDadosExtras sanitizes optional OCR fields and normalizes sex', (
     paciente_data_nascimento: '01/05/1970',
     paciente_sexo: 'M',
     paciente_telefone: '(81) 99999-0000',
-    paciente_mae: 'Maria da Silva'
+    paciente_mae: 'Maria da Silva',
+    especialidade: 'Cardiologia',
+    hipotese_diagnostica: null,
+    cid10: 'I10',
+    justificativa: null
   });
 });
 
@@ -90,4 +100,31 @@ test('formatarPrescricaoParaFormulario prefers posologia, falls back cleanly, an
     }),
     '1) Losartana 50mg\n2) Metformina 850mg\nObs: Uso contínuo'
   );
+});
+
+test('normalizarAnexosPrevia enforces max 6 limit, legacy fallback, categories, and resumirAnexosSemImagem omits base64', () => {
+  assert.equal(normalizarCategoriaAnexo('Receita Azul Controlada'), 'receita_azul');
+  assert.equal(normalizarCategoriaAnexo('Encaminhamento Cardiologia'), 'encaminhamento');
+  assert.equal(normalizarCategoriaAnexo('Exame laboratorial'), 'exame');
+
+  const fakeImg = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAA==';
+  const legacy = normalizarAnexosPrevia(null, fakeImg, 'azul');
+  assert.equal(legacy.length, 1);
+  assert.equal(legacy[0].categoria, 'receita_azul');
+  assert.equal(legacy[0].imagem_base64, fakeImg);
+
+  const many = Array.from({ length: 9 }, (_, i) => ({
+    id: `f_${i}`,
+    categoria: i === 2 ? 'encaminhamento' : 'branca',
+    rotulo: `Doc ${i + 1}`,
+    imagem_base64: fakeImg
+  }));
+  const norm = normalizarAnexosPrevia(many);
+  assert.equal(norm.length, MAX_ANEXOS_PREVIA);
+  assert.equal(norm[2].categoria, 'encaminhamento');
+
+  const resumo = resumirAnexosSemImagem(norm);
+  assert.equal(resumo.length, MAX_ANEXOS_PREVIA);
+  assert.equal(resumo[0].imagem_base64, undefined);
+  assert.deepEqual(resumo[2], { id: 'f_2', categoria: 'encaminhamento', rotulo: 'Doc 3' });
 });

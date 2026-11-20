@@ -1,7 +1,7 @@
-// Módulo Frontend — Formulários Oficiais SUS/Recife (PEC Offline & Renovação de Receita)
+// Módulo Frontend — Formulários SUS/Recife (PEC Offline & Renovação de Receita)
 const SETORES_FORMULARIOS_PEC = ['Médico', 'Enfermagem', 'Odontologia'];
 
-const FORMULARIOS_OFICIAIS_REG = {
+const FORMULARIOS_PEC_REG = {
   'receituario': {
     url: '/formularios/receituario.html',
     titulo: '📄 Receituário (2 vias espelhadas)'
@@ -22,7 +22,8 @@ let _foEstadoAtual = {
   setor: 'Médico',
   paciente: null,
   previa: null,
-  imagemAntiga: null,
+  anexos: [],
+  refIdx: 0,
   payload: null
 };
 
@@ -68,14 +69,15 @@ function obterProfissionalSelecionadoSetor(setor, paciente) {
   return '';
 }
 
-function montarPrescricaoTexto(previa) {
-  if (!previa || typeof previa !== 'object') return '';
-  const ext = previa.dados_extras && typeof previa.dados_extras === 'object' ? previa.dados_extras : {};
-  if (ext.medicamentos_posologia && String(ext.medicamentos_posologia).trim()) {
-    return String(ext.medicamentos_posologia).trim();
+function montarPrescricaoTextoFonte(fonte) {
+  if (!fonte || typeof fonte !== 'object') return '';
+  const ext = fonte.dados_extras && typeof fonte.dados_extras === 'object' ? fonte.dados_extras : {};
+  const posologia = ext.medicamentos_posologia || fonte.medicamentos_posologia;
+  if (posologia && String(posologia).trim()) {
+    return String(posologia).trim();
   }
-  const meds = String(previa.medicamentos || '').trim();
-  const obs = String(previa.observacoes || '').trim();
+  const meds = String(fonte.medicamentos || fonte.medicamento || '').trim();
+  const obs = String(fonte.observacoes || '').trim();
   const linhas = [];
   if (meds) {
     meds.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean).forEach((m, idx) => {
@@ -88,19 +90,38 @@ function montarPrescricaoTexto(previa) {
   return linhas.join('\n');
 }
 
-function montarJustificativaClinica(paciente) {
-  if (!paciente) return '';
-  const m1 = String(paciente.motivo_primeira_escuta || '').trim();
-  const m2 = String(paciente.observacao_segunda_escuta || '').trim();
+function montarJustificativaClinica(paciente, extraJustificativa) {
   const partes = [];
-  if (m1) partes.push(`1ª Escuta: ${m1}`);
-  if (m2) partes.push(`2ª Escuta: ${m2}`);
+  if (extraJustificativa && String(extraJustificativa).trim()) {
+    partes.push(String(extraJustificativa).trim());
+  }
+  if (paciente) {
+    const m1 = String(paciente.motivo_primeira_escuta || '').trim();
+    const m2 = String(paciente.observacao_segunda_escuta || '').trim();
+    if (m1) partes.push(`1ª Escuta: ${m1}`);
+    if (m2) partes.push(`2ª Escuta: ${m2}`);
+  }
   return partes.join('\n');
 }
 
-function montarPayloadFormulario({ modo, setor, paciente, previa }) {
+function montarPayloadFormulario({ modo, setor, paciente, previa, anexoAtivo, tipoForm }) {
   const hoje = obterDataHojeRecife();
   const ext = previa?.dados_extras && typeof previa.dados_extras === 'object' ? previa.dados_extras : {};
+  const ocrAtivo = anexoAtivo?.ocr && typeof anexoAtivo.ocr === 'object' ? anexoAtivo.ocr : null;
+
+  let prescricao = '';
+  if ((tipoForm === 'receituario' || tipoForm === 'controle-especial') && ocrAtivo) {
+    const prescAtiva = montarPrescricaoTextoFonte(ocrAtivo);
+    prescricao = prescAtiva || montarPrescricaoTextoFonte(previa);
+  } else {
+    prescricao = montarPrescricaoTextoFonte(previa);
+  }
+
+  const especialidade = ocrAtivo?.especialidade || ext.especialidade || '';
+  const hipotese_diagnostica = ocrAtivo?.hipotese_diagnostica || ext.hipotese_diagnostica || '';
+  const cid10 = ocrAtivo?.cid10 || ext.cid10 || '';
+  const justificativaExtra = ocrAtivo?.justificativa || ext.justificativa || '';
+
   return {
     modo: modo === 'branco' ? 'branco' : 'preencher',
     unidade: '0177 USF Chico Mendes',
@@ -116,8 +137,11 @@ function montarPayloadFormulario({ modo, setor, paciente, previa }) {
     paciente_sexo: ext.paciente_sexo || '',
     paciente_telefone: ext.paciente_telefone || '',
     paciente_mae: ext.paciente_mae || '',
-    prescricao: montarPrescricaoTexto(previa),
-    justificativa: montarJustificativaClinica(paciente)
+    prescricao,
+    especialidade,
+    hipotese_diagnostica,
+    cid10,
+    justificativa: montarJustificativaClinica(paciente, justificativaExtra)
   };
 }
 
@@ -140,8 +164,60 @@ function buscarPacienteNaMemoria(patientId, setor) {
   return null;
 }
 
+function normalizarListaAnexosFormulario(contexto, previa) {
+  if (Array.isArray(contexto.anexos) && contexto.anexos.length > 0) {
+    return contexto.anexos.filter(a => a && a.imagem_base64);
+  }
+  if (Array.isArray(previa?.anexos) && previa.anexos.length > 0) {
+    return previa.anexos.filter(a => a && a.imagem_base64);
+  }
+  const img = contexto.imagemAntiga || previa?.imagem_base64 || null;
+  if (img) {
+    return [{ id: 'anx_1', categoria: previa?.tipo_receita || 'branca', rotulo: null, imagem_base64: img, ocr: null }];
+  }
+  return [];
+}
+
+function renderFotoRefFormularioModal() {
+  const btnFoto = document.getElementById('fo-btn-ver-foto');
+  const paneFoto = document.getElementById('fo-ref-pane');
+  const imgFoto = document.getElementById('fo-ref-img');
+  const nav = document.getElementById('fo-ref-nav');
+  const cnt = document.getElementById('fo-ref-counter');
+
+  const anexos = _foEstadoAtual.anexos || [];
+  if (anexos.length === 0) {
+    if (btnFoto) btnFoto.style.display = 'none';
+    if (paneFoto) paneFoto.classList.remove('show');
+    if (imgFoto) imgFoto.src = '';
+    if (nav) nav.style.display = 'none';
+    return;
+  }
+
+  if (_foEstadoAtual.refIdx >= anexos.length) _foEstadoAtual.refIdx = Math.max(0, anexos.length - 1);
+  const ativo = anexos[_foEstadoAtual.refIdx];
+
+  if (btnFoto) {
+    btnFoto.style.display = 'inline-flex';
+    btnFoto.textContent = anexos.length > 1 ? `👁️ Fotos (${anexos.length})` : '👁️ Foto Antiga';
+  }
+  if (imgFoto) imgFoto.src = ativo.imagem_base64 || '';
+  if (nav && cnt) {
+    nav.style.display = anexos.length > 1 ? 'inline-flex' : 'none';
+    cnt.textContent = `${_foEstadoAtual.refIdx + 1}/${anexos.length}`;
+  }
+  resetRefFotoForm();
+}
+
+function navegarRefFotoForm(delta) {
+  const total = (_foEstadoAtual.anexos || []).length;
+  if (total <= 1) return;
+  _foEstadoAtual.refIdx = (_foEstadoAtual.refIdx + delta + total) % total;
+  renderFotoRefFormularioModal();
+}
+
 function atualizarUITopoModalFormulario() {
-  const info = FORMULARIOS_OFICIAIS_REG[_foEstadoAtual.tipo] || FORMULARIOS_OFICIAIS_REG.receituario;
+  const info = FORMULARIOS_PEC_REG[_foEstadoAtual.tipo] || FORMULARIOS_PEC_REG.receituario;
   const tit = document.getElementById('fo-titulo');
   const sub = document.getElementById('fo-subtitulo');
   if (tit) tit.textContent = info.titulo;
@@ -151,7 +227,7 @@ function atualizarUITopoModalFormulario() {
     sub.textContent = `${_foEstadoAtual.setor} · ${modoTxt}`;
   }
 
-  Object.keys(FORMULARIOS_OFICIAIS_REG).forEach(k => {
+  Object.keys(FORMULARIOS_PEC_REG).forEach(k => {
     const btn = document.getElementById(`fo-tab-${k}`);
     if (btn) btn.classList.toggle('active', k === _foEstadoAtual.tipo);
   });
@@ -162,19 +238,7 @@ function atualizarUITopoModalFormulario() {
     btnPreencher.style.display = temContexto ? 'inline-flex' : 'none';
   }
 
-  const btnFoto = document.getElementById('fo-btn-ver-foto');
-  const paneFoto = document.getElementById('fo-ref-pane');
-  const imgFoto = document.getElementById('fo-ref-img');
-  if (btnFoto && paneFoto && imgFoto) {
-    if (_foEstadoAtual.imagemAntiga) {
-      btnFoto.style.display = 'inline-flex';
-      imgFoto.src = _foEstadoAtual.imagemAntiga;
-    } else {
-      btnFoto.style.display = 'none';
-      paneFoto.classList.remove('show');
-      imgFoto.src = '';
-    }
-  }
+  renderFotoRefFormularioModal();
 }
 
 function enviarPayloadAoIframe() {
@@ -190,7 +254,7 @@ function enviarPayloadAoIframe() {
 }
 
 function abrirFormularioOficial(tipoForm, contexto = {}) {
-  const tipo = FORMULARIOS_OFICIAIS_REG[tipoForm] ? tipoForm : 'receituario';
+  const tipo = FORMULARIOS_PEC_REG[tipoForm] ? tipoForm : 'receituario';
   const setor = contexto.setor || 'Médico';
   if (!SETORES_FORMULARIOS_PEC.includes(setor)) {
     if (typeof showToast === 'function') showToast('Formulários disponíveis apenas para Médico, Enfermagem e Odontologia.', true);
@@ -200,7 +264,9 @@ function abrirFormularioOficial(tipoForm, contexto = {}) {
   const modo = contexto.modo === 'branco' ? 'branco' : 'preencher';
   const paciente = contexto.paciente || null;
   const previa = contexto.previa || paciente?.previa_receita || null;
-  const imagemAntiga = contexto.imagemAntiga || previa?.imagem_base64 || null;
+  const anexos = normalizarListaAnexosFormulario(contexto, previa);
+  const refIdx = Number.isInteger(contexto.refIdx) && contexto.refIdx >= 0 && contexto.refIdx < anexos.length ? contexto.refIdx : 0;
+  const anexoAtivo = anexos[refIdx] || null;
 
   _foEstadoAtual = {
     tipo,
@@ -208,11 +274,11 @@ function abrirFormularioOficial(tipoForm, contexto = {}) {
     setor,
     paciente,
     previa,
-    imagemAntiga,
-    payload: montarPayloadFormulario({ modo, setor, paciente, previa })
+    anexos,
+    refIdx,
+    payload: montarPayloadFormulario({ modo, setor, paciente, previa, anexoAtivo, tipoForm: tipo })
   };
 
-  resetRefFotoForm();
   atualizarUITopoModalFormulario();
   inicializarPanZoomRefFormulario();
 
@@ -223,7 +289,7 @@ function abrirFormularioOficial(tipoForm, contexto = {}) {
   const modal = document.getElementById('modal-formulario-oficial');
   if (!iframe || !modal) return;
 
-  const targetUrl = FORMULARIOS_OFICIAIS_REG[tipo].url;
+  const targetUrl = FORMULARIOS_PEC_REG[tipo].url;
   modal.classList.add('show');
 
   const currentPath = (() => {
@@ -244,19 +310,23 @@ function abrirFormularioDaPrevia(tipoForm) {
   const paciente = ctx.patientId ? buscarPacienteNaMemoria(ctx.patientId, setor) : null;
   const previa = ctx.previa || paciente?.previa_receita || null;
   const pacienteFinal = paciente || (ctx.nomePaciente ? { id: ctx.patientId, nome: ctx.nomePaciente } : null);
+  const anexos = Array.isArray(ctx.anexos) && ctx.anexos.length > 0 ? ctx.anexos : (previa?.anexos || []);
+  const refIdx = Number.isInteger(ctx.activeIdx) ? ctx.activeIdx : 0;
+
   abrirFormularioOficial(tipoForm, {
     modo: 'preencher',
     setor,
     paciente: pacienteFinal,
     previa,
-    imagemAntiga: previa?.imagem_base64 || null
+    anexos,
+    refIdx
   });
 }
 
 async function abrirFormularioPacienteFila(patientId, setor, tipoForm) {
   let paciente = buscarPacienteNaMemoria(patientId, setor);
   let previa = paciente?.previa_receita || null;
-  if (previa && !previa.imagem_base64) {
+  if (previa && (!Array.isArray(previa.anexos) || previa.anexos.length === 0) && !previa.imagem_base64) {
     try {
       const r = await fetch(`${API_URL}/patients/${patientId}/previa-receita`, { cache: 'no-store' });
       if (r.ok) previa = await r.json();
@@ -266,8 +336,7 @@ async function abrirFormularioPacienteFila(patientId, setor, tipoForm) {
     modo: 'preencher',
     setor,
     paciente,
-    previa,
-    imagemAntiga: previa?.imagem_base64 || null
+    previa
   });
 }
 
@@ -276,19 +345,19 @@ function abrirFormularioAvulsoSetor(setor, tipoForm, emBranco = false) {
     modo: emBranco ? 'branco' : 'preencher',
     setor,
     paciente: null,
-    previa: null,
-    imagemAntiga: null
+    previa: null
   });
 }
 
 function trocarTipoFormularioModal(tipoForm) {
-  if (!FORMULARIOS_OFICIAIS_REG[tipoForm]) return;
+  if (!FORMULARIOS_PEC_REG[tipoForm]) return;
   abrirFormularioOficial(tipoForm, {
     modo: _foEstadoAtual.modo,
     setor: _foEstadoAtual.setor,
     paciente: _foEstadoAtual.paciente,
     previa: _foEstadoAtual.previa,
-    imagemAntiga: _foEstadoAtual.imagemAntiga
+    anexos: _foEstadoAtual.anexos,
+    refIdx: _foEstadoAtual.refIdx
   });
 }
 
@@ -319,11 +388,14 @@ function deixarFormularioEmBranco() {
 
 function reaplicarDadosFormularioModal() {
   _foEstadoAtual.modo = 'preencher';
+  const anexoAtivo = (_foEstadoAtual.anexos || [])[_foEstadoAtual.refIdx] || null;
   _foEstadoAtual.payload = montarPayloadFormulario({
     modo: 'preencher',
     setor: _foEstadoAtual.setor,
     paciente: _foEstadoAtual.paciente,
-    previa: _foEstadoAtual.previa
+    previa: _foEstadoAtual.previa,
+    anexoAtivo,
+    tipoForm: _foEstadoAtual.tipo
   });
   atualizarUITopoModalFormulario();
   enviarPayloadAoIframe();
@@ -337,7 +409,7 @@ function toggleFotoAntigaFormulario() {
 }
 
 function abrirFormularioNovaAba() {
-  const info = FORMULARIOS_OFICIAIS_REG[_foEstadoAtual.tipo] || FORMULARIOS_OFICIAIS_REG.receituario;
+  const info = FORMULARIOS_PEC_REG[_foEstadoAtual.tipo] || FORMULARIOS_PEC_REG.receituario;
   const win = window.open(info.url, '_blank');
   if (win && _foEstadoAtual.modo !== 'branco' && _foEstadoAtual.payload) {
     const enviarQuandoPronto = (e) => {
@@ -402,5 +474,5 @@ window.addEventListener('message', (e) => {
 
 function renderBotoesFormulariosLinha(p, setor) {
   if (!SETORES_FORMULARIOS_PEC.includes(setor) || !p?.id) return '';
-  return `<span class="fila-forms-mini" onclick="event.stopPropagation()" title="Formulários Oficiais (PEC Offline)"><button class="btn-fila-form" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','receituario')" title="Receituário (2 vias)">📄</button><button class="btn-fila-form btn-fila-form-esp" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','controle-especial')" title="Receituário de Controle Especial (2 vias)">🔵</button><button class="btn-fila-form btn-fila-form-amb" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','ficha-ambulatorial')" title="Ficha de Solicitação Ambulatorial">📋</button></span>`;
+  return `<span class="fila-forms-mini" onclick="event.stopPropagation()" title="Formulários (PEC Offline)"><button class="btn-fila-form" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','receituario')" title="Receituário (2 vias)">📄</button><button class="btn-fila-form btn-fila-form-esp" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','controle-especial')" title="Receituário de Controle Especial (2 vias)">🔵</button><button class="btn-fila-form btn-fila-form-amb" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','ficha-ambulatorial')" title="Ficha de Solicitação Ambulatorial">📋</button></span>`;
 }

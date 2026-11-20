@@ -649,7 +649,7 @@ function initSectorScreens() {
         ${profHTML}
         ${['Médico', 'Enfermagem', 'Odontologia'].includes(setor) ? `
           <div class="pec-forms-bar">
-            <span class="pec-forms-title">🖨️ Formulários Oficiais (PEC Offline):</span>
+            <span class="pec-forms-title">🖨️ Formulários (PEC Offline):</span>
             <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','receituario',false)">📄 Receituário</button>
             <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','controle-especial',false)">🔵 Controle Especial</button>
             <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','ficha-ambulatorial',false)">📋 Ficha Ambulatorial</button>
