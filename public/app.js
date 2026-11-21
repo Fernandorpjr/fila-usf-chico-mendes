@@ -4,56 +4,144 @@ const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:300
 
 // Previne agressivamente que o navegador use cache (mesmo se já estava em cache antes da correção do servidor)
 const originalFetch = window.fetch;
+function isModoTV() {
+  return new URLSearchParams(window.location.search).get('modo') === 'tv';
+}
+let isGateAuthenticated = false;
+let _dadosAutenticadosIniciados = false;
+let _modoTvIniciado = false;
+
 window.fetch = function(resource, config) {
-  if (typeof resource === 'string' && resource.startsWith(API_URL) && (!config || !config.method || config.method.toUpperCase() === 'GET')) {
-    const separator = resource.includes('?') ? '&' : '?';
-    resource += `${separator}_t=${Date.now()}`;
+  let nextConfig = config;
+  const isApiCall = typeof resource === 'string' && resource.startsWith(API_URL);
+  if (isApiCall) {
+    nextConfig = config ? { ...config } : {};
+    if (!nextConfig.credentials) nextConfig.credentials = 'same-origin';
+    if (!nextConfig.method || nextConfig.method.toUpperCase() === 'GET') {
+      const separator = resource.includes('?') ? '&' : '?';
+      resource += `${separator}_t=${Date.now()}`;
+    }
   }
-  return originalFetch(resource, config);
+  const promise = originalFetch(resource, nextConfig);
+  if (isApiCall) {
+    return promise.then(res => {
+      if (
+        res.status === 401 &&
+        isGateAuthenticated &&
+        !isModoTV() &&
+        !resource.includes('/auth/') &&
+        !resource.includes('/verify-admin') &&
+        !resource.includes('/config/pausa') &&
+        !resource.includes('/config/mutirao-hoje') &&
+        !resource.includes('/config/jingle')
+      ) {
+        handleSessaoExpirada();
+      }
+      return res;
+    });
+  }
+  return promise;
 };
 
 // Socket removido para economia Vercel Pro
 const socket = null;
 
-/* === MELHORIA A: PORTÃO DE ENTRADA === */
-const GATE_HASH = 'af99a4ea5f59cb313edbcf21759afcbad8c77212870be1098363836e00e816c1';
+/* === MELHORIA A: PORTÃO DE ENTRADA (Sessão Server-Side HttpOnly) === */
 const GATE_EXPIRY_MS = 10 * 60 * 60 * 1000; // 10 horas
 let gateAttempts = 0;
 let gateLocked = false;
 let gateLockTimer = null;
 
-async function hashSHA256(str) {
-  const enc = new TextEncoder();
-  const buffer = await crypto.subtle.digest('SHA-256', enc.encode(str));
-  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function verificarSenhaEntrada(digitada) {
-  const hash = await hashSHA256(digitada);
-  return hash === GATE_HASH;
-}
-
-function checkGateSession() {
-  // Exceção: Painel TV
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('modo') === 'tv') {
-    hideGate();
-    // Auto-show painel TV
-    setTimeout(() => { showScreen('painel'); }, 300);
-    return;
-  }
-  const auth = sessionStorage.getItem('usf_gate_auth');
-  const time = sessionStorage.getItem('usf_gate_time');
-  if (auth === 'true' && time) {
-    const elapsed = Date.now() - parseInt(time, 10);
-    if (elapsed < GATE_EXPIRY_MS) {
-      hideGate();
-      return;
-    }
-    // Sessão expirada
+function handleSessaoExpirada() {
+  isGateAuthenticated = false;
+  _dadosAutenticadosIniciados = false;
+  try {
     sessionStorage.removeItem('usf_gate_auth');
     sessionStorage.removeItem('usf_gate_time');
+  } catch (e) {}
+  if (typeof stopAllPolling === 'function') stopAllPolling();
+  showGate();
+  const errEl = document.getElementById('gate-error');
+  if (errEl) errEl.textContent = '🔒 Sua sessão expirou. Digite a senha novamente.';
+}
+
+function iniciarCarregamentoModoTV() {
+  if (!_modoTvIniciado) _modoTvIniciado = true;
+  if (typeof loadCurrentCalling === 'function') loadCurrentCalling();
+  if (typeof loadHistory === 'function') loadHistory();
+  if (typeof loadPendingVoiceCalls === 'function') loadPendingVoiceCalls();
+  if (typeof carregarJinglePreferido === 'function') carregarJinglePreferido();
+  if (typeof startAdaptivePolling === 'function') startAdaptivePolling();
+}
+
+function iniciarCarregamentoAutenticado() {
+  if (typeof loadQueues === 'function') loadQueues();
+  if (typeof loadCurrentCalling === 'function') loadCurrentCalling();
+  if (typeof loadHistory === 'function') loadHistory();
+  if (typeof loadAttended === 'function') loadAttended();
+  if (typeof loadAllChannels === 'function') loadAllChannels();
+  if (typeof loadAcolhimentoFluxo === 'function') loadAcolhimentoFluxo();
+  if (typeof carregarProfissionaisCache === 'function') carregarProfissionaisCache();
+  if (typeof loadResponsaveisSetor === 'function') loadResponsaveisSetor();
+  if (typeof loadChatPresenca === 'function') loadChatPresenca();
+  if (typeof carregarJinglePreferido === 'function') carregarJinglePreferido();
+  if (!_dadosAutenticadosIniciados) {
+    _dadosAutenticadosIniciados = true;
+    setTimeout(() => {
+      if (isGateAuthenticated && typeof loadChatPin === 'function' && typeof activeCanal !== 'undefined') {
+        loadChatPin(activeCanal);
+      }
+    }, 1000);
   }
+  if (typeof startAdaptivePolling === 'function') startAdaptivePolling();
+  if (typeof intervalChat !== 'undefined' && !intervalChat && typeof registerPresenca === 'function') {
+    intervalChat = setInterval(() => {
+      if (!isGateAuthenticated) return;
+      if (typeof chatPanelOpen !== 'undefined' && chatPanelOpen) registerPresenca();
+      if (typeof loadChatPresenca === 'function') loadChatPresenca().then(() => renderCanalList());
+    }, 30000);
+  }
+}
+
+async function checkGateSession() {
+  // Exceção: Painel TV
+  if (isModoTV()) {
+    hideGate();
+    iniciarCarregamentoModoTV();
+    setTimeout(() => { showScreen('painel'); }, 300);
+    setTimeout(() => {
+      const sm = document.getElementById('sound-modal');
+      if (sm) sm.style.display = 'flex';
+    }, 600);
+    return;
+  }
+
+  try {
+    const r = await fetch(`${API_URL}/auth/session`, { credentials: 'same-origin' });
+    if (r.ok) {
+      const data = await r.json();
+      if (data && data.authenticated) {
+        isGateAuthenticated = true;
+        try {
+          sessionStorage.setItem('usf_gate_auth', 'true');
+          sessionStorage.setItem('usf_gate_time', Date.now().toString());
+        } catch (e) {}
+        hideGate();
+        iniciarCarregamentoAutenticado();
+        setTimeout(() => {
+          const sm = document.getElementById('sound-modal');
+          if (sm) sm.style.display = 'flex';
+        }, 600);
+        return;
+      }
+    }
+  } catch (e) {}
+
+  isGateAuthenticated = false;
+  try {
+    sessionStorage.removeItem('usf_gate_auth');
+    sessionStorage.removeItem('usf_gate_time');
+  } catch (e) {}
   showGate();
 }
 
@@ -75,13 +163,34 @@ async function tentarEntrar() {
   if (gateLocked) return;
   const inp = document.getElementById('gate-password');
   const errEl = document.getElementById('gate-error');
+  const btn = document.getElementById('gate-btn');
   const senha = inp.value.trim();
   if (!senha) { errEl.textContent = '❌ Digite a senha.'; return; }
 
-  const ok = await verificarSenhaEntrada(senha);
-  if (ok) {
-    sessionStorage.setItem('usf_gate_auth', 'true');
-    sessionStorage.setItem('usf_gate_time', Date.now().toString());
+  let res = null;
+  let data = {};
+  try {
+    if (btn) btn.disabled = true;
+    res = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ senha })
+    });
+    data = await res.json().catch(() => ({}));
+  } catch (e) {
+    errEl.textContent = '🔴 Erro de conexão com o servidor. Tente novamente.';
+    if (btn && !gateLocked) btn.disabled = false;
+    return;
+  }
+  if (btn && !gateLocked) btn.disabled = false;
+
+  if (res && res.ok && data.ok) {
+    isGateAuthenticated = true;
+    try {
+      sessionStorage.setItem('usf_gate_auth', 'true');
+      sessionStorage.setItem('usf_gate_time', Date.now().toString());
+    } catch (e) {}
     errEl.textContent = '';
     inp.value = '';
     gateAttempts = 0;
@@ -93,6 +202,10 @@ async function tentarEntrar() {
     if (typeof registrarAcessoDispositivo === 'function') {
       registrarAcessoDispositivo('gate_login');
     }
+    iniciarCarregamentoAutenticado();
+  } else if (res && res.status === 429) {
+    errEl.textContent = `⏳ ${data.error || 'Muitas tentativas. Aguarde alguns minutos.'}`;
+    inp.value = '';
   } else {
     gateAttempts++;
     errEl.textContent = '❌ Senha incorreta. Tente novamente.';
@@ -100,9 +213,8 @@ async function tentarEntrar() {
     inp.focus();
     if (gateAttempts >= 5) {
       gateLocked = true;
-      const btn = document.getElementById('gate-btn');
       const lockEl = document.getElementById('gate-lockout');
-      btn.disabled = true;
+      if (btn) btn.disabled = true;
       inp.disabled = true;
       let remaining = 120;
       lockEl.textContent = `⏳ Bloqueado. Tente novamente em ${remaining}s`;
@@ -113,7 +225,7 @@ async function tentarEntrar() {
           clearInterval(gateLockTimer);
           gateLocked = false;
           gateAttempts = 0;
-          btn.disabled = false;
+          if (btn) btn.disabled = false;
           inp.disabled = false;
           lockEl.textContent = '';
           errEl.textContent = '';
@@ -123,9 +235,16 @@ async function tentarEntrar() {
   }
 }
 
-function logoutGate() {
-  sessionStorage.removeItem('usf_gate_auth');
-  sessionStorage.removeItem('usf_gate_time');
+async function logoutGate() {
+  try {
+    await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'same-origin' });
+  } catch (e) {}
+  isGateAuthenticated = false;
+  try {
+    sessionStorage.removeItem('usf_gate_auth');
+    sessionStorage.removeItem('usf_gate_time');
+    sessionStorage.removeItem('usf_admin_pwd');
+  } catch (e) {}
   window.location.reload();
 }
 
@@ -258,9 +377,11 @@ function stopAllPolling() {
 
 // --- Retomar todos os loops após pausa ou retorno ao expediente ---
 function resumeAllPolling() {
+  if (!isGateAuthenticated && !isModoTV()) return;
   startAdaptivePolling();
-  if (!intervalChat) {
+  if (isGateAuthenticated && !intervalChat) {
     intervalChat = setInterval(() => {
+      if (!isGateAuthenticated) return;
       if (chatPanelOpen) registerPresenca();
       loadChatPresenca().then(() => renderCanalList());
     }, 30000);
@@ -354,10 +475,10 @@ function aplicarEstadoPausa(pausado, motivo) {
     if (subEl) subEl.textContent = DEFAULT_PAUSE_MSG;
     checkExpediente();
     if (isDentroDoHorario()) {
-      resumeAllPolling();
-      if (typeof loadQueues === 'function') loadQueues();
-      if (typeof loadCurrentCalling === 'function') loadCurrentCalling();
-      if (typeof loadHistory === 'function') loadHistory();
+      if (isGateAuthenticated || isModoTV()) resumeAllPolling();
+      if (isGateAuthenticated && typeof loadQueues === 'function') loadQueues();
+      if ((isGateAuthenticated || isModoTV()) && typeof loadCurrentCalling === 'function') loadCurrentCalling();
+      if ((isGateAuthenticated || isModoTV()) && typeof loadHistory === 'function') loadHistory();
     }
   }
 }
@@ -2459,8 +2580,11 @@ async function loadQueues() {
 async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); if (typeof d.sistemaPausado === 'boolean' && d.sistemaPausado !== isPausado) { aplicarEstadoPausa(d.sistemaPausado, d.pausaMotivo); } currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
 async function loadHistory() {
   try {
-    const r = await fetch(`${API_URL}/history`);
-    callHistory = await r.json();
+    const endpoint = (!isGateAuthenticated && isModoTV()) ? `${API_URL}/tv/history` : `${API_URL}/history`;
+    const r = await fetch(endpoint);
+    if (!r.ok) return;
+    const data = await r.json();
+    callHistory = Array.isArray(data) ? data : [];
     // Ignorar registros de encaminhamento/transferência para controle de voz
     const callsOnly = (callHistory || []).filter(h => !(h.profissional || '').startsWith('➡️ Encaminhado'));
     if (callsOnly.length > 0) {
@@ -2486,7 +2610,15 @@ async function loadHistory() {
     if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais();
   } catch (e) { console.error(e); }
 }
-async function loadAttended() { try { const r = await fetch(`${API_URL}/attended`); attendedPatients = await r.json(); renderAttended(); } catch (e) { console.error(e); } }
+async function loadAttended() {
+  try {
+    const r = await fetch(`${API_URL}/attended`);
+    if (!r.ok) return;
+    const data = await r.json();
+    attendedPatients = Array.isArray(data) ? data : [];
+    renderAttended();
+  } catch (e) { console.error(e); }
+}
 
 // ====== UPDATE UI ======
 function updateAll() { updateStats(); updateBadges(); updateQueues(); updateMiniQueues(); updateRecent(); renderAllSectorAttended(); if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais(); }
@@ -3226,12 +3358,15 @@ function updatePainel() {
     const horaExibida = p.created_at
       ? safeDate(p.created_at).toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' })
       : (p.horario_chamada || '--:--');
-    return `<div class="painel-fids-row ${i === 0 ? 'is-latest' : ''}">
+      const safePainelNomeJs = escapeText(String(p.nome || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safePainelSetorJs = escapeText(String(p.setor || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safePainelMedJs = escapeText(String(p.medico || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return `<div class="painel-fids-row ${i === 0 ? 'is-latest' : ''}">
       <div class="painel-fids-time">${escapeText(horaExibida)}</div>
       <div class="painel-fids-name">${escapeText(p.nome)}${prioBadge}</div>
       <div class="painel-fids-dest">${escapeText(destino)}${profText ? `<small>${escapeText(profText)}</small>` : ''}</div>
       <div style="text-align:center;">
-        <button class="btn btn-ghost" onclick="speakViaSynthesis('${p.nome.replace(/'/g,"\\\\'")}','${p.setor}','${(p.medico||'').replace(/'/g,"\\\\'")}')" style="padding:5px 8px;font-size:13px;border-radius:8px;" title="Chamar novamente">🔊</button>
+        <button class="btn btn-ghost" onclick="speakViaSynthesis('${safePainelNomeJs}','${safePainelSetorJs}','${safePainelMedJs}')" style="padding:5px 8px;font-size:13px;border-radius:8px;" title="Chamar novamente">🔊</button>
       </div>
     </div>`;
   }).join('');
@@ -3478,14 +3613,15 @@ function renderAllSectorAttended() {
     el.innerHTML = items.map((p, i) => {
       const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐</span>` : '';
       const prof = p.profissional || '';
-      const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${prof}</span>` : '';
-      const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.patient_id})" title="Ver QR Code">📱</button>`;
-      const delBtn = isAdmin ? `<button class="btn-danger-sm" onclick="event.stopPropagation();deleteHistoryItem(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir do Histórico">🗑️</button>` : '';
+      const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${escapeText(prof)}</span>` : '';
+      const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${Number(p.patient_id)})" title="Ver QR Code">📱</button>`;
+      const safeNomeAttr = escapeText(String(p.nome || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const delBtn = isAdmin ? `<button class="btn-danger-sm" onclick="event.stopPropagation();deleteHistoryItem(${Number(p.id)},'${safeNomeAttr}')" title="Excluir do Histórico">🗑️</button>` : '';
       
       return `<div class="queue-item" style="border-left:4px solid var(--green);">
         <div class="queue-position" style="background:var(--green);">${items.length - i}</div>
-        <div class="queue-name">${p.nome}${prioBadge}${profLabel}</div>
-        <div class="queue-time">${p.horario_chamada || ''}</div>
+        <div class="queue-name">${escapeText(p.nome)}${prioBadge}${profLabel}</div>
+        <div class="queue-time">${escapeText(p.horario_chamada || '')}</div>
         <div style="display:flex;gap:4px;align-items:center;">
           ${qrBtn}
           <span class="queue-status status-done">✅ Atendido</span>
@@ -3506,15 +3642,16 @@ function renderAttended() {
     const cfg = SECTOR_CONFIG[p.setor] || {};
     const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐</span>` : '';
     const prof = p.profissional || p.medico || '';
-    const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${prof}</span>` : '';
-    const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${p.patient_id})" title="Ver QR Code">📱</button>`;
-    const delBtn = isAdmin ? `<button class="btn-danger-sm" onclick="event.stopPropagation();deleteHistoryItem(${p.id},'${p.nome.replace(/'/g,"\\\\'")}')" title="Excluir do Histórico">🗑️</button>` : '';
+    const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${escapeText(prof)}</span>` : '';
+    const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${Number(p.patient_id)})" title="Ver QR Code">📱</button>`;
+    const safeNomeAttr = escapeText(String(p.nome || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const delBtn = isAdmin ? `<button class="btn-danger-sm" onclick="event.stopPropagation();deleteHistoryItem(${Number(p.id)},'${safeNomeAttr}')" title="Excluir do Histórico">🗑️</button>` : '';
 
     return `<div class="queue-item" style="border-left:4px solid var(--green);">
       <div class="queue-position" style="background:var(--green);">${attendedPatients.length - i}</div>
-      <div class="queue-name">${p.nome}${prioBadge}${profLabel}</div>
-      <span class="sector-tag ${cfg.tagClass||''}">${cfg.icon||''} ${p.setor}</span>
-      <div class="queue-time" style="margin-left:auto;">${p.horario_chamada || p.horario}</div>
+      <div class="queue-name">${escapeText(p.nome)}${prioBadge}${profLabel}</div>
+      <span class="sector-tag ${cfg.tagClass||''}">${cfg.icon||''} ${escapeText(p.setor)}</span>
+      <div class="queue-time" style="margin-left:auto;">${escapeText(p.horario_chamada || p.horario)}</div>
       <div style="display:flex;gap:4px;align-items:center;">
           ${qrBtn}
           <span class="queue-status status-done">✅ Atendido</span>
@@ -4364,7 +4501,6 @@ async function carregarProfissionaisCache() {
     });
   } catch(e) { /* silencioso */ }
 }
-carregarProfissionaisCache();
 
 function getProfissaoProfissional(nome) {
   if (!nome) return '';
@@ -6640,13 +6776,13 @@ async function gerarRelatorioAcolhimento() {
               try { const arr = JSON.parse(f.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'💙 HAS':c==='diabetico'?'🧡 DM':c==='gestante'?'💜 GEST':c).join(', '); } catch {}
               const agendLabel = f.agendamento_realizado ? '✅ Sim' : '—';
               return `<tr style="border-bottom:1px solid #efefef;">
-                <td style="padding:8px;"><b>${f.nome}</b><br><span style="font-size:10px;color:var(--gray-600);">CPF: ${f.cpf||'-'}</span></td>
+                <td style="padding:8px;"><b>${escapeText(f.nome)}</b><br><span style="font-size:10px;color:var(--gray-600);">CPF: ${escapeText(f.cpf||'-')}</span></td>
                 <td style="padding:8px;">${riscoLabel}</td>
-                <td style="padding:8px;">${f.acs_responsavel||'—'}</td>
-                <td style="padding:8px;">${f.profissional||'—'}</td>
-                <td style="padding:8px;">${f.horario_chamada || '-'}</td>
+                <td style="padding:8px;">${escapeText(f.acs_responsavel||'—')}</td>
+                <td style="padding:8px;">${escapeText(f.profissional||'—')}</td>
+                <td style="padding:8px;">${escapeText(f.horario_chamada || '-')}</td>
                 <td style="padding:8px;">${agendLabel}</td>
-                <td style="padding:8px;font-size:11px;">${condLabel||'—'}</td>
+                <td style="padding:8px;font-size:11px;">${escapeText(condLabel||'—')}</td>
               </tr>`}).join('')}
           </tbody>
         </table>
@@ -7194,8 +7330,7 @@ initOverview();
 initAcsEscutaScreen();
 initSegundaEscutaScreen();
 renderCanalList();
-loadQueues(); loadCurrentCalling(); loadHistory(); loadAttended(); loadAllChannels();
-loadAcolhimentoFluxo();
+// Dados protegidos são carregados após validação de sessão em checkGateSession() / tentarEntrar() / iniciarCarregamentoModoTV()
 
 // === CTRL AGENDAMENTOS — Ocultar aba em modo TV ===
 (function initCtrlAgendTab() {
@@ -7831,16 +7966,16 @@ let pollingTimer2 = null;
 
 function startPolling1() {
   if (pollingTimer1) clearTimeout(pollingTimer1);
-  // ZERO polling fora do expediente OU em pausa — inclui modo TV (?modo=tv)
-  if (isPausado || !isDentroDoHorario()) return;
+  // ZERO polling sem autenticação (exceto TV), fora do expediente OU em pausa
+  if ((!isGateAuthenticated && !isModoTV()) || isPausado || !isDentroDoHorario()) return;
   const interval1 = document.hidden ? 30000 : 5000;
   pollingTimer1 = setTimeout(() => { loopData1(); }, interval1);
 }
 
 function startPolling2() {
   if (pollingTimer2) clearTimeout(pollingTimer2);
-  // ZERO polling fora do expediente OU em pausa
-  if (isPausado || !isDentroDoHorario()) return;
+  // ZERO polling sem autenticação, fora do expediente OU em pausa
+  if (!isGateAuthenticated || isPausado || !isDentroDoHorario()) return;
   const interval2 = document.hidden ? 60000 : 8000;
   pollingTimer2 = setTimeout(() => { loopData2(); }, interval2);
 }
@@ -7851,6 +7986,14 @@ function startAdaptivePolling() {
 }
 
 async function loopData1() {
+  if (!isGateAuthenticated && isModoTV()) {
+    await Promise.all([
+      loadCurrentCalling(), loadHistory(), loadPendingVoiceCalls()
+    ].map(p => p.catch(() => {})));
+    startPolling1();
+    return;
+  }
+  if (!isGateAuthenticated) return;
   await Promise.all([
     loadQueues(), loadCurrentCalling(), loadHistory(), loadAttended(), loadAcolhimentoFluxo(), loadNotificacoes(), loadPendingVoiceCalls()
   ].map(p => p.catch(() => {})));
@@ -7858,31 +8001,14 @@ async function loopData1() {
 }
 
 async function loopData2() {
+  if (!isGateAuthenticated) return;
   await loadAllChannels().catch(() => {});
   startPolling2();
 }
 
-startAdaptivePolling();
 document.addEventListener('visibilitychange', startAdaptivePolling);
 
 /* Eventos Socket.IO removidos para economia na Vercel */
-
-setTimeout(() => {
-  // Only show sound modal if past the gate
-  if (sessionStorage.getItem('usf_gate_auth') === 'true' || new URLSearchParams(window.location.search).get('modo') === 'tv') {
-    document.getElementById('sound-modal').style.display = 'flex';
-  }
-}, 600);
-
-/* === MELHORIA C: Presença periódica === */
-intervalChat = setInterval(() => {
-  if (chatPanelOpen) registerPresenca();
-  loadChatPresenca().then(() => renderCanalList());
-}, 30000); // A cada 30s
-loadChatPresenca();
-// Load initial pin for active canal
-setTimeout(() => loadChatPin(activeCanal), 1000);
-/* === FIM MELHORIA C === */
 
 function initAgendamentoDefaults() {
   const dataInput = document.getElementById('agend-data');
@@ -8333,8 +8459,7 @@ async function excluirResponsavelSetor(id, nome) {
   } catch { showToast('Erro ao remover!', true); }
 }
 
-// Carregar responsáveis ao iniciar
-loadResponsaveisSetor();
+// Carregamento inicial movido para iniciarCarregamentoAutenticado()
 
 // ====== AUTOCOMPLETE DA RECEPÇÃO ======
 function setupAutocompleteRecepcao() {
@@ -8690,7 +8815,16 @@ async function carregarRelatorioPrioridadeBusca() {
 
   try {
     const params = new URLSearchParams({ data_inicio: ini, data_fim: fim, periodo });
-    const r = await fetch(`${API_URL}/admin/relatorio-prioridade-busca?${params.toString()}`);
+    const headers = adminPassword ? { 'x-admin-password': adminPassword } : {};
+    const r = await fetch(`${API_URL}/admin/relatorio-prioridade-busca?${params.toString()}`, {
+      headers,
+      credentials: 'same-origin'
+    });
+    if (r.status === 401 || r.status === 403) {
+      contA.textContent = '🔒 Ative o Modo Administrador para visualizar este relatório.';
+      contB.textContent = '🔒 Ative o Modo Administrador para visualizar este relatório.';
+      return;
+    }
     if (!r.ok) throw new Error();
     const rel = await r.json();
     renderRelatorioParteA(rel, contA);

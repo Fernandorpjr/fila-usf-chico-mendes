@@ -28,17 +28,24 @@ const {
   salvarPreviaReceita
 } = require('./lib/receitas');
 const { setupSisreg } = require('./lib/sisreg');
+const {
+  SESSION_TTL_MS,
+  isValidGatePass,
+  isValidAdminPass,
+  isPublicApiRoute,
+  getSessionFromRequest,
+  setSessionCookie,
+  clearSessionCookie,
+  getClientIp,
+  isRateLimited,
+  recordRateLimitHit,
+  resetRateLimit,
+  checkRateLimit,
+  buildCorsOptions,
+  securityHeadersMiddleware
+} = require('./lib/seguranca');
 
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORDS = (process.env.ADMIN_PASSWORDS || 'chico123,0177,usf2026')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-const ADMIN_PASSWORD = ADMIN_PASSWORDS[0] || 'chico123';
-function isValidAdminPass(senha) {
-  if (!senha) return false;
-  return ADMIN_PASSWORDS.includes(String(senha).trim());
-}
 
 function getDataHojeRecife() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -222,13 +229,8 @@ async function anexarBuscaAtivaDetalhes(rows, dbPool) {
 }
 
 // Middleware
-app.use(cors());
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  next();
-});
+app.use(cors(buildCorsOptions()));
+app.use(securityHeadersMiddleware);
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 app.use(express.static('public'));
@@ -266,28 +268,46 @@ async function isDentroDoHorario() {
 }
 
 app.use('/api', async (req, res, next) => {
-  if (req.method === 'GET') {
-    // Permite cache no Edge Server da Vercel por 3 segundos para abater requisições repetidas (Economia de Invocations)
-    // EXCEÇÃO: Rotas administrativas, dispositivos ou histórico não devem ser expostas em cache público
-    if (req.path.startsWith('/admin') || req.path.startsWith('/dispositivos') || req.path.startsWith('/agendamentos/historico') || req.path.startsWith('/motivos-busca-ativa') || req.path.includes('/busca-ativa') || req.path.includes('/previa-receita') || req.path.startsWith('/config-prioridade') || req.path.startsWith('/config/mutirao-hoje') || req.path.startsWith('/config/pausa')) {
-      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    } else {
-      res.set('Cache-Control', 'public, s-maxage=3, stale-while-revalidate=2');
-    }
+  if (req.method === 'GET' && (req.path === '/config/jingle' || req.path === '/config-prioridade')) {
+    res.set('Cache-Control', 'public, max-age=15');
   } else {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Cache-Control', 'private, no-store, no-cache, must-revalidate, proxy-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
     res.set('Surrogate-Control', 'no-store');
   }
 
-  const isExempt = req.path === '/health' || req.path === '/verify-admin' || req.path.startsWith('/config/mutirao-hoje') || req.path.startsWith('/config/pausa');
+  // Autenticação obrigatória para rotas protegidas da API (TV e QR Code têm rotas públicas sanitizadas)
+  if (!isPublicApiRoute(req.method, req.path)) {
+    const sess = getSessionFromRequest(req);
+    const adminHdr = req.headers['x-admin-password'] || req.headers['x-admin-pass'];
+    const hasValidAdminHeader = isValidAdminPass(adminHdr);
+    if (!sess && !hasValidAdminHeader) {
+      return res.status(401).json({
+        error: 'Sessão não autenticada ou expirada. Faça login novamente.',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+    req.session = sess || { role: 'admin', via: 'header' };
+  } else {
+    req.session = getSessionFromRequest(req);
+  }
+
+  const isExempt =
+    req.path === '/health' ||
+    req.path === '/auth/login' ||
+    req.path === '/auth/logout' ||
+    req.path === '/auth/session' ||
+    req.path === '/verify-admin' ||
+    req.path === '/cron/limpeza' ||
+    req.path.startsWith('/config/mutirao-hoje') ||
+    req.path.startsWith('/config/pausa');
   if (!isExempt && !(await isDentroDoHorario())) {
-    return res.status(503).json({ 
+    return res.status(503).json({
       error: 'Sistema fora do horário de funcionamento. Banco de dados suspenso para economia.'
     });
   }
-  
+
   next();
 });
 
@@ -859,34 +879,63 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, ts: Date.now() });
 });
 
-// Rate limiter simples em memória para tentativas de senha admin
-const _adminAttempts = new Map();
-function checkAdminRateLimit(ip) {
-  const now = Date.now();
-  const entry = _adminAttempts.get(ip) || { count: 0, resetAt: now + 5 * 60 * 1000 };
-  if (now > entry.resetAt) {
-    entry.count = 0;
-    entry.resetAt = now + 5 * 60 * 1000;
+// Autenticação do Portão de Entrada (sessão em cookie HttpOnly assinado)
+app.post('/api/auth/login', (req, res) => {
+  const ip = getClientIp(req);
+  const rl = isRateLimited('gate_login_fail', ip, 15, 15 * 60 * 1000);
+  if (rl.blocked) {
+    return res.status(429).json({
+      ok: false,
+      error: `Muitas tentativas incorretas. Aguarde ${Math.max(1, Math.ceil(rl.retryAfterSec / 60))} minuto(s).`
+    });
   }
-  _adminAttempts.set(ip, entry);
-  return entry;
-}
+  const { senha } = req.body || {};
+  if (isValidGatePass(senha)) {
+    resetRateLimit('gate_login_fail', ip);
+    setSessionCookie(res, 'staff');
+    return res.json({
+      ok: true,
+      authenticated: true,
+      role: 'staff',
+      expiresInMs: SESSION_TTL_MS
+    });
+  }
+  recordRateLimitHit('gate_login_fail', ip, 15 * 60 * 1000);
+  return res.status(401).json({ ok: false, error: 'Senha incorreta. Tente novamente.' });
+});
 
-// Verify admin password
+app.post('/api/auth/logout', (req, res) => {
+  clearSessionCookie(res);
+  res.json({ ok: true });
+});
+
+app.get('/api/auth/session', (req, res) => {
+  const sess = getSessionFromRequest(req);
+  res.json({
+    authenticated: Boolean(sess),
+    role: sess ? sess.role : null,
+    exp: sess ? sess.exp : null
+  });
+});
+
+// Verify admin password (also issues admin session cookie for seamless dashboard/admin access)
 app.post('/api/verify-admin', (req, res) => {
-  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-  const entry = checkAdminRateLimit(ip);
-  if (entry.count >= 10) {
-    return res.status(429).json({ valid: false, error: 'Muitas tentativas. Aguarde alguns minutos.' });
+  const ip = getClientIp(req);
+  const rl = isRateLimited('admin_login_fail', ip, 10, 15 * 60 * 1000);
+  if (rl.blocked) {
+    return res.status(429).json({
+      valid: false,
+      error: 'Muitas tentativas. Aguarde alguns minutos.'
+    });
   }
-  const { senha } = req.body;
+  const { senha } = req.body || {};
   if (isValidAdminPass(senha)) {
-    entry.count = 0;
-    res.json({ valid: true });
-  } else {
-    entry.count += 1;
-    res.status(403).json({ valid: false, error: 'Senha incorreta' });
+    resetRateLimit('admin_login_fail', ip);
+    setSessionCookie(res, 'admin');
+    return res.json({ valid: true });
   }
+  recordRateLimitHit('admin_login_fail', ip, 15 * 60 * 1000);
+  return res.status(403).json({ valid: false, error: 'Senha incorreta' });
 });
 
 // Get config de prioridade (Parte A)
@@ -2138,13 +2187,30 @@ app.post('/api/remove-patient', async (req, res) => {
   }
 });
 
-// Get call history (today only)
+// Get call history (today only - authenticated staff)
 app.get('/api/history', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT * FROM call_history
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
        ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get TV panel history (public sanitized projection — no CPF, CNS, queixa, or clinical fields)
+app.get('/api/tv/history', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, nome, setor, horario_chamada, medico, prioridade, tipo_prioridade, consultorio, profissional, created_at
+       FROM call_history
+       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+         AND COALESCE(profissional, '') NOT LIKE '➡️ Encaminhado%'
+       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC
+       LIMIT 30`
     );
     res.json(result.rows);
   } catch (error) {
@@ -3566,9 +3632,13 @@ async function synthesizeGooglePtBrTTS(texto) {
 
 async function handleTtsRequest(req, res) {
   try {
+    const rl = checkRateLimit('tts', getClientIp(req), 120, 60 * 1000);
+    if (!rl.allowed) {
+      return res.status(429).json({ error: 'Limite de chamadas de voz excedido temporariamente.' });
+    }
     const rawTexto = (req.body && req.body.texto) || (req.query && req.query.texto) || '';
     const voz = (req.body && req.body.voz) || (req.query && req.query.voz) || 'feminina_br';
-    const texto = String(rawTexto).trim().slice(0, 500);
+    const texto = String(rawTexto).trim().slice(0, 300);
     if (!texto) {
       return res.status(400).json({ error: 'Texto é obrigatório para síntese de voz' });
     }
@@ -5420,6 +5490,11 @@ app.post('/api/patients/:id/busca-ativa/ofertar', async (req, res) => {
 
 // GET – Relatório Admin Unificado (Parte A + Parte B) com filtro por Dia/Período e Turno no fuso America/Recife
 app.get('/api/admin/relatorio-prioridade-busca', async (req, res) => {
+  const senhaAdmin = req.headers['x-admin-password'] || req.headers['x-admin-pass'] || '';
+  const isAdminSess = req.session && req.session.role === 'admin';
+  if (!isAdminSess && !isValidAdminPass(senhaAdmin)) {
+    return res.status(403).json({ error: 'Acesso restrito ao administrador.' });
+  }
   try {
     const hojeRecife = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Recife' }).format(new Date());
     const dataInicio = (req.query.data_inicio || req.query.data || hojeRecife).trim();

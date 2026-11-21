@@ -466,7 +466,12 @@ function setQuickDate(tipo) {
 
 function verifyDashboardAccess() {
   const pwd = document.getElementById('lockPassword').value;
-  fetch(`${API_URL}/verify-admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: pwd }) })
+  fetch(`${API_URL}/verify-admin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ senha: pwd })
+  })
     .then(r => { 
         if (r.ok) { 
             document.getElementById('lockOverlay').style.display = 'none'; 
@@ -524,13 +529,19 @@ async function loadDashboard() {
         document.getElementById('dashDate').textContent = `(${formatDateBR(data)} — ${diaSemanaStr}, ${dataBR})`;
     }
     const [mRes, hRes, fRes] = await Promise.all([
-        fetch(`${API_URL}/dashboard/metrics?data=${data}`),
-        fetch(`${API_URL}/dashboard/hourly?data=${data}`),
-        fetch(`${API_URL}/relatorio-diario?data=${data}`).catch(err => {
+        fetch(`${API_URL}/dashboard/metrics?data=${data}`, { credentials: 'same-origin' }),
+        fetch(`${API_URL}/dashboard/hourly?data=${data}`, { credentials: 'same-origin' }),
+        fetch(`${API_URL}/relatorio-diario?data=${data}`, { credentials: 'same-origin' }).catch(err => {
           console.warn('Erro ao buscar relatorio-diario:', err);
           return null;
         })
     ]);
+
+    if ((mRes && mRes.status === 401) || (hRes && hRes.status === 401)) {
+      document.getElementById('dashContent').style.display = 'none';
+      document.getElementById('lockOverlay').style.display = 'flex';
+      return;
+    }
 
     if (mRes && mRes.ok) metricsData = await mRes.json();
     if (hRes && hRes.ok) hourlyData = await hRes.json();
