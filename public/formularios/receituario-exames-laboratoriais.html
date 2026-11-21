@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receituário para Exames Laboratoriais</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; background: #e5e5e5; font-family: Arial, Helvetica, sans-serif; color: #000; }
+  .toolbar { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #bbb; padding: 2.5mm; display: flex; flex-wrap: wrap; gap: 3mm; justify-content: center; align-items: center; font-size: 10pt; }
+  .toolbar button { font-size: 11pt; padding: 2mm 5mm; border: 1px solid #555; border-radius: 2mm; background: #f2f2f2; cursor: pointer; }
+  .toolbar button.main { background: #1f5fbf; color: #fff; border-color: #1f5fbf; font-weight: bold; }
+  .toolbar span { color: #555; }
+  .page { width: 210mm; height: 297mm; margin: 0 auto; padding: 5mm 7mm; background: #fff; overflow: hidden; display: flex; flex-direction: column; }
+  .form { border: 1px solid #000; display: flex; flex-direction: column; }
+  .form > * { flex-shrink: 0; }
+  .row { display: flex; border-bottom: 1px solid #000; align-items: stretch; }
+  .c { border-right: 1px solid #000; padding: .6mm 1.5mm; font-size: 7.2pt; font-weight: bold; display: flex; align-items: flex-end; gap: 1.5mm; min-width: 0; white-space: nowrap; }
+  .c:last-child { border-right: 0; }
+  .f { border-bottom: 1px solid #aaa; min-height: 4mm; line-height: 4mm; font-size: 9pt; font-weight: normal; outline: none; overflow: hidden; white-space: nowrap; padding: 0 1mm; display: inline-block; vertical-align: bottom; }
+  .f.grow { flex: 1; min-width: 0; }
+  .hd { display: flex; border-bottom: 1px solid #000; height: 28mm; }
+  .etq { width: 44mm; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center; color: #999; font-size: 7.5pt; font-weight: bold; }
+  .hr { flex: 1; display: flex; flex-direction: column; }
+  .htop { flex: 1; display: flex; align-items: center; padding: 0 2mm; border-bottom: 1px solid #000; }
+  .sus { display: flex; align-items: center; gap: 1mm; width: 30mm; }
+  .cross { position: relative; width: 10mm; height: 11mm; flex: none; }
+  .cross i { position: absolute; background: #222; }
+  .cross i:nth-child(1) { left: 3.4mm; top: 0; width: 3.2mm; height: 11mm; }
+  .cross i:nth-child(2) { left: 0; top: 3.8mm; width: 10mm; height: 3.2mm; }
+  .sus b { font-size: 13pt; line-height: 1; }
+  .sus small { font-size: 3.4pt; line-height: 1.05; font-weight: bold; }
+  .ttl { flex: 1; text-align: center; font-weight: bold; line-height: 1.5; }
+  .ttl .t1 { font-size: 9.5pt; } .ttl .t2 { font-size: 7.8pt; } .ttl .t3 { font-size: 7.8pt; }
+  .brasao { height: 17mm; width: 17mm; object-fit: contain; display: block; }
+  .hbot { height: 7mm; display: flex; }
+  .hbot .c { align-items: center; }
+  .chk { display: inline-block; width: 3.4mm; height: 3.4mm; border: 1px solid #000; vertical-align: -.8mm; margin: 0 1mm; cursor: pointer; position: relative; background: #fff; }
+  .chk.on::after { content: "✓"; position: absolute; left: .2mm; top: -1.6mm; font-size: 11pt; line-height: 1; font-weight: bold; }
+  .par { display: inline-block; width: 4mm; height: 4mm; border-bottom: 1px solid #000; text-align: center; font-size: 9pt; cursor: pointer; vertical-align: bottom; line-height: 4mm; font-weight: normal; }
+  .par.on::after { content: "X"; font-weight: bold; }
+  .sl { font-weight: bold; }
+  .grid { display: grid; grid-template-columns: 37fr 9fr 40fr 14fr 43fr 8fr 41fr; grid-auto-rows: 6.35mm; --rh: 6.35mm; border-top: 0; }
+  .g { border-right: 1px solid #000; border-bottom: 1px solid #000; min-width: 0; overflow: hidden; display: flex; align-items: center; }
+  .g:nth-child(n) { }
+  .g.it { font-size: 7.1pt; font-weight: bold; }
+  .bx { width: 5.2mm; align-self: stretch; border-right: 1px solid #000; flex: none; cursor: pointer; position: relative; }
+  .bx.on::after { content: "✓"; position: absolute; left: .9mm; top: .1mm; font-size: 12pt; font-weight: bold; line-height: 1; }
+  .tx { padding: 0 1.3mm; white-space: nowrap; }
+  .tx.ed { flex: 1; min-width: 0; align-self: stretch; line-height: 6mm; font-size: 8.5pt; font-weight: normal; outline: none; overflow: hidden; }
+  .g.tt { font-size: 7.2pt; font-weight: bold; padding: 0 1.5mm; }
+  .g.tt.big { font-size: 9.5pt; justify-content: center; }
+  .g.vt { flex-direction: column; justify-content: flex-start; align-items: center; font-size: 8.6pt; font-weight: bold; }
+  .g.vt i { font-style: normal; line-height: 1; height: var(--rh); display: flex; align-items: center; flex: none; }
+  .g.tot { font-size: 7pt; font-weight: bold; }
+  .g.tot .num { width: 12mm; align-self: stretch; border-right: 1px solid #000; flex: none; outline: none; font-size: 8.5pt; text-align: center; line-height: 6mm; font-weight: normal; }
+  .g.tot .tt2 { padding: 0 1.3mm; white-space: nowrap; }
+  .g.alt { font-size: 7.2pt; }
+  .g.sol { flex-direction: column; align-items: stretch; justify-content: flex-start; font-size: 7.2pt; font-weight: bold; padding: 0; }
+  .g.sol .lab { padding: .6mm 1.5mm 0; }
+  .g.sol .ml { flex: 1; font-weight: normal; font-size: 8.5pt; line-height: 1.2; padding: 0 1.5mm; outline: none; white-space: pre-wrap; overflow: hidden; }
+  [data-k]:hover, [data-k]:focus { background-color: #fff8c4; }
+  .chk:hover, .bx:hover, .par:hover { background-color: #fff8c4; }
+  .grid { border-left: 0; }
+  @media print {
+    html, body { background: #fff; }
+    .toolbar { display: none !important; }
+    .page { margin: 0; }
+    [data-k]:hover, [data-k]:focus, .chk:hover, .bx:hover, .par:hover { background-color: transparent; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="main" onclick="window.print()">🖨 Imprimir</button>
+  <button onclick="deixarEmBranco()">📄 Deixar em Branco</button>
+  <button onclick="salvarEmitente()">💾 Salvar Solicitante</button>
+  <button onclick="limpar()">Limpar campos</button>
+  <span>Clique nos campos para digitar e nos quadrados para marcar os exames.</span>
+</div>
+<div class="page">
+<div class="form">
+  <div class="hd">
+    <div class="etq">ETIQUETA</div>
+    <div class="hr">
+      <div class="htop">
+        <div class="sus"><div class="cross"><i></i><i></i></div><b>SUS</b><small>Sistema<br>Único<br>de Saúde</small></div>
+        <div class="ttl"><div class="t1">RECEITUÁRIO PARA EXAMES LABORATORIAIS</div><div class="t2">LABORATÓRIO MUNICIPAL DE SAÚDE PÚBLICA DO RECIFE</div><div class="t3">PROFº OSWALDO GONÇALVES DE LIMA</div></div>
+        <img class="brasao" alt="Prefeitura do Recife" src="data:image/jpeg;base64,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">
+      </div>
+      <div class="hbot">
+        <div class="c" style="flex:1;font-weight:normal;font-size:6.8pt">(ESCREVER COM LETRA LEGÍVEL)</div>
+        <div class="c" style="width:78mm">DATA DE COLETA:&nbsp;<span class="f " style="width:9mm" data-k="dc1"></span><span class="sl">/</span><span class="f " style="width:9mm" data-k="dc2"></span><span class="sl">/</span><span class="f " style="width:12mm" data-k="dc3"></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="row" style="height:6.5mm"><div class="c" style="flex:1">COLETA REALIZADA NA UNIDADE DE SAÚDE:<span class="f grow" data-k="unidade"></span></div></div>
+  <div class="row" style="height:7mm"><div class="c" style="flex:1">NOME DO PACIENTE:<span class="f grow" data-k="paciente"></span></div></div>
+  <div class="row" style="height:6.5mm"><div class="c" style="flex:1">NOME SOCIAL:<span class="f grow" data-k="social"></span></div></div>
+  <div class="row" style="height:6.5mm">
+    <div class="c" style="flex:1.45">DATA-NASC:&nbsp;<span class="f " style="width:8mm" data-k="n1"></span><span class="sl">/</span><span class="f " style="width:8mm" data-k="n2"></span><span class="sl">/</span><span class="f " style="width:11mm" data-k="n3"></span></div>
+    <div class="c" style="flex:.85">SEXO:<span class="chk"></span>M <span class="chk"></span>F</div>
+    <div class="c" style="flex:1.3">ESTADO CIVIL:<span class="f grow" data-k="civil"></span></div>
+    <div class="c" style="flex:1.2;gap:0;justify-content:space-around;padding:0">SOLT.<span class="chk"></span>CAS.<span class="chk"></span>VIU.<span class="chk"></span></div>
+  </div>
+  <div class="row" style="height:6.5mm">
+    <div class="c" style="flex:1.45">SUS:<span class="f grow" data-k="sus"></span></div>
+    <div class="c" style="flex:2.35">FONE:<span class="f grow" data-k="fone"></span></div>
+  </div>
+  <div class="row" style="height:6.5mm">
+    <div class="c" style="flex:1.05">D.U.M.:&nbsp;<span class="f " style="width:8mm" data-k="dum1"></span><span class="sl">/</span><span class="f " style="width:8mm" data-k="dum2"></span><span class="sl">/</span><span class="f " style="width:10mm" data-k="dum3"></span></div>
+    <div class="c" style="flex:1">GESTANTE:&nbsp;SIM (<span class="par"></span>)</div>
+    <div class="c" style="flex:1.1">RECEM NASC.:&nbsp;SIM (<span class="par"></span>)</div>
+    <div class="c" style="flex:1.1">PESO:<span class="f grow" data-k="peso"></span></div>
+  </div>
+  <div class="grid">
+<div class="g tt" style="grid-column:1;grid-row:1/2"><span class="">TUBO CINZA</span></div>
+<div class="g" style="grid-column:2;grid-row:1/2"></div>
+<div class="g tt" style="grid-column:3;grid-row:1/2"><span class="">TUBO ROXO IMUNO</span></div>
+<div class="g tt" style="grid-column:5;grid-row:1/2"><span class="">TUBO AMARELO SORO</span></div>
+<div class="g" style="grid-column:7;grid-row:1/2"></div>
+<div class="g it" style="grid-column:1;grid-row:2/3"><span class="bx"></span><span class="tx">GLICOSE(GLC)</span></div>
+<div class="g" style="grid-column:2;grid-row:2/3"></div>
+<div class="g it" style="grid-column:3;grid-row:2/3"><span class="bx"></span><span class="tx">HB.GLIC.(HBGL)</span></div>
+<div class="g tt big" style="grid-column:1/4;grid-row:3/4">TUBO AMARELO IMUNOQUÍMICA</div>
+<div class="g it" style="grid-column:1;grid-row:4/5"><span class="bx"></span><span class="tx">AC. FOL.(FOL)</span></div>
+<div class="g it" style="grid-column:1;grid-row:5/6"><span class="bx"></span><span class="tx">AC.URICO(AU)</span></div>
+<div class="g it" style="grid-column:1;grid-row:6/7"><span class="bx"></span><span class="tx">ALBUMINA(ALB)</span></div>
+<div class="g it" style="grid-column:1;grid-row:7/8"><span class="bx"></span><span class="tx">ALFG.P.A.(A1GL)</span></div>
+<div class="g it" style="grid-column:1;grid-row:8/9"><span class="bx"></span><span class="tx">AMILASE(AMI)</span></div>
+<div class="g it" style="grid-column:1;grid-row:9/10"><span class="bx"></span><span class="tx">ASLO(AEO)</span></div>
+<div class="g it" style="grid-column:1;grid-row:10/11"><span class="bx"></span><span class="tx">ATPO(ATP)</span></div>
+<div class="g it" style="grid-column:1;grid-row:11/12"><span class="bx"></span><span class="tx">(BHCGQ)</span></div>
+<div class="g it" style="grid-column:1;grid-row:12/13"><span class="bx"></span><span class="tx">BILIR.T.+F(BIL)</span></div>
+<div class="g it" style="grid-column:1;grid-row:13/14"><span class="bx"></span><span class="tx">CALCIO(CA)</span></div>
+<div class="g it" style="grid-column:1;grid-row:14/15"><span class="bx"></span><span class="tx">CK(CPK)</span></div>
+<div class="g it" style="grid-column:1;grid-row:15/16"><span class="bx"></span><span class="tx">CL,K,NA(IONO)</span></div>
+<div class="g it" style="grid-column:1;grid-row:16/17"><span class="bx"></span><span class="tx">CMVIgM(CMVM)</span></div>
+<div class="g it" style="grid-column:1;grid-row:17/18"><span class="bx"></span><span class="tx">CMV IgG(CMVG)</span></div>
+<div class="g it" style="grid-column:1;grid-row:18/19"><span class="bx"></span><span class="tx">COL.T.+FR (CTF)</span></div>
+<div class="g it" style="grid-column:1;grid-row:19/20"><span class="bx"></span><span class="tx">CREAT. (CN)</span></div>
+<div class="g it" style="grid-column:1;grid-row:20/21"><span class="bx"></span><span class="tx">DHL(DHL)</span></div>
+<div class="g it" style="grid-column:1;grid-row:21/22"><span class="bx"></span><span class="tx">ESTRAD(E2)</span></div>
+<div class="g it" style="grid-column:1;grid-row:22/23"><span class="bx"></span><span class="tx">F.REUMT.(LATR)</span></div>
+<div class="g it" style="grid-column:1;grid-row:23/24"><span class="bx"></span><span class="tx">FERRIT. (FERRI)</span></div>
+<div class="g it" style="grid-column:1;grid-row:24/25"><span class="bx"></span><span class="tx">FERRO(FC)</span></div>
+<div class="g it" style="grid-column:1;grid-row:25/26"><span class="bx"></span><span class="tx">FÓSFORO(FOS)</span></div>
+<div class="g it" style="grid-column:1;grid-row:26/27"><span class="bx"></span><span class="tx">(FSH)</span></div>
+<div class="g it" style="grid-column:1;grid-row:27/28"><span class="bx"></span><span class="tx">GAMAGT(GGT)</span></div>
+<div class="g it" style="grid-column:1;grid-row:28/29"><span class="bx"></span><span class="tx">INSULINA(INS)</span></div>
+<div class="g it" style="grid-column:1;grid-row:29/30"><span class="bx"></span><span class="tx">MAGNÉSIO(MG)</span></div>
+<div class="g it" style="grid-column:1;grid-row:30/31"><span class="bx"></span><span class="tx">(PCR)</span></div>
+<div class="g it" style="grid-column:1;grid-row:31/32"><span class="bx"></span><span class="tx">PROGEST(PRG)</span></div>
+<div class="g it" style="grid-column:1;grid-row:32/33"><span class="bx"></span><span class="tx">PROLACT(PRL)</span></div>
+<div class="g it" style="grid-column:1;grid-row:33/34"><span class="bx"></span><span class="tx ed" data-k="k1"></span></div>
+<div class="g tot" style="grid-column:1;grid-row:34/35"><span class="num" data-k="k2"></span><span class="tt2">TOTAL DE EXAMES</span></div>
+<div class="g vt" style="grid-column:2;grid-row:4/34"><i style="margin-top:calc(var(--rh)*5)">I</i><i>M</i><i>U</i><i>N</i><i>O</i><i>Q</i><i>U</i><i>Í</i><i>M</i><i>I</i><i>C</i><i>A</i></div>
+<div class="g" style="grid-column:2;grid-row:34/35"></div>
+<div class="g it" style="grid-column:3;grid-row:4/5"><span class="bx"></span><span class="tx">PROT. T + F (PTF)</span></div>
+<div class="g it" style="grid-column:3;grid-row:5/6"><span class="bx"></span><span class="tx">PSA T + L (PSATL)</span></div>
+<div class="g it" style="grid-column:3;grid-row:6/7"><span class="bx"></span><span class="tx">RUBEOLAG(RUBG)</span></div>
+<div class="g it" style="grid-column:3;grid-row:7/8"><span class="bx"></span><span class="tx">(T3)</span></div>
+<div class="g it" style="grid-column:3;grid-row:8/9"><span class="bx"></span><span class="tx">T4LIVRE(T4L)</span></div>
+<div class="g it" style="grid-column:3;grid-row:9/10"><span class="bx"></span><span class="tx">TESTOST(TES)</span></div>
+<div class="g it" style="grid-column:3;grid-row:10/11"><span class="bx"></span><span class="tx">(TGO)</span></div>
+<div class="g it" style="grid-column:3;grid-row:11/12"><span class="bx"></span><span class="tx">(TGP)</span></div>
+<div class="g it" style="grid-column:3;grid-row:12/13"><span class="bx"></span><span class="tx">TIREOGLOBULINA</span></div>
+<div class="g it" style="grid-column:3;grid-row:13/14"><span class="bx"></span><span class="tx">TRIGLICERIDEOS</span></div>
+<div class="g it" style="grid-column:3;grid-row:14/15"><span class="bx"></span><span class="tx">TOXO IgG(TOXG)</span></div>
+<div class="g it" style="grid-column:3;grid-row:15/16"><span class="bx"></span><span class="tx">TOXO IgM(TOXM)</span></div>
+<div class="g it" style="grid-column:3;grid-row:16/17"><span class="bx"></span><span class="tx">(TSH)</span></div>
+<div class="g it" style="grid-column:3;grid-row:17/18"><span class="bx"></span><span class="tx">UREIA(UREA)</span></div>
+<div class="g it" style="grid-column:3;grid-row:18/19"><span class="bx"></span><span class="tx">VITAMINA D</span></div>
+<div class="g it" style="grid-column:3;grid-row:19/20"><span class="bx"></span><span class="tx">VITAMINA (VB12)</span></div>
+<div class="g it" style="grid-column:3;grid-row:20/21"><span class="bx"></span><span class="tx ed" data-k="k3"></span></div>
+<div class="g it" style="grid-column:3;grid-row:21/22"><span class="bx"></span><span class="tx ed" data-k="k4"></span></div>
+<div class="g it" style="grid-column:3;grid-row:22/23"><span class="bx"></span><span class="tx ed" data-k="k5"></span></div>
+<div class="g it" style="grid-column:3;grid-row:23/24"><span class="bx"></span><span class="tx ed" data-k="k6"></span></div>
+<div class="g it" style="grid-column:3;grid-row:24/25"><span class="bx"></span><span class="tx ed" data-k="k7"></span></div>
+<div class="g it" style="grid-column:3;grid-row:25/26"><span class="bx"></span><span class="tx ed" data-k="k8"></span></div>
+<div class="g it" style="grid-column:3;grid-row:26/27"><span class="bx"></span><span class="tx ed" data-k="k9"></span></div>
+<div class="g it" style="grid-column:3;grid-row:27/28"><span class="bx"></span><span class="tx ed" data-k="k10"></span></div>
+<div class="g it" style="grid-column:3;grid-row:28/29"><span class="bx"></span><span class="tx ed" data-k="k11"></span></div>
+<div class="g it" style="grid-column:3;grid-row:29/30"><span class="bx"></span><span class="tx ed" data-k="k12"></span></div>
+<div class="g tt" style="grid-column:3;grid-row:30/31"><span class="">COLETA-JULIÃO</span></div>
+<div class="g it" style="grid-column:3;grid-row:31/32"><span class="bx"></span><span class="tx">GLICOSEPP(GPP)</span></div>
+<div class="g it" style="grid-column:3;grid-row:32/33"><span class="bx"></span><span class="tx ed" data-k="k13"></span></div>
+<div class="g it" style="grid-column:3;grid-row:33/34"><span class="bx"></span><span class="tx ed" data-k="k14"></span></div>
+<div class="g tot" style="grid-column:3;grid-row:34/35"><span class="num" data-k="k15"></span><span class="tt2">TOTAL DE EXAMES</span></div>
+<div class="g it" style="grid-column:5;grid-row:2/3"><span class="bx"></span><span class="tx">(VDRL)</span></div>
+<div class="g it" style="grid-column:5;grid-row:3/4"><span class="bx"></span><span class="tx">(HIV)</span></div>
+<div class="g it" style="grid-column:5;grid-row:4/5"><span class="bx"></span><span class="tx">(HTLV)</span></div>
+<div class="g it" style="grid-column:5;grid-row:5/6"><span class="bx"></span><span class="tx">HAV IgM(HAVM)</span></div>
+<div class="g it" style="grid-column:5;grid-row:6/7"><span class="bx"></span><span class="tx">HAV IgG(HAVG)</span></div>
+<div class="g it" style="grid-column:5;grid-row:7/8"><span class="bx"></span><span class="tx">(HCV)</span></div>
+<div class="g it" style="grid-column:5;grid-row:8/9"><span class="bx"></span><span class="tx">(HBSAG)</span></div>
+<div class="g it" style="grid-column:5;grid-row:9/10"><span class="bx"></span><span class="tx">A-HBS(AHBS)</span></div>
+<div class="g it" style="grid-column:5;grid-row:10/11"><span class="bx"></span><span class="tx">AHBC TOT(AHBCT)</span></div>
+<div class="g it" style="grid-column:5;grid-row:11/12"><span class="bx"></span><span class="tx">AHBCIgM(HBCM)</span></div>
+<div class="g it" style="grid-column:5;grid-row:12/13"><span class="bx"></span><span class="tx">(HBE)</span></div>
+<div class="g it" style="grid-column:5;grid-row:13/14"><span class="bx"></span><span class="tx">A-HBE(AHBE)</span></div>
+<div class="g it" style="grid-column:5;grid-row:14/15"><span class="bx"></span><span class="tx">DENGUE(DENM)</span></div>
+<div class="g it" style="grid-column:5;grid-row:15/16"><span class="bx"></span><span class="tx">TREPONEMA(SIFTP)</span></div>
+<div class="g it" style="grid-column:5;grid-row:16/17"><span class="bx"></span><span class="tx ed" data-k="k16"></span></div>
+<div class="g it" style="grid-column:5;grid-row:17/18"><span class="bx"></span><span class="tx ed" data-k="k17"></span></div>
+<div class="g tt" style="grid-column:5;grid-row:18/19"><span class="">1º TUBO ROXO</span></div>
+<div class="g it" style="grid-column:5;grid-row:19/20"><span class="bx"></span><span class="tx">HEMOG.(HGCOM)</span></div>
+<div class="g it" style="grid-column:5;grid-row:20/21"><span class="bx"></span><span class="tx">VAR.HB(ELETRO)</span></div>
+<div class="g it" style="grid-column:5;grid-row:21/22"><span class="bx"></span><span class="tx">G6PD</span></div>
+<div class="g it" style="grid-column:5;grid-row:22/23"><span class="bx"></span><span class="tx ed" data-k="k18"></span></div>
+<div class="g it" style="grid-column:5;grid-row:23/24"><span class="bx"></span><span class="tx ed" data-k="k19"></span></div>
+<div class="g tt" style="grid-column:5;grid-row:24/25"><span class="">2º TUBO ROXO</span></div>
+<div class="g it" style="grid-column:5;grid-row:25/26"><span class="bx"></span><span class="tx">COOMBS DIRETO</span></div>
+<div class="g it" style="grid-column:5;grid-row:26/27"><span class="bx"></span><span class="tx">COOMBS INDIRETO</span></div>
+<div class="g it" style="grid-column:5;grid-row:27/28"><span class="bx"></span><span class="tx">ABORH(GSAFRH)</span></div>
+<div class="g tt" style="grid-column:5;grid-row:28/29"><span class="">TUBO PRETO</span></div>
+<div class="g it" style="grid-column:5;grid-row:29/30"><span class="bx"></span><span class="tx">VSH</span></div>
+<div class="g tt" style="grid-column:5;grid-row:30/31"><span class="">COAGULOGRAMA-JULIÃO</span></div>
+<div class="g it" style="grid-column:5;grid-row:31/32"><span class="bx"></span><span class="tx">TPAE</span></div>
+<div class="g it" style="grid-column:5;grid-row:32/33"><span class="bx"></span><span class="tx">TTPA</span></div>
+<div class="g it" style="grid-column:5;grid-row:33/34"><span class="bx"></span><span class="tx">TS/TC</span></div>
+<div class="g tot" style="grid-column:5;grid-row:34/35"><span class="num" data-k="k20"></span><span class="tt2">TOTAL DE EXAMES</span></div>
+<div class="g vt" style="grid-column:4;grid-row:1/18"><i style="margin-top:calc(var(--rh)*3)">S</i><i>O</i><i>R</i><i>O</i><i>L</i><i>O</i><i>G</i><i>I</i><i>A</i></div>
+<div class="g vt" style="grid-column:4;grid-row:18/30"><i style="margin-top:calc(var(--rh)*1)">H</i><i>E</i><i>M</i><i>A</i><i>T</i><i>O</i><i>L</i><i>O</i><i>G</i><i>I</i><i>A</i></div>
+<div class="g" style="grid-column:4;grid-row:30/35"></div>
+<div class="g it alt" style="grid-column:7;grid-row:2/3"><span class="tx">ALTURA:</span><span class="tx ed grow" data-k="k21"></span></div>
+<div class="g" style="grid-column:7;grid-row:3/4"></div>
+<div class="g it" style="grid-column:7;grid-row:4/5"><span class="bx"></span><span class="tx">UROCUL(CUC)</span></div>
+<div class="g it" style="grid-column:7;grid-row:5/6"><span class="bx"></span><span class="tx">S. URINA(SM)</span></div>
+<div class="g it" style="grid-column:7;grid-row:6/7"><span class="bx"></span><span class="tx">FEZES 1(PF1)</span></div>
+<div class="g it" style="grid-column:7;grid-row:7/8"><span class="bx"></span><span class="tx">FEZES 2(PF2)</span></div>
+<div class="g it" style="grid-column:7;grid-row:8/9"><span class="bx"></span><span class="tx">FEZES 3(PF3)</span></div>
+<div class="g it" style="grid-column:7;grid-row:9/10"><span class="bx"></span><span class="tx ed" data-k="k22"></span></div>
+<div class="g it" style="grid-column:7;grid-row:10/11"><span class="bx"></span><span class="tx ed" data-k="k23"></span></div>
+<div class="g it" style="grid-column:7;grid-row:11/12"><span class="bx"></span><span class="tx ed" data-k="k24"></span></div>
+<div class="g it" style="grid-column:7;grid-row:12/13"><span class="bx"></span><span class="tx ed" data-k="k25"></span></div>
+<div class="g it" style="grid-column:7;grid-row:13/14"><span class="bx"></span><span class="tx ed" data-k="k26"></span></div>
+<div class="g it" style="grid-column:7;grid-row:14/15"><span class="bx"></span><span class="tx ed" data-k="k27"></span></div>
+<div class="g it" style="grid-column:7;grid-row:15/16"><span class="bx"></span><span class="tx ed" data-k="k28"></span></div>
+<div class="g it" style="grid-column:7;grid-row:16/17"><span class="bx"></span><span class="tx ed" data-k="k29"></span></div>
+<div class="g it" style="grid-column:7;grid-row:17/18"><span class="bx"></span><span class="tx ed" data-k="k30"></span></div>
+<div class="g it" style="grid-column:7;grid-row:18/19"><span class="bx"></span><span class="tx ed" data-k="k31"></span></div>
+<div class="g it" style="grid-column:7;grid-row:19/20"><span class="bx"></span><span class="tx ed" data-k="k32"></span></div>
+<div class="g it" style="grid-column:7;grid-row:20/21"><span class="bx"></span><span class="tx ed" data-k="k33"></span></div>
+<div class="g it" style="grid-column:7;grid-row:21/22"><span class="bx"></span><span class="tx ed" data-k="k34"></span></div>
+<div class="g it" style="grid-column:7;grid-row:22/23"><span class="bx"></span><span class="tx ed" data-k="k35"></span></div>
+<div class="g it" style="grid-column:7;grid-row:23/24"><span class="bx"></span><span class="tx ed" data-k="k36"></span></div>
+<div class="g it" style="grid-column:7;grid-row:24/25"><span class="bx"></span><span class="tx ed" data-k="k37"></span></div>
+<div class="g it" style="grid-column:7;grid-row:25/26"><span class="bx"></span><span class="tx ed" data-k="k38"></span></div>
+<div class="g it" style="grid-column:7;grid-row:26/27"><span class="bx"></span><span class="tx ed" data-k="k39"></span></div>
+<div class="g it" style="grid-column:7;grid-row:27/28"><span class="bx"></span><span class="tx ed" data-k="k40"></span></div>
+<div class="g tot" style="grid-column:7;grid-row:28/29"><span class="num" data-k="k41"></span><span class="tt2">TOTAL DE EXAMES</span></div>
+<div class="g sol" style="grid-column:7;grid-row:29/35"><span class="lab">SOLICITANTE:</span><div class="ed ml" data-k="k42" data-ml="1"></div></div>
+<div class="g" style="grid-column:6;grid-row:1/4"></div>
+<div class="g vt" style="grid-column:6;grid-row:4/9"><i style="margin-top:calc(var(--rh)*0)">M</i><i>I</i><i>C</i><i>R</i><i>O</i></div>
+<div class="g vt" style="grid-column:6;grid-row:9/28"><i style="margin-top:calc(var(--rh)*4)">O</i><i>U</i><i>T</i><i>R</i><i>O</i><i>S</i></div>
+<div class="g" style="grid-column:6;grid-row:28/35"></div>
+  </div>
+</div>
+</div>
+<script>
+(function(){
+  var EMIT_KEY='usf_form_emitente_v1';
+  function plain(e){ e.preventDefault(); var t=(e.clipboardData||window.clipboardData).getData('text'); document.execCommand('insertText',false,t); }
+  function noEnter(e){ if(e.key==='Enter') e.preventDefault(); }
+  document.querySelectorAll('[data-k]').forEach(function(el){
+    el.contentEditable='true'; el.spellcheck=false;
+    el.addEventListener('paste',plain);
+    if(el.dataset.ml!=='1') el.addEventListener('keydown',noEnter);
+  });
+
+  function atualizarTotaisExames(){
+    var cols={ '1':'k2', '3':'k15', '5':'k20', '7':'k41' };
+    Object.keys(cols).forEach(function(col){
+      var count=0;
+      document.querySelectorAll('.grid .g.it').forEach(function(cell){
+        var st=cell.getAttribute('style')||'';
+        var m=st.match(/grid-column\s*:\s*(\d+)/);
+        if(m && m[1]===col && cell.querySelector('.bx.on')) count++;
+      });
+      var alvo=document.querySelector('[data-k="'+cols[col]+'"]');
+      if(alvo) alvo.textContent=count>0?String(count):'';
+    });
+  }
+
+  document.querySelectorAll('.chk,.bx,.par').forEach(function(b){
+    b.addEventListener('click',function(){
+      b.classList.toggle('on');
+      if(b.classList.contains('bx')) atualizarTotaisExames();
+    });
+  });
+
+  function setK(k,v){
+    var el=document.querySelector('[data-k="'+k+'"]');
+    if(el) el.textContent=v||'';
+  }
+
+  function dataHojeRecife(){
+    try{
+      var p=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Recife',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date()).split('/');
+      return {dd:p[0]||'',mm:p[1]||'',aa:p[2]||''};
+    }catch(_){
+      var d=new Date();
+      return {
+        dd:String(d.getDate()).padStart(2,'0'),
+        mm:String(d.getMonth()+1).padStart(2,'0'),
+        aa:String(d.getFullYear())
+      };
+    }
+  }
+
+  function splitData(str){
+    var s=String(str||'').trim();
+    var m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(m) return [m[1],m[2],m[3]];
+    var iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(iso) return [iso[3],iso[2],iso[1]];
+    return ['','',''];
+  }
+
+  function lerEmitenteSalvo(){
+    try{ return JSON.parse(localStorage.getItem(EMIT_KEY)||'{}')||{}; }catch(_){ return {}; }
+  }
+
+  window.deixarEmBranco=function(skipConfirm){
+    if(!skipConfirm && !confirm('Deixar todo o formulário em branco?')) return;
+    document.querySelectorAll('[data-k]').forEach(function(el){ el.textContent=''; });
+    document.querySelectorAll('.on').forEach(function(el){ el.classList.remove('on'); });
+  };
+
+  window.limpar=function(){
+    window.deixarEmBranco(false);
+  };
+
+  window.salvarEmitente=function(){
+    var solEl=document.querySelector('[data-k="k42"]');
+    var atual=lerEmitenteSalvo();
+    atual.solicitante_lab=solEl?solEl.innerText.trim():'';
+    try{ localStorage.setItem(EMIT_KEY, JSON.stringify(atual)); }catch(_){}
+    if(window.parent && window.parent!==window){
+      window.parent.postMessage({type:'FORM_TOAST',msg:'💾 Solicitante salvo neste computador!'}, window.location.origin);
+    }
+  };
+
+  window.aplicarDados=function(d){
+    window.deixarEmBranco(true);
+    if(!d || d.modo==='branco') return;
+    var saved=lerEmitenteSalvo();
+    var hoje=dataHojeRecife();
+    var dn=splitData(d.paciente_dn||'');
+
+    setK('unidade', d.unidade||'US 177 USF CHICO MENDES');
+    setK('dc1', d.data_dd||hoje.dd);
+    setK('dc2', d.data_mm||hoje.mm);
+    setK('dc3', d.data_aa||hoje.aa);
+    setK('paciente', d.paciente_nome||'');
+    setK('n1', dn[0]);
+    setK('n2', dn[1]);
+    setK('n3', dn[2]);
+    setK('sus', d.paciente_cns||'');
+    setK('fone', d.paciente_telefone||'');
+    setK('k42', saved.solicitante_lab||saved.ass||d.profissional||'');
+
+    var sx=String(d.paciente_sexo||'').trim().toUpperCase();
+    if(sx==='M' || sx==='F'){
+      var sexCell=Array.prototype.find.call(document.querySelectorAll('.row .c'), function(c){
+        return (c.textContent||'').indexOf('SEXO:')===0;
+      });
+      if(sexCell){
+        var chks=sexCell.querySelectorAll('.chk');
+        if(chks[0]) chks[0].classList.toggle('on', sx==='M');
+        if(chks[1]) chks[1].classList.toggle('on', sx==='F');
+      }
+    }
+  };
+
+  window.addEventListener('message',function(e){
+    if(e.origin!==window.location.origin || !e.data || typeof e.data!=='object') return;
+    if(e.data.type==='FORM_PREENCHER') window.aplicarDados(e.data.payload||{});
+    else if(e.data.type==='FORM_BRANCO') window.deixarEmBranco(true);
+    else if(e.data.type==='FORM_SALVAR_EMITENTE') window.salvarEmitente();
+    else if(e.data.type==='FORM_IMPRIMIR'){ window.focus(); window.print(); }
+  });
+
+  if(window.parent && window.parent!==window){
+    window.parent.postMessage({type:'FORM_PRONTO',form:'exames-laboratoriais'}, window.location.origin);
+  }
+})();
+</script>
+</body>
+</html>

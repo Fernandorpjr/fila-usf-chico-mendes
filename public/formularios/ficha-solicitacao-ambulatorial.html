@@ -298,7 +298,8 @@
   window.aplicarDados=function(d){
     window.deixarEmBranco(true);
     if(!d || d.modo==='branco') return;
-    setFieldByLabel('Nome da Unidade Solicitante:', d.unidade||'0177 USF Chico Mendes');
+    setFieldByLabel('CNES:', d.cnes||'0000965');
+    setFieldByLabel('Nome da Unidade Solicitante:', d.unidade||'US 177 USF CHICO MENDES');
     setFieldByLabel('Município:', 'Recife');
     setFieldByLabel('UF:', 'PE');
     setFieldByLabel('Número do Cartão Nacional de Saúde - CNS:', d.paciente_cns||'');

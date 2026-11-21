@@ -2067,7 +2067,7 @@
     .previa-zoom-pill { background: #e2e8f0; color: #0f172a; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; }
     .previa-pan-hint { font-size: 11px; color: #64748b; font-weight: 700; margin-left: auto; }
     .vp-forms-box { background: linear-gradient(135deg, #f0f9ff, #eff6ff); border: 1.5px solid #93c5fd; border-radius: 12px; padding: 10px 12px; }
-    .vp-forms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+    .vp-forms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; margin-top: 8px; }
     .btn-form-transfer { padding: 9px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.15s; text-align: center; }
     .btn-form-transfer:hover { border-color: #2563eb; background: #dbeafe; color: #1e40af; transform: translateY(-1px); }
     .btn-form-transfer.destaque { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; border-color: #1e40af; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28); }
@@ -2292,6 +2292,9 @@
             </button>
             <button type="button" id="btn-modo-escuta-recepcao" class="btn-toggle-escuta1" onclick="definirModoEscutaRecepcao(true)">
               💜 Com 1ª Escuta (Acolhimento)
+            </button>
+            <button type="button" class="pec-form-btn" style="padding:7px 11px;" onclick="abrirDeclaracaoResidenciaRecepcao(false)" title="Imprimir Declaração de Residência (ACS)">
+              🏠 Decl. Residência (ACS)
             </button>
           </div>
         </div>
@@ -4474,7 +4477,9 @@
             <div class="vp-forms-grid">
               <button type="button" id="vp-btn-form-rec" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('receituario')">📄 Receituário</button>
               <button type="button" id="vp-btn-form-esp" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('controle-especial')">🔵 Controle Especial</button>
+              <button type="button" id="vp-btn-form-lab" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('exames-laboratoriais')">🧪 Exames Lab.</button>
               <button type="button" id="vp-btn-form-amb" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('ficha-ambulatorial')">📋 Ficha Ambulatorial</button>
+              <button type="button" id="vp-btn-form-cito" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('citopatologico')">🔬 Citopatológico</button>
             </div>
           </div>
 
@@ -4499,7 +4504,10 @@
       <div class="fo-tabs">
         <button type="button" id="fo-tab-receituario" class="fo-tab-btn" onclick="trocarTipoFormularioModal('receituario')">📄 Receituário</button>
         <button type="button" id="fo-tab-controle-especial" class="fo-tab-btn" onclick="trocarTipoFormularioModal('controle-especial')">🔵 Controle Especial</button>
+        <button type="button" id="fo-tab-exames-laboratoriais" class="fo-tab-btn" onclick="trocarTipoFormularioModal('exames-laboratoriais')">🧪 Exames Lab.</button>
         <button type="button" id="fo-tab-ficha-ambulatorial" class="fo-tab-btn" onclick="trocarTipoFormularioModal('ficha-ambulatorial')">📋 Ficha Ambulatorial</button>
+        <button type="button" id="fo-tab-citopatologico" class="fo-tab-btn" onclick="trocarTipoFormularioModal('citopatologico')">🔬 Citopatológico</button>
+        <button type="button" id="fo-tab-declaracao-residencia" class="fo-tab-btn" onclick="trocarTipoFormularioModal('declaracao-residencia')">🏠 Decl. Residência</button>
       </div>
       <div class="fo-actions">
         <button type="button" class="btn btn-primary btn-sm" style="background:#16a34a;border-color:#15803d;font-weight:800;" onclick="imprimirFormularioOficial()">🖨️ Imprimir</button>
@@ -4557,8 +4565,8 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.9"></script>
-<script src="receitas-previa.js?v=1.2"></script>
-<script src="formularios-pec.js?v=1.1"></script>
-<script src="app.js?v=7.1"></script>
+<script src="receitas-previa.js?v=1.3"></script>
+<script src="formularios-pec.js?v=1.2"></script>
+<script src="app.js?v=7.2"></script>
 </body>
 </html>

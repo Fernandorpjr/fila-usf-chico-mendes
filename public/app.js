@@ -647,14 +647,7 @@ function initSectorScreens() {
         ${odontoRegraBanner}
         ${filterHTML}
         ${profHTML}
-        ${['Médico', 'Enfermagem', 'Odontologia'].includes(setor) ? `
-          <div class="pec-forms-bar">
-            <span class="pec-forms-title">🖨️ Formulários (PEC Offline):</span>
-            <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','receituario',false)">📄 Receituário</button>
-            <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','controle-especial',false)">🔵 Controle Especial</button>
-            <button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','ficha-ambulatorial',false)">📋 Ficha Ambulatorial</button>
-            <button type="button" class="pec-form-btn branco" onclick="abrirFormularioAvulsoSetor('${setor}','receituario',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
-          </div>` : ''}
+        ${typeof renderBarraFormulariosSetor === 'function' ? renderBarraFormulariosSetor(setor) : ''}
         <div class="btn-group" style="margin-bottom:20px;">
           <button class="btn ${cfg.btnClass} btn-3d" onclick="callNext('${setor}', this)" style="flex:1;">📢 Chamar Próximo</button>
           ${(setor === 'Farmácia' || setor === 'Regulação') ? `<button class="btn ${cfg.btnClass} btn-3d" onclick="callNextMulti('${setor}', this)" style="flex:1;">📢 Chamar 3 Próximos (Multi)</button>` : ''}
@@ -6791,6 +6784,11 @@ function initAcsEscutaScreen() {
         <div class="acs-stat-val" id="acs-stat-em-atendimento" style="color:#4aab3c;">0</div>
         <div class="acs-stat-lbl" style="color:rgba(255,255,255,0.7);">Em<br>Atendimento</div>
       </div>
+    </div>
+    <div class="pec-forms-bar" style="margin-bottom:14px;">
+      <span class="pec-forms-title">🖨️ Formulário do ACS:</span>
+      <button type="button" class="pec-form-btn" onclick="abrirDeclaracaoResidenciaAcs('', false)">🏠 Declaração de Residência</button>
+      <button type="button" class="pec-form-btn branco" onclick="abrirDeclaracaoResidenciaAcs('', true)">📃 Em Branco</button>
     </div>
     <div class="acs-grid" id="acs-grid-container"></div>
   `;

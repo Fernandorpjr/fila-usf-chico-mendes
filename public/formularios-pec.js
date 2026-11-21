@@ -1,25 +1,67 @@
 // Módulo Frontend — Formulários SUS/Recife (PEC Offline & Renovação de Receita)
-const SETORES_FORMULARIOS_PEC = ['Médico', 'Enfermagem', 'Odontologia'];
+const UNIDADE_PADRAO_USF = 'US 177 USF CHICO MENDES';
+const CNES_PADRAO_USF = '0000965';
+const SETORES_FORMULARIOS_PEC = ['Médico', 'Enfermagem', 'Odontologia', 'ACS', 'Recepção'];
+const SETORES_CLINICOS_FILA = ['Médico', 'Enfermagem', 'Odontologia'];
 
 const FORMULARIOS_PEC_REG = {
   'receituario': {
     url: '/formularios/receituario.html',
-    titulo: '📄 Receituário (2 vias espelhadas)'
+    titulo: '📄 Receituário (2 vias espelhadas)',
+    shortLabel: '📄 Receituário',
+    icon: '📄'
   },
   'controle-especial': {
     url: '/formularios/receituario-controle-especial.html',
-    titulo: '🔵 Receituário de Controle Especial (2 vias espelhadas)'
+    titulo: '🔵 Receituário de Controle Especial (2 vias espelhadas)',
+    shortLabel: '🔵 Controle Especial',
+    icon: '🔵'
+  },
+  'exames-laboratoriais': {
+    url: '/formularios/receituario-exames-laboratoriais.html',
+    titulo: '🧪 Receituário para Exames Laboratoriais',
+    shortLabel: '🧪 Exames Lab.',
+    icon: '🧪'
   },
   'ficha-ambulatorial': {
     url: '/formularios/ficha-solicitacao-ambulatorial.html',
-    titulo: '📋 Ficha de Solicitação Ambulatorial'
+    titulo: '📋 Ficha de Solicitação Ambulatorial',
+    shortLabel: '📋 Ficha Ambulatorial',
+    icon: '📋'
+  },
+  'citopatologico': {
+    url: '/formularios/requisicao-exame-citopatologico.html',
+    titulo: '🔬 Requisição de Exame Citopatológico',
+    shortLabel: '🔬 Citopatológico',
+    icon: '🔬'
+  },
+  'declaracao-residencia': {
+    url: '/formularios/declaracao-residencia.html',
+    titulo: '🏠 Declaração de Residência (ACS)',
+    shortLabel: '🏠 Decl. Residência',
+    icon: '🏠'
   }
+};
+
+const FORMULARIOS_POR_SETOR = {
+  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'citopatologico'],
+  'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial', 'controle-especial'],
+  'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'exames-laboratoriais'],
+  'ACS': ['declaracao-residencia'],
+  'Recepção': ['declaracao-residencia']
+};
+
+const FORMULARIOS_LINHA_FILA = {
+  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial'],
+  'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial'],
+  'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'exames-laboratoriais']
 };
 
 let _foEstadoAtual = {
   tipo: 'receituario',
   modo: 'preencher',
   setor: 'Médico',
+  acsNome: '',
   paciente: null,
   previa: null,
   anexos: [],
@@ -104,7 +146,7 @@ function montarJustificativaClinica(paciente, extraJustificativa) {
   return partes.join('\n');
 }
 
-function montarPayloadFormulario({ modo, setor, paciente, previa, anexoAtivo, tipoForm }) {
+function montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexoAtivo, tipoForm }) {
   const hoje = obterDataHojeRecife();
   const ext = previa?.dados_extras && typeof previa.dados_extras === 'object' ? previa.dados_extras : {};
   const ocrAtivo = anexoAtivo?.ocr && typeof anexoAtivo.ocr === 'object' ? anexoAtivo.ocr : null;
@@ -124,13 +166,16 @@ function montarPayloadFormulario({ modo, setor, paciente, previa, anexoAtivo, ti
 
   return {
     modo: modo === 'branco' ? 'branco' : 'preencher',
-    unidade: '0177 USF Chico Mendes',
+    cnes: CNES_PADRAO_USF,
+    unidade: UNIDADE_PADRAO_USF,
     profissional: obterProfissionalSelecionadoSetor(setor, paciente),
+    acs_nome: acsNome || paciente?.acs_responsavel || '',
     data_dd: hoje.dd,
     data_mm: hoje.mm,
     data_aa: hoje.aa,
     data_br: hoje.data_br,
     paciente_nome: previa?.paciente_nome_ocr || paciente?.nome || '',
+    paciente_idade: paciente?.idade !== undefined && paciente?.idade !== null ? String(paciente.idade) : '',
     paciente_cns: previa?.paciente_cns || '',
     paciente_endereco: ext.paciente_endereco || '',
     paciente_dn: ext.paciente_data_nascimento || '',
@@ -227,9 +272,14 @@ function atualizarUITopoModalFormulario() {
     sub.textContent = `${_foEstadoAtual.setor} · ${modoTxt}`;
   }
 
+  const permitidos = FORMULARIOS_POR_SETOR[_foEstadoAtual.setor] || FORMULARIOS_POR_SETOR['Médico'];
   Object.keys(FORMULARIOS_PEC_REG).forEach(k => {
     const btn = document.getElementById(`fo-tab-${k}`);
-    if (btn) btn.classList.toggle('active', k === _foEstadoAtual.tipo);
+    if (btn) {
+      const visivel = permitidos.includes(k) || k === _foEstadoAtual.tipo;
+      btn.style.display = visivel ? 'inline-flex' : 'none';
+      btn.classList.toggle('active', k === _foEstadoAtual.tipo);
+    }
   });
 
   const btnPreencher = document.getElementById('fo-btn-preencher');
@@ -254,12 +304,9 @@ function enviarPayloadAoIframe() {
 }
 
 function abrirFormularioOficial(tipoForm, contexto = {}) {
-  const tipo = FORMULARIOS_PEC_REG[tipoForm] ? tipoForm : 'receituario';
-  const setor = contexto.setor || 'Médico';
-  if (!SETORES_FORMULARIOS_PEC.includes(setor)) {
-    if (typeof showToast === 'function') showToast('Formulários disponíveis apenas para Médico, Enfermagem e Odontologia.', true);
-    return;
-  }
+  const setor = SETORES_FORMULARIOS_PEC.includes(contexto.setor) ? contexto.setor : 'Médico';
+  const permitidos = FORMULARIOS_POR_SETOR[setor] || FORMULARIOS_POR_SETOR['Médico'];
+  const tipo = FORMULARIOS_PEC_REG[tipoForm] ? tipoForm : permitidos[0];
 
   const modo = contexto.modo === 'branco' ? 'branco' : 'preencher';
   const paciente = contexto.paciente || null;
@@ -267,16 +314,18 @@ function abrirFormularioOficial(tipoForm, contexto = {}) {
   const anexos = normalizarListaAnexosFormulario(contexto, previa);
   const refIdx = Number.isInteger(contexto.refIdx) && contexto.refIdx >= 0 && contexto.refIdx < anexos.length ? contexto.refIdx : 0;
   const anexoAtivo = anexos[refIdx] || null;
+  const acsNome = contexto.acsNome || '';
 
   _foEstadoAtual = {
     tipo,
     modo,
     setor,
+    acsNome,
     paciente,
     previa,
     anexos,
     refIdx,
-    payload: montarPayloadFormulario({ modo, setor, paciente, previa, anexoAtivo, tipoForm: tipo })
+    payload: montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexoAtivo, tipoForm: tipo })
   };
 
   atualizarUITopoModalFormulario();
@@ -349,11 +398,33 @@ function abrirFormularioAvulsoSetor(setor, tipoForm, emBranco = false) {
   });
 }
 
+function abrirDeclaracaoResidenciaAcs(acsNome = '', emBranco = false) {
+  abrirFormularioOficial('declaracao-residencia', {
+    modo: emBranco ? 'branco' : 'preencher',
+    setor: 'ACS',
+    acsNome: acsNome || '',
+    paciente: null,
+    previa: null
+  });
+}
+
+function abrirDeclaracaoResidenciaRecepcao(emBranco = false) {
+  const nomePac = document.getElementById('input-nome')?.value.trim() || '';
+  const previaPendente = window._previaReceitaPendente || null;
+  abrirFormularioOficial('declaracao-residencia', {
+    modo: emBranco ? 'branco' : 'preencher',
+    setor: 'Recepção',
+    paciente: nomePac ? { nome: nomePac } : null,
+    previa: previaPendente
+  });
+}
+
 function trocarTipoFormularioModal(tipoForm) {
   if (!FORMULARIOS_PEC_REG[tipoForm]) return;
   abrirFormularioOficial(tipoForm, {
     modo: _foEstadoAtual.modo,
     setor: _foEstadoAtual.setor,
+    acsNome: _foEstadoAtual.acsNome,
     paciente: _foEstadoAtual.paciente,
     previa: _foEstadoAtual.previa,
     anexos: _foEstadoAtual.anexos,
@@ -392,6 +463,7 @@ function reaplicarDadosFormularioModal() {
   _foEstadoAtual.payload = montarPayloadFormulario({
     modo: 'preencher',
     setor: _foEstadoAtual.setor,
+    acsNome: _foEstadoAtual.acsNome,
     paciente: _foEstadoAtual.paciente,
     previa: _foEstadoAtual.previa,
     anexoAtivo,
@@ -472,7 +544,30 @@ window.addEventListener('message', (e) => {
   }
 });
 
+function renderBarraFormulariosSetor(setor) {
+  if (!SETORES_CLINICOS_FILA.includes(setor)) return '';
+  const lista = FORMULARIOS_POR_SETOR[setor] || [];
+  const botoes = lista.map(k => {
+    const f = FORMULARIOS_PEC_REG[k];
+    if (!f) return '';
+    return `<button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','${k}',false)">${f.shortLabel}</button>`;
+  }).join('');
+  const primeiro = lista[0] || 'receituario';
+  return `<div class="pec-forms-bar">
+    <span class="pec-forms-title">🖨️ Formulários (PEC Offline):</span>
+    ${botoes}
+    <button type="button" class="pec-form-btn branco" onclick="abrirFormularioAvulsoSetor('${setor}','${primeiro}',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
+  </div>`;
+}
+
 function renderBotoesFormulariosLinha(p, setor) {
-  if (!SETORES_FORMULARIOS_PEC.includes(setor) || !p?.id) return '';
-  return `<span class="fila-forms-mini" onclick="event.stopPropagation()" title="Formulários (PEC Offline)"><button class="btn-fila-form" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','receituario')" title="Receituário (2 vias)">📄</button><button class="btn-fila-form btn-fila-form-esp" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','controle-especial')" title="Receituário de Controle Especial (2 vias)">🔵</button><button class="btn-fila-form btn-fila-form-amb" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','ficha-ambulatorial')" title="Ficha de Solicitação Ambulatorial">📋</button></span>`;
+  if (!SETORES_CLINICOS_FILA.includes(setor) || !p?.id) return '';
+  const lista = FORMULARIOS_LINHA_FILA[setor] || [];
+  const botoes = lista.map(k => {
+    const f = FORMULARIOS_PEC_REG[k];
+    if (!f) return '';
+    const extraCls = k === 'controle-especial' ? ' btn-fila-form-esp' : (k === 'ficha-ambulatorial' ? ' btn-fila-form-amb' : '');
+    return `<button class="btn-fila-form${extraCls}" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','${k}')" title="${f.titulo}">${f.icon}</button>`;
+  }).join('');
+  return `<span class="fila-forms-mini" onclick="event.stopPropagation()" title="Formulários (PEC Offline)">${botoes}</span>`;
 }

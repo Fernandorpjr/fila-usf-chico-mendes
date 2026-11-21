@@ -587,16 +587,24 @@ function renderFotoAtivaPreviaModal() {
   }
 
   const catAtiva = ativo ? normalizarCategoriaAnexoFront(ativo.categoria) : null;
+  const setorAtual = window._previaModalDadosAtuais?.setor || '';
   const btnRec = document.getElementById('vp-btn-form-rec');
   const btnEsp = document.getElementById('vp-btn-form-esp');
   const btnAmb = document.getElementById('vp-btn-form-amb');
+  const btnLab = document.getElementById('vp-btn-form-lab');
+  const btnCito = document.getElementById('vp-btn-form-cito');
+  if (btnCito) {
+    btnCito.style.display = setorAtual === 'Odontologia' ? 'none' : 'inline-flex';
+  }
   if (btnRec && btnEsp && btnAmb) {
     const tipoGeral = window._previaModalDadosAtuais?.previa?.tipo_receita;
-    const isEnc = catAtiva === 'encaminhamento' || catAtiva === 'exame';
+    const isExm = catAtiva === 'exame';
+    const isEnc = catAtiva === 'encaminhamento';
     const isAzul = catAtiva === 'receita_azul' || (!catAtiva && tipoGeral === 'azul');
+    if (btnLab) btnLab.classList.toggle('destaque', isExm);
     btnAmb.classList.toggle('destaque', isEnc);
-    btnEsp.classList.toggle('destaque', !isEnc && isAzul);
-    btnRec.classList.toggle('destaque', !isEnc && !isAzul);
+    btnEsp.classList.toggle('destaque', !isExm && !isEnc && isAzul);
+    btnRec.classList.toggle('destaque', !isExm && !isEnc && !isAzul);
   }
 
   if (window._previaModalDadosAtuais) {
