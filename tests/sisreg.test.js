@@ -155,6 +155,42 @@ test('buscarProcedimentosSisreg matches medical abbreviations, ignores hyphenati
 
   const cardioRetorno = buscarProcedimentosSisreg(procs, 'cardio', { idade: 40, tipoVaga: 'retorno', limite: 5 });
   assert.ok(cardioRetorno[0].name.includes('RETORNO'), 'retorno flag should rank RETORNO first');
+
+  // Garantir que atalhos e siglas criticas nunca trazem falso-positivos
+  const mapaRes = buscarProcedimentosSisreg(procs, 'MAPA', { limite: 20 });
+  assert.equal(mapaRes.length, 1, 'MAPA deve retornar apenas o exame MAPA');
+  assert.equal(mapaRes[0].code, '0211020052');
+
+  const tcRes = buscarProcedimentosSisreg(procs, 'TC', { limite: 10 });
+  assert.equal(tcRes.length, 0, 'TC nao deve puxar Tempo de Coagulacao de laboratorio');
+
+  const tomoRes = buscarProcedimentosSisreg(procs, 'TOMOGRAFIA', { limite: 10 });
+  assert.equal(tomoRes.length, 0);
+
+  const coagRes = buscarProcedimentosSisreg(procs, 'coagulograma', { limite: 10 });
+  assert.ok(coagRes.some(p => p.code === '0202020070'));
+
+  const ecoExact = buscarProcedimentosSisreg(procs, 'ECO', { limite: 20 });
+  assert.ok(ecoExact.length >= 3 && ecoExact.every(p => /ECOCARDIOGRAFIA/i.test(p.name)));
+
+  const edaExact = buscarProcedimentosSisreg(procs, 'EDA', { limite: 20 });
+  assert.ok(edaExact.length >= 1 && edaExact.every(p => /ENDOSCOPIA DIGESTIVA ALTA|ESOFAGOGASTRODUODENOSCOPIA/i.test(p.name)));
+
+  const beraExact = buscarProcedimentosSisreg(procs, 'BERA', { limite: 20 });
+  assert.ok(beraExact.length >= 2 && beraExact.every(p => !/INFANTO-PUBERAL/i.test(p.name)));
+
+  const espiroExact = buscarProcedimentosSisreg(procs, 'ESPIRO', { limite: 20 });
+  assert.equal(espiroExact.length, 1);
+  assert.equal(espiroExact[0].code, '0211080055');
+
+  const uroExact = buscarProcedimentosSisreg(procs, 'URO', { limite: 50 });
+  assert.ok(uroExact.length >= 1 && uroExact.every(p => !/NEUROLOGIA/i.test(p.name)));
+
+  const atalhosValidos = ['USG', 'ECO', 'RADIOGRAFIA', 'MAMOGRAFIA', 'OFTALMO', 'CARDIO', 'ORTO', 'GINECO', 'DERMATO', 'EDA', 'COLONO', 'HOLTER', 'MAPA', 'ECG', 'ESPIRO', 'BERA'];
+  atalhosValidos.forEach(t => {
+    const r = buscarProcedimentosSisreg(procs, t, { limite: 5 });
+    assert.ok(r.length >= 1, `atalho ${t} deve retornar ao menos 1 resultado`);
+  });
 });
 
 test('formatarObservacaoSisreg and normalizarResultadoOcrSisreg sanitize properly', () => {

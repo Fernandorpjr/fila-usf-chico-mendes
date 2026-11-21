@@ -2055,11 +2055,18 @@
     .btn-previa-receita.revisada { background: linear-gradient(135deg, #16a34a, #15803d); }
     .previa-modal-backdrop { display: none; position: fixed; inset: 0; z-index: 9995; background: rgba(15, 23, 42, 0.78); align-items: center; justify-content: center; padding: 10px; }
     .previa-modal-backdrop.show { display: flex; }
-    .previa-modal-card { background: #fff; color: #0f172a; border-radius: 16px; width: 100%; max-width: 720px; max-height: 94vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.45); display: flex; flex-direction: column; }
+    .previa-modal-card { background: #fff; color: #0f172a; border-radius: 16px; width: 100%; max-width: 720px; max-height: 94vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.45); display: flex; flex-direction: column; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
     .previa-modal-card.wide { width: 96vw; max-width: 1520px; height: 94vh; max-height: 94vh; overflow: hidden; }
     .previa-modal-head { background: linear-gradient(135deg, #0f2c73, #1a4fc4); color: #fff; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; }
-    .previa-modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; }
-    .previa-split-grid { display: grid; grid-template-columns: 1.48fr 1fr; gap: 16px; align-items: stretch; }
+    .previa-btn-close-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: 1.5px solid #fecaca; border-radius: 9px; padding: 6px 13px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 10px rgba(220,38,38,0.42); transition: all 0.15s; flex-shrink: 0; }
+    .previa-btn-close-red:hover { background: #b91c1c; border-color: #fff; transform: scale(1.04); }
+    .previa-modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
+    .previa-modal-body::-webkit-scrollbar, .previa-modal-card::-webkit-scrollbar, .previa-side-panel::-webkit-scrollbar, .sisreg-table-wrap::-webkit-scrollbar, .sisreg-dev-lista::-webkit-scrollbar { width: 14px; height: 14px; }
+    .previa-modal-body::-webkit-scrollbar-track, .previa-modal-card::-webkit-scrollbar-track, .previa-side-panel::-webkit-scrollbar-track, .sisreg-table-wrap::-webkit-scrollbar-track, .sisreg-dev-lista::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
+    .previa-modal-body::-webkit-scrollbar-thumb, .previa-modal-card::-webkit-scrollbar-thumb, .previa-side-panel::-webkit-scrollbar-thumb, .sisreg-table-wrap::-webkit-scrollbar-thumb, .sisreg-dev-lista::-webkit-scrollbar-thumb { background: #64748b; border-radius: 8px; border: 2px solid #e2e8f0; }
+    .previa-modal-body::-webkit-scrollbar-thumb:hover, .previa-modal-card::-webkit-scrollbar-thumb:hover, .previa-side-panel::-webkit-scrollbar-thumb:hover, .sisreg-table-wrap::-webkit-scrollbar-thumb:hover, .sisreg-dev-lista::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .previa-split-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: stretch; }
+    .previa-side-panel { display: flex; flex-direction: column; gap: 10px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px; max-height: calc(94vh - 102px); overflow-y: auto; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
     .previa-img-stage { background: #0f172a; border-radius: 12px; height: calc(94vh - 155px); min-height: 460px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 10px; position: relative; cursor: grab; touch-action: none; user-select: none; }
     .previa-img-stage.grabbing { cursor: grabbing; }
     .previa-img-stage img { max-width: 96%; max-height: 96%; transition: transform 0.08s ease-out; border-radius: 6px; pointer-events: none; user-select: none; will-change: transform; }
@@ -2067,7 +2074,7 @@
     .previa-zoom-pill { background: #e2e8f0; color: #0f172a; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; }
     .previa-pan-hint { font-size: 11px; color: #64748b; font-weight: 700; margin-left: auto; }
     .vp-forms-box { background: linear-gradient(135deg, #f0f9ff, #eff6ff); border: 1.5px solid #93c5fd; border-radius: 12px; padding: 10px 12px; }
-    .vp-forms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; margin-top: 8px; }
+    .vp-forms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
     .btn-form-transfer { padding: 9px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.15s; text-align: center; }
     .btn-form-transfer:hover { border-color: #2563eb; background: #dbeafe; color: #1e40af; transform: translateY(-1px); }
     .btn-form-transfer.destaque { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; border-color: #1e40af; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28); }
@@ -2104,6 +2111,7 @@
     @media (max-width: 960px) {
       .previa-modal-card.wide { width: 99vw; height: 96vh; }
       .previa-split-grid { grid-template-columns: 1fr; }
+      .previa-side-panel { max-height: none; overflow-y: visible; }
       .previa-img-stage { height: 48vh; min-height: 280px; }
       .vp-forms-grid { grid-template-columns: 1fr; }
       .fo-body-split { flex-direction: column; }
@@ -2587,7 +2595,7 @@
               <div id="recepcao-previa-receita-bar" class="recepcao-previa-bar">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                   <button type="button" id="btn-abrir-previa-recepcao" class="btn-previa-recepcao" onclick="abrirModalCapturaReceita()">📷 Prévia (Foto ou PDF)</button>
-                  <span id="recepcao-previa-subtxt" style="font-size:11.5px;color:#1e3a8a;font-weight:700;">A IA identifica automaticamente se é Receita ou SISREG</span>
+                  <span id="recepcao-previa-subtxt" style="font-size:11.5px;color:#1e3a8a;font-weight:700;">Anexe receita, exame ou encaminhamento (foto ou PDF) para qualquer fila</span>
                 </div>
                 <div id="recepcao-previa-anexada-pill" class="recepcao-previa-anexada">
                   <span id="recepcao-previa-anexada-txt">📄 Prévia anexada</span>
@@ -4426,10 +4434,10 @@
   <div class="previa-modal-card">
     <div class="previa-modal-head">
       <div>
-        <div style="font-weight:900;font-size:15px;">📎 Prévia de Documentos (Foto ou PDF — até 6 arquivos)</div>
-        <div style="font-size:11.5px;opacity:0.85;">Envie fotos ou PDFs (ou cole com Ctrl+V) · A IA identifica se é Receita ou SISREG</div>
+        <div id="pr-modal-titulo" style="font-weight:900;font-size:15px;">📎 Prévia de Documentos (Foto ou PDF — até 6 arquivos)</div>
+        <div style="font-size:11.5px;opacity:0.85;">Envie fotos ou PDFs (ou cole com Ctrl+V) · Preenchimento e classificação automáticos</div>
       </div>
-      <button type="button" onclick="fecharModalCapturaReceita()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+      <button type="button" class="previa-btn-close-red" onclick="fecharModalCapturaReceita()" title="Fechar esta tela (não use o botão Voltar do navegador)">✕ Fechar</button>
     </div>
     <div class="previa-modal-body">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -4490,9 +4498,9 @@
       </div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
-        <button type="button" class="btn btn-primary" style="flex:1;" onclick="confirmarPreviaReceitaRecepcao(false)">✅ Anexar na Fila Atual</button>
-        <button type="button" class="btn" style="flex:1;background:#0f766e;color:#fff;" onclick="confirmarPreviaReceitaRecepcao(true)">🎯 Anexar + Usar Setor Sugerido</button>
-        <button type="button" class="btn btn-ghost" style="color:#475569;border-color:#cbd5e1;" onclick="fecharModalCapturaReceita()">Cancelar</button>
+        <button type="button" id="pr-btn-confirmar" class="btn btn-primary" style="flex:1;" onclick="confirmarPreviaReceitaRecepcao(false)">✅ Anexar na Fila Atual</button>
+        <button type="button" id="pr-btn-confirmar-sugerido" class="btn" style="flex:1;background:#0f766e;color:#fff;" onclick="confirmarPreviaReceitaRecepcao(true)">🎯 Anexar + Usar Setor Sugerido</button>
+        <button type="button" class="previa-btn-close-red" style="padding:10px 16px;" onclick="fecharModalCapturaReceita()">✕ Fechar</button>
       </div>
     </div>
   </div>
@@ -4506,7 +4514,7 @@
         <div id="vp-titulo" style="font-weight:900;font-size:16px;">📄 Prévia da Receita</div>
         <div id="vp-subtitulo" style="font-size:12px;opacity:0.85;">Carregando...</div>
       </div>
-      <button type="button" onclick="fecharModalVerPreviaReceita()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+      <button type="button" class="previa-btn-close-red" onclick="fecharModalVerPreviaReceita()" title="Fechar esta tela (não use o botão Voltar do navegador)">✕ Fechar</button>
     </div>
     <div class="previa-modal-body">
       <div class="previa-split-grid">
@@ -4535,10 +4543,10 @@
           </div>
           <div id="vp-thumbs-strip" class="vp-thumbs-strip"></div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="previa-side-panel">
           <div id="vp-destino-ia-banner" style="display:none;background:#f0fdfa;border:1.5px solid #5eead4;border-radius:10px;padding:9px 12px;font-size:12px;color:#115e59;"></div>
-          <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px;">
-            <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;">Paciente (Receita)</div>
+          <div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:12px;">
+            <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;">Paciente (Documento)</div>
             <div id="vp-nome-pac" style="font-size:15px;font-weight:900;color:#0f172a;margin-top:2px;">—</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1;">
               <div>
@@ -4551,46 +4559,48 @@
 
           <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
-              <span style="font-size:11px;font-weight:800;color:#1e40af;text-transform:uppercase;">💊 Medicamentos Extraídos</span>
+              <span style="font-size:11px;font-weight:800;color:#1e40af;text-transform:uppercase;">💊 Medicamentos / Pedido Extraído</span>
               <button type="button" class="btn btn-outline btn-sm" onclick="copiarTextoPrevia('vp-medicamentos','Medicamentos')">📋 Copiar</button>
             </div>
             <div id="vp-medicamentos" style="font-size:14px;font-weight:800;color:#0f172a;white-space:pre-wrap;line-height:1.45;">—</div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px;">
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
               <div style="color:#64748b;font-weight:700;font-size:11px;">Tipo</div>
               <div id="vp-tipo" style="font-weight:800;color:#0f172a;">—</div>
             </div>
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
               <div style="color:#64748b;font-weight:700;font-size:11px;">Emissão / Vencimento</div>
               <div style="font-weight:800;color:#0f172a;"><span id="vp-emissao">—</span> → <span id="vp-vencimento">—</span></div>
             </div>
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
               <div style="color:#64748b;font-weight:700;font-size:11px;">Emitente Anterior</div>
               <div id="vp-medico" style="font-weight:800;color:#0f172a;">—</div>
             </div>
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
               <div style="color:#64748b;font-weight:700;font-size:11px;">Observações</div>
               <div id="vp-obs" style="font-weight:700;color:#334155;">—</div>
             </div>
           </div>
 
-          <div id="vp-formularios-box" class="vp-forms-box" style="display:none;">
-            <div style="font-size:11.5px;font-weight:900;color:#1e3a8a;text-transform:uppercase;">🖨️ Transferir para Formulário (PEC Offline / Renovação)</div>
+          <div id="vp-formularios-box" class="vp-forms-box">
+            <div style="font-size:11.5px;font-weight:900;color:#1e3a8a;text-transform:uppercase;">🖨️ Transferir para Formulário (PEC Offline / Reimpressão)</div>
             <div class="vp-forms-grid">
               <button type="button" id="vp-btn-form-rec" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('receituario')">📄 Receituário</button>
               <button type="button" id="vp-btn-form-esp" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('controle-especial')">🔵 Controle Especial</button>
               <button type="button" id="vp-btn-form-lab" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('exames-laboratoriais')">🧪 Exames Lab.</button>
               <button type="button" id="vp-btn-form-amb" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('ficha-ambulatorial')">📋 Ficha Ambulatorial</button>
               <button type="button" id="vp-btn-form-cito" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('citopatologico')">🔬 Citopatológico</button>
+              <button type="button" id="vp-btn-form-res" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('declaracao-residencia')">🏠 Decl. Residência</button>
             </div>
           </div>
 
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
-            <button type="button" id="vp-btn-copiloto-sisreg" class="btn btn-sm" style="background:#0f766e;color:#fff;font-weight:800;display:none;" onclick="abrirCopilotoDaPrevia()">🔎 Abrir no Copiloto SISREG</button>
+            <button type="button" id="vp-btn-copiloto-sisreg" class="btn btn-sm" style="background:#0f766e;color:#fff;font-weight:800;display:none;" onclick="abrirCopilotoDaPrevia()">🔎 Consultar SISREG</button>
+            <button type="button" id="vp-btn-editar-anexos" class="btn btn-outline btn-sm" style="font-weight:800;" onclick="editarPreviaDoModalVer()">📎 + Anexar / Editar</button>
             <button type="button" id="vp-btn-revisar" class="btn btn-primary" style="flex:1;background:#16a34a;border-color:#15803d;" onclick="alternarStatusRevisaoPrevia()">✅ Marcar Receita Pronta</button>
-            <button type="button" class="btn btn-ghost" style="color:#475569;border-color:#cbd5e1;" onclick="fecharModalVerPreviaReceita()">Fechar</button>
+            <button type="button" class="previa-btn-close-red" style="padding:10px 16px;" onclick="fecharModalVerPreviaReceita()">✕ Fechar</button>
           </div>
         </div>
       </div>
@@ -4621,7 +4631,7 @@
         <button type="button" id="fo-btn-sisreg" class="btn btn-sm" style="background:#0f766e;color:#fff;font-weight:800;display:none;" onclick="abrirSisregDoFormulario()">🔎 Consultar SISREG</button>
         <button type="button" id="fo-btn-ver-foto" class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800;display:none;" onclick="toggleFotoAntigaFormulario()">👁️ Foto Antiga</button>
         <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,0.18);color:#fff;font-weight:800;" onclick="abrirFormularioNovaAba()">↗️ Nova Aba</button>
-        <button type="button" onclick="fecharModalFormularioOficial()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;">✕</button>
+        <button type="button" class="previa-btn-close-red" onclick="fecharModalFormularioOficial()" title="Fechar formulário">✕ Fechar</button>
       </div>
     </div>
     <div class="fo-body-split">
@@ -4656,7 +4666,7 @@
         <div id="sm-titulo" style="font-weight:900;font-size:15.5px;">🔎 SISREG III — Consulta e Leitor (DS5)</div>
         <div style="font-size:11.5px;opacity:0.9;">Encontre código e grupo exato no SISREG ou extraia dados de uma ficha/encaminhamento</div>
       </div>
-      <button type="button" onclick="fecharModalSisregMedico()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+      <button type="button" class="previa-btn-close-red" onclick="fecharModalSisregMedico()" title="Fechar consulta SISREG (não use o botão Voltar do navegador)">✕ Fechar</button>
     </div>
     <div class="previa-modal-body" style="background:#f8fafc;">
       <div class="sisreg-tabs-row">
@@ -4666,7 +4676,7 @@
 
       <div id="sm-pane-busca">
         <div class="sisreg-busca-bar">
-          <input type="text" id="sm-busca-input" placeholder="Digite sigla, procedimento ou código (ex: USG, ECO, RNM, TC, oftalmo, BERA)..." oninput="executarBuscaModalSisregMedico()">
+          <input type="text" id="sm-busca-input" placeholder="Digite sigla, procedimento ou código (ex: USG, ECO, MAPA, Holter, Raio-X, oftalmo, BERA)..." oninput="executarBuscaModalSisregMedico()">
           <select id="sm-busca-tipo" onchange="executarBuscaModalSisregMedico()">
             <option value="all">Todos os Tipos</option>
             <option value="Consulta">Consultas</option>
@@ -4679,6 +4689,25 @@
             <option value="35">Adulto (15 a 59)</option>
             <option value="65">Idoso (&gt; 60 anos)</option>
           </select>
+        </div>
+        <div class="sisreg-busca-atalhos">
+          <span>Atalhos:</span>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('USG')">USG</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('ECO')">Ecocardiografia</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('RADIOGRAFIA')">Raio-X</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('MAMOGRAFIA')">Mamografia</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('OFTALMO')">Oftalmo</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('CARDIO')">Cardio</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('ORTO')">Ortopedia</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('GINECO')">Gineco</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('DERMATO')">Dermato</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('EDA')">Endoscopia</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('COLONO')">Colonoscopia</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('HOLTER')">Holter</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('MAPA')">MAPA</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('ECG')">ECG</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('ESPIRO')">Espiro</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('BERA')">BERA</button>
         </div>
         <div class="sisreg-table-wrap" style="max-height:58vh;">
           <table class="sisreg-results-table">
@@ -4781,9 +4810,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.9"></script>
-<script src="receitas-previa.js?v=1.5"></script>
-<script src="formularios-pec.js?v=1.4"></script>
-<script src="regulacao-sisreg.js?v=1.1"></script>
-<script src="app.js?v=7.4"></script>
+<script src="receitas-previa.js?v=1.6"></script>
+<script src="formularios-pec.js?v=1.5"></script>
+<script src="regulacao-sisreg.js?v=1.2"></script>
+<script src="app.js?v=7.5"></script>
 </body>
 </html>

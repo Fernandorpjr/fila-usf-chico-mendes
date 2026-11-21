@@ -57,21 +57,21 @@
     ultrassom: ['ultrassonografia', 'ultra-sonografia'],
     ultrassonografia: ['ultra-sonografia', 'ultrassonografia'],
     'ultra-sonografia': ['ultrassonografia', 'ultra-sonografia'],
-    eco: ['ecocardiografia', 'ecocardiograma', 'doppler'],
+    eco: ['ecocardiografia', 'ecocardiograma'],
     ecott: ['ecocardiografia'],
     ecocardiograma: ['ecocardiografia'],
     ecg: ['eletrocardiograma'],
     eeg: ['eletroencefalograma'],
     enmg: ['eletroneuromiografia'],
     emg: ['eletroneuromiografia'],
-    tc: ['tomografia'],
+    tc: ['tomografia', 'tomografia computadorizada'],
     tomo: ['tomografia'],
     rnm: ['ressonancia', 'ressonancia magnetica'],
     rm: ['ressonancia', 'ressonancia magnetica'],
     rx: ['radiografia', 'raio x'],
     'raio-x': ['radiografia', 'raio x'],
     raiox: ['radiografia', 'raio x'],
-    eda: ['endoscopia digestiva alta', 'endoscopia'],
+    eda: ['endoscopia digestiva alta', 'esofagogastroduodenoscopia'],
     colono: ['colonoscopia'],
     reto: ['retossigmoidoscopia'],
     bera: ['bera', 'potencial evocado auditivo'],
@@ -83,21 +83,21 @@
     dmo: ['densitometria'],
     mamo: ['mamografia'],
     mmg: ['mamografia'],
-    oftalmo: ['oftalmologia'],
-    cardio: ['cardiologia'],
-    dermato: ['dermatologia'],
-    neuro: ['neurologia'],
+    oftalmo: ['oftalmologia', 'oftalmo'],
+    cardio: ['cardiologia', 'cardiologico'],
+    dermato: ['dermatologia', 'dermatologica'],
+    neuro: ['neurologia', 'neurologica'],
     orto: ['ortopedia', 'traumato-ortopedia', 'traumato'],
     traumato: ['traumato-ortopedia', 'ortopedia'],
-    uro: ['urologia'],
-    gineco: ['ginecologia'],
+    uro: ['urologia', 'urodinamica', 'urografia', 'uretrocistografia', 'urofluxometria'],
+    gineco: ['ginecologia', 'ginecologica'],
     go: ['ginecologia', 'obstetricia'],
     gastro: ['gastroenterologia'],
     endocrino: ['endocrinologia'],
     pneumo: ['pneumologia'],
     reumato: ['reumatologia'],
-    otorrino: ['otorrinolaringologia'],
-    orl: ['otorrinolaringologia'],
+    otorrino: ['otorrinolaringologia', 'otorrino'],
+    orl: ['otorrinolaringologia', 'otorrino'],
     masto: ['mastologia'],
     nefro: ['nefrologia'],
     procto: ['proctologia'],
@@ -106,11 +106,11 @@
     psiq: ['psiquiatria'],
     psiquiatra: ['psiquiatria'],
     psico: ['psicologia'],
-    fisio: ['fisioterapia'],
+    fisio: ['fisioterapia', 'fisioterapeutico'],
     fono: ['fonoaudiologia'],
     nutri: ['nutricao'],
     hemato: ['hematologia'],
-    hepato: ['hepatologia'],
+    hepato: ['hepatologia', 'hepatites'],
     infecto: ['infectologia'],
     geriatria: ['geriatria'],
     ped: ['pediatria', 'pediatrica'],
@@ -130,6 +130,30 @@
     vdrl: ['vdrl', 'sifilis']
   };
   const STOPWORDS_FRONT = new Set(['de', 'da', 'do', 'dos', 'das', 'em', 'para', 'p/', 'com', 'c/', 'sem', 'e', 'ou', 'a', 'o', 'os', 'as', 'ao', 'no', 'na']);
+  const SIGLAS_SO_SINONIMO_FRONT = new Set(['tc', 'tomo', 'rnm', 'rm', 'usg', 'us', 'eco', 'ecott', 'eda', 'espiro', 'densi', 'dmo', 'mamo', 'mmg', 'orl', 'go', 'tv', 'colono', 'reto', 'peate', 'ped']);
+  const SIGLAS_EXATAS_FRONT = new Set(['bera', 'mapa', 'ecg', 'eeg', 'enmg', 'emg', 'psa', 'tsh', 'hba1c', 'hbgl', 'eas', 'vdrl', 'iono', 'rx', 'mid', 'mie', 'msd', 'mse']);
+
+  function escRxFront(s) {
+    return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function correspondeVarianteFront(texto, variante) {
+    if (!texto || !variante) return false;
+    if (variante.startsWith('>') || variante.startsWith('<')) {
+      return texto.includes(variante);
+    }
+    if (variante.includes(' ')) {
+      if (new RegExp(`(?:^|[^a-z0-9])${escRxFront(variante)}(?:$|[^a-z0-9])`).test(texto)) {
+        return true;
+      }
+      const words = variante.split(/\s+/).filter(w => w.length > 1 && !STOPWORDS_FRONT.has(w));
+      return words.length > 0 && words.every(w => new RegExp(`(?:^|[^a-z0-9])${escRxFront(w)}`).test(texto));
+    }
+    if (SIGLAS_EXATAS_FRONT.has(variante) || variante.length <= 2) {
+      return new RegExp(`(?:^|[^a-z0-9])${escRxFront(variante)}(?:$|[^a-z0-9])`).test(texto);
+    }
+    return new RegExp(`(?:^|[^a-z0-9])${escRxFront(variante)}`).test(texto);
+  }
 
   function criarDadosVaziosSisreg() {
     return {
@@ -493,14 +517,16 @@
       .replace(/\braio[\s-]*x\b/g, 'radiografia');
     const tokens = base.split(/[^a-z0-9<>]+/).filter(Boolean).filter(t => !STOPWORDS_FRONT.has(t));
     const grupos = tokens.map(tok => {
-      const set = new Set([tok]);
+      const set = new Set();
+      if (!SIGLAS_SO_SINONIMO_FRONT.has(tok) || !SINONIMOS_FRONT[tok]) {
+        set.add(tok);
+      }
       if (tok === 'ultrassonografia') set.add('ultra-sonografia');
       const syns = SINONIMOS_FRONT[tok];
       if (Array.isArray(syns)) {
         syns.forEach(s => {
           const sn = normSisregFront(s);
-          set.add(sn);
-          sn.split(/\s+/).filter(p => p.length > 1 && !STOPWORDS_FRONT.has(p)).forEach(p => set.add(p));
+          if (sn) set.add(sn);
         });
       }
       return { original: tok, variantes: Array.from(set) };
@@ -526,19 +552,22 @@
       if (score === 0 && grupos.length > 0) {
         let matched = 0;
         for (const g of grupos) {
-          const hitName = g.variantes.some(v => nameRawNorm.includes(v) || nameUnified.includes(v));
-          const hitHier = !hitName && g.variantes.some(v => hierNorm.includes(v));
-          const hitCode = codeNorm.includes(g.original);
+          const hitName = g.variantes.some(v => correspondeVarianteFront(nameRawNorm, v) || correspondeVarianteFront(nameUnified, v));
+          const hitHier = !hitName && g.variantes.some(v => correspondeVarianteFront(hierNorm, v));
+          const hitCode = g.original.length >= 4 && /^\d+$/.test(g.original) && codeNorm.includes(g.original);
           if (hitName) {
             matched++;
-            score += g.variantes[0] === g.original && nameRawNorm.includes(g.original) ? 35 : 28;
+            score += g.variantes[0] === g.original && correspondeVarianteFront(nameRawNorm, g.original) ? 35 : 28;
           } else if (hitHier || hitCode) {
             matched++;
             score += 18;
           }
         }
         if (matched < grupos.length) continue;
-        if (nameRawNorm.includes(base) || nameUnified.includes(base)) score += 30;
+        if ((!SIGLAS_SO_SINONIMO_FRONT.has(base) || !SINONIMOS_FRONT[base]) &&
+            (correspondeVarianteFront(nameRawNorm, base) || correspondeVarianteFront(nameUnified, base))) {
+          score += 30;
+        }
       } else if (score === 0) {
         if (!fullText.includes(base)) continue;
         score = 20;
@@ -661,7 +690,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
             <span id="sisreg-lidas-hoje-modal" class="sisreg-stat-pill">📊 Lidas hoje: ${getContadorLidasHoje()}</span>
-            <button type="button" onclick="fecharModalPreviaRegulacao()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+            <button type="button" class="previa-btn-close-red" onclick="fecharModalPreviaRegulacao()" title="Fechar esta tela (não use o botão Voltar do navegador)">✕ Fechar</button>
           </div>
         </div>
 
@@ -882,7 +911,7 @@
           <!-- ABA 2: BUSCA DE PROCEDIMENTOS SISREG -->
           <div id="sisreg-pane-busca" style="${_sisregAbaAtiva === 'busca' ? '' : 'display:none;'}">
             <div class="sisreg-busca-bar">
-              <input type="text" id="sisreg-busca-input" placeholder="Digite sigla, nome ou código (ex: USG tireoide, BERA, ECO, RNM, histeroscopia, 0205020127)..." oninput="executarBuscaManualSisreg()">
+              <input type="text" id="sisreg-busca-input" placeholder="Digite sigla, nome ou código (ex: USG tireoide, ECO, MAPA, Holter, Raio-X, BERA, 0205020127)..." oninput="executarBuscaManualSisreg()">
               <select id="sisreg-busca-tipo" onchange="executarBuscaManualSisreg()">
                 <option value="all">Todos os Tipos</option>
                 <option value="Consulta">Consultas</option>
@@ -904,17 +933,21 @@
             <div class="sisreg-busca-atalhos">
               <span>Atalhos:</span>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('USG')">USG</button>
-              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('ECO')">ECO</button>
-              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('TC')">Tomografia</button>
-              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('RNM')">Ressonância</button>
+              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('ECO')">Ecocardiografia</button>
+              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('RADIOGRAFIA')">Raio-X</button>
+              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('MAMOGRAFIA')">Mamografia</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('OFTALMO')">Oftalmo</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('CARDIO')">Cardio</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('ORTO')">Ortopedia</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('GINECO')">Gineco</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('DERMATO')">Dermato</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('EDA')">Endoscopia</button>
+              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('COLONO')">Colonoscopia</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('HOLTER')">Holter</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('MAPA')">MAPA</button>
+              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('ECG')">ECG</button>
+              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('ESPIRO')">Espiro</button>
+              <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('BERA')">BERA</button>
             </div>
             <div class="sisreg-table-wrap" style="max-height:52vh;">
               <table class="sisreg-results-table">
@@ -2112,7 +2145,12 @@
     }
 
     _modalMedState.resultadosBusca = lista;
-    tbody.innerHTML = lista.map((p, idx) => `
+    tbody.innerHTML = lista.map((p, idx) => {
+      const hierNorm = normSisregFront(p.hierarchy || '');
+      const ehExame = normSisregFront(p.type) === 'exame';
+      const ehLab = ehExame && /patologia clinica|exames de laboratorio|exame laboratorial/.test(hierNorm);
+      const btnLabel = ehLab ? '🧪 Form. Exames' : (ehExame ? '📋 Exame na Ficha' : '📝 Usar na Ficha');
+      return `
       <tr>
         <td><code class="sisreg-code-badge">${escSisreg(p.code || '—')}</code></td>
         <td style="font-weight:800;color:#0f172a;">${escSisreg(p.name)}</td>
@@ -2120,10 +2158,19 @@
         <td style="font-size:11.5px;color:#1e3a8a;font-weight:700;">${escSisreg(p.hierarchy || '—')}</td>
         <td style="text-align:right;white-space:nowrap;">
           <button type="button" class="btn btn-outline btn-sm" onclick="copiarProcedimentoByInfo('${encodeURIComponent(p.name + ' (' + p.code + ')')}','Procedimento SISREG')">📋 Copiar</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="usarResultadoModalMedNaFicha(${idx})">📝 Usar na Ficha</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="usarResultadoModalMedNaFicha(${idx})">${btnLabel}</button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
+  }
+
+  function buscarAtalhoModalSisregMedico(termo) {
+    const inp = document.getElementById('sm-busca-input');
+    if (inp) {
+      inp.value = termo;
+      executarBuscaModalSisregMedico();
+    }
   }
 
   function usarResultadoModalMedNaFicha(idx) {
@@ -2277,7 +2324,7 @@
         <div class="sisreg-match-item top">
           <div style="display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;align-items:center;">
             <div><code class="sisreg-code-badge">${escSisreg(p.code)}</code> <strong style="font-size:12px;">${escSisreg(p.name)}</strong></div>
-            <button type="button" class="btn btn-primary btn-sm" onclick="aplicarProcedimentoSisregExterno('${encodeURIComponent(p.name)}','${encodeURIComponent(p.code)}')">📝 Usar</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="aplicarProcedimentoSisregExterno('${encodeURIComponent(p.name)}','${encodeURIComponent(p.code)}','${encodeURIComponent(p.type || '')}','${encodeURIComponent(p.hierarchy || '')}')">📝 Usar</button>
           </div>
           <div class="sisreg-hier-path">📍 ${escSisreg(p.hierarchy)}</div>
         </div>
@@ -2285,8 +2332,13 @@
     }).join('');
   }
 
-  function aplicarProcedimentoSisregExterno(encName, encCode) {
-    const proc = { name: decodeURIComponent(encName || ''), code: decodeURIComponent(encCode || '') };
+  function aplicarProcedimentoSisregExterno(encName, encCode, encType, encHier) {
+    const proc = {
+      name: decodeURIComponent(encName || ''),
+      code: decodeURIComponent(encCode || ''),
+      type: decodeURIComponent(encType || ''),
+      hierarchy: decodeURIComponent(encHier || '')
+    };
     const d = {
       ..._modalMedState.dados,
       paciente_nome: document.getElementById('sm-pac-nome')?.value.trim() || _modalMedState.dados.paciente_nome,
@@ -2388,6 +2440,7 @@
   window.fecharModalSisregMedico = fecharModalSisregMedico;
   window.trocarAbaModalSisregMedico = trocarAbaModalSisregMedico;
   window.executarBuscaModalSisregMedico = executarBuscaModalSisregMedico;
+  window.buscarAtalhoModalSisregMedico = buscarAtalhoModalSisregMedico;
   window.usarResultadoModalMedNaFicha = usarResultadoModalMedNaFicha;
   window.zoomModalMedImg = zoomModalMedImg;
   window.girarModalMedImg = girarModalMedImg;

@@ -23,6 +23,7 @@ let _previaModalStatusAtual = 'pendente';
 let _previaModalAnexos = [];
 let _previaModalFotoIdx = 0;
 let _vpPdfBlobUrl = null;
+let _previaCapturaTargetPatient = null;
 
 function isPreviaAnexoPdf(anx) {
   if (!anx) return false;
@@ -89,15 +90,15 @@ function atualizarBotaoPreviaReceitaRecepcao() {
   const setor = document.getElementById('input-setor')?.value || '';
   const tipo = document.getElementById('input-tipo-atendimento')?.value || '';
   const ehRegulacao = setor === 'Regulação';
-  const ativoSetor = ['Médico', 'Enfermagem', 'Odontologia', 'Regulação'].includes(setor);
-  bar.style.display = ativoSetor ? 'flex' : 'none';
+  const ehDestaqueSetor = ['Regulação', 'Farmácia', 'Acolhimento', 'Acolhimento ACS', 'Acolhimento 2ª Escuta'].includes(setor);
+  bar.style.display = 'flex';
 
   const tiposDestaque = ['Hiperdia', 'Renovação de Receita', 'Renovação de Receita Controlada'];
-  bar.classList.toggle('destaque-receita', ativoSetor && (ehRegulacao || tiposDestaque.includes(tipo)));
+  bar.classList.toggle('destaque-receita', ehDestaqueSetor || tiposDestaque.includes(tipo) || ehRegulacao);
 
   const subTxt = document.getElementById('recepcao-previa-subtxt');
   if (subTxt) {
-    subTxt.textContent = 'A IA identifica automaticamente se é Receita ou SISREG';
+    subTxt.textContent = 'Anexe receita, exame ou encaminhamento (foto ou PDF) para qualquer fila';
   }
 
   const pill = document.getElementById('recepcao-previa-anexada-pill');
@@ -127,9 +128,27 @@ function limparPreviaReceitaPendente() {
   atualizarBotaoPreviaReceitaRecepcao();
 }
 
+function configurarCabecalhoBotoesCaptura(target) {
+  const titEl = document.getElementById('pr-modal-titulo');
+  const btnConf = document.getElementById('pr-btn-confirmar');
+  const btnSug = document.getElementById('pr-btn-confirmar-sugerido');
+  if (target && target.id) {
+    if (titEl) titEl.textContent = `📎 Anexar Prévia — ${target.nome} (${target.setor})`;
+    if (btnConf) btnConf.textContent = '💾 Salvar Prévia neste Paciente';
+    if (btnSug) btnSug.style.display = 'none';
+  } else {
+    if (titEl) titEl.textContent = '📎 Prévia de Documentos (Foto ou PDF — até 6 arquivos)';
+    if (btnConf) btnConf.textContent = '✅ Anexar na Fila Atual';
+    if (btnSug) btnSug.style.display = 'inline-flex';
+  }
+}
+
 function abrirModalCapturaReceita() {
   const modal = document.getElementById('modal-captura-receita');
   if (!modal) return;
+  _previaCapturaTargetPatient = null;
+  configurarCabecalhoBotoesCaptura(null);
+
   const p = window._previaReceitaPendente || {};
   if (Array.isArray(p.anexos) && p.anexos.length > 0) {
     _previaAnexosCaptura = p.anexos.map(a => ({ ...a }));
@@ -165,8 +184,60 @@ function abrirModalCapturaReceita() {
   modal.classList.add('show');
 }
 
+async function abrirModalCapturaReceitaPaciente(patientId, nomePaciente, setor) {
+  const modal = document.getElementById('modal-captura-receita');
+  if (!modal) return;
+  _previaCapturaTargetPatient = { id: Number(patientId), nome: nomePaciente || '', setor: setor || '' };
+  configurarCabecalhoBotoesCaptura(_previaCapturaTargetPatient);
+
+  _previaAnexosCaptura = [];
+  _previaDadosExtrasAtual = null;
+  document.getElementById('pr-tipo').value = setor === 'Odontologia' ? 'odonto' : setor === 'Regulação' ? 'sisreg' : 'branca';
+  document.getElementById('pr-paciente-nome').value = nomePaciente || '';
+  document.getElementById('pr-paciente-cns').value = '';
+  document.getElementById('pr-medicamentos').value = '';
+  document.getElementById('pr-data-emissao').value = '';
+  document.getElementById('pr-medico-emitente').value = '';
+  document.getElementById('pr-observacoes').value = '';
+  const statusEl = document.getElementById('pr-ocr-status');
+  if (statusEl) statusEl.style.display = 'none';
+
+  renderGaleriaCapturaReceita();
+  atualizarSugestaoReceitaLocal();
+  modal.classList.add('show');
+
+  try {
+    const r = await fetch(`${API_URL}/patients/${patientId}/previa-receita`, { cache: 'no-store' });
+    if (r.ok && _previaCapturaTargetPatient?.id === Number(patientId)) {
+      const p = await r.json();
+      if (Array.isArray(p.anexos) && p.anexos.length > 0) {
+        _previaAnexosCaptura = p.anexos.map(a => ({ ...a }));
+      } else if (p.imagem_base64) {
+        _previaAnexosCaptura = [{
+          id: 'anx_1',
+          categoria: normalizarCategoriaAnexoFront(p.tipo_receita),
+          rotulo: null,
+          imagem_base64: p.imagem_base64,
+          ocr: null
+        }];
+      }
+      _previaDadosExtrasAtual = p.dados_extras ? { ...p.dados_extras } : null;
+      if (p.tipo_receita) document.getElementById('pr-tipo').value = p.tipo_receita;
+      document.getElementById('pr-paciente-nome').value = p.paciente_nome_ocr || nomePaciente || '';
+      document.getElementById('pr-paciente-cns').value = p.paciente_cns || '';
+      document.getElementById('pr-medicamentos').value = p.medicamentos || '';
+      document.getElementById('pr-data-emissao').value = p.data_emissao || '';
+      document.getElementById('pr-medico-emitente').value = p.medico_emitente || '';
+      document.getElementById('pr-observacoes').value = p.observacoes || '';
+      renderGaleriaCapturaReceita();
+      atualizarSugestaoReceitaLocal();
+    }
+  } catch (_) {}
+}
+
 function fecharModalCapturaReceita() {
   document.getElementById('modal-captura-receita')?.classList.remove('show');
+  _previaCapturaTargetPatient = null;
 }
 
 function renderGaleriaCapturaReceita() {
@@ -486,7 +557,7 @@ function atualizarSugestaoReceitaLocal(clfServer) {
   if (ehSisreg) {
     const esp = _previaDadosExtrasAtual?.especialidade ? ` · Pedido: <b>${escSafe(_previaDadosExtrasAtual.especialidade)}</b>` : '';
     const tel = _previaDadosExtrasAtual?.paciente_telefone ? ` · Tel: <b>${escSafe(_previaDadosExtrasAtual.paciente_telefone)}</b>` : '';
-    box.innerHTML = `<strong>🤖 IA identificou: 📋 Documento do SISREG</strong>${esp}${tel} · Setor sugerido: <b>Regulação</b>`;
+    box.innerHTML = `<strong>📋 Documento do SISREG</strong>${esp}${tel} · Setor sugerido: <b>Regulação</b>`;
     box.dataset.filaSugerida = 'Regulação';
     box.style.display = 'block';
     return;
@@ -501,7 +572,7 @@ function atualizarSugestaoReceitaLocal(clfServer) {
       normal: `🟢 Válida (${clfServer.dias_restantes}d)`
     };
     const badgeUrg = urgMap[clfServer.urgencia] || '';
-    box.innerHTML = `<strong>🤖 IA identificou: 💊 Receita</strong> · Setor sugerido: <b>${escSafe(filaSug)}</b> · Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}`;
+    box.innerHTML = `<strong>💊 Receita</strong> · Setor sugerido: <b>${escSafe(filaSug)}</b> · Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}`;
     box.dataset.filaSugerida = filaSug;
     box.dataset.dataVenc = clfServer.data_vencimento;
     box.dataset.diasRest = clfServer.dias_restantes ?? '';
@@ -514,7 +585,7 @@ function atualizarSugestaoReceitaLocal(clfServer) {
   }
 }
 
-function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
+async function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
   const tipo_receita = document.getElementById('pr-tipo')?.value || 'branca';
   const paciente_nome_ocr = document.getElementById('pr-paciente-nome')?.value.trim() || '';
   const paciente_cns = document.getElementById('pr-paciente-cns')?.value.trim() || '';
@@ -530,7 +601,7 @@ function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
     return;
   }
 
-  window._previaReceitaPendente = {
+  const payload = {
     tipo_receita,
     paciente_nome_ocr: paciente_nome_ocr || null,
     paciente_cns: paciente_cns || null,
@@ -543,6 +614,27 @@ function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
     anexos: _previaAnexosCaptura.map(a => ({ ...a })),
     dados_extras: _previaDadosExtrasAtual || null
   };
+
+  if (_previaCapturaTargetPatient && _previaCapturaTargetPatient.id) {
+    const pid = _previaCapturaTargetPatient.id;
+    try {
+      const res = await fetch(`${API_URL}/patients/${pid}/previa-receita`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error();
+      fecharModalCapturaReceita();
+      showToast('📎 Prévia salva no paciente!');
+      if (typeof loadQueues === 'function') await loadQueues();
+      if (typeof loadAcolhimentoFluxo === 'function') await loadAcolhimentoFluxo();
+    } catch (_) {
+      showToast('Erro ao salvar prévia no paciente.', true);
+    }
+    return;
+  }
+
+  window._previaReceitaPendente = payload;
 
   const inpNome = document.getElementById('input-nome');
   if (inpNome && !inpNome.value.trim() && paciente_nome_ocr) {
@@ -637,6 +729,7 @@ function renderPreviaReceitaBadgeLinha(p) {
 
 function renderBotaoPreviaReceitaLinha(p, setor) {
   const safeNome = String(p?.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const safeSetor = String(setor || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   if (setor === 'Regulação' && p?.id) {
     if (p.previa_receita) {
       const qtd = Number(p.previa_receita.qtd_anexos) || 0;
@@ -645,11 +738,14 @@ function renderBotaoPreviaReceitaLinha(p, setor) {
     }
     return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#1d4ed8,#1e40af);" onclick="event.stopPropagation();abrirPacienteNoCopilotoSisreg(${p.id},'${safeNome}',true)" title="Anexar foto ou PDF na Prévia SISREG">📷 Prévia</button>`;
   }
-  if (!p?.previa_receita) return '';
+  if (!p?.id) return '';
+  if (!p.previa_receita) {
+    return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#475569,#334155);" onclick="event.stopPropagation();abrirModalCapturaReceitaPaciente(${p.id},'${safeNome}','${safeSetor}')" title="Anexar foto ou PDF de receita/encaminhamento nesta fila">📷 Prévia</button>`;
+  }
   const pronto = p.previa_receita.status_revisao === 'revisada';
   const qtd = Number(p.previa_receita.qtd_anexos) || 0;
   const sufixo = qtd > 1 ? ` (${qtd})` : '';
-  return `<button class="btn-previa-receita ${pronto ? 'revisada' : ''}" onclick="event.stopPropagation();abrirModalVerPreviaReceita(${p.id},'${safeNome}','${setor}')" title="Ver foto(s)/PDF e dados extraídos pela IA">${pronto ? '✅ Prévia' : '👁️ Prévia'}${sufixo}</button>`;
+  return `<button class="btn-previa-receita ${pronto ? 'revisada' : ''}" onclick="event.stopPropagation();abrirModalVerPreviaReceita(${p.id},'${safeNome}','${safeSetor}')" title="Ver foto(s)/PDF, medicamentos e formulários">${pronto ? '✅ Prévia' : '👁️ Prévia'}${sufixo}</button>`;
 }
 
 function renderFotoAtivaPreviaModal() {
@@ -741,14 +837,13 @@ function renderFotoAtivaPreviaModal() {
   }
 
   const catAtiva = ativo ? normalizarCategoriaAnexoFront(ativo.categoria) : null;
-  const setorAtual = window._previaModalDadosAtuais?.setor || '';
   const btnRec = document.getElementById('vp-btn-form-rec');
   const btnEsp = document.getElementById('vp-btn-form-esp');
   const btnAmb = document.getElementById('vp-btn-form-amb');
   const btnLab = document.getElementById('vp-btn-form-lab');
   const btnCito = document.getElementById('vp-btn-form-cito');
   if (btnCito) {
-    btnCito.style.display = setorAtual === 'Odontologia' ? 'none' : 'inline-flex';
+    btnCito.style.display = 'inline-flex';
   }
   if (btnRec && btnEsp && btnAmb) {
     const tipoGeral = window._previaModalDadosAtuais?.previa?.tipo_receita;
@@ -794,7 +889,7 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
   document.getElementById('vp-img').src = '';
   document.getElementById('vp-img').style.display = 'none';
   document.getElementById('vp-sem-img').style.display = 'flex';
-  document.getElementById('vp-sem-img').textContent = '⏳ Carregando imagem...';
+  document.getElementById('vp-sem-img').textContent = '⏳ Carregando arquivo...';
   const navBar = document.getElementById('vp-nav-bar');
   const strip = document.getElementById('vp-thumbs-strip');
   if (navBar) navBar.style.display = 'none';
@@ -802,11 +897,11 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
 
   const formsBox = document.getElementById('vp-formularios-box');
   if (formsBox) {
-    formsBox.style.display = ['Médico', 'Enfermagem', 'Odontologia'].includes(setor) ? 'block' : 'none';
+    formsBox.style.display = 'block';
   }
   const btnSisregVp = document.getElementById('vp-btn-copiloto-sisreg');
   if (btnSisregVp) {
-    btnSisregVp.style.display = ['Regulação', 'Médico', 'Enfermagem', 'Odontologia'].includes(setor) ? 'inline-flex' : 'none';
+    btnSisregVp.style.display = ['Regulação', 'Médico', 'Enfermagem', 'Odontologia', 'Acolhimento'].includes(setor) ? 'inline-flex' : 'none';
   }
   modal.classList.add('show');
 
@@ -863,7 +958,7 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
       const ehSis = pr.tipo_receita === 'sisreg' || pr.dados_extras?.destino_ia === 'sisreg';
       if (ehSis) {
         destBanner.style.display = 'block';
-        destBanner.innerHTML = `<strong>🤖 IA identificou:</strong> Documento de Regulação / SISREG${pr.dados_extras?.especialidade ? ` (${escSafe(pr.dados_extras.especialidade)})` : ''}.`;
+        destBanner.innerHTML = `<strong>📋 Documento de Regulação / SISREG</strong>${pr.dados_extras?.especialidade ? `: ${escSafe(pr.dados_extras.especialidade)}` : ''}.`;
       } else {
         destBanner.style.display = 'none';
       }
@@ -873,7 +968,9 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
 
     const btnRev = document.getElementById('vp-btn-revisar');
     if (btnRev) {
-      btnRev.textContent = pr.status_revisao === 'revisada' ? '↩️ Marcar como Pendente' : '✅ Marcar Receita Pronta';
+      btnRev.textContent = pr.status_revisao === 'revisada'
+        ? '↩️ Marcar como Pendente'
+        : (setor === 'Farmácia' ? '✅ Conferida na Farmácia' : setor === 'Acolhimento' ? '✅ Marcar Conferida' : '✅ Marcar Receita Pronta');
       btnRev.classList.toggle('btn-revisada-ativo', pr.status_revisao === 'revisada');
     }
   } catch (err) {
@@ -1004,9 +1101,21 @@ function copiarTextoPrevia(elementId, label) {
   });
 }
 
+function editarPreviaDoModalVer() {
+  const ctx = window._previaModalDadosAtuais || {};
+  const pid = ctx.patientId;
+  const nome = ctx.nomePaciente || '';
+  const setor = ctx.setor || '';
+  fecharModalVerPreviaReceita();
+  if (pid && typeof abrirModalCapturaReceitaPaciente === 'function') {
+    abrirModalCapturaReceitaPaciente(pid, nome, setor);
+  }
+}
+
 async function alternarStatusRevisaoPrevia() {
   if (!_previaModalPacienteId) return;
   const novoStatus = _previaModalStatusAtual === 'revisada' ? 'pendente' : 'revisada';
+  const setor = window._previaModalDadosAtuais?.setor || '';
   try {
     const r = await fetch(`${API_URL}/patients/${_previaModalPacienteId}/previa-receita/revisar`, {
       method: 'PUT',
@@ -1017,13 +1126,16 @@ async function alternarStatusRevisaoPrevia() {
     _previaModalStatusAtual = novoStatus;
     const btnRev = document.getElementById('vp-btn-revisar');
     if (btnRev) {
-      btnRev.textContent = novoStatus === 'revisada' ? '↩️ Marcar como Pendente' : '✅ Marcar Receita Pronta';
+      btnRev.textContent = novoStatus === 'revisada'
+        ? '↩️ Marcar como Pendente'
+        : (setor === 'Farmácia' ? '✅ Conferida na Farmácia' : setor === 'Acolhimento' ? '✅ Marcar Conferida' : '✅ Marcar Receita Pronta');
       btnRev.classList.toggle('btn-revisada-ativo', novoStatus === 'revisada');
     }
-    showToast(novoStatus === 'revisada' ? '✅ Receita marcada como PRONTA!' : '⏳ Receita voltou para pendente.');
+    showToast(novoStatus === 'revisada' ? '✅ Prévia marcada como conferida/pronta!' : '⏳ Prévia voltou para pendente.');
     if (typeof loadQueues === 'function') await loadQueues();
+    if (typeof loadAcolhimentoFluxo === 'function') await loadAcolhimentoFluxo();
   } catch {
-    showToast('Erro ao atualizar status da receita.', true);
+    showToast('Erro ao atualizar status da prévia.', true);
   }
 }
 
@@ -1040,3 +1152,19 @@ function abrirCopilotoDaPrevia() {
     abrirModalSisregConsulta(setor || 'Médico', 'busca', termo);
   }
 }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const isShow = (id) => document.getElementById(id)?.classList.contains('show');
+  if (isShow('modal-sisreg-medico') && typeof fecharModalSisregMedico === 'function') {
+    fecharModalSisregMedico();
+  } else if (isShow('modal-formulario-oficial') && typeof fecharModalFormularioOficial === 'function') {
+    fecharModalFormularioOficial();
+  } else if (isShow('modal-previa-regulacao') && typeof fecharModalPreviaRegulacao === 'function') {
+    fecharModalPreviaRegulacao();
+  } else if (isShow('modal-ver-previa-receita')) {
+    fecharModalVerPreviaReceita();
+  } else if (isShow('modal-captura-receita')) {
+    fecharModalCapturaReceita();
+  }
+});

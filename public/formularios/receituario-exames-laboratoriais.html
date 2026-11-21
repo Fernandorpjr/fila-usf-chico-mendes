@@ -343,6 +343,134 @@
     }
   };
 
+  function normExLab(str){
+    return String(str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+  }
+
+  var MAPA_EXAMES_LAB = [
+    { match: /\bHEMOGLOBINA GLICOSILADA\b|\bHEMOGLOBINA GLICADA\b|\bHBA1C\b|\bHBGL\b/, label: 'HB.GLIC.(HBGL)' },
+    { match: /\bGLICOSE POS[\s-]?PRANDIAL\b|\bGLICEMIA POS[\s-]?PRANDIAL\b/, label: 'GLICOSEPP(GPP)' },
+    { match: /\bDOSAGEM DE GLICOSE\b|\bGLICEMIA DE JEJUM\b|\bGLICOSE\b/, label: 'GLICOSE(GLC)' },
+    { match: /\bACIDO FOLICO\b|\bFOLATO\b/, label: 'AC. FOL.(FOL)' },
+    { match: /\bACIDO URICO\b/, label: 'AC.URICO(AU)' },
+    { match: /\bALBUMINA\b/, label: 'ALBUMINA(ALB)' },
+    { match: /\bAMILASE\b/, label: 'AMILASE(AMI)' },
+    { match: /\bANTIESTREPTOLISINA\b|\bASLO\b/, label: 'ASLO(AEO)' },
+    { match: /\bANTIPEROXIDASE\b|\bANTI[\s-]?TPO\b|\bATPO\b/, label: 'ATPO(ATP)' },
+    { match: /\bGONADOTROFINA CORIONICA\b|\bBHCG\b|\bBETA HCG\b/, label: '(BHCGQ)' },
+    { match: /\bBILIRRUBINA/, label: 'BILIR.T.+F(BIL)' },
+    { match: /\bCALCIO\b/, label: 'CALCIO(CA)' },
+    { match: /\bCREATINOFOSFOQUINASE\b|\bCPK\b/, label: 'CK(CPK)' },
+    { match: /\bSODIO\b|\bPOTASSIO\b|\bCLORETO\b|\bCLORO\b|\bIONOGRAMA\b/, label: 'CL,K,NA(IONO)' },
+    { match: /\bCITOMEGALOVIRUS\b.*\bIGM\b|\bCMVM\b/, label: 'CMVIgM(CMVM)' },
+    { match: /\bCITOMEGALOVIRUS\b.*\bIGG\b|\bCMVG\b/, label: 'CMV IgG(CMVG)' },
+    { match: /\bCOLESTEROL\b|\bLIPIDOGRAMA\b|\bHDL\b|\bLDL\b/, label: 'COL.T.+FR (CTF)' },
+    { match: /\bCREATININA\b/, label: 'CREAT. (CN)' },
+    { match: /\bDESIDROGENASE LATICA\b|\bDHL\b|\bLDH\b/, label: 'DHL(DHL)' },
+    { match: /\bESTRADIOL\b/, label: 'ESTRAD(E2)' },
+    { match: /\bFATOR REUMATOIDE\b/, label: 'F.REUMT.(LATR)' },
+    { match: /\bFERRITINA\b/, label: 'FERRIT. (FERRI)' },
+    { match: /\bFERRO SERICO\b|\bDOSAGEM DE FERRO\b/, label: 'FERRO(FC)' },
+    { match: /\bFOSFORO\b/, label: 'FÓSFORO(FOS)' },
+    { match: /\bFOLICULO ESTIMULANTE\b|\bFSH\b/, label: '(FSH)' },
+    { match: /\bGAMA[\s-]?GLUTAMIL\b|\bGAMAGT\b|\bGGT\b/, label: 'GAMAGT(GGT)' },
+    { match: /\bINSULINA\b/, label: 'INSULINA(INS)' },
+    { match: /\bMAGNESIO\b/, label: 'MAGNÉSIO(MG)' },
+    { match: /\bPROTEINA C REATIVA\b|\bPCR\b/, label: '(PCR)' },
+    { match: /\bPROGESTERONA\b/, label: 'PROGEST(PRG)' },
+    { match: /\bPROLACTINA\b/, label: 'PROLACT(PRL)' },
+    { match: /\bPROTEINAS TOTAIS\b/, label: 'PROT. T + F (PTF)' },
+    { match: /\bANTIGENO PROSTATICO\b|\bPSA\b/, label: 'PSA T + L (PSATL)' },
+    { match: /\bRUBEOLA\b/, label: 'RUBEOLAG(RUBG)' },
+    { match: /\bTRIIODOTIRONINA\b|\bT3\b/, label: '(T3)' },
+    { match: /\bTIROXINA LIVRE\b|\bT4 LIVRE\b/, label: 'T4LIVRE(T4L)' },
+    { match: /\bTESTOSTERONA\b/, label: 'TESTOST(TES)' },
+    { match: /\bASPARTATO AMINO\b|\bTRANSAMINASE GLUTAMICO OXALACETICA\b|\bTGO\b|\bAST\b/, label: '(TGO)' },
+    { match: /\bALANINA AMINO\b|\bTRANSAMINASE GLUTAMICO PIRUVICA\b|\bTGP\b|\bALT\b/, label: '(TGP)' },
+    { match: /\bTIREOGLOBULINA\b/, label: 'TIREOGLOBULINA' },
+    { match: /\bTRIGLICERIDE/, label: 'TRIGLICERIDEOS' },
+    { match: /\bTOXOPLASMOSE\b.*\bIGG\b|\bTOXOPLASMA\b.*\bIGG\b/, label: 'TOXO IgG(TOXG)' },
+    { match: /\bTOXOPLASMOSE\b.*\bIGM\b|\bTOXOPLASMA\b.*\bIGM\b/, label: 'TOXO IgM(TOXM)' },
+    { match: /\bTIREOESTIMULANTE\b|\bTSH\b/, label: '(TSH)' },
+    { match: /\bUREIA\b/, label: 'UREIA(UREA)' },
+    { match: /\b25[\s-]?HIDROXIVITAMINA D\b|\bVITAMINA D\b/, label: 'VITAMINA D' },
+    { match: /\bVITAMINA B12\b|\bCIANOCOBALAMINA\b/, label: 'VITAMINA (VB12)' },
+    { match: /\bVDRL\b|\bSIFILIS\b/, label: '(VDRL)' },
+    { match: /\bHIV\b/, label: '(HIV)' },
+    { match: /\bHTLV\b/, label: '(HTLV)' },
+    { match: /\bHEPATITE A\b.*\bIGM\b|\bHAVM\b/, label: 'HAV IgM(HAVM)' },
+    { match: /\bHEPATITE A\b.*\bIGG\b|\bHAVG\b/, label: 'HAV IgG(HAVG)' },
+    { match: /\bHEPATITE C\b|\bHCV\b/, label: '(HCV)' },
+    { match: /\bHBSAG\b|\bANTIGENO DE SUPERFICIE.*HEPATITE B\b/, label: '(HBSAG)' },
+    { match: /\bANTI[\s-]?HBS\b|\bAHBS\b/, label: 'A-HBS(AHBS)' },
+    { match: /\bDENGUE\b/, label: 'DENGUE(DENM)' },
+    { match: /\bTREPONEMA\b|\bFTA[\s-]?ABS\b/, label: 'TREPONEMA(SIFTP)' },
+    { match: /\bHEMOGRAMA\b/, label: 'HEMOG.(HGCOM)' },
+    { match: /\bELETROFORESE DE HEMOGLOBINA\b/, label: 'VAR.HB(ELETRO)' },
+    { match: /\bG6PD\b|\bGLICOSE[\s-]?6[\s-]?FOSFATO\b/, label: 'G6PD' },
+    { match: /\bCOOMBS DIRETO\b/, label: 'COOMBS DIRETO' },
+    { match: /\bCOOMBS INDIRETO\b/, label: 'COOMBS INDIRETO' },
+    { match: /\bGRUPO ABO\b|\bFATOR RH\b/, label: 'ABORH(GSAFRH)' },
+    { match: /\bHEMOSSEDIMENTACAO\b|\bVHS\b|\bVSH\b/, label: 'VSH' },
+    { match: /\bATIVIDADE DA PROTROMBINA\b|\bTEMPO DE PROTROMBINA\b|\bTAP\b|\bTPAE\b/, label: 'TPAE' },
+    { match: /\bTROMBOPLASTINA PARCIAL\b|\bTTPA\b/, label: 'TTPA' },
+    { match: /\bTEMPO DE COAGULACAO\b|\bTEMPO DE SANGRAMENTO\b|\bCOAGULOGRAMA\b/, label: 'TS/TC' },
+    { match: /\bUROCULTURA\b|\bCULTURA DE BACTERIAS.*URINA\b/, label: 'UROCUL(CUC)' },
+    { match: /\bSUMARIO DE URINA\b|\bELEMENTOS ANORMAIS\b|\bCARACTERES FISICOS.*URINA\b|\bEAS\b/, label: 'S. URINA(SM)' },
+    { match: /\bPARASITOLOGICO\b|\bFEZES\b/, label: 'FEZES 1(PF1)' }
+  ];
+
+  var SLOTS_LIVRES_LAB = [
+    'k22','k23','k24','k25','k26','k27','k28','k29','k30','k31','k32','k33','k34','k35','k36','k37','k38','k39','k40',
+    'k3','k4','k5','k6','k7','k8','k9','k10','k11','k12','k13','k14','k16','k17','k18','k19','k1'
+  ];
+
+  function marcarExameNoGridLab(targetLabel) {
+    var cells = document.querySelectorAll('.grid .g.it');
+    for (var i = 0; i < cells.length; i++) {
+      var tx = cells[i].querySelector('.tx');
+      var bx = cells[i].querySelector('.bx');
+      if (tx && bx && tx.textContent.replace(/\s+/g,' ').trim() === targetLabel) {
+        bx.classList.add('on');
+        atualizarTotaisExames();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function aplicarExameNoFormularioLab(exameNome, exameTexto) {
+    var bruto = String(exameNome || exameTexto || '').replace(/\(\s*\d{6,}\s*\)/g, '').trim();
+    if (!bruto) return false;
+    var norm = normExLab(bruto);
+    for (var i = 0; i < MAPA_EXAMES_LAB.length; i++) {
+      if (MAPA_EXAMES_LAB[i].match.test(norm)) {
+        if (marcarExameNoGridLab(MAPA_EXAMES_LAB[i].label)) return true;
+      }
+    }
+    var curto = bruto.length > 36 ? bruto.slice(0, 36).trim() : bruto;
+    for (var j = 0; j < SLOTS_LIVRES_LAB.length; j++) {
+      var ed = document.querySelector('[data-k="' + SLOTS_LIVRES_LAB[j] + '"]');
+      if (ed && normExLab(ed.textContent) === normExLab(curto)) {
+        var bxEx = ed.closest('.g.it')?.querySelector('.bx');
+        if (bxEx) bxEx.classList.add('on');
+        atualizarTotaisExames();
+        return true;
+      }
+    }
+    for (var k = 0; k < SLOTS_LIVRES_LAB.length; k++) {
+      var el = document.querySelector('[data-k="' + SLOTS_LIVRES_LAB[k] + '"]');
+      if (el && !el.textContent.trim()) {
+        el.textContent = curto;
+        var bx = el.closest('.g.it')?.querySelector('.bx');
+        if (bx) bx.classList.add('on');
+        atualizarTotaisExames();
+        return true;
+      }
+    }
+    return false;
+  }
+
   window.aplicarDados=function(d){
     window.deixarEmBranco(true);
     if(!d || d.modo==='branco') return;
@@ -373,11 +501,21 @@
         if(chks[1]) chks[1].classList.toggle('on', sx==='F');
       }
     }
+    if (d.exame_solicitado || d.exame_nome) {
+      aplicarExameNoFormularioLab(d.exame_nome || d.exame_solicitado, d.exame_solicitado);
+    }
   };
 
   window.addEventListener('message',function(e){
     if(e.origin!==window.location.origin || !e.data || typeof e.data!=='object') return;
     if(e.data.type==='FORM_PREENCHER') window.aplicarDados(e.data.payload||{});
+    else if(e.data.type==='FORM_ADICIONAR_EXAME'){
+      var p=e.data.payload||{};
+      if(p.paciente_nome && !document.querySelector('[data-k="paciente"]')?.textContent.trim()) setK('paciente', p.paciente_nome);
+      if(p.paciente_cns && !document.querySelector('[data-k="sus"]')?.textContent.trim()) setK('sus', p.paciente_cns);
+      if(p.paciente_telefone && !document.querySelector('[data-k="fone"]')?.textContent.trim()) setK('fone', p.paciente_telefone);
+      aplicarExameNoFormularioLab(p.exame_nome || p.exame, p.exame);
+    }
     else if(e.data.type==='FORM_BRANCO') window.deixarEmBranco(true);
     else if(e.data.type==='FORM_SALVAR_EMITENTE') window.salvarEmitente();
     else if(e.data.type==='FORM_IMPRIMIR'){ window.focus(); window.print(); }

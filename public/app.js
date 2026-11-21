@@ -3032,6 +3032,7 @@ function updateMiniQueues() {
             ${equipeBadge || '<span style="font-size:11px;color:#94a3b8;font-weight:700;">Sem equipe informada</span>'}
             ${condBadges}
           </div>
+          ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
         </td>
         <td>
           ${historicoColHtml}
@@ -3048,6 +3049,7 @@ function updateMiniQueues() {
         <td style="text-align:right;">
           <div class="fila-actions-cell">
             ${presencaBtn}
+            ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, s) : ''}
             ${radarBtn}
             ${transferBtn}
             ${qrBtn}
@@ -6024,11 +6026,12 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
         ${condBadges}
         ${originBadge}
       </div>
+      ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
       ${(acsLabel || profLabel) ? `<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px;">${acsLabel}${profLabel}</div>` : ''}
       ${intercorrenciaBadge ? `<div style="margin-top:4px;">${intercorrenciaBadge}</div>` : ''}
       ${queixaEl}${obs2El}${alumiaBloco}
       <div class="acol-card-actions">
-        ${radarBtn}${actions}${adminBtns}
+        ${radarBtn}${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, 'Acolhimento') : ''}${actions}${adminBtns}
       </div>
     </div>`;
   }).join('');
@@ -6871,6 +6874,7 @@ function renderAcsEscutaScreen() {
                   <td>
                     <div class="fila-paciente-nome">${escapeText(p.nome)} ${prioBadge}</div>
                     <div class="fila-paciente-sub">${equipeBadge} ${riscoBadge} ${condBadges}</div>
+                    ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
                   </td>
                   <td>
                     <div class="fila-motivo-box">
@@ -6884,6 +6888,7 @@ function renderAcsEscutaScreen() {
                   <td>
                     <div class="fila-actions-cell">
                       ${radarBtn}
+                      ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, 'Acolhimento') : ''}
                       <button class="acs-btn-chamar" onclick="chamarAcsPaciente(${p.id},'${nomeSafe}','${acs}',this)">🔊 Chamar</button>
                       <button class="acs-btn-enc" onclick="abrirModalEncaminharAcs(${p.id},'${nomeSafe}')">📤 Encaminhar 2ª</button>
                       <button class="acs-btn-enc" style="background:linear-gradient(135deg,#4aab3c,#3a8a2e);" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
@@ -7092,6 +7097,7 @@ function renderSegundaEscutaScreen() {
         <td>
           <div class="fila-paciente-nome">${escapeText(p.nome)} ${prioBadge}</div>
           <div class="fila-paciente-sub">${equipeBadge} ${riscoBadge} ${condBadges}</div>
+          ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
         </td>
         <td>
           <div class="fila-motivo-box">
@@ -7110,6 +7116,7 @@ function renderSegundaEscutaScreen() {
         <td>
           <div class="fila-actions-cell">
             ${radarBtn}
+            ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, 'Acolhimento') : ''}
             <button class="seg-btn-chamar" onclick="chamarSegundaEscutaPaciente(${p.id},'${nomeSafe}','${(p.profissional_destino || '').replace(/'/g,"\\'")}',this)">🔊 Chamar</button>
             <button class="seg-btn-finalizar" style="background:linear-gradient(135deg,#c62828,#8e0000);" onclick="abrirModalReencaminharEscuta2(${p.id},'${nomeSafe}')">🚨 Encaminhar (Intercorrência)</button>
             <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')">↗️ Outro Setor</button>

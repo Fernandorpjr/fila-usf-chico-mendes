@@ -1,7 +1,7 @@
 // Módulo Frontend — Formulários SUS/Recife (PEC Offline & Renovação de Receita)
 const UNIDADE_PADRAO_USF = 'US 177 USF CHICO MENDES';
 const CNES_PADRAO_USF = '0000965';
-const SETORES_FORMULARIOS_PEC = ['Médico', 'Enfermagem', 'Odontologia', 'ACS', 'Recepção', 'Regulação'];
+const SETORES_FORMULARIOS_PEC = ['Médico', 'Enfermagem', 'Odontologia', 'ACS', 'Recepção', 'Regulação', 'Acolhimento', 'Farmácia', 'Téc. Enfermagem'];
 const SETORES_CLINICOS_FILA = ['Médico', 'Enfermagem', 'Odontologia'];
 
 const FORMULARIOS_PEC_REG = {
@@ -44,16 +44,19 @@ const FORMULARIOS_PEC_REG = {
 };
 
 const FORMULARIOS_POR_SETOR = {
-  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'citopatologico'],
-  'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial', 'controle-especial'],
-  'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'exames-laboratoriais'],
-  'ACS': ['declaracao-residencia'],
-  'Recepção': ['declaracao-residencia'],
-  'Regulação': ['ficha-ambulatorial', 'declaracao-residencia']
+  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'citopatologico', 'declaracao-residencia'],
+  'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial', 'controle-especial', 'declaracao-residencia'],
+  'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'exames-laboratoriais', 'declaracao-residencia'],
+  'ACS': ['declaracao-residencia', 'ficha-ambulatorial'],
+  'Recepção': ['declaracao-residencia', 'ficha-ambulatorial', 'exames-laboratoriais'],
+  'Regulação': ['ficha-ambulatorial', 'exames-laboratoriais', 'declaracao-residencia'],
+  'Acolhimento': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'citopatologico', 'declaracao-residencia'],
+  'Farmácia': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'declaracao-residencia'],
+  'Téc. Enfermagem': ['receituario', 'exames-laboratoriais', 'ficha-ambulatorial', 'citopatologico', 'declaracao-residencia']
 };
 
 const FORMULARIOS_LINHA_FILA = {
-  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial'],
+  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'citopatologico'],
   'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial'],
   'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'exames-laboratoriais']
 };
@@ -185,6 +188,10 @@ function montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexo
     paciente_mae: ext.paciente_mae || '',
     prescricao,
     especialidade,
+    tipo_solicitacao: ext.tipo_solicitacao || '',
+    exame_descricao: ext.exame_descricao || '',
+    exame_solicitado: ext.exame_solicitado || '',
+    exame_nome: ext.exame_nome || '',
     hipotese_diagnostica,
     cid10,
     justificativa: montarJustificativaClinica(paciente, justificativaExtra)
@@ -200,6 +207,12 @@ function buscarPacienteNaMemoria(patientId, setor) {
   if (typeof queues !== 'undefined' && queues) {
     for (const s of Object.keys(queues)) {
       const found = (queues[s] || []).find(p => Number(p.id) === pid);
+      if (found) return found;
+    }
+  }
+  if (typeof acolhimentoFluxo !== 'undefined' && acolhimentoFluxo) {
+    for (const et of ['recepcao', 'primeira_escuta', 'segunda_escuta']) {
+      const found = (acolhimentoFluxo[et] || []).find(p => Number(p.id) === pid);
       if (found) return found;
     }
   }
@@ -273,12 +286,10 @@ function atualizarUITopoModalFormulario() {
     sub.textContent = `${_foEstadoAtual.setor} · ${modoTxt}`;
   }
 
-  const permitidos = FORMULARIOS_POR_SETOR[_foEstadoAtual.setor] || FORMULARIOS_POR_SETOR['Médico'];
   Object.keys(FORMULARIOS_PEC_REG).forEach(k => {
     const btn = document.getElementById(`fo-tab-${k}`);
     if (btn) {
-      const visivel = permitidos.includes(k) || k === _foEstadoAtual.tipo;
-      btn.style.display = visivel ? 'inline-flex' : 'none';
+      btn.style.display = 'inline-flex';
       btn.classList.toggle('active', k === _foEstadoAtual.tipo);
     }
   });
@@ -290,7 +301,7 @@ function atualizarUITopoModalFormulario() {
   }
   const btnSisregFo = document.getElementById('fo-btn-sisreg');
   if (btnSisregFo) {
-    btnSisregFo.style.display = _foEstadoAtual.tipo === 'ficha-ambulatorial' ? 'inline-flex' : 'none';
+    btnSisregFo.style.display = (_foEstadoAtual.tipo === 'ficha-ambulatorial' || _foEstadoAtual.tipo === 'exames-laboratoriais') ? 'inline-flex' : 'none';
   }
 
   renderFotoRefFormularioModal();
@@ -583,16 +594,46 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
     ? (proc.code ? `${proc.name} (${proc.code})` : proc.name)
     : (dadosOcr?.especialidade_ou_exame || '');
   const d = dadosOcr || {};
-  const modal = document.getElementById('modal-formulario-oficial');
-  const modalAberto = modal && modal.classList.contains('show') && _foEstadoAtual.tipo === 'ficha-ambulatorial';
+  const isExame = String(proc?.type || '').toLowerCase() === 'exame';
+  const normTxt = `${proc?.hierarchy || ''} ${proc?.name || ''}`
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  const isExameLab = isExame && /patologia clinica|exames de laboratorio|exame laboratorial/.test(normTxt);
 
-  if (modalAberto) {
+  const modal = document.getElementById('modal-formulario-oficial');
+  const modalAbertoQualquer = Boolean(modal && modal.classList.contains('show'));
+  const modalAbertoFicha = modalAbertoQualquer && _foEstadoAtual.tipo === 'ficha-ambulatorial';
+  const modalAbertoLab = modalAbertoQualquer && _foEstadoAtual.tipo === 'exames-laboratoriais';
+
+  if (isExameLab && modalAbertoLab) {
+    const iframe = document.getElementById('fo-iframe');
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.postMessage({
+        type: 'FORM_ADICIONAR_EXAME',
+        payload: {
+          exame: procTexto,
+          exame_nome: proc?.name || procTexto,
+          exame_codigo: proc?.code || '',
+          paciente_nome: d.paciente_nome || '',
+          paciente_cns: d.paciente_cns || '',
+          paciente_telefone: d.paciente_telefone || ''
+        }
+      }, window.location.origin);
+      if (typeof showToast === 'function') showToast('🧪 Exame adicionado ao Formulário de Exames Laboratoriais!');
+      return;
+    }
+  }
+
+  if (!isExameLab && modalAbertoFicha) {
     const iframe = document.getElementById('fo-iframe');
     if (iframe?.contentWindow) {
       iframe.contentWindow.postMessage({
         type: 'FORM_ATUALIZAR_PROCEDIMENTO',
         payload: {
-          especialidade: procTexto,
+          tipo_solicitacao: isExame ? 'exame' : 'consulta',
+          especialidade: isExame ? '' : procTexto,
+          exame_descricao: isExame ? procTexto : '',
           cid10: d.cid10 || '',
           hipotese_diagnostica: d.hipotese_diagnostica || '',
           justificativa: d.observacoes_revisada || d.observacoes_original || '',
@@ -604,31 +645,46 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
           paciente_mae: d.paciente_mae || ''
         }
       }, window.location.origin);
-      if (typeof showToast === 'function') showToast('✅ Procedimento aplicado na Ficha Ambulatorial!');
+      if (typeof showToast === 'function') {
+        showToast(isExame ? '✅ Exame inserido na seção de Exames da Ficha Ambulatorial!' : '✅ Consulta/Procedimento aplicado na Ficha Ambulatorial!');
+      }
       return;
     }
   }
 
+  const basePac = modalAbertoQualquer ? _foEstadoAtual.paciente : null;
+  const basePrev = modalAbertoQualquer ? _foEstadoAtual.previa : null;
+  const baseExt = (basePrev?.dados_extras && typeof basePrev.dados_extras === 'object') ? basePrev.dados_extras : {};
+  const baseAnexos = modalAbertoQualquer && Array.isArray(_foEstadoAtual.anexos) ? _foEstadoAtual.anexos : [];
+  const targetForm = isExameLab ? 'exames-laboratoriais' : 'ficha-ambulatorial';
+
   const previaSintetica = {
-    paciente_nome_ocr: d.paciente_nome || null,
-    paciente_cns: d.paciente_cns || null,
+    ...(basePrev || {}),
+    paciente_nome_ocr: d.paciente_nome || basePrev?.paciente_nome_ocr || null,
+    paciente_cns: d.paciente_cns || basePrev?.paciente_cns || null,
     dados_extras: {
-      especialidade: procTexto || null,
-      cid10: d.cid10 || null,
-      hipotese_diagnostica: d.hipotese_diagnostica || null,
-      justificativa: d.observacoes_revisada || d.observacoes_original || null,
-      paciente_telefone: d.paciente_telefone || null,
-      paciente_endereco: d.paciente_endereco || null,
-      paciente_data_nascimento: d.paciente_dn || null,
-      paciente_mae: d.paciente_mae || null,
-      paciente_sexo: d.paciente_sexo || null
+      ...baseExt,
+      tipo_solicitacao: isExame ? 'exame' : 'consulta',
+      especialidade: isExame ? (baseExt.especialidade || null) : (procTexto || null),
+      exame_descricao: (isExame && !isExameLab) ? procTexto : (baseExt.exame_descricao || null),
+      exame_solicitado: isExameLab ? procTexto : (baseExt.exame_solicitado || null),
+      exame_nome: isExameLab ? (proc?.name || procTexto) : (baseExt.exame_nome || null),
+      cid10: d.cid10 || baseExt.cid10 || null,
+      hipotese_diagnostica: d.hipotese_diagnostica || baseExt.hipotese_diagnostica || null,
+      justificativa: d.observacoes_revisada || d.observacoes_original || baseExt.justificativa || null,
+      paciente_telefone: d.paciente_telefone || baseExt.paciente_telefone || null,
+      paciente_endereco: d.paciente_endereco || baseExt.paciente_endereco || null,
+      paciente_data_nascimento: d.paciente_dn || baseExt.paciente_data_nascimento || null,
+      paciente_mae: d.paciente_mae || baseExt.paciente_mae || null,
+      paciente_sexo: d.paciente_sexo || baseExt.paciente_sexo || null
     }
   };
-  abrirFormularioOficial('ficha-ambulatorial', {
+  abrirFormularioOficial(targetForm, {
     modo: 'preencher',
     setor: SETORES_FORMULARIOS_PEC.includes(setor) ? setor : 'Médico',
-    paciente: d.paciente_nome ? { nome: d.paciente_nome } : null,
-    previa: previaSintetica
+    paciente: basePac || (d.paciente_nome ? { nome: d.paciente_nome } : null),
+    previa: previaSintetica,
+    anexos: baseAnexos
   });
 };
 

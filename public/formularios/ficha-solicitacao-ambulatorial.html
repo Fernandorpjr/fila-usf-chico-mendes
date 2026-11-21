@@ -295,6 +295,71 @@
     }
   }
 
+  function dividirTextoExame(texto, maxLen) {
+    var s = String(texto || '').replace(/\s+/g, ' ').trim();
+    if (!s) return [];
+    if (s.length <= maxLen) return [s];
+    var palavras = s.split(' ');
+    var partes = [];
+    var atual = '';
+    for (var i = 0; i < palavras.length; i++) {
+      var p = palavras[i];
+      if (atual && (atual.length + 1 + p.length) > maxLen) {
+        partes.push(atual);
+        atual = p;
+        if (partes.length >= 2) {
+          atual = [atual].concat(palavras.slice(i + 1)).join(' ');
+          break;
+        }
+      } else {
+        atual = atual ? (atual + ' ' + p) : p;
+      }
+    }
+    if (atual) partes.push(atual);
+    return partes.slice(0, 3);
+  }
+
+  function inserirExameNaTabela(texto) {
+    var partes = dividirTextoExame(texto, 34);
+    if (!partes.length) return false;
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.row.ex-line'));
+    var txtNorm = String(texto || '').trim().toLowerCase();
+    for (var r = 0; r < rows.length; r++) {
+      var rowText = rows[r].textContent.replace(/\s+/g, ' ').trim().toLowerCase();
+      if (rowText && rowText === txtNorm) return true;
+    }
+    if (partes.length === 1) {
+      for (var r1 = 0; r1 < rows.length; r1++) {
+        var cells1 = rows[r1].querySelectorAll('.f-cell');
+        for (var c1 = 0; c1 < cells1.length; c1++) {
+          if (!cells1[c1].textContent.trim()) {
+            cells1[c1].textContent = partes[0];
+            return true;
+          }
+        }
+      }
+    } else {
+      for (var r2 = 0; r2 < rows.length; r2++) {
+        var cells2 = Array.prototype.slice.call(rows[r2].querySelectorAll('.f-cell'));
+        if (cells2.length >= partes.length && cells2.every(function(el) { return !el.textContent.trim(); })) {
+          for (var k = 0; k < partes.length; k++) cells2[k].textContent = partes[k];
+          return true;
+        }
+      }
+      var idxP = 0;
+      for (var r3 = 0; r3 < rows.length && idxP < partes.length; r3++) {
+        var cells3 = rows[r3].querySelectorAll('.f-cell');
+        for (var c3 = 0; c3 < cells3.length && idxP < partes.length; c3++) {
+          if (!cells3[c3].textContent.trim()) {
+            cells3[c3].textContent = partes[idxP++];
+          }
+        }
+      }
+      if (idxP > 0) return true;
+    }
+    return false;
+  }
+
   window.aplicarDados=function(d){
     window.deixarEmBranco(true);
     if(!d || d.modo==='branco') return;
@@ -310,7 +375,12 @@
     setFieldByLabel('Nome da Mãe:', d.paciente_mae||'');
     setFieldByLabel('Endereço (Rua', d.paciente_endereco||'');
     setFieldByLabel('Profissional:', d.profissional||'');
-    setFieldByLabel('Especialidade da Consulta/Atendimento:', d.especialidade||'');
+    if (d.tipo_solicitacao === 'exame' && d.exame_descricao) {
+      inserirExameNaTabela(d.exame_descricao);
+    } else {
+      setFieldByLabel('Especialidade da Consulta/Atendimento:', d.especialidade||'');
+      if (d.exame_descricao) inserirExameNaTabela(d.exame_descricao);
+    }
     setFieldByLabel('Hipótese Diagnóstica:', d.hipotese_diagnostica||'');
     setFieldByLabel('CID 10 Principal:', d.cid10||'');
     setFieldByLabel('Data de Solicitação:', d.data_br||'');
@@ -330,7 +400,11 @@
         }
       }
     };
-    merge('Especialidade da Consulta/Atendimento:', d.especialidade||'', true);
+    if (d.tipo_solicitacao === 'exame' || (d.exame_descricao && !d.especialidade)) {
+      inserirExameNaTabela(d.exame_descricao || d.especialidade || '');
+    } else {
+      merge('Especialidade da Consulta/Atendimento:', d.especialidade||'', true);
+    }
     merge('Hipótese Diagnóstica:', d.hipotese_diagnostica||'', false);
     merge('CID 10 Principal:', d.cid10||'', false);
     merge('Condições Clínicas', d.justificativa||'', false);
