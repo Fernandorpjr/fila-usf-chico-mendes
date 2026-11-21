@@ -6,6 +6,7 @@ const {
   calcularDiasRestantes,
   classificarUrgencia,
   classificarReceita,
+  classificarDocumentoPrevia,
   normalizarCategoriaAnexo,
   normalizarAnexosPrevia,
   resumirAnexosSemImagem,
@@ -127,4 +128,35 @@ test('normalizarAnexosPrevia enforces max 6 limit, legacy fallback, categories, 
   assert.equal(resumo.length, MAX_ANEXOS_PREVIA);
   assert.equal(resumo[0].imagem_base64, undefined);
   assert.deepEqual(resumo[2], { id: 'f_2', categoria: 'encaminhamento', rotulo: 'Doc 3' });
+});
+
+test('classificarDocumentoPrevia routes SISREG docs to Regulacao and recipes to clinical sectors, and supports PDF attachments', () => {
+  const sisregDoc = classificarDocumentoPrevia({
+    destino_ia: 'sisreg',
+    tipo_documento: 'ficha_ambulatorial',
+    especialidade: 'Cardiologia > 14 anos',
+    codigo_solicitacao: '684348188'
+  });
+  assert.equal(sisregDoc.categoria_destino, 'sisreg');
+  assert.equal(sisregDoc.fila_destino, 'Regulação');
+  assert.equal(sisregDoc.tipo_receita, 'sisreg');
+
+  const recEnf = classificarDocumentoPrevia({
+    destino_ia: 'receita',
+    tipo_documento: 'receita_branca',
+    tipo_receita: 'branca',
+    medicamento: 'Losartana 50mg',
+    data_emissao: '20/10/2026'
+  }, new Date('2026-11-20T12:00:00Z'));
+  assert.equal(recEnf.categoria_destino, 'receita');
+  assert.equal(recEnf.fila_destino, 'Enfermagem');
+
+  const fakePdf = 'data:application/pdf;base64,JVBERi0xLjQK';
+  const normPdf = normalizarAnexosPrevia([{ id: 'p1', categoria: 'encaminhamento', nome_arquivo: 'ficha.pdf', imagem_base64: fakePdf }]);
+  assert.equal(normPdf.length, 1);
+  assert.equal(normPdf[0].mime_type, 'application/pdf');
+  assert.equal(normPdf[0].nome_arquivo, 'ficha.pdf');
+  const resumoPdf = resumirAnexosSemImagem(normPdf);
+  assert.equal(resumoPdf[0].mime_type, 'application/pdf');
+  assert.equal(resumoPdf[0].nome_arquivo, 'ficha.pdf');
 });

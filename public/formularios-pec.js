@@ -558,9 +558,9 @@ function renderBarraFormulariosSetor(setor) {
     return `<button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','${k}',false)">${f.shortLabel}</button>`;
   }).join('');
   const primeiro = lista[0] || 'receituario';
-  const btnSisregBusca = `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregConsulta('${setor}')" title="Consultar códigos, procedimentos e fluxo hierárquico do SISREG (DS5)">🔎 Consultar SISREG</button>`;
+  const btnSisregBusca = `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregConsulta('${setor}')" title="Consultar códigos, procedimentos e fluxo no SISREG (DS5)">🔎 Consultar SISREG</button>`;
   const btnSisregLeitor = setor === 'Médico'
-    ? `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregLeitor('${setor}')" title="Ler foto/PDF de encaminhamento ou Ficha Ambulatorial com IA">📷 Ler Ficha SISREG</button>`
+    ? `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregLeitor('${setor}')" title="Abrir Prévia SISREG (Foto ou PDF) para preencher Ficha Ambulatorial">📋 Prévia SISREG</button>`
     : '';
   return `<div class="pec-forms-bar">
     <span class="pec-forms-title">🖨️ Formulários (PEC Offline):</span>

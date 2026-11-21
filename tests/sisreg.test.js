@@ -28,9 +28,10 @@ test('data/sisreg-catalogo-padrao.json exists, is clean DS5/Chico Mendes, and ha
   assert.ok(cat.total >= 500, `expected >= 500 procedures, got ${cat.total}`);
   assert.equal(cat.unidade, 'US 177 USF CHICO MENDES');
   assert.equal(cat.cnes, '0000965');
-  assert.match(cat.distrito, /DS5/);
-  assert.match(cat.contato_nao_encontrado, /Coordenador do DS5/i);
+  assert.equal(cat.distrito, 'DS5');
+  assert.equal(cat.contato_nao_encontrado, 'Coordenador do DS5');
   assert.ok(!cat.unidade.includes('Apipucos'));
+  assert.ok(!cat.distrito.includes('Distrito Sanitário V'));
   assert.ok(!cat.distrito.includes('DS3') && !cat.distrito.includes('DS III'));
 });
 

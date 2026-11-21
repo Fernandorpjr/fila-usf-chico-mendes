@@ -643,12 +643,12 @@ function initSectorScreens() {
         <div class="cb-text"><div class="cb-label">Chamando agora</div><div class="cb-name" id="banner-name-${cfg.key}">—</div><div class="cb-sector">${cfg.icon} ${setor}</div></div>
         <button class="btn btn-ghost btn-sm" onclick="speakAgain('${setor}')">🔊 Repetir</button>
       </div>
-      ${setor === 'Regulação' ? '<div id="regulacao-copiloto-root"></div>' : ''}
       <div class="card-white">
         ${odontoRegraBanner}
         ${filterHTML}
         ${profHTML}
         ${typeof renderBarraFormulariosSetor === 'function' ? renderBarraFormulariosSetor(setor) : ''}
+        ${setor === 'Regulação' ? '<div id="regulacao-copiloto-root"></div>' : ''}
         <div class="btn-group" style="margin-bottom:20px;">
           <button class="btn ${cfg.btnClass} btn-3d" onclick="callNext('${setor}', this)" style="flex:1;">📢 Chamar Próximo</button>
           ${(setor === 'Farmácia' || setor === 'Regulação') ? `<button class="btn ${cfg.btnClass} btn-3d" onclick="callNextMulti('${setor}', this)" style="flex:1;">📢 Chamar 3 Próximos (Multi)</button>` : ''}

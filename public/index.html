@@ -2117,6 +2117,11 @@
     .sisreg-head-title { font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 900; }
     .sisreg-head-sub { font-size: 12px; opacity: 0.9; margin-top: 2px; }
     .sisreg-stat-pill { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); color: #fff; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+    .sisreg-stat-pill.dark { background: #e0f2fe; border-color: #7dd3fc; color: #0c4a6e; }
+    .previa-pdf-frame { width: 100%; height: 100%; border: none; border-radius: 8px; background: #fff; }
+    .pr-thumb-pdf { width: 100%; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 4px; text-align: center; color: #1e3a8a; font-weight: 800; overflow: hidden; }
+    .pr-thumb-pdf small { font-size: 10px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pr-thumb-pdf-mini { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: #eef2ff; border-radius: 4px; font-size: 18px; }
     .sisreg-head-btn { background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
     .sisreg-head-btn:hover { background: rgba(255,255,255,0.28); }
     .sisreg-copiloto-body { padding: 14px 16px; background: #f8fafc; }
@@ -2581,8 +2586,8 @@
               <div id="recepcao-interc-alerta"></div>
               <div id="recepcao-previa-receita-bar" class="recepcao-previa-bar">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                  <button type="button" id="btn-abrir-previa-recepcao" class="btn-previa-recepcao" onclick="abrirModalCapturaReceita()">📷 Prévia da Receita (Opcional)</button>
-                  <span id="recepcao-previa-subtxt" style="font-size:11.5px;color:#1e3a8a;font-weight:700;">Foto para o profissional adiantar no PEC</span>
+                  <button type="button" id="btn-abrir-previa-recepcao" class="btn-previa-recepcao" onclick="abrirModalCapturaReceita()">📷 Prévia (Foto ou PDF)</button>
+                  <span id="recepcao-previa-subtxt" style="font-size:11.5px;color:#1e3a8a;font-weight:700;">A IA identifica automaticamente se é Receita ou SISREG</span>
                 </div>
                 <div id="recepcao-previa-anexada-pill" class="recepcao-previa-anexada">
                   <span id="recepcao-previa-anexada-txt">📄 Prévia anexada</span>
@@ -4421,25 +4426,25 @@
   <div class="previa-modal-card">
     <div class="previa-modal-head">
       <div>
-        <div style="font-weight:900;font-size:15px;">📷 Prévia de Receitas e Encaminhamentos (Opcional — até 6 fotos)</div>
-        <div style="font-size:11.5px;opacity:0.85;">Adicione receitas ou encaminhamentos (até 6 fotos), ou cole com Ctrl+V · A fila principal não trava</div>
+        <div style="font-weight:900;font-size:15px;">📎 Prévia de Documentos (Foto ou PDF — até 6 arquivos)</div>
+        <div style="font-size:11.5px;opacity:0.85;">Envie fotos ou PDFs (ou cole com Ctrl+V) · A IA identifica se é Receita ou SISREG</div>
       </div>
       <button type="button" onclick="fecharModalCapturaReceita()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
     </div>
     <div class="previa-modal-body">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <input type="file" id="pr-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarListaImagensReceita(this.files);this.value='';">
-        <input type="file" id="pr-file-upload" accept="image/*" multiple style="display:none;" onchange="if(this.files&&this.files.length)processarListaImagensReceita(this.files);this.value='';">
+        <input type="file" id="pr-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="if(this.files&&this.files.length)processarListaImagensReceita(this.files);this.value='';">
         <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('pr-file-camera').click()">📸 Tirar Foto (Câmera)</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('pr-file-upload').click()">🖼️ Escolher Imagens / Print (Ctrl+V)</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('pr-file-upload').click()">📄 Escolher Imagem / PDF (Ctrl+V)</button>
       </div>
 
       <div id="pr-ocr-status" style="display:none;"></div>
 
       <div id="pr-galeria-wrap" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:10px;margin-bottom:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-          <span id="pr-galeria-count" style="font-size:12px;font-weight:900;color:#0f172a;">📎 0 / 6 fotos anexadas</span>
-          <button type="button" onclick="limparTodasFotosCaptura()" style="background:transparent;border:none;color:#dc2626;font-size:12px;font-weight:800;cursor:pointer;padding:0;">🗑️ Limpar todas</button>
+          <span id="pr-galeria-count" style="font-size:12px;font-weight:900;color:#0f172a;">📎 0 / 6 arquivos anexados</span>
+          <button type="button" onclick="limparTodasFotosCaptura()" style="background:transparent;border:none;color:#dc2626;font-size:12px;font-weight:800;cursor:pointer;padding:0;">🗑️ Limpar todos</button>
         </div>
         <div id="pr-galeria-grid" class="pr-galeria-grid"></div>
       </div>
@@ -4448,11 +4453,12 @@
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="form-group" style="margin:0;">
-          <label>Tipo de Receita</label>
+          <label>Tipo de Documento (detectado pela IA)</label>
           <select id="pr-tipo" onchange="atualizarSugestaoReceitaLocal()">
             <option value="branca">⚪ Receita Branca (PEC — 6 meses)</option>
             <option value="azul">🔵 Receita Azul (Controle Especial — 2 meses)</option>
             <option value="odonto">🦷 Receita Odontológica</option>
+            <option value="sisreg">📋 SISREG / Ficha Ambulatorial / Encaminhamento</option>
           </select>
         </div>
         <div class="form-group" style="margin:0;">
@@ -4469,8 +4475,8 @@
         </div>
       </div>
       <div class="form-group" style="margin-top:10px;">
-        <label>Medicamentos & Dosagem</label>
-        <textarea id="pr-medicamentos" rows="2" placeholder="Ex.: Losartana 50mg, Metformina 850mg..."></textarea>
+        <label>Medicamentos / Procedimento Solicitado</label>
+        <textarea id="pr-medicamentos" rows="2" placeholder="Ex.: Losartana 50mg, Metformina 850mg ou USG Tireoide, Cardiologia..."></textarea>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="form-group" style="margin:0;">
@@ -4512,21 +4518,25 @@
             <button type="button" id="vp-btn-next" class="btn btn-sm" style="background:#334155;color:#fff;border:1px solid #475569;margin-left:auto;" onclick="navegarFotoPrevia(1)">Próxima ▶</button>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
-            <button type="button" class="btn btn-outline btn-sm" onclick="zoomPreviaImg(-0.25)">➖ Zoom</button>
-            <button type="button" class="btn btn-outline btn-sm" onclick="zoomPreviaImg(0.25)">➕ Zoom</button>
-            <button type="button" class="btn btn-outline btn-sm" onclick="girarPreviaImg()">🔄 Girar 90°</button>
-            <button type="button" class="btn btn-outline btn-sm" onclick="resetPreviaImgView()">🎯 100%</button>
-            <span id="vp-zoom-label" class="previa-zoom-pill">100%</span>
-            <a id="vp-btn-download" href="" download="receita-previa.jpg" class="btn btn-outline btn-sm" style="text-decoration:none;">⬇️ Baixar</a>
-            <span class="previa-pan-hint">✋ Arraste a foto p/ mover · Scroll p/ zoom</span>
+            <span id="vp-img-controls" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="zoomPreviaImg(-0.25)">➖ Zoom</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="zoomPreviaImg(0.25)">➕ Zoom</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="girarPreviaImg()">🔄 Girar 90°</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="resetPreviaImgView()">🎯 100%</button>
+              <span id="vp-zoom-label" class="previa-zoom-pill">100%</span>
+              <span class="previa-pan-hint">✋ Arraste a foto p/ mover · Scroll p/ zoom</span>
+            </span>
+            <a id="vp-btn-download" href="" download="receita-previa.jpg" class="btn btn-outline btn-sm" style="text-decoration:none;margin-left:auto;">⬇️ Baixar</a>
           </div>
           <div class="previa-img-stage" id="vp-img-stage">
             <img id="vp-img" src="" alt="Foto da receita" draggable="false">
-            <div id="vp-sem-img" style="color:#cbd5e1;font-size:13px;font-weight:700;text-align:center;padding:20px;">⏳ Carregando imagem...</div>
+            <iframe id="vp-pdf-frame" class="previa-pdf-frame" style="display:none;" title="Prévia PDF"></iframe>
+            <div id="vp-sem-img" style="color:#cbd5e1;font-size:13px;font-weight:700;text-align:center;padding:20px;">⏳ Carregando arquivo...</div>
           </div>
           <div id="vp-thumbs-strip" class="vp-thumbs-strip"></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;">
+          <div id="vp-destino-ia-banner" style="display:none;background:#f0fdfa;border:1.5px solid #5eead4;border-radius:10px;padding:9px 12px;font-size:12px;color:#115e59;"></div>
           <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px;">
             <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;">Paciente (Receita)</div>
             <div id="vp-nome-pac" style="font-size:15px;font-weight:900;color:#0f172a;margin-top:2px;">—</div>
@@ -4707,6 +4717,7 @@
             </div>
             <div id="sm-img-stage" class="sisreg-img-stage" style="height:440px;">
               <img id="sm-stage-img" src="" alt="Documento" draggable="false" style="display:none;">
+              <iframe id="sm-stage-pdf-iframe" class="previa-pdf-frame" style="display:none;" title="Prévia PDF SISREG"></iframe>
               <div id="sm-stage-empty" class="sisreg-stage-empty">📷 Anexe foto ou PDF da ficha/encaminhamento ou cole com <strong>Ctrl+V</strong>.</div>
             </div>
           </div>
@@ -4744,6 +4755,9 @@
   </div>
 </div>
 
+<!-- Modal 5: Prévia Regulação (SISREG III · Segunda Tela) -->
+<div id="modal-previa-regulacao" class="previa-modal-backdrop" onclick="if(event.target===this)fecharModalPreviaRegulacao()"></div>
+
 <style>
   @media print {
     body { background: #fff !important; min-height: auto !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
@@ -4767,9 +4781,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.9"></script>
-<script src="receitas-previa.js?v=1.4"></script>
-<script src="formularios-pec.js?v=1.3"></script>
-<script src="regulacao-sisreg.js?v=1.0"></script>
-<script src="app.js?v=7.3"></script>
+<script src="receitas-previa.js?v=1.5"></script>
+<script src="formularios-pec.js?v=1.4"></script>
+<script src="regulacao-sisreg.js?v=1.1"></script>
+<script src="app.js?v=7.4"></script>
 </body>
 </html>

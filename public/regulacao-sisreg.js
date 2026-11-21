@@ -2,16 +2,17 @@
 (function () {
   const SISREG_UNIDADE_DEFAULT = 'US 177 USF CHICO MENDES';
   const SISREG_CNES_DEFAULT = '0000965';
-  const SISREG_DISTRITO_DEFAULT = 'DS5 (Distrito Sanitário V)';
-  const SISREG_CONTATO_FALLBACK = 'Coordenador do DS5 (Distrito Sanitário V)';
-  const MAX_SISREG_PDF_BYTES = 2_800_000;
+  const SISREG_DISTRITO_DEFAULT = 'DS5';
+  const SISREG_CONTATO_FALLBACK = 'Coordenador do DS5';
+  const MAX_SISREG_PDF_BYTES = 2_000_000;
 
   let _sisregCatalogo = null;
   let _sisregCatalogoPromise = null;
   let _sisregDevolucoes = [];
-  let _sisregColapsado = false;
   let _sisregAbaAtiva = 'leitor'; // 'leitor' | 'busca' | 'devolucoes'
   let _sisregDevFiltro = 'pendente';
+  let _copilotoPdfBlobUrl = null;
+  let _medPdfBlobUrl = null;
 
   const _copilotoState = {
     patientId: null,
@@ -202,13 +203,47 @@
     }
   }
 
+  function isDataUrlPdfSisreg(str, mime) {
+    return mime === 'application/pdf' || (typeof str === 'string' && str.trim().toLowerCase().startsWith('data:application/pdf'));
+  }
+
+  function criarBlobUrlPdfSisreg(dataUrl) {
+    try {
+      const b64 = String(dataUrl || '').includes(',') ? String(dataUrl).split(',')[1] : String(dataUrl || '');
+      const binStr = atob(b64);
+      const len = binStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      return URL.createObjectURL(blob);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function revogarCopilotoPdfBlobUrl() {
+    if (_copilotoPdfBlobUrl) {
+      try { URL.revokeObjectURL(_copilotoPdfBlobUrl); } catch (_) {}
+      _copilotoPdfBlobUrl = null;
+    }
+  }
+
+  function revogarMedPdfBlobUrl() {
+    if (_medPdfBlobUrl) {
+      try { URL.revokeObjectURL(_medPdfBlobUrl); } catch (_) {}
+      _medPdfBlobUrl = null;
+    }
+  }
+
   function incrementarContadorLidasHoje() {
     try {
       const k = `sisreg_lidas_${getHojeRecifeKey()}`;
       const next = (parseInt(localStorage.getItem(k) || '0', 10) || 0) + 1;
       localStorage.setItem(k, String(next));
-      const el = document.getElementById('sisreg-lidas-hoje-badge');
-      if (el) el.textContent = `📊 Lidas hoje: ${next}`;
+      const el1 = document.getElementById('sisreg-lidas-hoje-badge');
+      const el2 = document.getElementById('sisreg-lidas-hoje-modal');
+      if (el1) el1.textContent = `📊 Lidas hoje: ${next}`;
+      if (el2) el2.textContent = `📊 Lidas hoje: ${next}`;
     } catch (_) {}
   }
 
@@ -594,43 +629,61 @@
     return new TextDecoder('utf-8').decode(u8);
   }
 
-  // ===== PAINEL PRINCIPAL DO COPILOTO NA ABA REGULAÇÃO =====
+  // ===== BARRA COMPACTA NA REGULAÇÃO + MODAL "SEGUNDA TELA" =====
   function initCopilotoRegulacao() {
     const root = document.getElementById('regulacao-copiloto-root');
-    if (!root) return;
+    if (root) {
+      root.innerHTML = `
+        <div class="pec-forms-bar" style="margin-bottom:14px;">
+          <span class="pec-forms-title">📋 Prévia Regulação (SISREG):</span>
+          <button type="button" class="pec-form-btn sisreg" onclick="abrirModalPreviaRegulacao('leitor')">👁️ Abrir Prévia SISREG</button>
+          <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('busca')">🔎 Busca SISREG</button>
+          <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('devolucoes')">↩️ Devoluções <span id="sisreg-dev-badge-bar" class="sisreg-dev-count" style="display:none;">0</span></button>
+          <span id="sisreg-lidas-hoje-badge" class="sisreg-stat-pill dark" style="margin-left:auto;">📊 Lidas hoje: ${getContadorLidasHoje()}</span>
+        </div>
+      `;
+    }
+    garantirModalPreviaRegulacaoMontado();
+    garantirCatalogoSisregCarregado();
+    carregarDevolucoesSisreg();
+  }
 
-    root.innerHTML = `
-      <div class="sisreg-copiloto-card">
-        <div class="sisreg-copiloto-head">
+  function garantirModalPreviaRegulacaoMontado() {
+    const modal = document.getElementById('modal-previa-regulacao');
+    if (!modal || modal.dataset.mounted === '1') return;
+    modal.dataset.mounted = '1';
+
+    modal.innerHTML = `
+      <div class="previa-modal-card wide">
+        <div class="previa-modal-head" style="background:linear-gradient(135deg,#0f2c73,#0f766e);">
           <div>
-            <div class="sisreg-head-title">🩺 Copiloto da Regulação — SISREG III (${SISREG_UNIDADE_DEFAULT} · ${SISREG_DISTRITO_DEFAULT})</div>
-            <div class="sisreg-head-sub">Leitura por IA + Cópia em 1 clique + Busca instantânea no catálogo + Alertas Anti-Devolução</div>
+            <div style="font-weight:900;font-size:15.5px;">📋 Prévia Regulação — SISREG III (${SISREG_UNIDADE_DEFAULT} · ${SISREG_DISTRITO_DEFAULT})</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span id="sisreg-lidas-hoje-badge" class="sisreg-stat-pill">📊 Lidas hoje: ${getContadorLidasHoje()}</span>
-            <button type="button" class="sisreg-head-btn" id="sisreg-btn-toggle-body" onclick="toggleCorpoCopilotoRegulacao()">${_sisregColapsado ? '▼ Expandir' : '▲ Recolher'}</button>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span id="sisreg-lidas-hoje-modal" class="sisreg-stat-pill">📊 Lidas hoje: ${getContadorLidasHoje()}</span>
+            <button type="button" onclick="fecharModalPreviaRegulacao()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
           </div>
         </div>
 
-        <div id="sisreg-copiloto-body" class="sisreg-copiloto-body" style="${_sisregColapsado ? 'display:none;' : ''}">
+        <div class="previa-modal-body" style="background:#f8fafc;">
           <div class="sisreg-tabs-row">
-            <button type="button" class="sisreg-tab-btn ${_sisregAbaAtiva === 'leitor' ? 'active' : ''}" id="sisreg-tab-leitor" onclick="trocarAbaCopilotoRegulacao('leitor')">📷 Leitor de Ficha + Anti-Devolução</button>
+            <button type="button" class="sisreg-tab-btn ${_sisregAbaAtiva === 'leitor' ? 'active' : ''}" id="sisreg-tab-leitor" onclick="trocarAbaCopilotoRegulacao('leitor')">📷 Prévia / Ficha + PDF</button>
             <button type="button" class="sisreg-tab-btn ${_sisregAbaAtiva === 'busca' ? 'active' : ''}" id="sisreg-tab-busca" onclick="trocarAbaCopilotoRegulacao('busca')">🔎 Busca de Procedimentos SISREG</button>
             <button type="button" class="sisreg-tab-btn ${_sisregAbaAtiva === 'devolucoes' ? 'active' : ''}" id="sisreg-tab-devolucoes" onclick="trocarAbaCopilotoRegulacao('devolucoes')">↩️ Devoluções <span id="sisreg-dev-badge" class="sisreg-dev-count" style="display:none;">0</span></button>
           </div>
 
-          <!-- ABA 1: LEITOR DE FICHA + ANTI-DEVOLUÇÃO -->
+          <!-- ABA 1: PRÉVIA / LEITOR DE FICHA E PDF -->
           <div id="sisreg-pane-leitor" style="${_sisregAbaAtiva === 'leitor' ? '' : 'display:none;'}">
             <div class="sisreg-toolbar">
               <input type="file" id="sisreg-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivosCopilotoSisreg(this.files);this.value='';">
               <input type="file" id="sisreg-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="if(this.files&&this.files.length)processarArquivosCopilotoSisreg(this.files);this.value='';">
               <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('sisreg-file-cam').click()">📸 Tirar Foto da Ficha</button>
-              <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('sisreg-file-upload').click()">🖼️ Escolher Foto / PDF SISREG (Ctrl+V)</button>
-              <button type="button" class="btn btn-sm" style="background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;font-weight:800;" onclick="limparFichaCopilotoSisreg()">🔄 Nova Ficha</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('sisreg-file-upload').click()">📄 Escolher Foto / PDF (Ctrl+V)</button>
+              <button type="button" class="btn btn-sm" style="background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;font-weight:800;" onclick="limparFichaCopilotoSisreg()">🔄 Nova Prévia</button>
               <div id="sisreg-pac-vinculado-pill" class="sisreg-pac-pill" style="display:none;">
                 <span>👤 Fila: <strong id="sisreg-pac-vinculado-nome"></strong></span>
-                <button type="button" id="sisreg-btn-reanalisar-vinculado" onclick="reanalisarAnexoAtivoCopiloto()" class="sisreg-mini-link" title="Ler novamente com IA focada em SISREG">🤖 Reler p/ SISREG</button>
-                <button type="button" id="sisreg-btn-salvar-fila" onclick="salvarFotoCopilotoNoPaciente()" class="sisreg-mini-link ok" title="Salvar foto e dados neste paciente da fila">💾 Salvar no Paciente</button>
+                <button type="button" id="sisreg-btn-reanalisar-vinculado" onclick="reanalisarAnexoAtivoCopiloto()" class="sisreg-mini-link" title="Ler novamente com IA">🤖 Reler Prévia</button>
+                <button type="button" id="sisreg-btn-salvar-fila" onclick="salvarFotoCopilotoNoPaciente()" class="sisreg-mini-link ok" title="Salvar anexo e dados neste paciente da fila">💾 Salvar no Paciente</button>
                 <button type="button" onclick="desvincularPacienteCopiloto()" style="background:transparent;border:none;color:#991b1b;font-weight:900;cursor:pointer;" title="Desvincular">✕</button>
               </div>
             </div>
@@ -638,27 +691,27 @@
             <div id="sisreg-ocr-status" class="pr-status-box" style="display:none;"></div>
 
             <div class="sisreg-split-grid">
-              <!-- ESQUERDA: VISUALIZADOR COM ZOOM & GARRINHA -->
+              <!-- ESQUERDA: VISUALIZADOR COM ZOOM / GARRINHA / PDF NATIVO -->
               <div>
                 <div id="sisreg-img-nav" class="vp-nav-bar" style="display:none;">
                   <button type="button" class="btn btn-sm" style="background:#334155;color:#fff;" onclick="navegarFotoCopiloto(-1)">◀ Anterior</button>
-                  <span id="sisreg-img-counter" style="font-size:12px;font-weight:900;">Foto 1 de 1</span>
-                  <button type="button" class="btn btn-sm" style="background:#334155;color:#fff;margin-left:auto;" onclick="navegarFotoCopiloto(1)">Próxima ▶</button>
+                  <span id="sisreg-img-counter" style="font-size:12px;font-weight:900;">Arquivo 1 de 1</span>
+                  <button type="button" class="btn btn-sm" style="background:#334155;color:#fff;margin-left:auto;" onclick="navegarFotoCopiloto(1)">Próximo ▶</button>
                 </div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                <div id="sisreg-img-controls" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
                   <button type="button" class="btn btn-outline btn-sm" onclick="zoomCopilotoImg(-0.25)">➖ Zoom</button>
                   <button type="button" class="btn btn-outline btn-sm" onclick="zoomCopilotoImg(0.25)">➕ Zoom</button>
                   <button type="button" class="btn btn-outline btn-sm" onclick="girarCopilotoImg()">🔄 90°</button>
                   <button type="button" class="btn btn-outline btn-sm" onclick="resetCopilotoImgView()">🎯 100%</button>
                   <span id="sisreg-zoom-label" class="previa-zoom-pill">100%</span>
+                  <a id="sisreg-btn-download-ativo" href="" download="previa-sisreg" class="btn btn-outline btn-sm" style="display:none;text-decoration:none;">⬇️ Baixar</a>
                   <span class="previa-pan-hint">✋ Arraste · Scroll p/ zoom</span>
                 </div>
-                <div class="sisreg-img-stage" id="sisreg-img-stage">
+                <div class="previa-img-stage" id="sisreg-img-stage">
                   <img id="sisreg-stage-img" src="" alt="Ficha Ambulatorial" draggable="false" style="display:none;">
-                  <div id="sisreg-stage-pdf" class="sisreg-pdf-box" style="display:none;"></div>
+                  <iframe id="sisreg-stage-pdf-iframe" class="previa-pdf-frame" style="display:none;" title="Prévia PDF SISREG"></iframe>
                   <div id="sisreg-stage-empty" class="sisreg-stage-empty">
-                    📷 Tire foto da <strong>Ficha de Solicitação Ambulatorial</strong> ou cole um print com <strong>Ctrl+V</strong>.<br>
-                    <small>A IA extrai observações, CNS, telefone, endereço e procura o procedimento automaticamente.</small>
+                    📷 Tire foto da <strong>Ficha de Solicitação Ambulatorial</strong>, anexe <strong>PDF</strong> ou cole com <strong>Ctrl+V</strong>.
                   </div>
                 </div>
                 <div id="sisreg-thumbs-strip" class="vp-thumbs-strip"></div>
@@ -668,7 +721,7 @@
               <div class="sisreg-form-col">
                 <div id="sisreg-alertas-dinamicos"></div>
 
-                <!-- BLOCO TELEFONE (CONFERÊNCIA OBRIGATÓRIA PARA NOTIFICAÇÃO DO SISREG) -->
+                <!-- BLOCO TELEFONE -->
                 <div class="sisreg-box sisreg-box-tel">
                   <div class="sisreg-box-head">
                     <span>📞 Telefone do Usuário (O SISREG avisa quando marcar)</span>
@@ -685,7 +738,7 @@
                   </label>
                 </div>
 
-                <!-- BLOCO OBSERVAÇÕES (PRINCIPAL PARA COPIAR E COLAR) -->
+                <!-- BLOCO OBSERVAÇÕES -->
                 <div class="sisreg-box sisreg-box-obs">
                   <div class="sisreg-box-head">
                     <span>📝 Observações / Condições Clínicas (Copiar p/ SISREG)</span>
@@ -694,7 +747,7 @@
                       <button type="button" class="btn btn-primary btn-sm" onclick="copiarObservacaoSisreg(false)">📋 Copiar Obs.</button>
                     </div>
                   </div>
-                  <textarea id="sr-observacoes" rows="4" placeholder="A IA extrai aqui o texto completo das Condições Clínicas / Justificativa já revisado (sem inventar dados)..." oninput="onCampoSisregAlterado('observacoes_revisada', this.value)"></textarea>
+                  <textarea id="sr-observacoes" rows="4" placeholder="A IA extrai aqui as Condições Clínicas / Justificativa para colar no SISREG..." oninput="onCampoSisregAlterado('observacoes_revisada', this.value)"></textarea>
                   <div class="sisreg-obs-footer">
                     <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#1e3a8a;cursor:pointer;">
                       <input type="checkbox" id="sr-chk-maiusc" onchange="onToggleMaiusculasObs(this.checked)">
@@ -707,15 +760,15 @@
                 <!-- BLOCO PROCEDIMENTO ENCONTRADO NO SISREG -->
                 <div class="sisreg-box sisreg-box-proc">
                   <div class="sisreg-box-head">
-                    <span>🔎 Onde está no SISREG (Cruzamento Automático)</span>
+                    <span>🔎 Onde está no SISREG</span>
                     <button type="button" class="sisreg-mini-link" onclick="trocarAbaCopilotoRegulacao('busca')">Abrir Busca Completa →</button>
                   </div>
                   <div id="sisreg-proc-sugestoes">
-                    <div class="sisreg-muted">Anexe ou pesquise um procedimento para ver o código e o caminho exato no menu do SISREG.</div>
+                    <div class="sisreg-muted">Anexe ou pesquise um procedimento para ver o código e o grupo no SISREG.</div>
                   </div>
                 </div>
 
-                <!-- BLOCO IDENTIFICAÇÃO E SOLICITAÇÃO (1 CLIQUE) -->
+                <!-- BLOCO IDENTIFICAÇÃO E SOLICITAÇÃO -->
                 <div class="sisreg-box">
                   <div class="sisreg-box-head">
                     <span>👤 Dados do Paciente &amp; Solicitação (Editar / Copiar)</span>
@@ -863,7 +916,7 @@
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('HOLTER')">Holter</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('MAPA')">MAPA</button>
             </div>
-            <div class="sisreg-table-wrap">
+            <div class="sisreg-table-wrap" style="max-height:52vh;">
               <table class="sisreg-results-table">
                 <thead>
                   <tr>
@@ -925,25 +978,35 @@
     `;
 
     inicializarPanZoomCopiloto();
+    renderEstadoFormularioCopiloto();
+  }
+
+  function abrirModalPreviaRegulacao(aba = 'leitor') {
+    garantirModalPreviaRegulacaoMontado();
+    const modal = document.getElementById('modal-previa-regulacao');
+    if (!modal) return;
+    trocarAbaCopilotoRegulacao(aba || 'leitor');
+    modal.classList.add('show');
+    inicializarPanZoomCopiloto();
     garantirCatalogoSisregCarregado().then(() => {
       executarBuscaManualSisreg();
       renderSugestoesCopiloto();
     });
     carregarDevolucoesSisreg();
-    renderEstadoFormularioCopiloto();
+    renderVisualizadorCopiloto();
+  }
+
+  function fecharModalPreviaRegulacao() {
+    document.getElementById('modal-previa-regulacao')?.classList.remove('show');
+    revogarCopilotoPdfBlobUrl();
   }
 
   function toggleCorpoCopilotoRegulacao() {
-    _sisregColapsado = !_sisregColapsado;
-    const body = document.getElementById('sisreg-copiloto-body');
-    const btn = document.getElementById('sisreg-btn-toggle-body');
-    if (body) body.style.display = _sisregColapsado ? 'none' : 'block';
-    if (btn) btn.textContent = _sisregColapsado ? '▼ Expandir' : '▲ Recolher';
+    abrirModalPreviaRegulacao(_sisregAbaAtiva || 'leitor');
   }
 
   function trocarAbaCopilotoRegulacao(aba) {
     _sisregAbaAtiva = aba;
-    if (_sisregColapsado) toggleCorpoCopilotoRegulacao();
     ['leitor', 'busca', 'devolucoes'].forEach(k => {
       document.getElementById(`sisreg-tab-${k}`)?.classList.toggle('active', k === aba);
       const pane = document.getElementById(`sisreg-pane-${k}`);
@@ -1000,7 +1063,9 @@
 
   function renderVisualizadorCopiloto() {
     const imgEl = document.getElementById('sisreg-stage-img');
-    const pdfEl = document.getElementById('sisreg-stage-pdf');
+    const pdfFrame = document.getElementById('sisreg-stage-pdf-iframe');
+    const controlsEl = document.getElementById('sisreg-img-controls');
+    const dlEl = document.getElementById('sisreg-btn-download-ativo');
     const emptyEl = document.getElementById('sisreg-stage-empty');
     const navEl = document.getElementById('sisreg-img-nav');
     const cntEl = document.getElementById('sisreg-img-counter');
@@ -1008,30 +1073,15 @@
     if (!imgEl || !emptyEl) return;
 
     resetCopilotoImgView();
+    revogarCopilotoPdfBlobUrl();
 
-    if (_copilotoState.arquivoTipo === 'pdf' && _copilotoState.pdfBase64) {
-      imgEl.style.display = 'none';
-      emptyEl.style.display = 'none';
-      if (pdfEl) {
-        pdfEl.style.display = 'flex';
-        const prot = _copilotoState.dados?.codigo_solicitacao;
-        pdfEl.innerHTML = `
-          <div style="font-size:44px;">📄</div>
-          <div style="font-size:15px;font-weight:900;color:#fff;">PDF SISREG III Carregado</div>
-          <div style="font-size:12px;color:#cbd5e1;">${escSisreg(_copilotoState.pdfNome || 'Documento PDF')}</div>
-          ${prot ? `<div style="margin-top:6px;padding:6px 12px;border-radius:999px;background:#1d4ed8;color:#fff;font-size:12px;font-weight:900;">Protocolo: ${escSisreg(prot)}</div>` : ''}
-        `;
-      }
-      if (navEl) navEl.style.display = 'none';
-      if (strip) strip.style.display = 'none';
-      return;
-    }
-
-    if (pdfEl) pdfEl.style.display = 'none';
     const total = _copilotoState.anexos.length;
     if (total === 0) {
       imgEl.src = '';
       imgEl.style.display = 'none';
+      if (pdfFrame) { pdfFrame.src = 'about:blank'; pdfFrame.style.display = 'none'; }
+      if (controlsEl) controlsEl.style.display = 'none';
+      if (dlEl) dlEl.style.display = 'none';
       emptyEl.style.display = 'flex';
       if (navEl) navEl.style.display = 'none';
       if (strip) { strip.style.display = 'none'; strip.innerHTML = ''; }
@@ -1040,23 +1090,59 @@
 
     if (_copilotoState.anexoIdx >= total) _copilotoState.anexoIdx = total - 1;
     const ativo = _copilotoState.anexos[_copilotoState.anexoIdx];
-    imgEl.src = ativo.imagem_base64;
-    imgEl.style.display = 'block';
+    const ehPdf = isDataUrlPdfSisreg(ativo?.imagem_base64, ativo?.mime_type);
+
     emptyEl.style.display = 'none';
+    if (ehPdf && ativo?.imagem_base64) {
+      imgEl.src = '';
+      imgEl.style.display = 'none';
+      if (controlsEl) controlsEl.style.display = 'flex';
+      controlsEl?.querySelectorAll('button, .previa-zoom-pill, .previa-pan-hint').forEach(el => {
+        el.style.display = 'none';
+      });
+      if (dlEl) {
+        dlEl.href = ativo.imagem_base64;
+        dlEl.download = ativo.nome_arquivo || `documento-sisreg-${_copilotoState.anexoIdx + 1}.pdf`;
+        dlEl.style.display = 'inline-flex';
+      }
+      if (pdfFrame) {
+        const blobUrl = criarBlobUrlPdfSisreg(ativo.imagem_base64);
+        _copilotoPdfBlobUrl = blobUrl;
+        pdfFrame.src = blobUrl || ativo.imagem_base64;
+        pdfFrame.style.display = 'block';
+      }
+    } else if (ativo?.imagem_base64) {
+      if (pdfFrame) { pdfFrame.src = 'about:blank'; pdfFrame.style.display = 'none'; }
+      controlsEl?.querySelectorAll('button, .previa-zoom-pill, .previa-pan-hint').forEach(el => {
+        el.style.display = '';
+      });
+      if (controlsEl) controlsEl.style.display = 'flex';
+      imgEl.src = ativo.imagem_base64;
+      imgEl.style.display = 'block';
+      if (dlEl) {
+        dlEl.href = ativo.imagem_base64;
+        dlEl.download = ativo.nome_arquivo || `ficha-sisreg-${_copilotoState.anexoIdx + 1}.jpg`;
+        dlEl.style.display = 'inline-flex';
+      }
+    }
 
     if (navEl) {
       navEl.style.display = total > 1 ? 'flex' : 'none';
-      if (cntEl) cntEl.textContent = `Foto ${_copilotoState.anexoIdx + 1} de ${total}`;
+      if (cntEl) cntEl.textContent = `Arquivo ${_copilotoState.anexoIdx + 1} de ${total}${ehPdf ? ' · 📄 PDF' : ''}`;
     }
     if (strip) {
       if (total > 1) {
         strip.style.display = 'flex';
-        strip.innerHTML = _copilotoState.anexos.map((a, idx) => `
-          <button type="button" class="vp-thumb-btn${idx === _copilotoState.anexoIdx ? ' active' : ''}" onclick="selecionarFotoCopiloto(${idx})">
-            <img src="${a.imagem_base64}" alt="Foto ${idx + 1}">
-            <span>${idx + 1}</span>
-          </button>
-        `).join('');
+        strip.innerHTML = _copilotoState.anexos.map((a, idx) => {
+          const isP = isDataUrlPdfSisreg(a?.imagem_base64, a?.mime_type);
+          const thumbBody = isP
+            ? `<div class="pr-thumb-pdf-mini">📄</div>`
+            : `<img src="${a.imagem_base64}" alt="Arquivo ${idx + 1}">`;
+          return `<button type="button" class="vp-thumb-btn${idx === _copilotoState.anexoIdx ? ' active' : ''}" onclick="selecionarFotoCopiloto(${idx})">
+            ${thumbBody}
+            <span>${isP ? '📄' : '📷'} ${idx + 1}</span>
+          </button>`;
+        }).join('');
       } else {
         strip.style.display = 'none';
         strip.innerHTML = '';
@@ -1081,71 +1167,55 @@
   async function processarArquivosCopilotoSisreg(fileList) {
     const files = Array.from(fileList || []).filter(Boolean);
     if (!files.length) return;
-    if (_sisregColapsado) toggleCorpoCopilotoRegulacao();
-    if (_sisregAbaAtiva !== 'leitor') trocarAbaCopilotoRegulacao('leitor');
+    abrirModalPreviaRegulacao('leitor');
 
     const statusEl = document.getElementById('sisreg-ocr-status');
-    const pdf = files.find(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+    let anexosAdicionados = 0;
 
-    if (pdf) {
+    for (let i = 0; i < files.length && _copilotoState.anexos.length < 6; i++) {
+      const f = files[i];
+      const ehPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+      const ehImg = !f.type || f.type.startsWith('image/');
+      if (!ehPdf && !ehImg) continue;
+
       try {
         if (statusEl) {
           statusEl.style.display = 'block';
           statusEl.className = 'pr-status-box loading';
-          statusEl.textContent = '🤖 Lendo PDF do SISREG com IA... aguarde alguns segundos.';
+          statusEl.textContent = ehPdf
+            ? '🤖 Lendo PDF com IA... aguarde alguns segundos.'
+            : (files.length > 1
+              ? `🤖 Analisando arquivo ${i + 1} de ${files.length}...`
+              : '🤖 Analisando documento com IA e cruzando com o SISREG...');
         }
-        const b64 = await lerPdfBase64(pdf);
-        _copilotoState.arquivoTipo = 'pdf';
-        _copilotoState.pdfBase64 = b64;
-        _copilotoState.pdfNome = pdf.name;
-        _copilotoState.anexos = [];
-        renderVisualizadorCopiloto();
-        await executarAnaliseIaCopiloto(b64, statusEl);
-      } catch (err) {
-        if (statusEl) {
-          statusEl.style.display = 'block';
-          statusEl.className = 'pr-status-box warn';
-          statusEl.textContent = `⚠️ ${err.message}`;
-        }
-      }
-      return;
-    }
-
-    const imgs = files.filter(f => !f.type || f.type.startsWith('image/'));
-    if (!imgs.length) {
-      if (typeof showToast === 'function') showToast('Envie uma foto (JPG/PNG) ou arquivo PDF.', true);
-      return;
-    }
-
-    for (let i = 0; i < imgs.length && _copilotoState.anexos.length < 6; i++) {
-      try {
-        if (statusEl) {
-          statusEl.style.display = 'block';
-          statusEl.className = 'pr-status-box loading';
-          statusEl.textContent = imgs.length > 1
-            ? `🤖 Analisando foto ${i + 1} de ${imgs.length} (Regulação / SISREG)...`
-            : '🤖 Extraindo texto, observações, telefone e buscando procedimento no SISREG...';
-        }
-        const b64 = await comprimirImagemSisreg(imgs[i]);
-        _copilotoState.arquivoTipo = 'image';
-        _copilotoState.pdfBase64 = null;
-        _copilotoState.anexos.push({
+        const b64 = ehPdf ? await lerPdfBase64(f) : await comprimirImagemSisreg(f);
+        const anexoObj = {
           id: `sr_${Date.now().toString(36)}_${i + 1}`,
           categoria: 'encaminhamento',
-          rotulo: null,
+          rotulo: ehPdf ? 'PDF' : null,
           imagem_base64: b64,
           ocr: null
-        });
+        };
+        if (ehPdf) {
+          anexoObj.mime_type = 'application/pdf';
+          anexoObj.nome_arquivo = f.name;
+        }
+        _copilotoState.anexos.push(anexoObj);
         _copilotoState.anexoIdx = _copilotoState.anexos.length - 1;
         renderVisualizadorCopiloto();
-        await executarAnaliseIaCopiloto(b64, statusEl, i > 0);
+        atualizarPillPacienteVinculado();
+        await executarAnaliseIaCopiloto(b64, statusEl, anexosAdicionados > 0);
+        anexosAdicionados++;
       } catch (err) {
         if (statusEl) {
           statusEl.style.display = 'block';
           statusEl.className = 'pr-status-box warn';
-          statusEl.textContent = `⚠️ ${err.message || 'Erro ao analisar foto.'}`;
+          statusEl.textContent = `⚠️ ${err.message || 'Erro ao processar arquivo.'}`;
         }
       }
+    }
+    if (anexosAdicionados === 0 && typeof showToast === 'function') {
+      showToast('Envie fotos (JPG/PNG) ou PDFs até 2 MB.', true);
     }
   }
 
@@ -1236,9 +1306,7 @@
 
   async function reanalisarAnexoAtivoCopiloto() {
     const statusEl = document.getElementById('sisreg-ocr-status');
-    const b64 = _copilotoState.arquivoTipo === 'pdf'
-      ? _copilotoState.pdfBase64
-      : _copilotoState.anexos[_copilotoState.anexoIdx]?.imagem_base64;
+    const b64 = _copilotoState.anexos[_copilotoState.anexoIdx]?.imagem_base64 || _copilotoState.pdfBase64;
     if (!b64) {
       if (typeof showToast === 'function') showToast('Anexe uma foto ou PDF primeiro.', true);
       return;
@@ -1246,7 +1314,7 @@
     if (statusEl) {
       statusEl.style.display = 'block';
       statusEl.className = 'pr-status-box loading';
-      statusEl.textContent = '🤖 Reanalisando ficha com IA focada no SISREG...';
+      statusEl.textContent = '🤖 Reanalisando prévia com IA...';
     }
     await executarAnaliseIaCopiloto(b64, statusEl, false);
   }
@@ -1689,19 +1757,15 @@
   }
 
   // ===== VÍNCULO COM PACIENTES DA FILA (RECEPÇÃO -> REGULAÇÃO OU BALCÃO REGULAÇÃO) =====
-  async function abrirPacienteNoCopilotoSisreg(patientId, nomePaciente, abrirCamera = false) {
+  async function abrirPacienteNoCopilotoSisreg(patientId, nomePaciente, abrirUpload = false) {
     if (typeof showScreen === 'function') showScreen('regulacao');
-    if (_sisregColapsado) toggleCorpoCopilotoRegulacao();
-    trocarAbaCopilotoRegulacao('leitor');
+    abrirModalPreviaRegulacao('leitor');
 
     limparFichaCopilotoSisreg();
     _copilotoState.patientId = patientId;
     _copilotoState.patientNomeFila = nomePaciente || '';
     _copilotoState.dados.paciente_nome = nomePaciente || '';
     atualizarPillPacienteVinculado();
-
-    const root = document.getElementById('regulacao-copiloto-root');
-    if (root && root.scrollIntoView) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     try {
       const r = await fetch(`${getApiUrlBase()}/patients/${patientId}/previa-receita`, { cache: 'no-store' });
@@ -1712,10 +1776,10 @@
           : (pr.imagem_base64 ? [{ id: 'anx_1', categoria: pr.tipo_receita || 'encaminhamento', imagem_base64: pr.imagem_base64, ocr: null }] : []);
         _copilotoState.anexos = anexos;
         _copilotoState.anexoIdx = 0;
-        _copilotoState.arquivoTipo = anexos.length > 0 ? 'image' : null;
 
         const ext = pr.dados_extras || {};
         _copilotoState.dados = mesclarDadosSisreg(criarDadosVaziosSisreg(), {
+          codigo_solicitacao: ext.codigo_solicitacao || '',
           paciente_nome: pr.paciente_nome_ocr || nomePaciente,
           paciente_cns: pr.paciente_cns || '',
           paciente_dn: ext.paciente_data_nascimento || '',
@@ -1735,19 +1799,19 @@
           cid10: ext.cid10 || '',
           medico_solicitante: pr.medico_emitente || '',
           observacoes_original: ext.justificativa || pr.observacoes || '',
-          observacoes_revisada: ext.justificativa || pr.observacoes || ''
+          observacoes_revisada: ext.observacoes_revisada || ext.justificativa || pr.observacoes || '',
+          alertas_digitacao: Array.isArray(ext.alertas_digitacao) ? ext.alertas_digitacao : []
         }, false);
 
         renderEstadoFormularioCopiloto();
         rebuscarProcedimentosCopiloto();
 
-        // Se a foto veio da Recepção mas ainda faltam observação/município detalhados do SISREG, reler automaticamente
-        if (anexos[0]?.imagem_base64 && (!ext.justificativa || !ext.paciente_municipio)) {
+        if (anexos[0]?.imagem_base64 && (!ext.observacoes_revisada && (!ext.justificativa || !ext.paciente_municipio))) {
           const statusEl = document.getElementById('sisreg-ocr-status');
           if (statusEl) {
             statusEl.style.display = 'block';
             statusEl.className = 'pr-status-box loading';
-            statusEl.textContent = '🤖 Extraindo detalhes completos para o SISREG da foto enviada pela Recepção...';
+            statusEl.textContent = '🤖 Extraindo detalhes completos para o SISREG...';
           }
           await executarAnaliseIaCopiloto(anexos[0].imagem_base64, statusEl, true);
         }
@@ -1756,19 +1820,19 @@
     } catch (_) {}
 
     renderEstadoFormularioCopiloto();
-    if (abrirCamera) {
+    if (abrirUpload) {
       document.getElementById('sisreg-file-upload')?.click();
     }
   }
 
   async function salvarFotoCopilotoNoPaciente() {
     if (!_copilotoState.patientId || _copilotoState.anexos.length === 0) {
-      if (typeof showToast === 'function') showToast('Vincule um paciente da fila e adicione ao menos 1 foto.', true);
+      if (typeof showToast === 'function') showToast('Vincule um paciente da fila e adicione ao menos 1 arquivo.', true);
       return;
     }
     const d = _copilotoState.dados;
     const payload = {
-      tipo_receita: 'branca',
+      tipo_receita: 'sisreg',
       paciente_nome_ocr: d.paciente_nome || _copilotoState.patientNomeFila || null,
       paciente_cns: d.paciente_cns || null,
       medicamentos: d.especialidade_ou_exame || null,
@@ -1779,10 +1843,14 @@
       imagem_base64: _copilotoState.anexos[0].imagem_base64,
       anexos: _copilotoState.anexos,
       dados_extras: {
+        destino_ia: 'sisreg',
+        codigo_solicitacao: d.codigo_solicitacao || null,
         especialidade: d.especialidade_ou_exame || null,
         hipotese_diagnostica: d.hipotese_diagnostica || null,
         cid10: d.cid10 || null,
-        justificativa: d.observacoes_revisada || d.observacoes_original || null,
+        justificativa: d.observacoes_original || d.observacoes_revisada || null,
+        observacoes_revisada: d.observacoes_revisada || null,
+        alertas_digitacao: Array.isArray(d.alertas_digitacao) ? d.alertas_digitacao : [],
         paciente_endereco: d.paciente_endereco || null,
         paciente_data_nascimento: d.paciente_dn || null,
         paciente_sexo: d.paciente_sexo || null,
@@ -1803,10 +1871,10 @@
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error();
-      if (typeof showToast === 'function') showToast('✅ Foto e dados salvos neste paciente da Regulação!');
+      if (typeof showToast === 'function') showToast('✅ Prévia salva neste paciente da Regulação!');
       if (typeof loadQueues === 'function') await loadQueues();
     } catch (_) {
-      if (typeof showToast === 'function') showToast('Erro ao salvar anexo no paciente.', true);
+      if (typeof showToast === 'function') showToast('Erro ao salvar prévia no paciente.', true);
     }
   }
 
@@ -1855,11 +1923,14 @@
   function renderDevolucoesSisreg() {
     const listEl = document.getElementById('sisreg-dev-lista');
     const badge = document.getElementById('sisreg-dev-badge');
+    const badgeBar = document.getElementById('sisreg-dev-badge-bar');
     const pendentes = (_sisregDevolucoes || []).filter(x => x.status === 'pendente').length;
-    if (badge) {
-      badge.style.display = pendentes > 0 ? 'inline-flex' : 'none';
-      badge.textContent = String(pendentes);
-    }
+    [badge, badgeBar].forEach(el => {
+      if (el) {
+        el.style.display = pendentes > 0 ? 'inline-flex' : 'none';
+        el.textContent = String(pendentes);
+      }
+    });
     if (!listEl) return;
     if (!_sisregDevolucoes || _sisregDevolucoes.length === 0) {
       listEl.innerHTML = `<div class="sisreg-muted" style="text-align:center;padding:18px;">Nenhuma devolução ${_sisregDevFiltro === 'pendente' ? 'pendente' : 'registrada'}.</div>`;
@@ -2005,6 +2076,7 @@
 
   function fecharModalSisregMedico() {
     document.getElementById('modal-sisreg-medico')?.classList.remove('show');
+    revogarMedPdfBlobUrl();
   }
 
   function trocarAbaModalSisregMedico(aba) {
@@ -2101,7 +2173,9 @@
     if (!file) return;
     const statusEl = document.getElementById('sm-ocr-status');
     const imgEl = document.getElementById('sm-stage-img');
+    const pdfFrame = document.getElementById('sm-stage-pdf-iframe');
     const emptyEl = document.getElementById('sm-stage-empty');
+    revogarMedPdfBlobUrl();
     try {
       let b64 = '';
       if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
@@ -2109,15 +2183,19 @@
         _modalMedState.pdfNome = file.name;
         b64 = await lerPdfBase64(file);
         if (imgEl) imgEl.style.display = 'none';
-        if (emptyEl) {
-          emptyEl.style.display = 'flex';
-          emptyEl.innerHTML = `📄 <strong>PDF carregado:</strong> ${escSisreg(file.name)}`;
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (pdfFrame) {
+          const blobUrl = criarBlobUrlPdfSisreg(b64);
+          _medPdfBlobUrl = blobUrl;
+          pdfFrame.src = blobUrl || b64;
+          pdfFrame.style.display = 'block';
         }
       } else {
         _modalMedState.arquivoTipo = 'image';
         b64 = await comprimirImagemSisreg(file);
         _modalMedState.imgBase64 = b64;
         resetModalMedImgView();
+        if (pdfFrame) { pdfFrame.src = 'about:blank'; pdfFrame.style.display = 'none'; }
         if (imgEl) { imgEl.src = b64; imgEl.style.display = 'block'; }
         if (emptyEl) emptyEl.style.display = 'none';
       }
@@ -2242,13 +2320,14 @@
     }
   }
 
-  // CTRL+V GLOBAL PARA REGULACAO E MODAL MEDICO
+  // CTRL+V GLOBAL PARA MODAL REGULAÇÃO E MODAL MÉDICO
   document.addEventListener('paste', (e) => {
     const modalMed = document.getElementById('modal-sisreg-medico');
     const modalMedAberto = modalMed && modalMed.classList.contains('show') && _modalMedState.aba === 'leitor';
-    const screenRegAtivo = document.getElementById('screen-regulacao')?.classList.contains('active') && !_sisregColapsado && _sisregAbaAtiva === 'leitor';
+    const modalReg = document.getElementById('modal-previa-regulacao');
+    const modalRegAberto = modalReg && modalReg.classList.contains('show') && _sisregAbaAtiva === 'leitor';
     const modalCaptura = document.getElementById('modal-captura-receita')?.classList.contains('show');
-    if (modalCaptura || (!modalMedAberto && !screenRegAtivo)) return;
+    if (modalCaptura || (!modalMedAberto && !modalRegAberto)) return;
 
     const items = e.clipboardData?.items || [];
     const files = [];
@@ -2267,6 +2346,8 @@
 
   // Expor funções globais usadas nos handlers HTML/JS
   window.initCopilotoRegulacao = initCopilotoRegulacao;
+  window.abrirModalPreviaRegulacao = abrirModalPreviaRegulacao;
+  window.fecharModalPreviaRegulacao = fecharModalPreviaRegulacao;
   window.toggleCorpoCopilotoRegulacao = toggleCorpoCopilotoRegulacao;
   window.trocarAbaCopilotoRegulacao = trocarAbaCopilotoRegulacao;
   window.processarArquivosCopilotoSisreg = processarArquivosCopilotoSisreg;
