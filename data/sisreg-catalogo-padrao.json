@@ -1,0 +1,5450 @@
+{
+  "versao": "25/11/2025",
+  "unidade": "US 177 USF CHICO MENDES",
+  "cnes": "0000965",
+  "distrito": "DS5 (Distrito Sanitário V)",
+  "contato_nao_encontrado": "Coordenador do DS5 (Distrito Sanitário V)",
+  "atualizado_em": "2026-11-21T14:38:14.605Z",
+  "total": 777,
+  "procedimentos": [
+    {
+      "code": "0202060047",
+      "name": "17 ALFA HIDROXI PROGESTERONA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060063",
+      "name": "17 HIDROXICORTICOSTEROIDES",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060055",
+      "name": "17-CETOSTEROIDES TOTAIS ( 17-CTS )",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010767",
+      "name": "25 HIDROXIVITAMINA D (25 OHD) (VD)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0204050120",
+      "name": "ABDOMEN AP/PL EM ORTOSTASE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0202050084",
+      "name": "ACIDO CITRICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070034",
+      "name": "ACIDO MANDELICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202050106",
+      "name": "ACIDO OXALICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010120",
+      "name": "ACIDO URICO (AU)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070050",
+      "name": "ACIDO VALPROICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010139",
+      "name": "ACIDO VANIL MANDELICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060080",
+      "name": "ADRENOCORTICOTROFICO, HORMONIO - ACTH (A-CTH)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060080",
+      "name": "ADRENOCORTICOTROFICO, HORMONIO - ACTH (ACTH)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010147",
+      "name": "ALDOLASE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060098",
+      "name": "ALDOSTERONA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010155",
+      "name": "ALFA 1 ANTITRIPSINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010163",
+      "name": "ALFA 1 GLICOPROTEINA ACIDA (A1GL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030091",
+      "name": "ALFA FETO PROTEINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030091",
+      "name": "ALFA FETO PROTEINA (AFP)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010180",
+      "name": "AMILASE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010180",
+      "name": "AMILASE (AMI)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060110",
+      "name": "ANDROSTENEDIONA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030890",
+      "name": "ANTI HBC - IGM ANTICORPOS IGM CONTRA ANTIGENO C DA HEPATITE B",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030784",
+      "name": "ANTI HBC ANTICORPOS CONTRA ANTIGENO C DA HEPATITE B (AHBCT)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030644",
+      "name": "ANTI HBE - ANTICORPOS CONTRA ANTIGENO E DA HEPATITE B (AHBE)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030636",
+      "name": "ANTI HBS - ANTICORPOS CONTRA ANTIGENO S DA HEPATITE B (AHBS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030679",
+      "name": "ANTI HCV ANTICORPOS CONTRA O VIRUS DA HEPATITE C (HCV)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060365",
+      "name": "ANTI TIREOGLOBULINA (ATG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080013",
+      "name": "ANTIBIOGRAMA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030482",
+      "name": "ANTICORPOS ANTI-FIGADO , IFI",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030504",
+      "name": "ANTICORPOS ANTI-GLOMERULO- IFI",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030512",
+      "name": "ANTICORPOS ANTI-ILHOTA DE LANGHERANS- IFI",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030520",
+      "name": "ANTICORPOS ANTI-INSULINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030571",
+      "name": "ANTICORPOS ANTI-MUSCULO ESTRIADO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030580",
+      "name": "ANTICORPOS ANTI-MUSCULO LISO (IFI)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030342",
+      "name": "ANTICORPOS ANTI-SM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030350",
+      "name": "ANTICORPOS ANTI-SS-A ( RO ) - EIE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030369",
+      "name": "ANTICORPOS ANTI-SS-B ( LA ) - EIE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030628",
+      "name": "ANTICORPOS ANTI-TIREOGLOBULINA, EIE (AAT)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202090213",
+      "name": "ANTICORPOS ANTIESPERMATOZOIDES ( ELISA )",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030830",
+      "name": "ANTICORPOS IGG CONTRA O VIRUS EPSTEIN-BARR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030946",
+      "name": "ANTICORPOS IGM CONTRA O VIRUS EPSTEIN-BARR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030474",
+      "name": "ANTIESTREPTOLISINA O ( ASLO ) , DETERMINACAO QUANTITATIVA (AEO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030474",
+      "name": "ANTIESTREPTOLISINA O ( ASLO ) (AEO) , DETERMINACAO QUANTITATIVA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030555",
+      "name": "ANTIPEROXIDASE /ANTI TPO (ATP)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030555",
+      "name": "ANTIPEROXIDASE /ANTI TPO (ATPO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211070041",
+      "name": "AUDIOMETRIA TONAL LIMIAR (VIA AREA/OSSEA) - PEDIATRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0211070041",
+      "name": "AUDIOMETRIA TONAL LIMIAR (VIA AREA/OSSEA) > 14 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0211070211",
+      "name": "AUDIOMETRIA VOCAL - (LOGOAUDIOMETRIA (LDV-IRF-LRF) - PEDIATRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0211070211",
+      "name": "AUDIOMETRIA VOCAL - (LOGOAUDIOMETRIA (LDV-IRF-LRF) > 14 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "AVALIACAO EM DESENVOLVIMENTO COGNITIVO E DE APRENDIZAGEM - 0 A 1 ANO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "34. AVALIACAO GLOBAL - (NEUROPSICOLOGA)"
+    },
+    {
+      "code": "0301010048",
+      "name": "AVALIACAO EM DESENVOLVIMENTO COGNITIVO E DE APRENDIZAGEM - 2 A 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "34. AVALIACAO GLOBAL - (NEUROPSICOLOGA)"
+    },
+    {
+      "code": "0301010048",
+      "name": "AVALIACAO EM DESENVOLVIMENTO COGNITIVO E DE APRENDIZAGEM > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "34. AVALIACAO GLOBAL - (NEUROPSICOLOGA)"
+    },
+    {
+      "code": "0301010048",
+      "name": "AVALIACAO EM DESENVOLVIMENTO NEUROPSICOMOTOR - 0 A 1 ANO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "34. AVALIACAO GLOBAL - (NEUROPSICOLOGA)"
+    },
+    {
+      "code": "0301010048",
+      "name": "AVALIACAO EM DESENVOLVIMENTO NEUROPSICOMOTOR - 2 A 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "34. AVALIACAO GLOBAL - (NEUROPSICOLOGA)"
+    },
+    {
+      "code": "0301010048",
+      "name": "AVALIACAO EM DESENVOLVIMENTO NEUROPSICOMOTOR > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "34. AVALIACAO GLOBAL - (NEUROPSICOLOGA)"
+    },
+    {
+      "code": "0701050020",
+      "name": "AVALIACAO PACIENTE OSTOMIZADO",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "1. AVALIACAO PACIENTE OSTOMIZADO (0701050020)"
+    },
+    {
+      "code": "0211090018",
+      "name": "AVALIACAO URODINAMICA COMPLETA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.3 GRUPO - DIAGNOSE EM UROLOGIA"
+    },
+    {
+      "code": "0204060095",
+      "name": "BACIA (PELVE) AP EM RÍ MÉTODO DE LOWENSTEIN",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060095",
+      "name": "BACIA IN LET",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060095",
+      "name": "BACIA OUT LET",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0202080064",
+      "name": "BACILOSCOPIA DIRETA P/ BAAR TUBERCULOS (CONTROLE)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080048",
+      "name": "BACILOSCOPIA DIRETA P/ BAAR TUBERCULOSE (DIAGNOSTICA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080072",
+      "name": "BACTEROSCOPIA (GRAM)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211070262",
+      "name": "BERA - POTENCIAL EVOCADO AUDITIVO DE CURTA MEDIA E LONGA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.1 GRUPO - DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0202030113",
+      "name": "BETA 2 MICROGLOBULINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010201",
+      "name": "BILIRRUBINA TOTAL E FRACOES (BIL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0201010410",
+      "name": "BIOPSIA DE PROSTATA GUIADA POR ULTRASSOM TRANSRETAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "74. PUNCAO / BIOPSIA"
+    },
+    {
+      "code": "0201010470",
+      "name": "BIOPSIA/PUNCAO DE TIREOIDE OU PARATIREOIDE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "74. PUNCAO / BIOPSIA"
+    },
+    {
+      "code": "0202031217",
+      "name": "CA 125 (OV)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031217",
+      "name": "CA 125 (OV)(CA125)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0701010029",
+      "name": "CADEIRA DE RODAS ADULTO OU INFANTIL",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "2. CADEIRA DE RODAS ADULTO OU INFANTIL (0701010029)"
+    },
+    {
+      "code": "0202010210",
+      "name": "CALCIO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010228",
+      "name": "CALCIO IONIZAVEL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010210",
+      "name": "CALCIO(CA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060128",
+      "name": "CALCITONINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010023",
+      "name": "CAPACIDADE DE FIXACAO DO FERRO (CFF)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010023",
+      "name": "CAPACIDADE DE FIXACAO DO FERRO (UIBC) (CFIX)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070158",
+      "name": "CARBAMAZEPINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030962",
+      "name": "CEA (ANTIGENO CARCINOEMBRIOGENICO)(CEA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020410",
+      "name": "CELULAS LE - PESQUISA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030725",
+      "name": "CLAMIDIA (EIE)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202050025",
+      "name": "CLEARANCE DE CREATININA (CCRE)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202050033",
+      "name": "CLEARANCE DE FOSFATO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202050041",
+      "name": "CLEARANCE DE UREIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010260",
+      "name": "CLORETO (CL) (IONO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010260",
+      "name": "CLORETO (CLORO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0204020123",
+      "name": "COCCIX",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0202010287",
+      "name": "COLESTEROL ( LDL) (COLESTEROL TOTAL DE FRACOES) (LIPIDOGRAMA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010279",
+      "name": "COLESTEROL (HDL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010279",
+      "name": "COLESTEROL (HDL) (COLESTEROL TOTAL DE FRACOES) (LIPIDOGRAMA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010287",
+      "name": "COLESTEROL (LDL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010295",
+      "name": "COLESTEROL TOTAL (COLESTEROL TOTAL DE FRACOES) (LIPIDOGRAMA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010295",
+      "name": "COLESTEROL TOTAL (CT)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0201020041",
+      "name": "COLETA DE MATERIAL P/ EXAME LABORATORIAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "4. COLETA DE MATERIAL P/ EXAME LABORATORIAL (0201020041)"
+    },
+    {
+      "code": "0201020041",
+      "name": "COLETA DE MATERIAL P/ EXAME LABORATORIAL - PRE-NATAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "5. COLETA DE MATERIAL P/ EXAME LABORATORIAL - PRE-NATAL (0201020041)"
+    },
+    {
+      "code": "0202010309",
+      "name": "COLINESTERASE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0209010029",
+      "name": "COLONOSCOPIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.16 GRUPO - ENDOSCOPIA DIGESTIVA"
+    },
+    {
+      "code": "0209010053",
+      "name": "COLONOSCOPIA COM BIOPSIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.16 GRUPO - ENDOSCOPIA DIGESTIVA"
+    },
+    {
+      "code": "0211040029",
+      "name": "COLPOSCOPIA - AVALIACAO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "7. COLPOSCOPIA - AVALIACAO (0211040029)"
+    },
+    {
+      "code": "0211040029",
+      "name": "COLPOSCOPIA - GERAL - COLPOCITOLOGIA ONCOTICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "8. COLPOSCOPIA - GERAL (0211040029) - (COLPOCITOLOGIA ONCOTICA)"
+    },
+    {
+      "code": "0202030067",
+      "name": "COMPLEMENTO ( CH50 ) , DOSAGEM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030121",
+      "name": "COMPLEMENTO C3 , IDR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030130",
+      "name": "COMPLEMENTO C4 , IDR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ALERGIA DERMATOLOGICA - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "36. CONSULTAS EM ALERGIA E IMUNOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ALERGIA DERMATOLOGICA - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "36. CONSULTAS EM ALERGIA E IMUNOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ALERGIA RESPIRATORIA - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "36. CONSULTAS EM ALERGIA E IMUNOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ALERGIA RESPIRATORIA - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "36. CONSULTAS EM ALERGIA E IMUNOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ANGIOLOGIA > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ANGIOLOGIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ANGIOLOGIA > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA - AVALIACAO CATETERISMO/ANGIOPLASTIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA - GESTACAO DE ALTO RISCO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA - PEDIATRIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA > 14 ANOS - PARECER CARDIOLOGICO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA > 14 ANOS (HIPERTENSAO/DIABETES) RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA > 60 ANOS - PARECER CARDIOLOGICO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CARDIOLOGIA> 14 ANOS (HIPERTENSAO/DIABETES)",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "37. CONSULTAS EM CARDIOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM CIRURGIA BUCO - MAXILO -FACIAL >14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "35. CIRURGIA BUCO MAXILO / DIAGNOSTICO ORAL"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM CIRURGIA BUCO-MAXILO - FACIAL - PEDIATRICA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "35. CIRURGIA BUCO MAXILO / DIAGNOSTICO ORAL"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA CABECA E PESCOCO > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "38. CONSULTAS EM CIRURGIA CABECA E PESCOCO"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GERAL > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "39. CONSULTAS EM CIRURGIA GERAL"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GERAL > 14 ANOS - HERNIAS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "39. CONSULTAS EM CIRURGIA GERAL"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GERAL > 14 ANOS - VESICULA BILIAR",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "39. CONSULTAS EM CIRURGIA GERAL"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - CISTO VAGINAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - CISTO/GLANDULA DE BARTHOLIN",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - COLPOPERINEOPLASTIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - CONIZACAO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - GRANULOSA DE FO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - HISTERECTOMIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - HISTEROSCOPIA (DIAGNOSTICA)",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - HISTEROSCOPIA CIRURGICA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - LAQUEADURA TUBARIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - MIOMECTOMIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - NINFOPLASTIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - OOFORECTOMIA/OOFOROPLASTIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA GINECOLOGICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "40. CONSULTAS EM CIRURGIA GINECOLOGICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA PEDIATRICA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "41. CONSULTAS EM CIRURGIA PEDIATRICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "41. CONSULTAS EM CIRURGIA PEDIATRICA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA VASCULAR - TRATAMENTO ESCLEROSANTE DE VARIZES - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA VASCULAR - TRATAMENTO ESCLEROSANTE DE VARIZES (BILATERAL)",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA VASCULAR - TRATAMENTO ESCLEROSANTE DE VARIZES (UNILATERAL)",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA VASCULAR > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA VASCULAR > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA VASCULAR > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM CIRURGIA VASCULAR > 60 ANOS RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "42. CONSULTAS EM CIRURGIA VASCULAR (ANGIOLOGIA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM DERMATOLOGIA - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "43. CONSULTAS EM DERMATOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM DERMATOLOGIA - PROGRAMA HANSENIASE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "9. CONSULTA EM DERMATOLOGIA - PROGRAMA HANSENIASE (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM DERMATOLOGIA > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "43. CONSULTAS EM DERMATOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA - GESTACAO DE ALTO RISCO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA - PEDIATRIA - PACIENTES DIABETICOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA - PEDIATRIA - PACIENTES DIABETICOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA - PEDIATRIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA > 14 ANOS - PACIENTES DIABETICOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA > 14 ANOS - PACIENTES DIABETICOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ENDOCRINOLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "44. CONSULTAS EM ENDOCRINOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA MUSCULO-ESQUELETICA / MOTORA > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA MUSCULO-ESQUELETICA/MOTORA - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA MUSCULO-ESQUELETICA/MOTORA - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA NEUROFUNCIONAL - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA NEUROFUNCIONAL - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA NEUROFUNCIONAL > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA RESPIRATORIA - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA RESPIRATORIA PEDIATRICA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA UROGINECOLOGICA - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FISIOTERAPIA UROGINECOLOGICA > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "33. ATENDIMENTO FISIOTERAPEUTICO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FONOAUDIOLOGIA - 0 A 13 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "28. ATENDIMENTO EM FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FONOAUDIOLOGIA - 14 A 59 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "28. ATENDIMENTO EM FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0211070084",
+      "name": "CONSULTA EM FONOAUDIOLOGIA - TESTE DA LINGUINHA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "28. ATENDIMENTO EM FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FONOAUDIOLOGIA - TESTE DA ORELHINHA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "28. ATENDIMENTO EM FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM FONOAUDIOLOGIA > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "28. ATENDIMENTO EM FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GASTROENTEROLOGIA - PEDIATRIA - MICROCEFALIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.8 GRUPO - CONSULTAS EM GASTROENTEROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GASTROENTEROLOGIA - PEDIATRIA - MICROCEFALIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "45. CONSULTAS EM GASTROENTEROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GASTROENTEROLOGIA - PEDIATRIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.8 GRUPO - CONSULTAS EM GASTROENTEROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GASTROENTEROLOGIA > 14 ANOS- RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.8 GRUPO - CONSULTAS EM GASTROENTEROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GASTROENTEROLOGIA > 14 ANOS- RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "45. CONSULTAS EM GASTROENTEROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GASTROENTEROLOGIA > 60 ANOS- RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.8 GRUPO - CONSULTAS EM GASTROENTEROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GASTROENTEROLOGIA > 60 ANOS- RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "45. CONSULTAS EM GASTROENTEROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GASTROENTEROLOGIA PEDIATRIA ALERGIA AO LEITE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.8 GRUPO - CONSULTAS EM GASTROENTEROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GENETICA MEDICA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "10. CONSULTA EM GENETICA MEDICA (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GERIATRIA - GERAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "11. CONSULTA EM GERIATRIA - GERAL (0301010072)"
+    },
+    {
+      "code": "0301010064",
+      "name": "CONSULTA EM GINECOLOGIA - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GINECOLOGIA - ADULTO - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010064",
+      "name": "CONSULTA EM GINECOLOGIA - CLIMATERIO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010064",
+      "name": "CONSULTA EM GINECOLOGIA - DIU",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010064",
+      "name": "CONSULTA EM GINECOLOGIA - INFANTO-PUBERAL (10 A 17 ANOS)",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010064",
+      "name": "CONSULTA EM GINECOLOGIA - LESBICAS, BISSEXUAIS E TRANSGENEROS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010064",
+      "name": "CONSULTA EM GINECOLOGIA - PATOLOGIA CERVICAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010064",
+      "name": "CONSULTA EM GINECOLOGIA - PLANEJAMENTO FAMILIAR",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GINECOLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.7 GRUPO - CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM GINECOLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "46. CONSULTAS EM GINECOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM HEMATOLOGIA - GERAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "12. CONSULTA EM HEMATOLOGIA - GERAL (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM HEPATOLOGIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "13. CONSULTA EM HEPATOLOGIA (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM HEPATOLOGIA - HEPATITE COM INFECCAO POR HIV",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "29. ATENDIMENTO EM HEPATITES VIRAIS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM HEPATOLOGIA - HEPATITE CRONICA B",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "29. ATENDIMENTO EM HEPATITES VIRAIS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM HEPATOLOGIA - HEPATITE CRONICA C",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "29. ATENDIMENTO EM HEPATITES VIRAIS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM INFECTOLOGIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.6 GRUPO - CONSULTAS EM INFECTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM INFECTOLOGIA >18 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.6 GRUPO - CONSULTAS EM INFECTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM MASTOLOGIA - GERAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.5 GRUPO - CONSULTAS EM MASTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM MASTOLOGIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4.5 GRUPO - CONSULTAS EM MASTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEFROLOGIA - PEDIATRICA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.5.5 GRUPO - CONSULTAS EM NEFROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEFROLOGIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.5.5 GRUPO - CONSULTAS EM NEFROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEFROLOGIA > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.5.5 GRUPO - CONSULTAS EM NEFROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEUROLOGIA - ADULTO - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 GRUPO - CONSULTAS EM NEUROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEUROLOGIA - ADULTO - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "50. CONSULTAS EM NEUROLOGIA - (Nefrolitíase GCI)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEUROLOGIA - PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 GRUPO - CONSULTAS EM NEUROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEUROLOGIA - PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "50. CONSULTAS EM NEUROLOGIA - (Nefrolitíase GCI)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEUROLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 GRUPO - CONSULTAS EM NEUROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM NEUROLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "50. CONSULTAS EM NEUROLOGIA - (Nefrolitíase GCI)"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM NUTRICAO - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12 GRUPO - CONSULTAS EM NUTRICAO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM NUTRICAO - GESTACAO DE ALTO RISCO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12 GRUPO - CONSULTAS EM NUTRICAO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM NUTRICAO - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12 GRUPO - CONSULTAS EM NUTRICAO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM NUTRICAO > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12 GRUPO - CONSULTAS EM NUTRICAO"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - CIRURGIA ORAL MENOR",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - DOR ORO-FACIAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - ENDODONTIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - ESTOMATOLOGIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - LASERTERAPIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - ODONTOPEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - PACIENTES C/ NECESSIDADES ESPECIAIS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - PERIODONTIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM ODONTOLOGIA - PROTESE DENTARIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "30. ATENDIMENTO EM ODONTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM OFTALMOLOGIA - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "15. CONSULTA EM OFTALMOLOGIA - PEDIATRIA (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM OFTALMOLOGIA - PEDIATRIA - TESTE DO OLHINHO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "16. CONSULTA EM OFTALMOLOGIA - PEDIATRIA - TESTE DO OLHINHO (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM OFTALMOLOGIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "17. CONSULTA EM OFTALMOLOGIA - RETORNO (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM OFTALMOLOGIA >14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "14. CONSULTA EM OFTALMOLOGIA >14 ANOS (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ORTOPEDIA - ADULTO - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM ORTOPEDIA - PEDIATRIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM OTORRINO > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.11.5 GRUPO - CONSULTAS EM OTORRINOLARINGOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM OTORRINOLARINGOLOGIA - PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.11.5 GRUPO - CONSULTAS EM OTORRINOLARINGOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM OTORRINOLARINGOLOGIA - PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "52. CONSULTAS EM OTORRINOLARINGOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM OTORRINOLARINGOLOGIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.11.5 GRUPO - CONSULTAS EM OTORRINOLARINGOLOGIA"
+    },
+    {
+      "code": "Será inserido no CMCE",
+      "name": "CONSULTA EM OTORRINOLARINGOLOGIA - VIDEOENDOSCOPIA DA DEGLUTIÇÃO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12 GRUPO - CONSULTAS EM NUTRICAO"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "18. CONSULTA EM PEDIATRIA (0301010072)"
+    },
+    {
+      "code": "0301010064",
+      "name": "CONSULTA EM PEDIATRIA - HEBIATRIA ADOLESCENTE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "19. CONSULTA EM PEDIATRIA - HEBIATRIA (ADOLESCENTE) (0301010064)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEDIATRIA- SÍFILIS CONGENITA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "20. CONSULTA EM PEDIATRIA- SÍFILIS CONGENITA (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRUGIAS > 60 ANOS CRAVO PLANTAR",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "53. CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - CALO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - CISTOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - CORPO ESTRANHO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - CRAVO PLANTAR",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - HEMANGIOMA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - LESAO CUTANEA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - LIPOMA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - QUELOIDE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - SINAIS / NEVUS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - TUMOR DE PELE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 14 ANOS - UNHA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS - TUMOR DE PELE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS - UNHA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS -CALO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS CISTOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS CORPO ESTRANHO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS CRAVO PLANTAR",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS HEMANGIOMA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS LESAO CUTANEA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS LIPOMA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS QUELOIDE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PEQUENAS CIRURGIAS > 60 ANOS SINAIS / NEVUS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12.5 GRUPO - CONSULTAS EM PEQUENAS CIRURGIAS"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PNEUMOLOGIA - PEDIATRIA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12 GRUPO - CONSULTAS EM PNEUMOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PNEUMOLOGIA - PROGRAMA TUBERCULOSE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "22. CONSULTA EM PNEUMOLOGIA - PROGRAMA TUBERCULOSE (0301010072)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PNEUMOLOGIA > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12 GRUPO - CONSULTAS EM PNEUMOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PNEUMOLOGIA > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.12 GRUPO - CONSULTAS EM PNEUMOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PNEUMOLOGIA PEDIATRICA - TUBERCULOSE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "21. CONSULTA EM PNEUMOLOGIA PEDIATRICA - TUBERCULOSE (0301010072)"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PRATICAS INTEGRATIVAS E COMPLEMENTARES - ACUPUNTURA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "23. CONSULTA EM PRATICAS INTEGRATIVAS E COMPLEMENTARES (0301010048)-(ACUPUNTURA)"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PRE-NATAL DE ALTO RISCO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.11 GRUPO - CONSULTAS EM PRE-NATAL DE ALTO RISCO"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PROCTOLOGIA - ADULTO - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.10 GRUPO - CONSULTAS EM PROCTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PROCTOLOGIA - ADULTO - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "56. CONSULTAS EM PROCTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PROCTOLOGIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.10 GRUPO - CONSULTAS EM PROCTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PROCTOLOGIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "56. CONSULTAS EM PROCTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PROCTOLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.10 GRUPO - CONSULTAS EM PROCTOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PROCTOLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "56. CONSULTAS EM PROCTOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 10 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 11 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 12 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 13 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 14 A 17 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 18 A 59 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 2 A 13 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 2 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 3 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 4 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 5 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 6 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 7 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 8 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA - 9 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010048",
+      "name": "CONSULTA EM PSICOLOGIA > 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "31. ATENDIMENTO EM PSICOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PSIQUIATRIA - ADULTO - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.9 GRUPO - CONSULTAS EM PSIQUIATRIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PSIQUIATRIA - ADULTO - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "58. CONSULTAS EM PSIQUIATRIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PSIQUIATRIA - PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.9 GRUPO - CONSULTAS EM PSIQUIATRIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PSIQUIATRIA - PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "58. CONSULTAS EM PSIQUIATRIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PSIQUIATRIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.9 GRUPO - CONSULTAS EM PSIQUIATRIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PSIQUIATRIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "58. CONSULTAS EM PSIQUIATRIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PSIQUIATRIA > 60 ANOS RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.9 GRUPO - CONSULTAS EM PSIQUIATRIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM PSIQUIATRIA > 60 ANOS RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "58. CONSULTAS EM PSIQUIATRIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM REUMATOLOGIA - PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.8 GRUPO - CONSULTAS EM REUMATOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM REUMATOLOGIA - PEDIATRICA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "59. CONSULTAS EM REUMATOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM REUMATOLOGIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.8 GRUPO - CONSULTAS EM REUMATOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM REUMATOLOGIA > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.8 GRUPO - CONSULTAS EM REUMATOLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - BRACO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - COLUNA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - COTOVELO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - GERAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - JOELHO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - MAO/PUNHO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - OMBRO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - PERNA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - PERNA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "60. CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - QUADRIL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA > 14 ANOS - TORNOZELO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA INFANTIL (< 2 ANOS) - GERAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA INFANTIL (< 2 ANOS) - MAO/PUNHO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA INFANTIL (2 A 14 ANOS) - GERAL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM TRAUMATO-ORTOPEDIA INFANTIL (2 A 14 ANOS) - MAO/PUNHO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.7 GRUPO - CONSULTAS EM TRAUMATO-ORTOPEDIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA - PEDIATRICA",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA - VASECTOMIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA - VASECTOMIA - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "61. CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA > 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "61. CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "61. CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA CIRURGICA > 60 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA CIRURGICA >14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA CIRURGICA> 14 ANOS - RETORNO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0301010072",
+      "name": "CONSULTA EM UROLOGIA CIRURGICA> 60 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.6 CONSULTAS EM UROLOGIA"
+    },
+    {
+      "code": "0202020029",
+      "name": "CONTAGEM DE PLAQUETAS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020029",
+      "name": "CONTAGEM DE PLAQUETAS (PLAQ)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010317",
+      "name": "CREATININA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010317",
+      "name": "CREATININA (CN)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010333",
+      "name": "CREATINOFOSFOQUINASE - FRACAO MB (CPK MB, FRACAO MB)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010325",
+      "name": "CREATINOFOSFOQUINASE (CPK)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031004",
+      "name": "CRIOGLOBULINAS, PESQUISA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "CULTURA DE FEZES",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "CULTURA PARA IDENTIFICACAO DE BACTERIAS (BOCA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "CULTURA PARA IDENTIFICACAO DE BACTERIAS (FERIDA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "CULTURA PARA IDENTIFICACAO DE BACTERIAS (LAGRIMAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "CULTURA PARA IDENTIFICACAO DE BACTERIAS (OROFARINGE)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "CULTURA PARA IDENTIFICACAO DE BACTERIAS (URETRAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "CULTURA PARA IDENTIFICACAO DE BACTERIAS (URINA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "CULTURA PARA IDENTIFICACAO DE BACTERIAS (VAGINAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010040",
+      "name": "CURVA GLICEMICA - 2 DOSAGENS-ORAL (CGLI)(TOTG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010074",
+      "name": "CURVA GLICEMICA CLASSICA 5 DOSAGENS-ORAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060144",
+      "name": "DEHIDROEPIANDROSTERONA - DHEA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0204060028",
+      "name": "DENSITOMETRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "24. DENSITOMETRIA (0204060028)"
+    },
+    {
+      "code": "0202010350",
+      "name": "DESIDROGENASE GLUTAMICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010376",
+      "name": "DESIDROGENASE LATICA - ISOENZIMAS FRACIONADAS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010368",
+      "name": "DESIDROGENASE LATICA (DHL OU LDH)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010368",
+      "name": "DESIDROGENASE LATICA (DHL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030075",
+      "name": "DETERMINACAO DE FATOR REUMATOIDE (LATR)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060012",
+      "name": "DETERMINACAO DE INDICE DE TIROXINA LIVRE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060039",
+      "name": "DETERMINACAO DE T3 REVERSO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020070",
+      "name": "DETERMINACAO DE TEMPO DE COAGULACAO (COAGULOGRAMA) (TC - TEMPO DE COAGULACAO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020096",
+      "name": "DETERMINACAO DE TEMPO DE SANGRAMENTO ( DUKE ) (COAGULOGRAMA) (TS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020134",
+      "name": "DETERMINACAO DE TEMPO DE TROMBOPLASTINA PARCIAL (TTP A) (COAGULOGRAMA) (TTPA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020134",
+      "name": "DETERMINACAO DE TEMPO DE TROMBOPLASTINA PARCIAL (TTP A)(TTP)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020142",
+      "name": "DETERMINACAO DE TEMPO E ATIVIDADE DA PROTROMBINA (TAP) (TPAE, TP/INR, TAP) (COAGULOGRAMA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070204",
+      "name": "DIGITOXINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070204",
+      "name": "DIGOXINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060152",
+      "name": "DIHIDROTESTOSTERONA - DHT",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070085",
+      "name": "DOSAGEM DE ALUMINIO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070085",
+      "name": "DOSAGEM DE ALUMINIO (ALUMINIO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060136",
+      "name": "DOSAGEM DE CORTISOL (CORT)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010406",
+      "name": "DOSAGEM DE FOLATO (FOL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010406",
+      "name": "DOSAGEM DE FOLATO (FOL) (ácido fólico)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020304",
+      "name": "DOSAGEM DE HEMOGLOBINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030156",
+      "name": "DOSAGEM DE IMUNOGLOBULINA A (IGA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030164",
+      "name": "DOSAGEM DE IMUNOGLOBULINA E (IGE) (IGET)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030172",
+      "name": "DOSAGEM DE IMUNOGLOBULINA G (IGG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030180",
+      "name": "DOSAGEM DE IMUNOGLOBULINA M (IGM)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010538",
+      "name": "DOSAGEM DE LACTATO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202050092",
+      "name": "DOSAGEM DE MICROALBUMINA NA URINA (MALB) MICROALBUMINURIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010600",
+      "name": "DOSAGEM DE POTASSIO (K) (IONO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010635",
+      "name": "DOSAGEM DE SODIO (NA) (IONO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202050017",
+      "name": "EAS - SUMARIO DE URINA (SM)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0205010032",
+      "name": "ECOCARDIOGRAFIA BI-DIMENSIONAL COM OU SEM DOPPLER - 0 A 14 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.5 GRUPO - DIAGNOSE EM CARDIOLOGIA"
+    },
+    {
+      "code": "0205010032",
+      "name": "ECOCARDIOGRAFIA BI-DIMENSIONAL COM OU SEM DOPPLER > 60 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.5 GRUPO - DIAGNOSE EM CARDIOLOGIA"
+    },
+    {
+      "code": "0205010032",
+      "name": "ECOCARDIOGRAFIA BI-DIMENSIONAL COM OU SEM DOPPLER ADULTO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.5 GRUPO - DIAGNOSE EM CARDIOLOGIA"
+    },
+    {
+      "code": "0211020036",
+      "name": "ELETROCARDIOGRAMA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "25. ELETROCARDIOGRAMA (0211020036)"
+    },
+    {
+      "code": "0211050024",
+      "name": "ELETROENCEFALOGRAMA ADULTO SEM SEDACAO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4 GRUPO - DIAGNOSE EM NEUROLOGIA"
+    },
+    {
+      "code": "0211050024",
+      "name": "ELETROENCEFALOGRAMA ADULTO SEM SEDACAO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "63. DIAGNOSE EM NEUROLOGIA"
+    },
+    {
+      "code": "0211050040",
+      "name": "ELETROENCEFALOGRAMA EM SONO ESPONTANEO (EEG) - PEDIATRICO (< 5 ANOS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4 GRUPO - DIAGNOSE EM NEUROLOGIA"
+    },
+    {
+      "code": "0211050024",
+      "name": "ELETROENCEFALOGRAMA PEDIATRICO SEM SEDACAO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.4 GRUPO - DIAGNOSE EM NEUROLOGIA"
+    },
+    {
+      "code": "0202010716",
+      "name": "ELETROFORESE DE LIPOPROTEINAS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010724",
+      "name": "ELETROFORESE DE PROTEINAS (PROTIDOGRAMA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211050083",
+      "name": "ELETRONEUROMIOGRAFIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "26. ELETRONEUROMIOGRAFIA (0211050083)"
+    },
+    {
+      "code": "0209010037",
+      "name": "ENDOSCOPIA DIGESTIVA ALTA > 14 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.16 GRUPO - ENDOSCOPIA DIGESTIVA"
+    },
+    {
+      "code": "0202040062",
+      "name": "EOSINOFILOS - PESQUISA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020363",
+      "name": "ERITROGRAMA( ERITROCITOS, HEMOGLOBINA, HEMATOCRITO )",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0204040108",
+      "name": "ESCAFOIDE DIREITO AP",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040108",
+      "name": "ESCAFOIDE ESQUERDO AP",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060036",
+      "name": "ESCANOMETRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0209010061",
+      "name": "ESOFAGOGASTRODUODENOSCOPIA COM BIOPSIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.16 GRUPO - ENDOSCOPIA DIGESTIVA"
+    },
+    {
+      "code": "0202030466",
+      "name": "ESPERMOCULTURA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030466",
+      "name": "ESPERMOGRAMA (CARACTERES FISICOS, MOBILIDADE, CONTAGEM E MOR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0401010015",
+      "name": "ESTOMATERAPIA",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "27. ESTOMATERAPIA (0401010015)"
+    },
+    {
+      "code": "0202060160",
+      "name": "ESTRADIOL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060160",
+      "name": "ESTRADIOL (E2)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060179",
+      "name": "ESTRIOL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060187",
+      "name": "ESTRONA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211070157",
+      "name": "ESTUDO DE EMISSOES OTOACUSTICAS EVOCADAS TRANSITORIAS E PRODUTOS DE DISTORCAO (EOA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0202080145",
+      "name": "EXAME MICROBIOLOGICO A FRESCO (DIRETO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202120082",
+      "name": "FATOR Rh (INCLUI Do Fraco) (TIPAGEM OU CLASSIFICACAO SANGUINEA (GRUPO ABO + FATOR RH))",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010384",
+      "name": "FERRITINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010384",
+      "name": "FERRITINA (FERRI)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010392",
+      "name": "FERRO SERICO (FC)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010392",
+      "name": "FERRO SERICO (FERRO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020290",
+      "name": "FIBRINOGENIO - DOSAGEM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060233",
+      "name": "FOLICULO ESTIMULANTE, HORMONIO - FSH (FSH)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010414",
+      "name": "FOSFATASE ACIDA TOTAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010449",
+      "name": "FOSFATASE ACIDA-FRACAO PROSTATICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010422",
+      "name": "FOSFATASE ALCALINA (FA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010430",
+      "name": "FOSFORO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010430",
+      "name": "FOSFORO (FOS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031128",
+      "name": "FTA-ABS, PARA SIFILIS - IGG",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031136",
+      "name": "FTA-ABS, PARA SIFILIS, IGM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010465",
+      "name": "GAMA-GLUTAMIL TRANSFERASE - GAMA GT (GAMA GT, GGT)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010465",
+      "name": "GAMA-GLUTAMIL TRANSFERASE - GAMA GT (GGT)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0906010012",
+      "name": "GIN1 - AVALIAÇÃO DIAGNÓSTICA INICIAL DE SAÚDE DA MULHER (GINECOLOGIA) I",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0202010473",
+      "name": "GLICEMIA DE JEJUM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010473",
+      "name": "GLICEMIA DE JEJUM (GLC)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010473",
+      "name": "GLICEMIA POS PRANDIAL (GPP)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010481",
+      "name": "GLICOSE-6-FOSFATO DESIDROGENASE (G6PD)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060217",
+      "name": "GONADOTROFINA CORIONICA - BETA HCG (BHCGQ)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202120023",
+      "name": "GRUPO ABO - DETERMINACAO (GS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202120023",
+      "name": "GRUPO ABO - DETERMINACAO (TIPAGEM OU CLASSIFICACAO SANGUINEA (GRUPO ABO + FATOR RH))",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030806",
+      "name": "HAV- IGG ANTICORPOS IGG CONTRA O VIRUS DA HEPATITE A (HAVG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030911",
+      "name": "HAV-IGM ANTICORPOS IGM CONTRA O VIRUS DA HEPATITE A (HAVM)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030989",
+      "name": "HBEAG - ANTIGENO E DA HEPATITE B (HBE)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030970",
+      "name": "HBSAG - ANTIGENO S (SUPERFICIE) DA HEPATITE B (HBSAG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020371",
+      "name": "HEMATOCRITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010503",
+      "name": "HEMOGLOBINA GLICOSILADA (DHG, HBG, HB1AC)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010503",
+      "name": "HEMOGLOBINA GLICOSILADA (HBGL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020380",
+      "name": "HEMOGRAMA COMPLETO (HGCOM)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030849",
+      "name": "HERPES SIMPLES , PESQUISA DE ANTICORPOS, IGG",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030954",
+      "name": "HERPES SIMPLES , PESQUISA DE ANTICORPOS, IGM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030938",
+      "name": "HERPES ZOSTER , PESQUISA DE ANTICORPOS , IGM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030822",
+      "name": "HERPES ZOSTER , PESQUISA DE ANTICORPOS, IGG",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060225",
+      "name": "HORMONIO DE CRESCIMENTO - HGH",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031039",
+      "name": "IGE POR ALERGENO ESPECIFICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211070203",
+      "name": "IMITANCIOMETRIA (1719002) - PEDIATRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0211070203",
+      "name": "IMITANCIOMETRIA (1719002) > 14 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0202060268",
+      "name": "INSULINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060268",
+      "name": "INSULINA (INS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020398",
+      "name": "LEUCOGRAMA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020398",
+      "name": "LEUCOGRAMA (LEUCO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060241",
+      "name": "LH LUTEINIZANTE HORMONIO (LH)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010554",
+      "name": "LIPASE (LIP)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070255",
+      "name": "LITIO SERICO (LIT)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070255",
+      "name": "LITIO SERICO (LITIO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010562",
+      "name": "MAGNESIO (MG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0204030188",
+      "name": "MAMOGRAFIA BILATERAL PARA RASTREAMENTO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "75. MAMOGRAFIA BILATERAL PARA RASTREAMENTO (0204030188)"
+    },
+    {
+      "code": "0211020044",
+      "name": "MONITORAMENTO HOLTER 24 HS ( 3 CANAIS) - 18 A 59 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.14 GRUPO - HOLTER 24 HS"
+    },
+    {
+      "code": "0211020044",
+      "name": "MONITORAMENTO HOLTER 24 HS ( 3 CANAIS) > 60 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.14 GRUPO - HOLTER 24 HS"
+    },
+    {
+      "code": "0211020044",
+      "name": "MONITORAMENTO HOLTER 24 HS (3 CANAIS) - 14 A 17 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.14 GRUPO - HOLTER 24 HS"
+    },
+    {
+      "code": "0211020044",
+      "name": "MONITORAMENTO HOLTER 24 HS (3 CANAIS) - 5 A 13 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.14 GRUPO - HOLTER 24 HS"
+    },
+    {
+      "code": "0211020052",
+      "name": "MONITORIZACAO AMBULATORIAL DE PRESSAO ARTERIAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "76. MONITORIZACAO AMBULATORIAL DE PRESSAO ARTERIAL (0211020052)"
+    },
+    {
+      "code": "0202010570",
+      "name": "MUCO PROTEINAS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0209040041",
+      "name": "NASOFIBROSCOPIA - 14 A 17 ANOS (VIDEO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0209040041",
+      "name": "NASOFIBROSCOPIA - 2 A 13 ANOS (VIDEO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0209040041",
+      "name": "NASOFIBROSCOPIA > 18 ANOS (VIDEO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0906010020",
+      "name": "OCI - GIN1 - AVALIAÇÃO DIAGNÓSTICA INICIAL DE SAÚDE DA MULHER (GINECOLOGIA) II",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0902010026",
+      "name": "OCI AVALIAÇÃO CARDIOLÓGICA",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0902010018",
+      "name": "OCI AVALIAÇÃO DE RISCO CIRÚRGICO",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0904010031",
+      "name": "OCI AVALIAÇÃO DIAGNÓSTICA DE NASOFARINGE E DE OROFARINGE",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0901010111",
+      "name": "OCI AVALIAÇÃO DIAGNÓSTICA E TERAPÊUTICA DE CÂNCER DE COLO DO ÚTERO-I",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0901010120",
+      "name": "OCI AVALIAÇÃO DIAGNÓSTICA E TERAPÊUTICA DE CÂNCER DE COLO DO ÚTERO-II",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0903010011",
+      "name": "OCI AVALIAÇÃO DIAGNÓSTICA EM ORTOPEDIA COM RECURSOS DE RADIOLOGIA",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0903010020",
+      "name": "OCI AVALIAÇÃO DIAGNÓSTICA EM ORTOPEDIA COM RECURSOS DE RADIOLOGIA E ULTRASSONOGRAFIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0902010034",
+      "name": "OCI AVALIAÇÃO DIAGNÓSTICA INICIAL - SÍNDROME CORONARIANA CRÔNICA",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0901010014",
+      "name": "OCI AVALIACAO DIAGNOSTICA INICIAL DE CANCER DE MAMA",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0905010019",
+      "name": "OCI AVALIAÇÃO INICIAL EM OFTALMOLOGIA - 0 A 8 ANOS",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0905010035",
+      "name": "OCI AVALIAÇÃO INICIAL EM OFTALMOLOGIA - A PARTIR DE 9 ANOS",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0901010057",
+      "name": "OCI INVESTIGAÇÃO DIAGNÓSTICA DE CÂNCER DE COLO DO ÚTERO",
+      "type": "Procedimento",
+      "status": "ATIVO",
+      "hierarchy": "73. PROCEDIMENTOS PARA OFERTAS DE CUIDADOS INTEGRADOS"
+    },
+    {
+      "code": "0301010072",
+      "name": "ONSULTA EM REUMATOLOGIA > 14 ANOS",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "59. CONSULTAS EM REUMATOLOGIA"
+    },
+    {
+      "code": "0202060276",
+      "name": "PARATORMONIO - DOSAGEM (PTH)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030253",
+      "name": "PESQUISA DE ANTICORPO IGG ANTICARDIOLIPINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030261",
+      "name": "PESQUISA DE ANTICORPO IGM ANTICARDIOLIPINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030270",
+      "name": "PESQUISA DE ANTICORPOS ANTI-DNA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030326",
+      "name": "PESQUISA DE ANTICORPOS ANTI-RIBONUCLEOPROTEINA (RNP)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030350",
+      "name": "PESQUISA DE ANTICORPOS ANTI-SS-A (RO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030423",
+      "name": "PESQUISA DE ANTICORPOS ANTICLAMIDIA (POR IMUNOFLUORESCENCIA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030458",
+      "name": "PESQUISA DE ANTICORPOS ANTIESCLERODERMA (SCL 70)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030555",
+      "name": "PESQUISA DE ANTICORPOS ANTIMICROSSOMAS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030563",
+      "name": "PESQUISA DE ANTICORPOS ANTIMITOCONDRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030571",
+      "name": "PESQUISA DE ANTICORPOS ANTIMUSCULO ESTRIADO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030571",
+      "name": "PESQUISA DE ANTICORPOS ANTIMUSCULO LISO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030598",
+      "name": "PESQUISA DE ANTICORPOS ANTINUCLEO (FAN)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030601",
+      "name": "PESQUISA DE ANTICORPOS ANTIPARIETAIS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030733",
+      "name": "PESQUISA DE ANTICORPOS HETEROFILOS CONTRA O VIRUS EPSTEIN BARR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030741",
+      "name": "PESQUISA DE ANTICORPOS IGG ANTICITOMEGALOVIRUS(CMVG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030768",
+      "name": "PESQUISA DE ANTICORPOS IGG ANTITOXOPLASMA (TOXG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030776",
+      "name": "PESQUISA DE ANTICORPOS IGG ANTITRIPANOSOMA CRUZI",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030857",
+      "name": "PESQUISA DE ANTICORPOS IGM ANTICITOMEGALOVIRUS (CMVM)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030873",
+      "name": "PESQUISA DE ANTICORPOS IGM ANTITOXOPLASMA (TOXM)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030881",
+      "name": "PESQUISA DE ANTICORPOS IGM ANTITRIPANOSOMA CRUZI",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031012",
+      "name": "PESQUISA DE FATOR REUMATOIDE (WAALER ROSE)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202040097",
+      "name": "PESQUISA DE LEUCOCITOS FECAIS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060470",
+      "name": "PESQUISA DE MACROPROLACTINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031047",
+      "name": "PESQUISA DE TRYPANOSOMA CRUZI (POR IMUNOFLUORESCENCIA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202080080",
+      "name": "PESQUISA DE UREAPLASMA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0204040001",
+      "name": "Potencial Evocado Auditivo - Outros",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.1 GRUPO - DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0211070262BERA",
+      "name": "POTENCIAL EVOCADO AUDITIVO DE CURTA MEDIA E LONGA - BERA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0301010153",
+      "name": "PRIMEIRA CONSULTA ODONTOLOGICA - ADULTO",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "72. PRIMEIRA CONSULTA ODONTOLOGICA BASICA"
+    },
+    {
+      "code": "0301010153",
+      "name": "PRIMEIRA CONSULTA ODONTOLOGICA - GESTANTE",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "72. PRIMEIRA CONSULTA ODONTOLOGICA BASICA"
+    },
+    {
+      "code": "0301010153",
+      "name": "PRIMEIRA CONSULTA ODONTOLOGICA - INFANTIL",
+      "type": "Consulta",
+      "status": "ATIVO",
+      "hierarchy": "72. PRIMEIRA CONSULTA ODONTOLOGICA BASICA"
+    },
+    {
+      "code": "0202060292",
+      "name": "PROGESTERONA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060292",
+      "name": "PROGESTERONA (PRG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060306",
+      "name": "PROLACTINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060306",
+      "name": "PROLACTINA (PRL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030202",
+      "name": "PROTEINA C REATIVA , PESQUISA (PCR)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030083",
+      "name": "PROTEINA C REATIVA, DETERMINACAO QUANTITATIVA (PCR)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010619",
+      "name": "PROTEINAS TOTAIS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010619",
+      "name": "PROTEINAS TOTAIS (ALBUMINA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010627",
+      "name": "PROTEINAS TOTAIS E FRACOES (PTF)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202050114",
+      "name": "PROTEINURIA DE 24 HORAS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211080055",
+      "name": "PROVA DE FUNCAO PULMONAR COMPLETA - ESPIROMETRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "77. PROVA DE FUNCAO PULMONAR COMPLETA - ESPIROMETRIA (0211080055)"
+    },
+    {
+      "code": "0202020509",
+      "name": "PROVA DO LACO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202090302",
+      "name": "PROVA DO LATEX P/ PESQUISA DO FATOR REUMATOIDE (LATEX)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030105",
+      "name": "PSA LIVRE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030105",
+      "name": "PSA LIVRE (PSAL) (PSATL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030105",
+      "name": "PSA TOTAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030105",
+      "name": "PSA TOTAL (PSA) (PSATL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0201010585",
+      "name": "PUNCAO ASPIRATIVA DE MAMA POR AGULHA FINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "74. PUNCAO / BIOPSIA"
+    },
+    {
+      "code": "0201010607",
+      "name": "PUNCAO DE MAMA POR AGULHA GROSSA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "74. PUNCAO / BIOPSIA"
+    },
+    {
+      "code": "0204040124",
+      "name": "PUNHO DIREITO COM DESVIO UNAR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040124",
+      "name": "PUNHO DIREITO COM ROTAÇÃO RADIAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040124",
+      "name": "PUNHO ESQUERDO COM DESVIO UNAR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040124",
+      "name": "PUNHO ESQUERDO COM ROTAÇÃO RADIAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060079",
+      "name": "QUADRIL DIREITO AP/PL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060079",
+      "name": "QUADRIL ESQUERDO AP/PL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010039",
+      "name": "RADIOGRAFIA BILATERAL DE ORBITAS (PA + OBLIQUAS + HIRTZ)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204050111",
+      "name": "RADIOGRAFIA DE ABDOMEN (AP + LATERAL / LOCALIZADA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204050120",
+      "name": "RADIOGRAFIA DE ABDOMEN AGUDO (MINIMO DE 3 INCIDENCIAS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204050138",
+      "name": "RADIOGRAFIA DE ABDOMEN SIMPLES (AP)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040019",
+      "name": "RADIOGRAFIA DE ANTEBRACO DIREITO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040019",
+      "name": "RADIOGRAFIA DE ANTEBRACO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040019",
+      "name": "RADIOGRAFIA DE ANTEBRAÇO ESQUERDO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010047",
+      "name": "RADIOGRAFIA DE ARCADA ZIGOMATICO-MALAR (AP + OBLIQUAS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040027",
+      "name": "RADIOGRAFIA DE ARTICULACAO ACROMIO-CLAVICULAR DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040027",
+      "name": "RADIOGRAFIA DE ARTICULACAO ACROMIO-CLAVICULAR ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060060",
+      "name": "RADIOGRAFIA DE ARTICULACAO COXO-FEMORAL DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060060",
+      "name": "RADIOGRAFIA DE ARTICULACAO COXO-FEMORAL ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040035",
+      "name": "RADIOGRAFIA DE ARTICULACAO ESCAPULO-UMERAL DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040035",
+      "name": "RADIOGRAFIA DE ARTICULACAO ESCAPULO-UMERAL ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040043",
+      "name": "RADIOGRAFIA DE ARTICULACAO ESTERNO-CLAVICULAR DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040043",
+      "name": "RADIOGRAFIA DE ARTICULACAO ESTERNO-CLAVICULAR ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060079",
+      "name": "RADIOGRAFIA DE ARTICULACAO SACRO-ILIACA DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060079",
+      "name": "RADIOGRAFIA DE ARTICULACAO SACRO-ILIACA ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010055",
+      "name": "RADIOGRAFIA DE ARTICULACAO TEMPORO-MANDIBULAR BILATERAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060087",
+      "name": "RADIOGRAFIA DE ARTICULACAO TIBIO-TARSICA DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060087",
+      "name": "RADIOGRAFIA DE ARTICULACAO TIBIO-TARSICA ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060095",
+      "name": "RADIOGRAFIA DE BACIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060095",
+      "name": "RADIOGRAFIA DE BACIA DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060095",
+      "name": "RADIOGRAFIA DE BACIA ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040051",
+      "name": "RADIOGRAFIA DE BRACO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040051",
+      "name": "RADIOGRAFIA DE BRACO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060109",
+      "name": "RADIOGRAFIA DE CALCANEO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060109",
+      "name": "RADIOGRAFIA DE CALCANEO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010063",
+      "name": "RADIOGRAFIA DE CAVUM (LATERAL + HIRTZ)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040060",
+      "name": "RADIOGRAFIA DE CLAVICULA DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040060",
+      "name": "RADIOGRAFIA DE CLAVICULA ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020042",
+      "name": "RADIOGRAFIA DE COLUNA CERVICAL (AP + LATERAL + TO / FLEXAO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020034",
+      "name": "RADIOGRAFIA DE COLUNA CERVICAL (AP + LATERAL + TO + OBLIQUAS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020050",
+      "name": "RADIOGRAFIA DE COLUNA CERVICAL FUNCIONAL / DINAMICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020093",
+      "name": "RADIOGRAFIA DE COLUNA DORSAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020107",
+      "name": "RADIOGRAFIA DE COLUNA DORSO-LOMBAR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020115",
+      "name": "RADIOGRAFIA DE COLUNA LOMBAR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020069",
+      "name": "RADIOGRAFIA DE COLUNA LOMBO-SACRA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020077",
+      "name": "RADIOGRAFIA DE COLUNA LOMBO-SACRA (C/ OBLIQUAS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020085",
+      "name": "RADIOGRAFIA DE COLUNA LOMBO-SACRA FUNCIONAL / DINAMICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020093",
+      "name": "RADIOGRAFIA DE COLUNA TORACICA (AP + LATERAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020107",
+      "name": "RADIOGRAFIA DE COLUNA TORACO-LOMBAR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020115",
+      "name": "RADIOGRAFIA DE COLUNA TORACO-LOMBAR DINAMICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020115",
+      "name": "RADIOGRAFIA DE COLUNA VERTEBRAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030056",
+      "name": "RADIOGRAFIA DE CORACAO E VASOS DA BASE (PA + LATERAL + OBLIQUA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030064",
+      "name": "RADIOGRAFIA DE CORACAO E VASOS DA BASE (PA + LATERAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030072",
+      "name": "RADIOGRAFIA DE COSTELAS (HEMITORAX DIREITO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030072",
+      "name": "RADIOGRAFIA DE COSTELAS (HEMITORAX ESQUERDO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030072",
+      "name": "RADIOGRAFIA DE COSTELAS (POR HEMITORAX)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040078",
+      "name": "RADIOGRAFIA DE COTOVELO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040078",
+      "name": "RADIOGRAFIA DE COTOVELO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040078",
+      "name": "RADIOGRAFIA DE COTOVELO ESQUERDO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060117",
+      "name": "RADIOGRAFIA DE COXA DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060117",
+      "name": "RADIOGRAFIA DE COXA ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010071",
+      "name": "RADIOGRAFIA DE CRANIO (PA + LATERAL + OBLIQUA / BRETTON + HIRTZ)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010080",
+      "name": "RADIOGRAFIA DE CRANIO (PA + LATERAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040086",
+      "name": "RADIOGRAFIA DE DEDOS DA MAO DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040086",
+      "name": "RADIOGRAFIA DE DEDOS DA MAO ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040116",
+      "name": "RADIOGRAFIA DE ESCAPULA/OMBRO (TRES POSICOES)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030099",
+      "name": "RADIOGRAFIA DE ESTERNO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060060",
+      "name": "RADIOGRAFIA DE FÊMUR DIREITO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060060",
+      "name": "RADIOGRAFIA DE FEMUR DIREITO E ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060060",
+      "name": "RADIOGRAFIA DE FÊMUR ESQUERDO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010144",
+      "name": "RADIOGRAFIA DE HIPOFARINGE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060125",
+      "name": "RADIOGRAFIA DE JOELHO (AP + LATERAL) DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060125",
+      "name": "RADIOGRAFIA DE JOELHO (AP + LATERAL) ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060133",
+      "name": "RADIOGRAFIA DE JOELHO DIREITO AP COM CARGA + P + AXIAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060125",
+      "name": "RADIOGRAFIA DE JOELHO DIREITO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060133",
+      "name": "RADIOGRAFIA DE JOELHO ESQUERDO AP COM CARGA + P + AXIAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060125",
+      "name": "RADIOGRAFIA DE JOELHO ESQUERDO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060133",
+      "name": "RADIOGRAFIA DE JOELHO OU PATELA (AP + LATERAL + AXIAL) DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060133",
+      "name": "RADIOGRAFIA DE JOELHO OU PATELA (AP + LATERAL + AXIAL) ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060141",
+      "name": "RADIOGRAFIA DE JOELHO OU PATELA (AP + LATERAL + OBLIQUA + 3 AXIAIS) DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060141",
+      "name": "RADIOGRAFIA DE JOELHO OU PATELA (AP + LATERAL + OBLIQUA + 3 AXIAIS) ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010098",
+      "name": "RADIOGRAFIA DE LARINGE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010055",
+      "name": "RADIOGRAFIA DE MANDIBULA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040094",
+      "name": "RADIOGRAFIA DE MAO DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040094",
+      "name": "RADIOGRAFIA DE MÃO DIREITA AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040108",
+      "name": "RADIOGRAFIA DE MAO E PUNHO (P/ DETERMINACAO DE IDADE OSSEA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040094",
+      "name": "RADIOGRAFIA DE MAO ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040094",
+      "name": "RADIOGRAFIA DE MÃO ESQUERDA AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010101",
+      "name": "RADIOGRAFIA DE MASTOIDE / ROCHEDOS (BILATERAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010110",
+      "name": "RADIOGRAFIA DE MAXILAR (PA + OBLIQUA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030102",
+      "name": "RADIOGRAFIA DE MEDIASTINO (PA E PERFIL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040116",
+      "name": "RADIOGRAFIA DE OMBRO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040116",
+      "name": "RADIOGRAFIA DE OMBRO DIREITO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040116",
+      "name": "RADIOGRAFIA DE OMBRO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040116",
+      "name": "RADIOGRAFIA DE OMBRO ESQUERDO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040116",
+      "name": "RADIOGRAFIA DE OMOPLATA / OMBRO (TRES POSICOES) DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040116",
+      "name": "RADIOGRAFIA DE OMOPLATA / OMBRO (TRES POSICOES) ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010128",
+      "name": "RADIOGRAFIA DE OSSOS DA FACE (MN + LATERAL + HIRTZ)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060150",
+      "name": "RADIOGRAFIA DE PE DIREITO AP OBLÍQUO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060150",
+      "name": "RADIOGRAFIA DE PE ESQUERDO AP OBLÍQUO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060168",
+      "name": "RADIOGRAFIA DE PERNA DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060168",
+      "name": "RADIOGRAFIA DE PERNA DIREITA AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060168",
+      "name": "RADIOGRAFIA DE PERNA ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030110",
+      "name": "RADIOGRAFIA DE PNEUMOMEDIASTINO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040124",
+      "name": "RADIOGRAFIA DE PUNHO (AP + LATERAL + OBLIQUA) DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204040124",
+      "name": "RADIOGRAFIA DE PUNHO (AP + LATERAL + OBLIQUA) ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060095",
+      "name": "RADIOGRAFIA DE QUADRIL DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060060",
+      "name": "RADIOGRAFIA DE QUADRIL DIREITO E ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060095",
+      "name": "RADIOGRAFIA DE QUADRIL ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010136",
+      "name": "RADIOGRAFIA DE REGIAO ORBITARIA (LOCALIZACAO DE CORPO ESTRANHO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204020123",
+      "name": "RADIOGRAFIA DE REGIAO SACRO-COCCIGEA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010144",
+      "name": "RADIOGRAFIA DE SEIOS DA FACE (FN + MN + LATERAL + HIRTZ)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010152",
+      "name": "RADIOGRAFIA DE SELA TURSICA (PA + LATERAL + BRETTON)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030129",
+      "name": "RADIOGRAFIA DE TORAX (APICO-LORDORTICA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030137",
+      "name": "RADIOGRAFIA DE TORAX (PA + INSPIRACAO + EXPIRACAO + LATERAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030145",
+      "name": "RADIOGRAFIA DE TORAX (PA + LATERAL + OBLIQUA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030153",
+      "name": "RADIOGRAFIA DE TORAX (PA E PERFIL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030161",
+      "name": "RADIOGRAFIA DE TORAX (PA PADRAO OIT)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030170",
+      "name": "RADIOGRAFIA DE TORAX (PA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204030153",
+      "name": "RADIOGRAFIA DE TÓRAX- PROGRAMA TUBERCULOSE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060109",
+      "name": "RADIOGRAFIA DE TORNOZELO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060109",
+      "name": "RADIOGRAFIA DE TORNOZELO DIREITO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060109",
+      "name": "RADIOGRAFIA DE TORNOZELO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060109",
+      "name": "RADIOGRAFIA DE TORNOZELO ESQUERDO AP E PERFIL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060150",
+      "name": "RADIOGRAFIA DO PE / DEDOS DO PE DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204060150",
+      "name": "RADIOGRAFIA DO PE / DEDOS DO PE ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010179",
+      "name": "RADIOGRAFIA PANORAMICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0204010187",
+      "name": "RADIOGRAFIA PERI-APICAL INTERPROXIMAL (BITE-WING)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0201010542",
+      "name": "RAIO X - GERAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0202031098",
+      "name": "REACAO DE HEMAGLUTINACAO (TPHA) P/ DIAGNOSTICO DA SIFILIS (FTA - ABS) (TPHA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020037",
+      "name": "RETICULOCITOS - CONTAGEM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0209010045",
+      "name": "RETOSSIGMOIDOSCOPIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.16 GRUPO - ENDOSCOPIA DIGESTIVA"
+    },
+    {
+      "code": "0202020495",
+      "name": "RETRACAO DO COAGULO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030814",
+      "name": "RUBEOLA , ANTICORPOS IGG",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030814",
+      "name": "RUBEOLA , ANTICORPOS IGG (RUBG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202030920",
+      "name": "RUBEOLA , ANTICORPOS IGM",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060071",
+      "name": "SEROTONINA - ( ACIDO 5-HIDROXI-INDOL-ACETICO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060330",
+      "name": "SULFATO DE DEHIDROEPIANDOSTERONA (S-DHEA)(DHEAS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0204010209",
+      "name": "TELERADIOGRAFIA COM TRACADOS E SEM TRACADOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "66. DIAGNOSTICO POR RADIOLOGIA"
+    },
+    {
+      "code": "0202020088",
+      "name": "TEMPO DE LISE DA EUGLOBULINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020100",
+      "name": "TEMPO DE SANGRAMENTO DE IVY (TS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020126",
+      "name": "TEMPO DE TROMBINA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202120090",
+      "name": "TESTE DE ANTIGLOBULINA HUMANA ( TIA ) (COOMBS INDIRETO, TIA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020541",
+      "name": "TESTE DE ANTIGLOBULINA HUMANA (TDA )",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020541",
+      "name": "TESTE DE ANTIGLOBULINA HUMANA (TDA) (CD) (COOMBS DIRETO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202120090",
+      "name": "TESTE DE ANTIGLOBULINA HUMANA (TIA) (CI) (COOMBS INDIRETO)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211020060",
+      "name": "TESTE DE ESFORCO OU TESTE ERGOMETRICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "78. TESTE DE ESFORCO OU TESTE ERGOMETRICO (0211020060)"
+    },
+    {
+      "code": "0202010759",
+      "name": "TESTE DE TOLERANCIA A INSULINA OU HIPOGLICEMIANTES ORAIS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031110",
+      "name": "TESTE DE VDRL P/ DETECCAO DE SIFILIS (VDS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211070343",
+      "name": "TESTES DE PROCESSAMENTO AUDITIVO - PEDIATRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0211070343",
+      "name": "TESTES DE PROCESSAMENTO AUDITIVO > 14 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0211070351",
+      "name": "TESTES VESTIBULARES/OTONEUROLOGICOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0202060357",
+      "name": "TESTOSTERONA LIVRE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060349",
+      "name": "TESTOSTERONA TOTAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060349",
+      "name": "TESTOSTERONA TOTAL (TES)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010643",
+      "name": "TGO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010643",
+      "name": "TGO (ALT) (TRANSAMINASES)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010651",
+      "name": "TGP",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010651",
+      "name": "TGP (AST) (TRANSAMINASES)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060365",
+      "name": "TIREOGLOBULINA (TG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060373",
+      "name": "TIROXINA - T4",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060381",
+      "name": "TIROXINA LIVRE (T4 LIVRE) (T4L)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010660",
+      "name": "TRANSFERRINA (TRANS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010678",
+      "name": "TRIGLICERIDEOS (TRI)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010678",
+      "name": "TRIGLICERIDEOS (TRIGLICERIDES)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060390",
+      "name": "TRIIODOTIRONINA - T3 (T3)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202031209",
+      "name": "TROPONINA (TRP)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202060250",
+      "name": "TSH - HORMONIO TIREOESTIMULANTE (TSH)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0205020097",
+      "name": "ULTRA-SONOGRAFIA AXILA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA CERVICAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020038",
+      "name": "ULTRA-SONOGRAFIA DE ABDOMEN SUPERIOR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020046",
+      "name": "ULTRA-SONOGRAFIA DE ABDOMEN TOTAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO COTOVELO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO COTOVELO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO COXO-FEMURAL DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO COXO-FEMURAL ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO JOELHO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO JOELHO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO MAO DIREITA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO MAO ESQUERDA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO OMBRO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO OMBRO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO PE DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO PE ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO PUNHO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO PUNHO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO TORNOZELO DIREITO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE ARTICULACAO TORNOZELO ESQUERDO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020070",
+      "name": "ULTRA-SONOGRAFIA DE BOLSA ESCROTAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020127",
+      "name": "ULTRA-SONOGRAFIA DE GLANDULAS SALIVARES",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020097",
+      "name": "ULTRA-SONOGRAFIA DE MAMAS (BILATERAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020046",
+      "name": "ULTRA-SONOGRAFIA DE PAREDE ABDOMINAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE PARTES MOLES",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020100",
+      "name": "ULTRA-SONOGRAFIA DE PROSTATA (VIA ABDOMINAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020119",
+      "name": "ULTRA-SONOGRAFIA DE PROSTATA (VIA TRANSRETAL)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020062",
+      "name": "ULTRA-SONOGRAFIA DE REGIAO INGUINAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020127",
+      "name": "ULTRA-SONOGRAFIA DE TIREOIDE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020054",
+      "name": "ULTRA-SONOGRAFIA DO APARELHO URINARIO (RINS, BEXIGA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER ARTERIAL- M I D",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER ARTERIAL- M I E",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER ARTERIAL- M S D",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER ARTERIAL- M S E",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020046",
+      "name": "ULTRA-SONOGRAFIA DOPPLER DE ABDOMEN TOTAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020054",
+      "name": "ULTRA-SONOGRAFIA DOPPLER DE APARELHO URINARIO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020070",
+      "name": "ULTRA-SONOGRAFIA DOPPLER DE BOLSA ESCROTAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER DE CAROTIDAS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010059",
+      "name": "ULTRA-SONOGRAFIA DOPPLER DE FLUXO OBSTETRICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020097",
+      "name": "ULTRA-SONOGRAFIA DOPPLER DE MAMAS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020100",
+      "name": "ULTRA-SONOGRAFIA DOPPLER DE PROSTATA VIA ABDOMINAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020127",
+      "name": "ULTRA-SONOGRAFIA DOPPLER DE TIREOIDE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020160",
+      "name": "ULTRA-SONOGRAFIA DOPPLER PELVICA - GINECOLOGICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020186",
+      "name": "ULTRA-SONOGRAFIA DOPPLER TRANSVAGINAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER VENOSO - MID",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER VENOSO - MIE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER VENOSO - MSD",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRA-SONOGRAFIA DOPPLER VENOSO - MSE",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020143",
+      "name": "ULTRA-SONOGRAFIA OBSTETRICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020143",
+      "name": "ULTRA-SONOGRAFIA OBSTETRICA - MORFOLOGICO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020186",
+      "name": "ULTRA-SONOGRAFIA OBSTETRICA - TRANSVAGINAL (ATE 12 SEMANAS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020151",
+      "name": "ULTRA-SONOGRAFIA OBSTETRICA C/ DOPPLER COLORIDO E PULSADO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020160",
+      "name": "ULTRA-SONOGRAFIA PELVICA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020160",
+      "name": "ULTRA-SONOGRAFIA PELVICA (GINECOLOGICA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020135",
+      "name": "ULTRA-SONOGRAFIA TORAX ( EXTRACARDIACO )",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020178",
+      "name": "ULTRA-SONOGRAFIA TRANSFONTANELAR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205020186",
+      "name": "ULTRA-SONOGRAFIA TRANSVAGINAL",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "68. EXAMES ULTRA-SONOGRAFICOS"
+    },
+    {
+      "code": "0205010040",
+      "name": "ULTRASSONOGRAFIA DOPPLER COLORIDO DE VASOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0205020038",
+      "name": "ULTRASSONOGRAFIA DOPPLER DE ABDOMEN SUPERIOR",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.15 GRUPO - EXAMES ULTRA-SONOGRAFICOS (DOPPLER) E ECOGRAFIAS"
+    },
+    {
+      "code": "0202010694",
+      "name": "UREIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010694",
+      "name": "UREIA (UREA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0204050170",
+      "name": "URETROCISTOGRAFIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "79. URETROCISTOGRAFIA (0204050170)"
+    },
+    {
+      "code": "0211090077",
+      "name": "UROFLUXOMETRIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.3 GRUPO - DIAGNOSE EM UROLOGIA"
+    },
+    {
+      "code": "0204050189",
+      "name": "UROGRAFIA EXCRETORA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "80. UROGRAFIA EXCRETORA (0204050189)"
+    },
+    {
+      "code": "0202031179",
+      "name": "VDRL P/ DETECCAO DE SIFILIS EM GESTANTE (VDRLG) (SIFTPG)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202020150",
+      "name": "VELOCIDADE DE HEMOSSEDIMENTACAO (VHS)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0209040041",
+      "name": "VIDEOLARINGOSCOPIA - 14 A 17 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0209040041",
+      "name": "VIDEOLARINGOSCOPIA - 2 A 13 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0209040041",
+      "name": "VIDEOLARINGOSCOPIA > 18 ANOS",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "64. DIAGNOSE EM OTORRINOLARINGOLOGIA/FONOAUDIOLOGIA"
+    },
+    {
+      "code": "0202010708",
+      "name": "VITAMINA B12",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202010708",
+      "name": "VITAMINA B12 (VB12)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0211040029",
+      "name": "VULVOSCOPIA",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "81. VULVOSCOPIA (0211040029)"
+    },
+    {
+      "code": "0202070352",
+      "name": "ZINCO",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "71. PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    },
+    {
+      "code": "0202070352",
+      "name": "ZINCO (ZNSA)",
+      "type": "Exame",
+      "status": "ATIVO",
+      "hierarchy": "1. Procedimento Ambulatorial > 1.13 GRUPO - PATOLOGIA CLINICA (EXAMES DE LABORATORIO)"
+    }
+  ]
+}

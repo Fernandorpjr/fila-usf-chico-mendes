@@ -2109,6 +2109,100 @@
       .fo-body-split { flex-direction: column; }
       .fo-ref-pane { width: 100%; max-width: none; height: 38vh; border-right: none; border-bottom: 2px solid #334155; }
     }
+    /* ====== COPILOTO DA REGULAÇÃO (SISREG III · DS5) ====== */
+    .pec-form-btn.sisreg { background: linear-gradient(135deg, #0f766e, #0d9488); color: #fff; border-color: #0f766e; }
+    .pec-form-btn.sisreg:hover { background: #115e59; border-color: #134e4a; color: #fff; }
+    .sisreg-copiloto-card { background: #fff; border-radius: 16px; border: 2px solid #93c5fd; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14); margin-bottom: 18px; overflow: hidden; color: #0f172a; }
+    .sisreg-copiloto-head { background: linear-gradient(135deg, #0f2c73, #0f766e); color: #fff; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .sisreg-head-title { font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 900; }
+    .sisreg-head-sub { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+    .sisreg-stat-pill { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); color: #fff; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+    .sisreg-head-btn { background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .sisreg-head-btn:hover { background: rgba(255,255,255,0.28); }
+    .sisreg-copiloto-body { padding: 14px 16px; background: #f8fafc; }
+    .sisreg-tabs-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    .sisreg-tab-btn { padding: 8px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #fff; color: #334155; font-size: 13px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
+    .sisreg-tab-btn:hover { border-color: #2563eb; color: #1e40af; }
+    .sisreg-tab-btn.active { background: #1d4ed8; color: #fff; border-color: #1e40af; box-shadow: 0 3px 10px rgba(29,78,216,0.25); }
+    .sisreg-dev-count { background: #dc2626; color: #fff; font-size: 11px; font-weight: 900; padding: 1px 7px; border-radius: 999px; }
+    .sisreg-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    .sisreg-pac-pill { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #dbeafe; border: 1.5px solid #60a5fa; color: #1e3a8a; padding: 5px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; margin-left: auto; }
+    .sisreg-mini-link { background: #fff; border: 1px solid #93c5fd; color: #1d4ed8; border-radius: 7px; padding: 3px 8px; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .sisreg-mini-link.ok { background: #16a34a; border-color: #15803d; color: #fff; }
+    .sisreg-split-grid { display: grid; grid-template-columns: 1.05fr 1.25fr; gap: 14px; align-items: start; }
+    .sisreg-img-stage { background: #0f172a; border-radius: 12px; height: 500px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 10px; position: relative; cursor: grab; touch-action: none; user-select: none; }
+    .sisreg-img-stage.grabbing { cursor: grabbing; }
+    .sisreg-img-stage img { max-width: 96%; max-height: 96%; transition: transform 0.08s ease-out; pointer-events: none; user-select: none; border-radius: 6px; will-change: transform; }
+    .sisreg-img-stage.grabbing img { transition: none; }
+    .sisreg-stage-empty { color: #cbd5e1; font-size: 13px; text-align: center; line-height: 1.5; padding: 20px; }
+    .sisreg-pdf-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 20px; }
+    .sisreg-form-col { display: flex; flex-direction: column; gap: 10px; }
+    .sisreg-box { background: #fff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px 12px; }
+    .sisreg-box-tel { border-color: #38bdf8; background: linear-gradient(135deg, #f0f9ff, #fff); }
+    .sisreg-box-obs { border-color: #60a5fa; background: linear-gradient(135deg, #eff6ff, #fff); }
+    .sisreg-box-proc { border-color: #5eead4; background: linear-gradient(135deg, #f0fdfa, #fff); }
+    .sisreg-box-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11.5px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; margin-bottom: 6px; }
+    .sisreg-tel-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .sisreg-tel-row input { flex: 1; min-width: 150px; padding: 8px 10px; border: 2px solid #93c5fd; border-radius: 8px; font-size: 15px; font-weight: 900; color: #0f172a; font-family: monospace; }
+    .sisreg-check-line { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: #0f766e; margin-top: 7px; cursor: pointer; }
+    .sisreg-box-obs textarea { width: 100%; border: 1.5px solid #93c5fd; border-radius: 8px; padding: 8px 10px; font-family: 'Nunito Sans', sans-serif; font-size: 13px; font-weight: 700; color: #0f172a; resize: vertical; background: #fff; }
+    .sisreg-obs-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+    .sisreg-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sisreg-grid-cep { display: grid; grid-template-columns: 1.4fr 0.55fr 1.05fr; gap: 6px; }
+    .sisreg-field label { display: block; font-size: 10.5px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 2px; }
+    .sisreg-field input, .sisreg-field select { width: 100%; padding: 6px 8px; border: 1.5px solid #cbd5e1; border-radius: 7px; font-size: 12.5px; font-weight: 700; color: #0f172a; background: #fff; }
+    .sisreg-inp-copy { display: flex; gap: 4px; align-items: center; }
+    .sisreg-inp-copy input { flex: 1; }
+    .sisreg-inp-copy button { padding: 5px 8px; border-radius: 7px; border: 1.5px solid #cbd5e1; background: #f1f5f9; cursor: pointer; font-size: 12px; font-weight: 800; }
+    .sisreg-inp-copy button:hover { background: #dbeafe; border-color: #3b82f6; }
+    .sisreg-inline-badge { font-size: 10.5px; font-weight: 900; margin-left: 4px; text-transform: none; }
+    .sisreg-inline-badge.ok { color: #15803d; }
+    .sisreg-inline-badge.err { color: #dc2626; }
+    .sisreg-pill-mini { display: inline-flex; align-items: center; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; text-transform: none; }
+    .sisreg-pill-mini.ok { background: #dcfce7; color: #166534; }
+    .sisreg-pill-mini.info { background: #dbeafe; color: #1e40af; }
+    .sisreg-pill-mini.warn { background: #fef3c7; color: #92400e; }
+    .sisreg-pill-mini.err { background: #fee2e2; color: #991b1b; }
+    .sisreg-alert-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 9px 12px; border-radius: 10px; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+    .sisreg-alert-banner.danger { background: #fee2e2; border: 1.5px solid #ef4444; color: #991b1b; }
+    .sisreg-alert-banner.warn { background: #fef3c7; border: 1.5px solid #f59e0b; color: #92400e; }
+    .sisreg-alert-banner.info { background: #e0f2fe; border: 1.5px solid #38bdf8; color: #075985; }
+    .sisreg-match-item { background: #fff; border: 1px solid #cbd5e1; border-radius: 9px; padding: 8px 10px; margin-bottom: 6px; }
+    .sisreg-match-item.top { border-color: #14b8a6; background: #f0fdfa; }
+    .sisreg-match-miss { background: #fff7ed; border: 1.5px solid #fb923c; color: #9a3412; border-radius: 9px; padding: 8px 10px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .sisreg-code-badge { background: #1e3a8a; color: #fff; padding: 2px 7px; border-radius: 6px; font-family: monospace; font-size: 11.5px; font-weight: 800; }
+    .sisreg-type-tag { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: #e2e8f0; color: #334155; }
+    .sisreg-type-tag.consulta { background: #dbeafe; color: #1e40af; }
+    .sisreg-type-tag.exame { background: #dcfce7; color: #166534; }
+    .sisreg-type-tag.procedimento { background: #f3e8ff; color: #6b21a8; }
+    .sisreg-hier-path { font-size: 11.5px; color: #0f766e; margin-top: 4px; font-weight: 700; }
+    .sisreg-checklist-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: #fff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 8px 10px; }
+    .sisreg-chk-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+    .sisreg-chk-pill { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; }
+    .sisreg-chk-pill.ok { background: #dcfce7; color: #166534; }
+    .sisreg-chk-pill.pend { background: #fef3c7; color: #92400e; }
+    .sisreg-muted { font-size: 12px; color: #64748b; font-weight: 700; }
+    .sisreg-busca-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .sisreg-busca-bar input { flex: 2; min-width: 240px; padding: 9px 12px; border: 2px solid #93c5fd; border-radius: 10px; font-size: 13.5px; font-weight: 700; color: #0f172a; }
+    .sisreg-busca-bar select { padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 12.5px; font-weight: 700; color: #0f172a; background: #fff; }
+    .sisreg-busca-atalhos { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 11.5px; font-weight: 800; color: #475569; margin-bottom: 10px; }
+    .sisreg-table-wrap { max-height: 410px; overflow-y: auto; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #fff; }
+    .sisreg-results-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .sisreg-results-table th { position: sticky; top: 0; background: #1e3a8a; color: #fff; text-align: left; padding: 9px 10px; font-size: 11.5px; text-transform: uppercase; z-index: 1; }
+    .sisreg-results-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    .sisreg-results-table tr:hover td { background: #f8fafc; }
+    .sisreg-busca-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; font-weight: 700; color: #475569; }
+    .sisreg-dev-form { background: #fff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px; }
+    .sisreg-dev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .sisreg-dev-grid input, .sisreg-dev-grid select, .sisreg-dev-form input { padding: 7px 9px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12.5px; font-weight: 700; color: #0f172a; background: #fff; }
+    .sisreg-dev-lista { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
+    .sisreg-dev-card { background: #fff; border: 1.5px solid #cbd5e1; border-left: 5px solid #f59e0b; border-radius: 10px; padding: 10px 12px; }
+    .sisreg-dev-card.ok { border-left-color: #16a34a; opacity: 0.85; }
+    .sisreg-med-modal-backdrop { z-index: 9999; }
+    @media (max-width: 960px) {
+      .sisreg-split-grid, .sisreg-grid-2, .sisreg-dev-grid { grid-template-columns: 1fr; }
+      .sisreg-img-stage { height: 340px; }
+    }
     /* ====== FIM CLEAN TABLE UI ====== */
 </style>
 </head>
@@ -2488,7 +2582,7 @@
               <div id="recepcao-previa-receita-bar" class="recepcao-previa-bar">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                   <button type="button" id="btn-abrir-previa-recepcao" class="btn-previa-recepcao" onclick="abrirModalCapturaReceita()">📷 Prévia da Receita (Opcional)</button>
-                  <span style="font-size:11.5px;color:#1e3a8a;font-weight:700;">Foto para o profissional adiantar no PEC</span>
+                  <span id="recepcao-previa-subtxt" style="font-size:11.5px;color:#1e3a8a;font-weight:700;">Foto para o profissional adiantar no PEC</span>
                 </div>
                 <div id="recepcao-previa-anexada-pill" class="recepcao-previa-anexada">
                   <span id="recepcao-previa-anexada-txt">📄 Prévia anexada</span>
@@ -4484,6 +4578,7 @@
           </div>
 
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+            <button type="button" id="vp-btn-copiloto-sisreg" class="btn btn-sm" style="background:#0f766e;color:#fff;font-weight:800;display:none;" onclick="abrirCopilotoDaPrevia()">🔎 Abrir no Copiloto SISREG</button>
             <button type="button" id="vp-btn-revisar" class="btn btn-primary" style="flex:1;background:#16a34a;border-color:#15803d;" onclick="alternarStatusRevisaoPrevia()">✅ Marcar Receita Pronta</button>
             <button type="button" class="btn btn-ghost" style="color:#475569;border-color:#cbd5e1;" onclick="fecharModalVerPreviaReceita()">Fechar</button>
           </div>
@@ -4513,6 +4608,7 @@
         <button type="button" class="btn btn-primary btn-sm" style="background:#16a34a;border-color:#15803d;font-weight:800;" onclick="imprimirFormularioOficial()">🖨️ Imprimir</button>
         <button type="button" class="btn btn-sm" style="background:#fff;color:#0f172a;font-weight:800;" onclick="deixarFormularioEmBranco()">📄 Deixar em Branco</button>
         <button type="button" id="fo-btn-preencher" class="btn btn-sm" style="background:#dbeafe;color:#1e3a8a;font-weight:800;" onclick="reaplicarDadosFormularioModal()">🔄 Preencher Dados</button>
+        <button type="button" id="fo-btn-sisreg" class="btn btn-sm" style="background:#0f766e;color:#fff;font-weight:800;display:none;" onclick="abrirSisregDoFormulario()">🔎 Consultar SISREG</button>
         <button type="button" id="fo-btn-ver-foto" class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800;display:none;" onclick="toggleFotoAntigaFormulario()">👁️ Foto Antiga</button>
         <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,0.18);color:#fff;font-weight:800;" onclick="abrirFormularioNovaAba()">↗️ Nova Aba</button>
         <button type="button" onclick="fecharModalFormularioOficial()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;">✕</button>
@@ -4542,6 +4638,112 @@
   </div>
 </div>
 
+<!-- Modal 4: Consulta e Leitor SISREG III (Médicos / Enfermagem / Odontologia · DS5) -->
+<div id="modal-sisreg-medico" class="previa-modal-backdrop sisreg-med-modal-backdrop" onclick="if(event.target===this)fecharModalSisregMedico()">
+  <div class="previa-modal-card wide">
+    <div class="previa-modal-head" style="background:linear-gradient(135deg,#0f2c73,#0f766e);">
+      <div>
+        <div id="sm-titulo" style="font-weight:900;font-size:15.5px;">🔎 SISREG III — Consulta e Leitor (DS5)</div>
+        <div style="font-size:11.5px;opacity:0.9;">Encontre código e grupo exato no SISREG ou extraia dados de uma ficha/encaminhamento</div>
+      </div>
+      <button type="button" onclick="fecharModalSisregMedico()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div class="previa-modal-body" style="background:#f8fafc;">
+      <div class="sisreg-tabs-row">
+        <button type="button" id="sm-tab-busca" class="sisreg-tab-btn active" onclick="trocarAbaModalSisregMedico('busca')">🔎 Consultar Procedimentos SISREG</button>
+        <button type="button" id="sm-tab-leitor" class="sisreg-tab-btn" onclick="trocarAbaModalSisregMedico('leitor')">📷 Ler Foto / PDF de Ficha (IA)</button>
+      </div>
+
+      <div id="sm-pane-busca">
+        <div class="sisreg-busca-bar">
+          <input type="text" id="sm-busca-input" placeholder="Digite sigla, procedimento ou código (ex: USG, ECO, RNM, TC, oftalmo, BERA)..." oninput="executarBuscaModalSisregMedico()">
+          <select id="sm-busca-tipo" onchange="executarBuscaModalSisregMedico()">
+            <option value="all">Todos os Tipos</option>
+            <option value="Consulta">Consultas</option>
+            <option value="Exame">Exames</option>
+            <option value="Procedimento">Procedimentos</option>
+          </select>
+          <select id="sm-busca-idade" onchange="executarBuscaModalSisregMedico()">
+            <option value="">Qualquer Idade</option>
+            <option value="8">Pediátrico (0 a 14)</option>
+            <option value="35">Adulto (15 a 59)</option>
+            <option value="65">Idoso (&gt; 60 anos)</option>
+          </select>
+        </div>
+        <div class="sisreg-table-wrap" style="max-height:58vh;">
+          <table class="sisreg-results-table">
+            <thead>
+              <tr>
+                <th style="width:120px;">Código</th>
+                <th>Procedimento (Descrição Exata)</th>
+                <th style="width:95px;">Tipo</th>
+                <th>Onde achar no SISREG (Grupo)</th>
+                <th style="width:200px;text-align:right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="sm-busca-tbody"></tbody>
+          </table>
+        </div>
+        <div class="sisreg-busca-footer">
+          <span id="sisreg-med-footer-meta">Carregando tabela SISREG...</span>
+        </div>
+      </div>
+
+      <div id="sm-pane-leitor" style="display:none;">
+        <div class="sisreg-toolbar">
+          <input type="file" id="sm-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivoModalSisregMedico(this.files);this.value='';">
+          <input type="file" id="sm-file-upload" accept="image/*,application/pdf" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivoModalSisregMedico(this.files);this.value='';">
+          <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('sm-file-cam').click()">📸 Tirar Foto</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('sm-file-upload').click()">🖼️ Escolher Foto / PDF (Ctrl+V)</button>
+        </div>
+        <div id="sm-ocr-status" class="pr-status-box" style="display:none;"></div>
+        <div class="sisreg-split-grid">
+          <div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="zoomModalMedImg(-0.25)">➖ Zoom</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="zoomModalMedImg(0.25)">➕ Zoom</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="girarModalMedImg()">🔄 90°</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="resetModalMedImgView()">🎯 100%</button>
+            </div>
+            <div id="sm-img-stage" class="sisreg-img-stage" style="height:440px;">
+              <img id="sm-stage-img" src="" alt="Documento" draggable="false" style="display:none;">
+              <div id="sm-stage-empty" class="sisreg-stage-empty">📷 Anexe foto ou PDF da ficha/encaminhamento ou cole com <strong>Ctrl+V</strong>.</div>
+            </div>
+          </div>
+          <div class="sisreg-form-col">
+            <div id="sm-alertas-box"></div>
+            <div class="sisreg-box">
+              <div class="sisreg-box-head">
+                <span>📋 Dados Extraídos</span>
+                <button type="button" class="btn btn-primary btn-sm" onclick="transferirLeituraModalMedParaFicha()">📝 Preencher Ficha Ambulatorial</button>
+              </div>
+              <div class="sisreg-grid-2">
+                <div class="sisreg-field"><label>Paciente</label><input type="text" id="sm-pac-nome"></div>
+                <div class="sisreg-field"><label>CNS</label><input type="text" id="sm-pac-cns"></div>
+                <div class="sisreg-field"><label>Telefone</label><input type="text" id="sm-pac-tel"></div>
+                <div class="sisreg-field"><label>CID-10</label><input type="text" id="sm-pac-cid"></div>
+                <div class="sisreg-field" style="grid-column:1/-1;"><label>Especialidade / Exame Pedido</label><input type="text" id="sm-pac-esp"></div>
+                <div class="sisreg-field" style="grid-column:1/-1;"><label>Hipótese Diagnóstica</label><input type="text" id="sm-pac-hip"></div>
+              </div>
+              <div class="sisreg-field" style="margin-top:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                  <label style="margin:0;">Observações / Justificativa Clínica</label>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="copiarTextoSisreg(document.getElementById('sm-pac-obs')?.value,'Observações')">📋 Copiar</button>
+                </div>
+                <textarea id="sm-pac-obs" rows="4" style="width:100%;padding:7px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12.5px;font-weight:700;"></textarea>
+              </div>
+            </div>
+            <div class="sisreg-box sisreg-box-proc">
+              <div class="sisreg-box-head"><span>🔎 Correspondência no Catálogo SISREG</span></div>
+              <div id="sm-sugestoes-box"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <style>
   @media print {
     body { background: #fff !important; min-height: auto !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
@@ -4565,8 +4767,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.0"></script>
 <script src="dispositivos.js?v=4.9"></script>
-<script src="receitas-previa.js?v=1.3"></script>
-<script src="formularios-pec.js?v=1.2"></script>
-<script src="app.js?v=7.2"></script>
+<script src="receitas-previa.js?v=1.4"></script>
+<script src="formularios-pec.js?v=1.3"></script>
+<script src="regulacao-sisreg.js?v=1.0"></script>
+<script src="app.js?v=7.3"></script>
 </body>
 </html>

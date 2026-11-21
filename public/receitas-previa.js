@@ -47,11 +47,19 @@ function atualizarBotaoPreviaReceitaRecepcao() {
   if (!bar) return;
   const setor = document.getElementById('input-setor')?.value || '';
   const tipo = document.getElementById('input-tipo-atendimento')?.value || '';
-  const ativoSetor = ['Médico', 'Enfermagem', 'Odontologia'].includes(setor);
+  const ehRegulacao = setor === 'Regulação';
+  const ativoSetor = ['Médico', 'Enfermagem', 'Odontologia', 'Regulação'].includes(setor);
   bar.style.display = ativoSetor ? 'flex' : 'none';
 
   const tiposDestaque = ['Hiperdia', 'Renovação de Receita', 'Renovação de Receita Controlada'];
-  bar.classList.toggle('destaque-receita', ativoSetor && tiposDestaque.includes(tipo));
+  bar.classList.toggle('destaque-receita', ativoSetor && (ehRegulacao || tiposDestaque.includes(tipo)));
+
+  const subTxt = document.getElementById('recepcao-previa-subtxt');
+  if (subTxt) {
+    subTxt.textContent = ehRegulacao
+      ? 'Foto da Ficha Ambulatorial para adiantar o SISREG na Regulação'
+      : 'Foto para o profissional adiantar no PEC';
+  }
 
   const pill = document.getElementById('recepcao-previa-anexada-pill');
   const txtPill = document.getElementById('recepcao-previa-anexada-txt');
@@ -61,14 +69,18 @@ function atualizarBotaoPreviaReceitaRecepcao() {
     const qtd = Array.isArray(p.anexos) ? p.anexos.length : (p.imagem_base64 ? 1 : 0);
     const medResumo = p.medicamentos
       ? String(p.medicamentos).slice(0, 32) + (String(p.medicamentos).length > 32 ? '...' : '')
-      : 'Dados preenchidos';
+      : (p.dados_extras?.especialidade ? String(p.dados_extras.especialidade).slice(0, 32) : 'Dados preenchidos');
     const prefixo = qtd > 1 ? `📎 ${qtd} fotos anexadas` : (qtd === 1 ? '📷 1 foto anexada' : '📄 Prévia');
     if (pill) pill.style.display = 'inline-flex';
-    if (txtPill) txtPill.textContent = `${prefixo}${p.medicamentos ? ': ' + medResumo : ''}`;
+    if (txtPill) txtPill.textContent = `${prefixo}${medResumo ? ': ' + medResumo : ''}`;
     if (btnCap) btnCap.textContent = qtd > 0 ? `✏️ Editar Prévia (${qtd} foto${qtd > 1 ? 's' : ''})` : '✏️ Editar Prévia';
   } else {
     if (pill) pill.style.display = 'none';
-    if (btnCap) btnCap.textContent = '📷 Prévia Receita / Encam. (Opcional)';
+    if (btnCap) {
+      btnCap.textContent = ehRegulacao
+        ? '📷 Foto Ficha Ambulatorial / SISREG (Opcional)'
+        : '📷 Prévia Receita / Encam. (Opcional)';
+    }
   }
 }
 
@@ -253,7 +265,11 @@ function mesclarOcrNoFormularioCaptura(o) {
 
   const ext = o.dados_extras && typeof o.dados_extras === 'object' ? o.dados_extras : {};
   const merged = { ...(_previaDadosExtrasAtual || {}) };
-  ['paciente_endereco', 'paciente_data_nascimento', 'paciente_sexo', 'paciente_telefone', 'paciente_mae', 'especialidade', 'hipotese_diagnostica', 'cid10'].forEach(k => {
+  [
+    'paciente_endereco', 'paciente_bairro', 'paciente_cep', 'paciente_municipio', 'paciente_uf',
+    'paciente_data_nascimento', 'paciente_sexo', 'paciente_telefone', 'paciente_mae',
+    'especialidade', 'tipo_vaga', 'risco', 'hipotese_diagnostica', 'cid10'
+  ].forEach(k => {
     if (!merged[k] && ext[k]) merged[k] = ext[k];
   });
   if (ext.medicamentos_posologia) {
@@ -290,6 +306,7 @@ async function processarListaImagensReceita(fileList) {
 
   const statusEl = document.getElementById('pr-ocr-status');
   const tipoAtual = document.getElementById('pr-tipo')?.value || 'branca';
+  const setorRecepcao = document.getElementById('input-setor')?.value || '';
   let ultimaClf = null;
   let falhasOcr = 0;
   let ultimaMsgErro = '';
@@ -308,7 +325,7 @@ async function processarListaImagensReceita(fileList) {
       const b64 = await comprimirFotoReceita(file);
       const novoAnexo = {
         id: `anx_${Date.now().toString(36)}_${i + 1}`,
-        categoria: normalizarCategoriaAnexoFront(tipoAtual),
+        categoria: setorRecepcao === 'Regulação' ? 'encaminhamento' : normalizarCategoriaAnexoFront(tipoAtual),
         rotulo: null,
         imagem_base64: b64,
         ocr: null
@@ -326,7 +343,9 @@ async function processarListaImagensReceita(fileList) {
 
       if (data.ok && data.ocr) {
         const o = data.ocr;
-        const cat = normalizarCategoriaAnexoFront(o.tipo_documento || o.tipo_receita);
+        const cat = (setorRecepcao === 'Regulação' && !o.medicamento)
+          ? 'encaminhamento'
+          : normalizarCategoriaAnexoFront(o.tipo_documento || o.tipo_receita);
         _previaAnexosCaptura[idxAtual].categoria = cat;
         _previaAnexosCaptura[idxAtual].ocr = {
           tipo_receita: o.tipo_receita || null,
@@ -338,7 +357,10 @@ async function processarListaImagensReceita(fileList) {
           especialidade: o.dados_extras?.especialidade || null,
           hipotese_diagnostica: o.dados_extras?.hipotese_diagnostica || null,
           cid10: o.dados_extras?.cid10 || null,
-          justificativa: o.dados_extras?.justificativa || null
+          justificativa: o.dados_extras?.justificativa || null,
+          paciente_municipio: o.dados_extras?.paciente_municipio || null,
+          paciente_cep: o.dados_extras?.paciente_cep || null,
+          paciente_uf: o.dados_extras?.paciente_uf || null
         };
         if (o.dados_extras?.especialidade) {
           _previaAnexosCaptura[idxAtual].rotulo = String(o.dados_extras.especialidade).slice(0, 40);
@@ -381,6 +403,15 @@ async function processarImagemReceitaFile(file) {
 function atualizarSugestaoReceitaLocal(clfServer) {
   const box = document.getElementById('pr-sugestao-box');
   if (!box) return;
+  const setorRecepcao = document.getElementById('input-setor')?.value || '';
+  if (setorRecepcao === 'Regulação') {
+    const esp = _previaDadosExtrasAtual?.especialidade ? ` · Pedido: <b>${escSafe(_previaDadosExtrasAtual.especialidade)}</b>` : '';
+    const tel = _previaDadosExtrasAtual?.paciente_telefone ? ` · Tel: <b>${escSafe(_previaDadosExtrasAtual.paciente_telefone)}</b>` : '';
+    box.innerHTML = `<strong>📋 Destino: Regulação (SISREG)</strong>${esp}${tel} · Ao chegar na fila da Regulação, abra no <b>🚀 Copiloto SISREG</b>.`;
+    box.dataset.filaSugerida = 'Regulação';
+    box.style.display = 'block';
+    return;
+  }
   const tipo = document.getElementById('pr-tipo')?.value || 'branca';
   let filaSug = clfServer?.fila_destino || (tipo === 'azul' ? 'Médico' : tipo === 'odonto' ? 'Odontologia' : 'Médico');
   const validadeTxt = tipo === 'azul' ? '2 meses (Azul)' : '6 meses';
@@ -479,46 +510,62 @@ document.addEventListener('paste', (e) => {
 function renderPreviaReceitaBadgeLinha(p) {
   const pr = p?.previa_receita;
   if (!pr) return '';
-  const tipoBadge = pr.tipo_receita === 'azul'
-    ? '<span class="previa-pill previa-pill-azul">🔵 Receita Azul</span>'
-    : pr.tipo_receita === 'odonto'
-      ? '<span class="previa-pill previa-pill-odonto">🦷 Receita Odonto</span>'
-      : '<span class="previa-pill previa-pill-branca">⚪ Receita Branca</span>';
+  const meta = Array.isArray(pr.anexos_meta) ? pr.anexos_meta : [];
+  const temEnc = meta.some(m => m?.categoria === 'encaminhamento');
+  const temExm = meta.some(m => m?.categoria === 'exame');
+  const ehReg = p.setor === 'Regulação' || (!pr.medicamentos && temEnc);
+
+  const tipoBadge = ehReg
+    ? '<span class="previa-pill previa-pill-enc">📋 Ficha / Encaminhamento</span>'
+    : pr.tipo_receita === 'azul'
+      ? '<span class="previa-pill previa-pill-azul">🔵 Receita Azul</span>'
+      : pr.tipo_receita === 'odonto'
+        ? '<span class="previa-pill previa-pill-odonto">🦷 Receita Odonto</span>'
+        : '<span class="previa-pill previa-pill-branca">⚪ Receita Branca</span>';
 
   let urgBadge = '';
-  if (pr.urgencia === 'vencida') {
-    urgBadge = '<span class="previa-pill previa-pill-vencida">🔴 Vencida</span>';
-  } else if (pr.urgencia === 'urgente') {
-    const dTxt = pr.dias_restantes !== null && pr.dias_restantes !== undefined ? `${pr.dias_restantes}d` : 'logo';
-    urgBadge = `<span class="previa-pill previa-pill-urgente">🟠 Vence em ${dTxt}</span>`;
-  } else if (pr.data_vencimento) {
-    urgBadge = `<span class="previa-pill previa-pill-ok">🟢 Válida até ${escSafe(pr.data_vencimento)}</span>`;
+  if (!ehReg) {
+    if (pr.urgencia === 'vencida') {
+      urgBadge = '<span class="previa-pill previa-pill-vencida">🔴 Vencida</span>';
+    } else if (pr.urgencia === 'urgente') {
+      const dTxt = pr.dias_restantes !== null && pr.dias_restantes !== undefined ? `${pr.dias_restantes}d` : 'logo';
+      urgBadge = `<span class="previa-pill previa-pill-urgente">🟠 Vence em ${dTxt}</span>`;
+    } else if (pr.data_vencimento) {
+      urgBadge = `<span class="previa-pill previa-pill-ok">🟢 Válida até ${escSafe(pr.data_vencimento)}</span>`;
+    }
   }
 
-  const meta = Array.isArray(pr.anexos_meta) ? pr.anexos_meta : [];
   const qtd = Number(pr.qtd_anexos) || meta.length || (pr.tem_imagem ? 1 : 0);
   const anexosBadge = qtd > 1
     ? `<span class="previa-pill previa-pill-anexos">📎 ${qtd} anexos</span>`
     : '';
-  const temEnc = meta.some(m => m?.categoria === 'encaminhamento');
-  const temExm = meta.some(m => m?.categoria === 'exame');
-  const encBadge = temEnc ? '<span class="previa-pill previa-pill-enc">📋 Encaminhamento</span>' : '';
+  const encBadge = (!ehReg && temEnc) ? '<span class="previa-pill previa-pill-enc">📋 Encaminhamento</span>' : '';
   const exmBadge = temExm ? '<span class="previa-pill previa-pill-exm">🧪 Exame</span>' : '';
 
   const revBadge = pr.status_revisao === 'revisada'
-    ? '<span class="previa-pill previa-pill-pronta">✅ Receita Pronta</span>'
+    ? '<span class="previa-pill previa-pill-pronta">✅ Pronta</span>'
     : '';
 
-  const medPreview = pr.medicamentos
-    ? `<div class="previa-med-resumo">💊 ${escSafe(String(pr.medicamentos).slice(0, 90))}${String(pr.medicamentos).length > 90 ? '...' : ''}</div>`
+  const textoResumo = pr.medicamentos || pr.dados_extras?.especialidade || '';
+  const iconeResumo = pr.medicamentos ? '💊' : '📋';
+  const medPreview = textoResumo
+    ? `<div class="previa-med-resumo">${iconeResumo} ${escSafe(String(textoResumo).slice(0, 90))}${String(textoResumo).length > 90 ? '...' : ''}</div>`
     : '';
 
   return `<div class="previa-row-box">${tipoBadge}${urgBadge}${anexosBadge}${encBadge}${exmBadge}${revBadge}${medPreview}</div>`;
 }
 
 function renderBotaoPreviaReceitaLinha(p, setor) {
+  const safeNome = String(p?.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  if (setor === 'Regulação' && p?.id) {
+    if (p.previa_receita) {
+      const qtd = Number(p.previa_receita.qtd_anexos) || 0;
+      const sufixo = qtd > 1 ? ` (${qtd})` : '';
+      return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#0f766e,#0d9488);" onclick="event.stopPropagation();abrirPacienteNoCopilotoSisreg(${p.id},'${safeNome}',false)" title="Abrir foto e extração no Copiloto SISREG">🚀 SISREG${sufixo}</button><button class="btn-previa-receita ${p.previa_receita.status_revisao === 'revisada' ? 'revisada' : ''}" onclick="event.stopPropagation();abrirModalVerPreviaReceita(${p.id},'${safeNome}','${setor}')" title="Ver prévia">👁️</button>`;
+    }
+    return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#1d4ed8,#1e40af);" onclick="event.stopPropagation();abrirPacienteNoCopilotoSisreg(${p.id},'${safeNome}',true)" title="Tirar ou anexar foto da ficha diretamente na Regulação">📷 Foto SISREG</button>`;
+  }
   if (!p?.previa_receita) return '';
-  const safeNome = String(p.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const pronto = p.previa_receita.status_revisao === 'revisada';
   const qtd = Number(p.previa_receita.qtd_anexos) || 0;
   const sufixo = qtd > 1 ? ` (${qtd})` : '';
@@ -649,6 +696,10 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
   const formsBox = document.getElementById('vp-formularios-box');
   if (formsBox) {
     formsBox.style.display = ['Médico', 'Enfermagem', 'Odontologia'].includes(setor) ? 'block' : 'none';
+  }
+  const btnSisregVp = document.getElementById('vp-btn-copiloto-sisreg');
+  if (btnSisregVp) {
+    btnSisregVp.style.display = ['Regulação', 'Médico', 'Enfermagem', 'Odontologia'].includes(setor) ? 'inline-flex' : 'none';
   }
   modal.classList.add('show');
 
@@ -848,5 +899,19 @@ async function alternarStatusRevisaoPrevia() {
     if (typeof loadQueues === 'function') await loadQueues();
   } catch {
     showToast('Erro ao atualizar status da receita.', true);
+  }
+}
+
+function abrirCopilotoDaPrevia() {
+  const ctx = window._previaModalDadosAtuais || {};
+  const pid = ctx.patientId;
+  const nome = ctx.nomePaciente || '';
+  const setor = ctx.setor || '';
+  fecharModalVerPreviaReceita();
+  if (setor === 'Regulação' && pid && typeof abrirPacienteNoCopilotoSisreg === 'function') {
+    abrirPacienteNoCopilotoSisreg(pid, nome, false);
+  } else if (typeof abrirModalSisregConsulta === 'function') {
+    const termo = ctx.previa?.dados_extras?.especialidade || '';
+    abrirModalSisregConsulta(setor || 'Médico', 'busca', termo);
   }
 }

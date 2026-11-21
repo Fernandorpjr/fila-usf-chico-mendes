@@ -1,7 +1,7 @@
 // Módulo Frontend — Formulários SUS/Recife (PEC Offline & Renovação de Receita)
 const UNIDADE_PADRAO_USF = 'US 177 USF CHICO MENDES';
 const CNES_PADRAO_USF = '0000965';
-const SETORES_FORMULARIOS_PEC = ['Médico', 'Enfermagem', 'Odontologia', 'ACS', 'Recepção'];
+const SETORES_FORMULARIOS_PEC = ['Médico', 'Enfermagem', 'Odontologia', 'ACS', 'Recepção', 'Regulação'];
 const SETORES_CLINICOS_FILA = ['Médico', 'Enfermagem', 'Odontologia'];
 
 const FORMULARIOS_PEC_REG = {
@@ -48,7 +48,8 @@ const FORMULARIOS_POR_SETOR = {
   'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial', 'controle-especial'],
   'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'exames-laboratoriais'],
   'ACS': ['declaracao-residencia'],
-  'Recepção': ['declaracao-residencia']
+  'Recepção': ['declaracao-residencia'],
+  'Regulação': ['ficha-ambulatorial', 'declaracao-residencia']
 };
 
 const FORMULARIOS_LINHA_FILA = {
@@ -286,6 +287,10 @@ function atualizarUITopoModalFormulario() {
   if (btnPreencher) {
     const temContexto = Boolean(_foEstadoAtual.paciente || _foEstadoAtual.previa || _foEstadoAtual.modo === 'preencher');
     btnPreencher.style.display = temContexto ? 'inline-flex' : 'none';
+  }
+  const btnSisregFo = document.getElementById('fo-btn-sisreg');
+  if (btnSisregFo) {
+    btnSisregFo.style.display = _foEstadoAtual.tipo === 'ficha-ambulatorial' ? 'inline-flex' : 'none';
   }
 
   renderFotoRefFormularioModal();
@@ -553,12 +558,79 @@ function renderBarraFormulariosSetor(setor) {
     return `<button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','${k}',false)">${f.shortLabel}</button>`;
   }).join('');
   const primeiro = lista[0] || 'receituario';
+  const btnSisregBusca = `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregConsulta('${setor}')" title="Consultar códigos, procedimentos e fluxo hierárquico do SISREG (DS5)">🔎 Consultar SISREG</button>`;
+  const btnSisregLeitor = setor === 'Médico'
+    ? `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregLeitor('${setor}')" title="Ler foto/PDF de encaminhamento ou Ficha Ambulatorial com IA">📷 Ler Ficha SISREG</button>`
+    : '';
   return `<div class="pec-forms-bar">
     <span class="pec-forms-title">🖨️ Formulários (PEC Offline):</span>
     ${botoes}
     <button type="button" class="pec-form-btn branco" onclick="abrirFormularioAvulsoSetor('${setor}','${primeiro}',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
+    ${btnSisregBusca}
+    ${btnSisregLeitor}
   </div>`;
 }
+
+function abrirSisregDoFormulario() {
+  if (typeof abrirModalSisregConsulta === 'function') {
+    const termo = _foEstadoAtual?.payload?.especialidade || '';
+    abrirModalSisregConsulta(_foEstadoAtual?.setor || 'Médico', 'busca', termo);
+  }
+}
+
+window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dadosOcr = null) {
+  const procTexto = proc?.name
+    ? (proc.code ? `${proc.name} (${proc.code})` : proc.name)
+    : (dadosOcr?.especialidade_ou_exame || '');
+  const d = dadosOcr || {};
+  const modal = document.getElementById('modal-formulario-oficial');
+  const modalAberto = modal && modal.classList.contains('show') && _foEstadoAtual.tipo === 'ficha-ambulatorial';
+
+  if (modalAberto) {
+    const iframe = document.getElementById('fo-iframe');
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.postMessage({
+        type: 'FORM_ATUALIZAR_PROCEDIMENTO',
+        payload: {
+          especialidade: procTexto,
+          cid10: d.cid10 || '',
+          hipotese_diagnostica: d.hipotese_diagnostica || '',
+          justificativa: d.observacoes_revisada || d.observacoes_original || '',
+          paciente_nome: d.paciente_nome || '',
+          paciente_cns: d.paciente_cns || '',
+          paciente_telefone: d.paciente_telefone || '',
+          paciente_endereco: d.paciente_endereco || '',
+          paciente_dn: d.paciente_dn || '',
+          paciente_mae: d.paciente_mae || ''
+        }
+      }, window.location.origin);
+      if (typeof showToast === 'function') showToast('✅ Procedimento aplicado na Ficha Ambulatorial!');
+      return;
+    }
+  }
+
+  const previaSintetica = {
+    paciente_nome_ocr: d.paciente_nome || null,
+    paciente_cns: d.paciente_cns || null,
+    dados_extras: {
+      especialidade: procTexto || null,
+      cid10: d.cid10 || null,
+      hipotese_diagnostica: d.hipotese_diagnostica || null,
+      justificativa: d.observacoes_revisada || d.observacoes_original || null,
+      paciente_telefone: d.paciente_telefone || null,
+      paciente_endereco: d.paciente_endereco || null,
+      paciente_data_nascimento: d.paciente_dn || null,
+      paciente_mae: d.paciente_mae || null,
+      paciente_sexo: d.paciente_sexo || null
+    }
+  };
+  abrirFormularioOficial('ficha-ambulatorial', {
+    modo: 'preencher',
+    setor: SETORES_FORMULARIOS_PEC.includes(setor) ? setor : 'Médico',
+    paciente: d.paciente_nome ? { nome: d.paciente_nome } : null,
+    previa: previaSintetica
+  });
+};
 
 function renderBotoesFormulariosLinha(p, setor) {
   if (!SETORES_CLINICOS_FILA.includes(setor) || !p?.id) return '';

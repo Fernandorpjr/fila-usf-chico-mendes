@@ -27,6 +27,7 @@ const {
   anexarResumoPrevias,
   salvarPreviaReceita
 } = require('./lib/receitas');
+const { setupSisreg } = require('./lib/sisreg');
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORDS = (process.env.ADMIN_PASSWORDS || 'chico123,0177,usf2026')
@@ -848,6 +849,7 @@ initDB();
 setupDispositivos(app, pool, isValidAdminPass);
 setupHistorico(app, pool, isValidAdminPass);
 setupReceitas(app, pool);
+setupSisreg(app, pool, isValidAdminPass);
 
 // ====== API Routes ======
 

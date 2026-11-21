@@ -643,6 +643,7 @@ function initSectorScreens() {
         <div class="cb-text"><div class="cb-label">Chamando agora</div><div class="cb-name" id="banner-name-${cfg.key}">—</div><div class="cb-sector">${cfg.icon} ${setor}</div></div>
         <button class="btn btn-ghost btn-sm" onclick="speakAgain('${setor}')">🔊 Repetir</button>
       </div>
+      ${setor === 'Regulação' ? '<div id="regulacao-copiloto-root"></div>' : ''}
       <div class="card-white">
         ${odontoRegraBanner}
         ${filterHTML}
@@ -667,6 +668,9 @@ function initSectorScreens() {
         </div>
       </div>`;
   });
+  if (typeof initCopilotoRegulacao === 'function') {
+    initCopilotoRegulacao();
+  }
 }
 
 function initOverview() {

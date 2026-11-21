@@ -317,9 +317,35 @@
     setFieldByLabel('Condições Clínicas', d.justificativa||'');
   };
 
+  window.aplicarProcedimentoSisreg=function(d){
+    if(!d) return;
+    var merge=function(labelStart, val, force){
+      if(!val) return;
+      var target=String(labelStart||'').toLowerCase();
+      var cells=document.querySelectorAll('.c');
+      for(var i=0;i<cells.length;i++){
+        if(getCellLabel(cells[i]).indexOf(target)===0){
+          var f=cells[i].querySelector('.f');
+          if(f && (force || !f.textContent.trim())){ f.textContent=val; break; }
+        }
+      }
+    };
+    merge('Especialidade da Consulta/Atendimento:', d.especialidade||'', true);
+    merge('Hipótese Diagnóstica:', d.hipotese_diagnostica||'', false);
+    merge('CID 10 Principal:', d.cid10||'', false);
+    merge('Condições Clínicas', d.justificativa||'', false);
+    merge('Número do Cartão Nacional de Saúde - CNS:', d.paciente_cns||'', false);
+    merge('Nome Completo:', d.paciente_nome||'', false);
+    merge('Telefone Celular / Fixo:', d.paciente_telefone||'', false);
+    merge('Data de Nascimento:', d.paciente_dn||'', false);
+    merge('Nome da Mãe:', d.paciente_mae||'', false);
+    merge('Endereço (Rua', d.paciente_endereco||'', false);
+  };
+
   window.addEventListener('message',function(e){
     if(e.origin!==window.location.origin || !e.data || typeof e.data!=='object') return;
     if(e.data.type==='FORM_PREENCHER') window.aplicarDados(e.data.payload||{});
+    else if(e.data.type==='FORM_ATUALIZAR_PROCEDIMENTO') window.aplicarProcedimentoSisreg(e.data.payload||{});
     else if(e.data.type==='FORM_BRANCO') window.deixarEmBranco(true);
     else if(e.data.type==='FORM_IMPRIMIR'){ window.focus(); window.print(); }
   });
