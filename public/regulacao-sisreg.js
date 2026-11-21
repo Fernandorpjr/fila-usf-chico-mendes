@@ -711,7 +711,7 @@
               <button type="button" class="btn btn-sm" style="background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;font-weight:800;" onclick="limparFichaCopilotoSisreg()">🔄 Nova Prévia</button>
               <div id="sisreg-pac-vinculado-pill" class="sisreg-pac-pill" style="display:none;">
                 <span>👤 Fila: <strong id="sisreg-pac-vinculado-nome"></strong></span>
-                <button type="button" id="sisreg-btn-reanalisar-vinculado" onclick="reanalisarAnexoAtivoCopiloto()" class="sisreg-mini-link" title="Ler novamente com IA">🤖 Reler Prévia</button>
+                <button type="button" id="sisreg-btn-reanalisar-vinculado" onclick="reanalisarAnexoAtivoCopiloto()" class="sisreg-mini-link" title="Ler novamente o documento">🔄 Reler Prévia</button>
                 <button type="button" id="sisreg-btn-salvar-fila" onclick="salvarFotoCopilotoNoPaciente()" class="sisreg-mini-link ok" title="Salvar anexo e dados neste paciente da fila">💾 Salvar no Paciente</button>
                 <button type="button" onclick="desvincularPacienteCopiloto()" style="background:transparent;border:none;color:#991b1b;font-weight:900;cursor:pointer;" title="Desvincular">✕</button>
               </div>
@@ -776,7 +776,7 @@
                       <button type="button" class="btn btn-primary btn-sm" onclick="copiarObservacaoSisreg(false)">📋 Copiar Obs.</button>
                     </div>
                   </div>
-                  <textarea id="sr-observacoes" rows="4" placeholder="A IA extrai aqui as Condições Clínicas / Justificativa para colar no SISREG..." oninput="onCampoSisregAlterado('observacoes_revisada', this.value)"></textarea>
+                  <textarea id="sr-observacoes" rows="4" placeholder="Condições Clínicas / Justificativa extraídas para colar no SISREG..." oninput="onCampoSisregAlterado('observacoes_revisada', this.value)"></textarea>
                   <div class="sisreg-obs-footer">
                     <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#1e3a8a;cursor:pointer;">
                       <input type="checkbox" id="sr-chk-maiusc" onchange="onToggleMaiusculasObs(this.checked)">
@@ -1216,10 +1216,10 @@
           statusEl.style.display = 'block';
           statusEl.className = 'pr-status-box loading';
           statusEl.textContent = ehPdf
-            ? '🤖 Lendo PDF com IA... aguarde alguns segundos.'
+            ? '⏳ Lendo PDF... aguarde alguns segundos.'
             : (files.length > 1
-              ? `🤖 Analisando arquivo ${i + 1} de ${files.length}...`
-              : '🤖 Analisando documento com IA e cruzando com o SISREG...');
+              ? `⏳ Analisando arquivo ${i + 1} de ${files.length}...`
+              : '⏳ Analisando documento e cruzando com o SISREG...');
         }
         const b64 = ehPdf ? await lerPdfBase64(f) : await comprimirImagemSisreg(f);
         const anexoObj = {
@@ -1330,7 +1330,7 @@
       if (statusEl) {
         statusEl.style.display = 'block';
         statusEl.className = 'pr-status-box warn';
-        statusEl.textContent = '⚠️ Falha de conexão na leitura por IA. A foto permanece visível ao lado.';
+        statusEl.textContent = '⚠️ Falha de conexão na leitura automática. A foto permanece visível ao lado.';
       }
     } finally {
       _copilotoState.analisando = false;
@@ -1347,7 +1347,7 @@
     if (statusEl) {
       statusEl.style.display = 'block';
       statusEl.className = 'pr-status-box loading';
-      statusEl.textContent = '🤖 Reanalisando prévia com IA...';
+      statusEl.textContent = '⏳ Reanalisando prévia...';
     }
     await executarAnaliseIaCopiloto(b64, statusEl, false);
   }
@@ -1436,7 +1436,7 @@
     if (confBadge) {
       if (Number.isFinite(Number(d.confianca)) && Number(d.confianca) > 0) {
         confBadge.style.display = 'inline-flex';
-        confBadge.textContent = `IA ${d.confianca}%`;
+        confBadge.textContent = `Leitura ${d.confianca}%`;
       } else {
         confBadge.style.display = 'none';
       }
@@ -1844,7 +1844,7 @@
           if (statusEl) {
             statusEl.style.display = 'block';
             statusEl.className = 'pr-status-box loading';
-            statusEl.textContent = '🤖 Extraindo detalhes completos para o SISREG...';
+            statusEl.textContent = '⏳ Extraindo detalhes completos para o SISREG...';
           }
           await executarAnaliseIaCopiloto(anexos[0].imagem_base64, statusEl, true);
         }
@@ -2250,7 +2250,7 @@
       if (statusEl) {
         statusEl.style.display = 'block';
         statusEl.className = 'pr-status-box loading';
-        statusEl.textContent = '🤖 Extraindo texto da ficha e conferindo no SISREG...';
+        statusEl.textContent = '⏳ Extraindo texto da ficha e conferindo no SISREG...';
       }
       const res = await fetch(`${getApiUrlBase()}/sisreg/analisar-ficha`, {
         method: 'POST',

@@ -450,10 +450,10 @@ async function processarListaImagensReceita(fileList) {
         statusEl.style.display = 'block';
         statusEl.className = 'pr-status-box loading';
         statusEl.textContent = ehPdf
-          ? '🤖 Lendo PDF e identificando se é Receita ou SISREG...'
+          ? '⏳ Lendo PDF e identificando o documento...'
           : (selecionados.length > 1
-            ? `🤖 Analisando arquivo ${i + 1} de ${selecionados.length} com IA...`
-            : '🤖 Analisando documento com IA (Receita ou SISREG)...');
+            ? `⏳ Analisando arquivo ${i + 1} de ${selecionados.length}...`
+            : '⏳ Analisando documento...');
       }
 
       const b64 = ehPdf ? await lerPdfBase64Previa(file) : await comprimirFotoReceita(file);
@@ -537,7 +537,7 @@ async function processarListaImagensReceita(fileList) {
       statusEl.textContent = `✅ Leitura concluída (${selecionados.length} arquivo${selecionados.length > 1 ? 's' : ''}) · ${destLabel}`;
     } else if (falhasOcr < selecionados.length) {
       statusEl.className = 'pr-status-box warn';
-      statusEl.textContent = `⚠️ Arquivos anexados, mas ${falhasOcr} não pôde ser lido pela IA (${ultimaMsgErro}).`;
+      statusEl.textContent = `⚠️ Arquivos anexados, mas ${falhasOcr} não pôde ser lido automaticamente (${ultimaMsgErro}).`;
     } else {
       statusEl.className = 'pr-status-box warn';
       statusEl.textContent = `⚠️ ${ultimaMsgErro} Arquivo mantido na prévia.`;

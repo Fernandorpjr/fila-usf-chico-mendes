@@ -565,7 +565,7 @@ function imprimirHistorico() {
   container.innerHTML = `
     <div class="print-header">
       <h1>USF Chico Mendes — Histórico de Cancelamentos e Reagendamentos</h1>
-      <p class="print-sub">Unidade de Saúde da Família Chico Mendes • Sistema de Gestão de Filas e Consultas</p>
+      <p class="print-sub">Unidade de Saúde da Família Chico Mendes • Sistema de Gestão de Filas 1.0 IA</p>
       <div class="print-meta">
         <b>Filtros aplicados:</b> ${escHtml(filtrosInfo)} | <b>Total de registros:</b> ${_historicoDados.length} | <b>Emitido em:</b> ${agora} (Fuso Recife)
       </div>
