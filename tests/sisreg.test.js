@@ -15,7 +15,13 @@ const {
   inferirSetorDestinoDevolucao,
   resolverCanalChatDevolucao,
   normalizarStatusDevolucao,
-  formatarMensagemChatDevolucao
+  formatarMensagemChatDevolucao,
+  PRAZO_DEVOLUCAO_DIAS,
+  MAX_PRORROGACOES_DEVOLUCAO,
+  normalizarDetalhesDevolucao,
+  validarAnexoDevolucao,
+  calcularStatusPrazoDevolucao,
+  limparAnexosDevolucoesExpirados
 } = require('../lib/sisreg');
 
 test('repararMojibake cleans Latin-1/UTF-8 artifacts and HTML typos', () => {
@@ -292,4 +298,43 @@ test('Devoluções SISREG direcionam corretamente ACS/Médico/Enfermagem/Odonto,
   assert.ok(msgSol.includes('SOLUÇÃO DEVOLUÇÃO SISREG'));
   assert.ok(msgSol.includes('Ana Paula (ACS)'));
   assert.ok(msgSol.includes('Mudou para Rua da Aurora, 100'));
+});
+
+test('Devoluções SISREG validam anexos, detalhes, prazo de 3 dias e limpeza automática de vencidos', async () => {
+  assert.equal(PRAZO_DEVOLUCAO_DIAS, 3);
+  assert.equal(MAX_PRORROGACOES_DEVOLUCAO, 3);
+
+  assert.equal(normalizarDetalhesDevolucao({ cns: '', dn: 'null' }), null);
+  const det = normalizarDetalhesDevolucao({ cns: '898001234567890', endereco: 'Rua Recife, 10', cid10: 'I10' });
+  assert.deepEqual(det.cns, '898001234567890');
+  assert.deepEqual(det.cid10, 'I10');
+
+  assert.equal(validarAnexoDevolucao(null).anexo_base64, null);
+  assert.equal(validarAnexoDevolucao('texto-invalido').ok, false);
+  const imgB64 = 'data:image/jpeg;base64,' + Buffer.from('fake-jpeg-bytes').toString('base64');
+  const okImg = validarAnexoDevolucao(imgB64, 'image', 'ficha.jpg');
+  assert.equal(okImg.ok, true);
+  assert.equal(okImg.anexo_tipo, 'image');
+  assert.ok(okImg.anexo_bytes > 0);
+
+  const gigante = 'data:application/pdf;base64,' + 'A'.repeat(2_200_000);
+  assert.equal(validarAnexoDevolucao(gigante, 'pdf', 'grande.pdf').ok, false);
+
+  const agora = new Date('2026-11-22T15:00:00Z');
+  assert.equal(calcularStatusPrazoDevolucao(new Date('2026-11-25T15:00:00Z'), 'pendente', agora).diasRestantes, 3);
+  assert.equal(calcularStatusPrazoDevolucao(new Date('2026-11-23T05:00:00Z'), 'pendente', agora).label, 'Vence em 14h');
+  assert.equal(calcularStatusPrazoDevolucao(new Date('2026-11-21T10:00:00Z'), 'pendente', agora).vencido, true);
+  assert.equal(calcularStatusPrazoDevolucao(new Date('2026-11-21T10:00:00Z'), 'corrigida', agora).label, 'Corrigida');
+
+  let sqlExecutado = '';
+  const removidos = await limparAnexosDevolucoesExpirados({
+    query: async (sql) => {
+      sqlExecutado = sql;
+      return { rowCount: 4 };
+    }
+  });
+  assert.equal(removidos, 4);
+  assert.ok(sqlExecutado.includes('anexo_base64 = NULL'));
+  assert.ok(sqlExecutado.includes("status = 'corrigida'"));
+  assert.ok(sqlExecutado.includes('prazo_em < CURRENT_TIMESTAMP'));
 });

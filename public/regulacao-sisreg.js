@@ -15,6 +15,10 @@
   let _sisregDevSetorFiltro = 'todos';
   let _sisregDevBusca = '';
   const _devProfModalState = { setor: 'Médico', status: 'abertas', busca: '' };
+  let _devNovoAnexo = { base64: null, tipo: null, nome: '', bytes: 0 };
+  const _cacheAnexosDev = {};
+  let _devVisualizadorState = { id: null, zoom: 1, rot: 0, panX: 0, panY: 0, pdfBlobUrl: null };
+  let _devolucaoAlvoBuscaId = null;
   let _copilotoPdfBlobUrl = null;
   let _medPdfBlobUrl = null;
 
@@ -1096,8 +1100,26 @@
               </div>
               <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;">
                 <input type="text" id="dev-obs" style="flex:1;min-width:240px;" placeholder="O que precisa verificar/corrigir (ex: confirmar endereço/mudança c/ ACS ou procedimento correto c/ médico)...">
+                <input type="file" id="dev-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivosNovaDevolucao(this.files);this.value='';">
+                <input type="file" id="dev-file-upload" accept="image/*,application/pdf" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivosNovaDevolucao(this.files);this.value='';">
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('dev-file-cam').click()" title="Tirar foto da ficha/espelho SISREG">📸 Foto</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('dev-file-upload').click()" title="Anexar foto ou PDF (ou use Ctrl+V)">📎 Foto/PDF (Ctrl+V)</button>
+                <span id="dev-anexo-preview-pill" style="display:none;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#dbeafe;color:#1e40af;font-size:11.5px;font-weight:800;"></span>
+              </div>
+              <details id="dev-detalhes-box" style="margin-top:8px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;">
+                <summary style="cursor:pointer;font-size:12px;font-weight:800;color:#1e3a8a;">📋 Detalhes do Erro / Dados da Ficha (para conferência do Médico / ACS)</summary>
+                <div class="sisreg-dev-grid" style="margin-top:8px;">
+                  <input type="text" id="dev-det-cns" placeholder="CNS / CPF do paciente">
+                  <input type="text" id="dev-det-dn" placeholder="Data Nasc. (DD/MM/AAAA)">
+                  <input type="text" id="dev-det-endereco" placeholder="Endereço / Bairro / CEP na ficha">
+                  <input type="text" id="dev-det-cid" placeholder="CID-10">
+                  <input type="text" id="dev-det-just" placeholder="Justificativa clínica escrita na ficha">
+                  <input type="text" id="dev-det-motivo-central" placeholder="Texto exato da devolução da Central SISREG">
+                </div>
+              </details>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
                 <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#1e3a8a;cursor:pointer;">
-                  <input type="checkbox" id="dev-enviar-chat" checked> 💬 Avisar no Chat Interno
+                  <input type="checkbox" id="dev-enviar-chat" checked> 💬 Avisar no Chat Interno (⏳ Prazo padrão: 3 dias)
                 </label>
                 <button type="button" class="btn btn-primary btn-sm" onclick="salvarNovaDevolucaoSisreg()">➕ Registrar e Direcionar</button>
               </div>
@@ -1112,6 +1134,8 @@
                 <button type="button" class="btn-filter ${_sisregDevFiltro === 'todas' ? 'active' : ''}" id="dev-flt-todas" onclick="filtrarDevolucoesSisreg('todas')">🗂️ Todas</button>
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                <span id="dev-storage-pill" class="sisreg-stat-pill" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;font-size:11px;">📦 Anexos: 0 (0 KB)</span>
+                <button type="button" class="btn btn-outline btn-sm" onclick="limparAnexosVencidosSisreg()" title="Apagar anexos já vencidos ou corrigidos para economizar banco">🧹 Limpar Vencidos</button>
                 <select id="dev-flt-setor" onchange="onDevFiltroListaChange()" style="padding:5px 8px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12px;font-weight:700;background:#fff;color:#0f172a;">
                   <option value="todos">Todos os Setores</option>
                   <option value="Médico">🩺 Médico</option>
@@ -2230,7 +2254,7 @@
     popularSelectProfissionaisDevolucao(setor);
   }
 
-  function preencherDevolucaoDaFichaAtual() {
+  async function preencherDevolucaoDaFichaAtual() {
     const d = _copilotoState.dados;
     trocarAbaCopilotoRegulacao('devolucoes');
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
@@ -2260,7 +2284,257 @@
     if (setorEl) setorEl.value = setorAuto;
     popularSelectProfissionaisDevolucao(setorAuto, d.medico_solicitante || '');
     set('dev-obs', endInfo.status === 'fora_recife' ? (endInfo.alerta || '') : (d.alertas_digitacao?.join('; ') || ''));
+
+    // Preencher detalhes estruturados da ficha
+    const endFull = [d.paciente_endereco, d.paciente_bairro, d.paciente_municipio, d.paciente_uf, d.paciente_cep]
+      .filter(Boolean).join(' · ');
+    set('dev-det-cns', d.paciente_cns || '');
+    set('dev-det-dn', d.paciente_dn || '');
+    set('dev-det-endereco', endFull);
+    set('dev-det-cid', d.cid10 || '');
+    set('dev-det-just', d.observacoes_revisada || d.observacoes_original || '');
+    set('dev-det-motivo-central', '');
+    const detBox = document.getElementById('dev-detalhes-box');
+    if (detBox && (d.paciente_cns || endFull || d.cid10 || d.observacoes_revisada)) {
+      detBox.open = true;
+    }
+
+    // Puxar documento ativo da Prévia (imagem recomprimida leve ou PDF até 1,5MB)
+    removerAnexoNovaDevolucao();
+    const imgAtiva = _copilotoState.anexos?.[_copilotoState.anexoIdx]?.imagem_base64;
+    if (imgAtiva) {
+      try {
+        const comp = await comprimirDataUrlDevolucao(imgAtiva);
+        definirAnexoNovaDevolucao(comp, 'image', `ficha-${(d.paciente_nome || 'sisreg').slice(0, 24)}.jpg`);
+      } catch (_) {}
+    } else if (_copilotoState.pdfBase64) {
+      if (_copilotoState.pdfBase64.length <= 2_100_000) {
+        definirAnexoNovaDevolucao(_copilotoState.pdfBase64, 'pdf', _copilotoState.pdfNome || 'documento-sisreg.pdf');
+      } else if (typeof showToast === 'function') {
+        showToast('ℹ️ PDF da Prévia excede 1,5 MB; use Ctrl+V de um print da página se quiser anexar.', true);
+      }
+    }
     document.getElementById('dev-pac-nome')?.focus();
+  }
+
+  function calcularBytesBase64Aprox(b64) {
+    if (!b64) return 0;
+    const idx = String(b64).indexOf(',');
+    const payload = idx >= 0 ? String(b64).slice(idx + 1) : String(b64);
+    return Math.round((payload.replace(/\s+/g, '').length * 3) / 4);
+  }
+
+  function comprimirDataUrlDevolucao(dataUrl, maxDim = 1100, quality = 0.72) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onerror = () => resolve(dataUrl);
+      img.onload = () => {
+        let w = img.width || maxDim;
+        let h = img.height || maxDim;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+          else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        let out = canvas.toDataURL('image/jpeg', quality);
+        if (out.length > 2_000_000) {
+          out = canvas.toDataURL('image/jpeg', 0.55);
+        }
+        resolve(out);
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  function comprimirArquivoImagemDevolucao(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+      reader.onload = async (ev) => {
+        const comp = await comprimirDataUrlDevolucao(ev.target.result);
+        resolve(comp);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function lerPdfDevolucaoBase64(file) {
+    return new Promise((resolve, reject) => {
+      if (file.size > 1_500_000) {
+        reject(new Error('PDF maior que 1,5 MB. Use um print/foto da página (Ctrl+V) para manter o banco leve.'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Falha ao ler PDF'));
+      reader.onload = (ev) => resolve(ev.target.result);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function definirAnexoNovaDevolucao(base64, tipo, nome) {
+    if (!base64) {
+      removerAnexoNovaDevolucao();
+      return;
+    }
+    if (String(base64).length > 2_100_000) {
+      if (typeof showToast === 'function') showToast('Arquivo excede 1,5 MB. Tire print ou use imagem menor.', true);
+      return;
+    }
+    _devNovoAnexo = {
+      base64,
+      tipo: tipo === 'pdf' ? 'pdf' : 'image',
+      nome: nome || (tipo === 'pdf' ? 'documento.pdf' : 'ficha.jpg'),
+      bytes: calcularBytesBase64Aprox(base64)
+    };
+    renderPreviewAnexoNovaDevolucao();
+  }
+
+  function removerAnexoNovaDevolucao() {
+    _devNovoAnexo = { base64: null, tipo: null, nome: '', bytes: 0 };
+    renderPreviewAnexoNovaDevolucao();
+  }
+
+  function renderPreviewAnexoNovaDevolucao() {
+    const pill = document.getElementById('dev-anexo-preview-pill');
+    if (!pill) return;
+    if (!_devNovoAnexo.base64) {
+      pill.style.display = 'none';
+      pill.innerHTML = '';
+      return;
+    }
+    const kb = Math.max(1, Math.round((_devNovoAnexo.bytes || 0) / 1024));
+    const icon = _devNovoAnexo.tipo === 'pdf' ? '📄' : '🖼️';
+    pill.style.display = 'inline-flex';
+    pill.innerHTML = `${icon} ${escSisreg(_devNovoAnexo.nome)} (${kb} KB) <button type="button" onclick="removerAnexoNovaDevolucao()" style="border:none;background:transparent;color:#991b1b;font-weight:900;cursor:pointer;" title="Remover anexo">✕</button>`;
+  }
+
+  async function processarArquivosNovaDevolucao(files) {
+    const f = files && files[0];
+    if (!f) return;
+    const ehPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+    try {
+      const b64 = ehPdf ? await lerPdfDevolucaoBase64(f) : await comprimirArquivoImagemDevolucao(f);
+      definirAnexoNovaDevolucao(b64, ehPdf ? 'pdf' : 'image', f.name || (ehPdf ? 'documento.pdf' : 'print-sisreg.jpg'));
+      if (typeof showToast === 'function') showToast('📎 Documento anexado à devolução!');
+    } catch (err) {
+      if (typeof showToast === 'function') showToast(err?.message || 'Não foi possível anexar arquivo.', true);
+    }
+  }
+
+  function parseDetalhesDevFront(raw) {
+    if (!raw) return null;
+    if (typeof raw === 'object') return raw;
+    try { return JSON.parse(raw); } catch (_) { return null; }
+  }
+
+  function calcularStatusPrazoDevFront(prazoEm, status) {
+    if (status === 'corrigida') {
+      return { vencido: false, urgente: false, label: 'Corrigida', cor: '#166534', bg: '#dcfce7' };
+    }
+    if (!prazoEm) {
+      return { vencido: false, urgente: false, label: '3d restantes', cor: '#0369a1', bg: '#e0f2fe' };
+    }
+    const dt = new Date(prazoEm);
+    if (Number.isNaN(dt.getTime())) {
+      return { vencido: false, urgente: false, label: '3d restantes', cor: '#0369a1', bg: '#e0f2fe' };
+    }
+    const diffMs = dt.getTime() - Date.now();
+    if (diffMs <= 0) {
+      return { vencido: true, urgente: true, label: 'Prazo vencido', cor: '#991b1b', bg: '#fee2e2' };
+    }
+    const horas = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
+    if (horas < 24) {
+      return { vencido: false, urgente: true, label: `Vence em ${horas}h`, cor: '#92400e', bg: '#fef3c7' };
+    }
+    const dias = Math.ceil(horas / 24);
+    return {
+      vencido: false,
+      urgente: dias <= 1,
+      label: `${dias}d restante${dias > 1 ? 's' : ''}`,
+      cor: dias <= 1 ? '#92400e' : '#0369a1',
+      bg: dias <= 1 ? '#fef3c7' : '#e0f2fe'
+    };
+  }
+
+  function badgePrazoDevHtml(item) {
+    if (item.status === 'corrigida') return '';
+    const p = calcularStatusPrazoDevFront(item.prazo_em, item.status);
+    const prorr = Number(item.prorrogacoes || 0);
+    const prorrTag = prorr > 0 ? ` (+${prorr * 3}d)` : '';
+    return `<span class="sisreg-pill-mini" style="background:${p.bg};color:${p.cor};border:1px solid ${p.cor}44;">⏳ ${escSisreg(p.label + prorrTag)}</span>`;
+  }
+
+  function renderDetalhesResumoDevHtml(det) {
+    if (!det) return '';
+    const partes = [];
+    if (det.cns) partes.push(`<b>CNS/CPF:</b> ${escSisreg(det.cns)}`);
+    if (det.dn) partes.push(`<b>DN:</b> ${escSisreg(det.dn)}`);
+    if (det.endereco) partes.push(`<b>End. Ficha:</b> ${escSisreg(det.endereco)}`);
+    if (det.cid10) partes.push(`<b>CID-10:</b> ${escSisreg(det.cid10)}`);
+    if (det.hipotese) partes.push(`<b>Hipótese:</b> ${escSisreg(det.hipotese)}`);
+    const linhaDados = partes.length
+      ? `<div style="font-size:11.5px;color:#334155;margin-top:4px;line-height:1.45;">${partes.join(' · ')}</div>`
+      : '';
+    const centralBox = det.motivo_central
+      ? `<div style="font-size:11.5px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;padding:5px 8px;border-radius:6px;margin-top:4px;"><b>❌ Central SISREG:</b> ${escSisreg(det.motivo_central)}</div>`
+      : '';
+    const justBox = det.justificativa_original
+      ? `<div style="font-size:11.5px;color:#1e293b;background:#f1f5f9;border:1px solid #cbd5e1;padding:5px 8px;border-radius:6px;margin-top:4px;"><b>📄 Condições Clínicas Originais:</b> ${escSisreg(det.justificativa_original)}</div>`
+      : '';
+    return `${linhaDados}${centralBox}${justBox}`;
+  }
+
+  function atualizarPillArmazenamentoDev() {
+    const el = document.getElementById('dev-storage-pill');
+    if (!el) return;
+    const comAnexo = (_sisregDevolucoesTodas || []).filter(x => x.tem_anexo);
+    const totalBytes = comAnexo.reduce((acc, x) => acc + Number(x.anexo_bytes || 0), 0);
+    const kb = Math.round(totalBytes / 1024);
+    const sizeLabel = kb >= 1024 ? `${(kb / 1024).toFixed(2)} MB` : `${kb} KB`;
+    el.textContent = `📦 Anexos: ${comAnexo.length} (${sizeLabel})`;
+  }
+
+  async function limparAnexosVencidosSisreg() {
+    try {
+      const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes/limpar-anexos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+      Object.keys(_cacheAnexosDev).forEach(k => delete _cacheAnexosDev[k]);
+      if (typeof showToast === 'function') {
+        showToast(d.removidos > 0
+          ? `🧹 ${d.removidos} anexo(s) expirado(s)/corrigido(s) removido(s) do banco!`
+          : '✅ Nenhum anexo vencido ou pendente de limpeza.');
+      }
+      await carregarDevolucoesSisreg();
+    } catch (_) {
+      if (typeof showToast === 'function') showToast('Erro ao limpar anexos.', true);
+    }
+  }
+
+  async function adiarPrazoDevolucaoSisreg(id) {
+    try {
+      const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes/${id}/adiar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (typeof showToast === 'function') showToast(data.error || 'Não foi possível adiar o prazo.', true);
+        return;
+      }
+      if (typeof showToast === 'function') showToast('⏳ Prazo prorrogado por mais 3 dias!');
+      await carregarDevolucoesSisreg();
+    } catch (_) {
+      if (typeof showToast === 'function') showToast('Erro ao adiar prazo.', true);
+    }
   }
 
   function aplicarFiltrosDevolucoesLista(todas, statusFlt, setorFlt, busca) {
@@ -2374,6 +2648,7 @@
   function renderDevolucoesSisreg() {
     const listEl = document.getElementById('sisreg-dev-lista');
     atualizarBadgesDevolucoesSetores();
+    atualizarPillArmazenamentoDev();
     if (!listEl) return;
     if (!_sisregDevolucoes || _sisregDevolucoes.length === 0) {
       listEl.innerHTML = `<div class="sisreg-muted" style="text-align:center;padding:18px;">Nenhuma devolução encontrada nos filtros atuais.</div>`;
@@ -2386,6 +2661,10 @@
       const dataFmt = formatarDataRecifeDev(item.created_at);
       const solFmt = formatarDataRecifeDev(item.solucao_em);
       const hasSolucao = Boolean(item.solucao && String(item.solucao).trim());
+      const detObj = parseDetalhesDevFront(item.detalhes_json);
+      const temAnexo = Boolean(item.tem_anexo);
+      const kbAnexo = temAnexo ? Math.max(1, Math.round(Number(item.anexo_bytes || 0) / 1024)) : 0;
+      const podeAdiar = st !== 'corrigida' && Number(item.prorrogacoes || 0) < 3;
 
       return `
         <div class="sisreg-dev-card ${st === 'corrigida' ? 'ok' : (st === 'respondida' ? 'resp' : 'pend')}" style="${st === 'respondida' ? 'border-left-color:#2563eb;background:#f8fbff;' : ''}">
@@ -2395,9 +2674,17 @@
               ${item.codigo_solicitacao ? `<code class="sisreg-code-badge">${escSisreg(item.codigo_solicitacao)}</code>` : ''}
               ${badgeSetorDevolucaoHtml(setorDestino)}
               ${badgeStatusDevolucaoHtml(st)}
+              ${badgePrazoDevHtml(item)}
+              ${temAnexo ? `<span class="sisreg-pill-mini" style="background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;">📎 Anexo (${kbAnexo} KB)</span>` : ''}
               ${dataFmt ? `<span style="font-size:11px;color:#64748b;font-weight:700;">🕒 ${escSisreg(dataFmt)}</span>` : ''}
             </div>
             <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              ${(temAnexo || detObj)
+                ? `<button type="button" class="btn btn-outline btn-sm" style="background:#faf5ff;color:#6b21a8;border-color:#d8b4fe;" onclick="abrirVisualizadorDevolucao(${item.id}, 'regulacao')">👁️ ${temAnexo ? 'Ver Documento' : 'Ver Detalhes'}</button>`
+                : ''}
+              ${podeAdiar
+                ? `<button type="button" class="btn btn-outline btn-sm" onclick="adiarPrazoDevolucaoSisreg(${item.id})" title="Prorrogar prazo de resposta por mais 3 dias">⏳ +3d</button>`
+                : ''}
               ${st !== 'corrigida'
                 ? `<button type="button" class="btn btn-primary btn-sm" style="background:#16a34a;border-color:#15803d;" onclick="alternarStatusDevolucaoSisreg(${item.id},'corrigida')">✅ Corrigida</button>`
                 : `<button type="button" class="btn btn-outline btn-sm" onclick="alternarStatusDevolucaoSisreg(${item.id},'pendente')">↩️ Reabrir</button>`}
@@ -2413,6 +2700,7 @@
             ${item.profissional_equipe ? ` · <b>Responsável:</b> ${escSisreg(item.profissional_equipe)}` : ''}
           </div>
           ${item.observacao ? `<div style="font-size:11.5px;color:#475569;margin-top:5px;background:#f8fafc;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;"><b>Pendência / Orientação:</b> ${escSisreg(item.observacao)}</div>` : ''}
+          ${renderDetalhesResumoDevHtml(detObj)}
           ${hasSolucao ? `
             <div style="font-size:12px;color:#065f46;margin-top:5px;background:#ecfdf5;padding:7px 9px;border-radius:6px;border:1px solid #6ee7b7;display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap;">
               <div>
@@ -2475,6 +2763,14 @@
       if (typeof showToast === 'function') showToast('Informe o nome do paciente devolvido.', true);
       return;
     }
+    const detalhes = {
+      cns: document.getElementById('dev-det-cns')?.value.trim() || null,
+      dn: document.getElementById('dev-det-dn')?.value.trim() || null,
+      endereco: document.getElementById('dev-det-endereco')?.value.trim() || null,
+      cid10: document.getElementById('dev-det-cid')?.value.trim() || null,
+      justificativa_original: document.getElementById('dev-det-just')?.value.trim() || null,
+      motivo_central: document.getElementById('dev-det-motivo-central')?.value.trim() || null
+    };
     const body = {
       paciente_nome: nome,
       codigo_solicitacao: document.getElementById('dev-protocolo')?.value.trim() || null,
@@ -2484,6 +2780,10 @@
       telefone: document.getElementById('dev-telefone')?.value.trim() || null,
       profissional_equipe: document.getElementById('dev-profissional')?.value.trim() || null,
       observacao: document.getElementById('dev-obs')?.value.trim() || null,
+      detalhes,
+      anexo_base64: _devNovoAnexo.base64 || null,
+      anexo_tipo: _devNovoAnexo.tipo || null,
+      anexo_nome: _devNovoAnexo.nome || null,
       enviar_chat: enviarChat
     };
     try {
@@ -2492,22 +2792,26 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      if (!res.ok) throw new Error();
-      const created = await res.json();
-      ['dev-pac-nome', 'dev-protocolo', 'dev-procedimento', 'dev-telefone', 'dev-obs'].forEach(id => {
+      const created = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(created.error || 'Erro ao registrar devolução.');
+      [
+        'dev-pac-nome', 'dev-protocolo', 'dev-procedimento', 'dev-telefone', 'dev-obs',
+        'dev-det-cns', 'dev-det-dn', 'dev-det-endereco', 'dev-det-cid', 'dev-det-just', 'dev-det-motivo-central'
+      ].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });
       const profSel = document.getElementById('dev-profissional');
       if (profSel) profSel.value = '';
+      removerAnexoNovaDevolucao();
       if (typeof showToast === 'function') {
         showToast(created.chat_notificado
-          ? `✅ Devolução registrada e alerta enviado no canal ${setorDestino}!`
-          : `✅ Devolução registrada e direcionada para ${setorDestino}!`);
+          ? `✅ Devolução registrada (prazo 3 dias) e alerta enviado no canal ${setorDestino}!`
+          : `✅ Devolução registrada (prazo 3 dias) para ${setorDestino}!`);
       }
       await carregarDevolucoesSisreg();
-    } catch (_) {
-      if (typeof showToast === 'function') showToast('Erro ao registrar devolução.', true);
+    } catch (err) {
+      if (typeof showToast === 'function') showToast(err?.message || 'Erro ao registrar devolução.', true);
     }
   }
 
@@ -2519,8 +2823,15 @@
         body: JSON.stringify({ status })
       });
       if (!res.ok) throw new Error();
+      if (status === 'corrigida') {
+        delete _cacheAnexosDev[id];
+      }
       await carregarDevolucoesSisreg();
-      if (typeof showToast === 'function') showToast(status === 'corrigida' ? '✅ Devolução marcada como corrigida!' : '↩️ Reaberta.');
+      if (typeof showToast === 'function') {
+        showToast(status === 'corrigida'
+          ? '✅ Devolução marcada como corrigida e anexo apagado do banco!'
+          : '↩️ Reaberta.');
+      }
     } catch (_) {
       if (typeof showToast === 'function') showToast('Erro ao atualizar devolução.', true);
     }
@@ -2593,18 +2904,26 @@
     const bodyRows = lista.map((item, idx) => {
       const setor = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
       const direcionado = item.profissional_equipe ? `${setor} (${item.profissional_equipe})` : setor;
+      const det = parseDetalhesDevFront(item.detalhes_json);
+      const prazoInfo = calcularStatusPrazoDevFront(item.prazo_em, item.status);
+      const extraDet = [
+        det?.cns ? `CNS/CPF: ${det.cns}` : '',
+        det?.endereco ? `End: ${det.endereco}` : '',
+        det?.motivo_central ? `Central: ${det.motivo_central}` : ''
+      ].filter(Boolean).join(' | ');
+      const pendTxt = [item.observacao, extraDet].filter(Boolean).join(' — ') || '—';
       const solTxt = item.solucao
         ? `${item.solucao}${item.solucao_autor ? ` [${item.solucao_autor}]` : ''}`
         : '—';
       return [
         idx + 1,
-        formatarDataRecifeDev(item.created_at) || dataHoje,
+        `${formatarDataRecifeDev(item.created_at) || dataHoje}\n(${prazoInfo.label})`,
         item.paciente_nome || '—',
         item.codigo_solicitacao || '—',
         item.procedimento || '—',
         item.motivo || '—',
         direcionado,
-        item.observacao || '—',
+        pendTxt,
         solTxt,
         statusLabel(item.status)
       ];
@@ -2671,7 +2990,29 @@
     return '';
   }
 
+  function revogarDevViewerPdfUrl() {
+    if (_devVisualizadorState.pdfBlobUrl) {
+      try { URL.revokeObjectURL(_devVisualizadorState.pdfBlobUrl); } catch (_) {}
+      _devVisualizadorState.pdfBlobUrl = null;
+    }
+  }
+
+  function criarBlobUrlPdfDev(b64) {
+    try {
+      const base = String(b64).includes(',') ? String(b64).split(',')[1] : String(b64);
+      const bin = atob(base.replace(/\s+/g, ''));
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const blob = new Blob([arr], { type: 'application/pdf' });
+      return URL.createObjectURL(blob);
+    } catch (_) {
+      return null;
+    }
+  }
+
   function abrirModalDevolucoesProfissional(setor = 'Médico') {
+    _devVisualizadorState.id = null;
+    revogarDevViewerPdfUrl();
     _devProfModalState.setor = SETOR_DEV_META[setor] ? setor : 'todos';
     if (!_devProfModalState.status) _devProfModalState.status = 'abertas';
     const modal = document.getElementById('modal-devolucoes-profissional');
@@ -2682,15 +3023,21 @@
   }
 
   function fecharModalDevolucoesProfissional() {
+    _devVisualizadorState.id = null;
+    revogarDevViewerPdfUrl();
     document.getElementById('modal-devolucoes-profissional')?.classList.remove('show');
   }
 
   function trocarSetorModalDevProf(setor) {
+    _devVisualizadorState.id = null;
+    revogarDevViewerPdfUrl();
     _devProfModalState.setor = setor || 'todos';
     renderModalDevolucoesProfissional();
   }
 
   function trocarFiltroModalDevProf(flt) {
+    _devVisualizadorState.id = null;
+    revogarDevViewerPdfUrl();
     _devProfModalState.status = flt || 'abertas';
     renderModalDevolucoesProfissional();
   }
@@ -2700,13 +3047,121 @@
     renderListaDevolucoesProfissional();
   }
 
-  function aplicarAtalhoSolucaoDevProf(id, textoModelo) {
-    const ta = document.getElementById(`dev-prof-sol-${id}`);
+  function aplicarAtalhoSolucaoDevProf(id, textoModelo, isViewer = false) {
+    const elId = isViewer ? `dev-viewer-sol-${id}` : `dev-prof-sol-${id}`;
+    const ta = document.getElementById(elId);
     if (!ta) return;
     ta.value = textoModelo;
     ta.focus();
     const len = ta.value.length;
     ta.setSelectionRange(len, len);
+  }
+
+  function aplicarTransformDevViewer() {
+    const img = document.getElementById('dev-viewer-img');
+    if (img) {
+      img.style.transform = `translate(${_devVisualizadorState.panX}px, ${_devVisualizadorState.panY}px) scale(${_devVisualizadorState.zoom}) rotate(${_devVisualizadorState.rot}deg)`;
+    }
+  }
+  function zoomDevViewerImg(d) {
+    _devVisualizadorState.zoom = Math.max(0.5, Math.min(4.5, Number((_devVisualizadorState.zoom + d).toFixed(2))));
+    aplicarTransformDevViewer();
+  }
+  function girarDevViewerImg() {
+    _devVisualizadorState.rot = (_devVisualizadorState.rot + 90) % 360;
+    aplicarTransformDevViewer();
+  }
+  function resetDevViewerImg() {
+    _devVisualizadorState.zoom = 1;
+    _devVisualizadorState.rot = 0;
+    _devVisualizadorState.panX = 0;
+    _devVisualizadorState.panY = 0;
+    aplicarTransformDevViewer();
+  }
+
+  async function carregarAnexoDevolucaoLazy(id) {
+    if (_cacheAnexosDev[id]) return _cacheAnexosDev[id];
+    const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes/${id}/anexo`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Erro ao carregar documento.');
+    const data = await res.json();
+    _cacheAnexosDev[id] = data;
+    return data;
+  }
+
+  function renderizarConteudoDocViewer(id, data) {
+    const docArea = document.getElementById('dev-viewer-doc-area');
+    if (!docArea || _devVisualizadorState.id !== id) return;
+    if (!data || !data.tem_anexo || !data.anexo_base64) {
+      docArea.innerHTML = `<div style="padding:26px;text-align:center;color:#fca5a5;font-weight:700;">⚠️ Documento já foi apagado do banco após expiração ou correção.</div>`;
+      return;
+    }
+    if (data.anexo_tipo === 'pdf') {
+      revogarDevViewerPdfUrl();
+      const url = criarBlobUrlPdfDev(data.anexo_base64);
+      _devVisualizadorState.pdfBlobUrl = url;
+      docArea.innerHTML = `<iframe src="${url || data.anexo_base64}" style="width:100%;height:500px;border:none;border-radius:8px;background:#fff;" title="PDF Devolução SISREG"></iframe>`;
+    } else {
+      docArea.innerHTML = `<img id="dev-viewer-img" src="${data.anexo_base64}" alt="Documento da devolução" draggable="false" style="max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;transition:transform 0.1s ease;cursor:grab;">`;
+      aplicarTransformDevViewer();
+      if (typeof window.initPreviaPanZoom === 'function') {
+        window.initPreviaPanZoom(
+          'dev-viewer-doc-area',
+          'dev-viewer-img',
+          () => _devVisualizadorState,
+          (patch) => { Object.assign(_devVisualizadorState, patch); },
+          aplicarTransformDevViewer
+        );
+      }
+    }
+  }
+
+  async function abrirVisualizadorDevolucao(id, origem = 'profissional') {
+    const item = (_sisregDevolucoesTodas || []).find(x => x.id === id);
+    if (!item) return;
+    const setorItem = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
+    const modal = document.getElementById('modal-devolucoes-profissional');
+    if (!modal) return;
+    if (!modal.classList.contains('show')) {
+      if (origem === 'regulacao') _devProfModalState.setor = 'todos';
+      else if (SETOR_DEV_META[setorItem]) _devProfModalState.setor = setorItem;
+      _devProfModalState.status = 'todas';
+      modal.classList.add('show');
+    }
+    _devVisualizadorState = { id, zoom: 1, rot: 0, panX: 0, panY: 0, pdfBlobUrl: null };
+    renderModalDevolucoesProfissional();
+
+    const docArea = document.getElementById('dev-viewer-doc-area');
+    if (!docArea) return;
+    if (!item.tem_anexo) {
+      docArea.innerHTML = `<div style="padding:26px;text-align:center;color:#94a3b8;font-weight:700;">📄 Nenhum documento visual anexado (ou já removido após expiração/correção).<br><span style="font-size:12px;">Confira todos os dados detalhados da ficha ao lado direito.</span></div>`;
+      return;
+    }
+
+    if (_cacheAnexosDev[id]) {
+      renderizarConteudoDocViewer(id, _cacheAnexosDev[id]);
+      return;
+    }
+
+    docArea.innerHTML = `<div style="padding:26px;text-align:center;color:#cbd5e1;font-weight:800;">⏳ Carregando documento anexo...</div>`;
+    try {
+      const data = await carregarAnexoDevolucaoLazy(id);
+      renderizarConteudoDocViewer(id, data);
+    } catch (_) {
+      if (_devVisualizadorState.id === id && docArea) {
+        docArea.innerHTML = `<div style="padding:26px;text-align:center;color:#fca5a5;font-weight:700;">❌ Não foi possível carregar o documento anexo.</div>`;
+      }
+    }
+  }
+
+  function fecharVisualizadorDevolucao() {
+    _devVisualizadorState.id = null;
+    revogarDevViewerPdfUrl();
+    renderModalDevolucoesProfissional();
+  }
+
+  function abrirBuscaSisregParaDevolucao(devId, setor = 'Médico', termoInicial = '') {
+    _devolucaoAlvoBuscaId = devId;
+    abrirModalSisregConsulta(setor || 'Médico', 'busca', termoInicial || '');
   }
 
   function obterListaFiltradaModalProf() {
@@ -2727,13 +3182,107 @@
   function renderModalDevolucoesProfissional() {
     const modal = document.getElementById('modal-devolucoes-profissional');
     if (!modal) return;
-    const autorPadrao = detectarNomeProfissionalAtualFront(_devProfModalState.setor);
+    const autorInpExist = document.getElementById('dev-prof-autor-nome')?.value;
+    const autorPadrao = (autorInpExist && autorInpExist.trim()) || detectarNomeProfissionalAtualFront(_devProfModalState.setor);
     const todas = _sisregDevolucoesTodas || [];
     const contarPendSetor = s => todas.filter(x => {
       if ((x.status || 'pendente') !== 'pendente') return false;
       const st = x.setor_destino || inferirSetorPorMotivoEProfFront(x.motivo, x.profissional_equipe);
       return s === 'todos' || st === s;
     }).length;
+
+    const itemViewer = _devVisualizadorState.id
+      ? todas.find(x => x.id === _devVisualizadorState.id)
+      : null;
+    if (_devVisualizadorState.id && !itemViewer) {
+      _devVisualizadorState.id = null;
+    }
+
+    if (itemViewer) {
+      const setorItem = itemViewer.setor_destino || inferirSetorPorMotivoEProfFront(itemViewer.motivo, itemViewer.profissional_equipe);
+      const isAcs = setorItem === 'ACS';
+      const detObj = parseDetalhesDevFront(itemViewer.detalhes_json);
+      const podeAdiar = (itemViewer.status || 'pendente') !== 'corrigida' && Number(itemViewer.prorrogacoes || 0) < 3;
+      const procTermoAttr = escSisreg(itemViewer.procedimento || '').replace(/'/g, '&#39;');
+      const atalhosViewer = isAcs
+        ? `
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${itemViewer.id}, 'Paciente mudou para o endereço: Rua , nº , Bairro , CEP .', true)">🏠 Mudou de endereço</button>
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${itemViewer.id}, 'Telefone atualizado do paciente: (81) 9', true)">📞 Novo telefone</button>
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${itemViewer.id}, 'Cadastro e residência confirmados em Recife na microárea.', true)">📍 Cadastro confirmado</button>
+        `
+        : `
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${itemViewer.id}, 'O procedimento correto no SISREG é: ', true)">🩺 Procedimento correto</button>
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${itemViewer.id}, 'Justificativa clínica complementar: ', true)">📝 Justificativa clínica</button>
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${itemViewer.id}, 'CID-10 correto:  | Solicitação readequada.', true)">🧬 Corrigir CID</button>
+        `;
+      modal.innerHTML = `
+        <div class="previa-modal-card wide" style="max-width:1180px;">
+          <div class="previa-modal-head" style="background:linear-gradient(135deg,#0f2c73,#9a3412);">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.35);font-weight:800;" onclick="fecharVisualizadorDevolucao()">← Voltar para a Lista</button>
+              <div>
+                <div style="font-weight:900;font-size:15px;">👁️ Conferência do Documento — ${escSisreg(itemViewer.paciente_nome)}</div>
+                <div style="font-size:11.5px;opacity:0.9;">Analise a ficha/print ao lado, confira o erro e envie a solução correta para a Regulação</div>
+              </div>
+            </div>
+            <button type="button" class="previa-btn-close-red" onclick="fecharModalDevolucoesProfissional()">✕ Fechar</button>
+          </div>
+          <div class="previa-modal-body" style="background:#f8fafc;">
+            <div class="sisreg-split-grid">
+              <div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
+                  <button type="button" class="btn btn-outline btn-sm" onclick="zoomDevViewerImg(-0.25)">➖ Zoom</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="zoomDevViewerImg(0.25)">➕ Zoom</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="girarDevViewerImg()">🔄 Girar</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="resetDevViewerImg()">🎯 Reset</button>
+                  ${podeAdiar ? `<button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="adiarPrazoDevolucaoSisreg(${itemViewer.id})">⏳ Adiar +3d</button>` : ''}
+                </div>
+                <div id="dev-viewer-doc-area" class="sisreg-img-stage" style="height:500px;background:#0f172a;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div class="sisreg-box">
+                  <div class="sisreg-box-head" style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>📋 Dados da Solicitação Devolvida</span>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;">${badgeSetorDevolucaoHtml(setorItem)}${badgeStatusDevolucaoHtml(itemViewer.status || 'pendente')}${badgePrazoDevHtml(itemViewer)}</div>
+                  </div>
+                  <div style="font-size:12.5px;color:#0f172a;line-height:1.5;">
+                    <div><b>Paciente:</b> ${escSisreg(itemViewer.paciente_nome)} ${itemViewer.codigo_solicitacao ? ` · <code class="sisreg-code-badge">${escSisreg(itemViewer.codigo_solicitacao)}</code>` : ''}</div>
+                    <div><b>Motivo:</b> ${escSisreg(itemViewer.motivo)}</div>
+                    ${itemViewer.procedimento ? `<div><b>Procedimento Pedido:</b> ${escSisreg(itemViewer.procedimento)}</div>` : ''}
+                    ${itemViewer.telefone ? `<div><b>Telefone:</b> ${escSisreg(itemViewer.telefone)}</div>` : ''}
+                    ${itemViewer.profissional_equipe ? `<div><b>Profissional/ACS:</b> ${escSisreg(itemViewer.profissional_equipe)}</div>` : ''}
+                  </div>
+                  ${itemViewer.observacao ? `<div style="font-size:12px;color:#7c2d12;margin-top:6px;background:#fff7ed;padding:7px 9px;border-radius:6px;border:1px solid #fed7aa;"><b>Orientação da Regulação:</b> ${escSisreg(itemViewer.observacao)}</div>` : ''}
+                  ${renderDetalhesResumoDevHtml(detObj)}
+                </div>
+
+                <div class="sisreg-box">
+                  <div class="sisreg-box-head" style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>💬 Resposta / Solução Correta</span>
+                    ${!isAcs ? `<button type="button" class="btn btn-primary btn-sm" style="background:#0f2c73;border-color:#0f2c73;" onclick="abrirBuscaSisregParaDevolucao(${itemViewer.id}, '${setorItem}', '${procTermoAttr}')">🔎 Buscar Código SISREG</button>` : ''}
+                  </div>
+                  <input type="text" id="dev-prof-autor-nome" value="${escSisreg(autorPadrao)}" placeholder="Seu nome (Profissional / ACS) *" style="width:100%;padding:7px 10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;margin-bottom:6px;">
+                  <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">${atalhosViewer}</div>
+                  <textarea id="dev-viewer-sol-${itemViewer.id}" rows="4" placeholder="${isAcs ? 'Ex: Paciente mudou para Rua X, nº Y, Bairro Z...' : 'Ex: O procedimento correto no SISREG é..., CID..., justificativa...'}" style="width:100%;padding:8px 10px;border:1.5px solid #2563eb;border-radius:8px;font-size:13px;font-weight:700;">${escSisreg(itemViewer.solucao || '')}</textarea>
+                  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+                    <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;padding:8px 14px;" onclick="salvarSolucaoModalProfissional(${itemViewer.id}, this, true)">💾 Enviar Solução para Regulação</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      if (_cacheAnexosDev[itemViewer.id]) {
+        renderizarConteudoDocViewer(itemViewer.id, _cacheAnexosDev[itemViewer.id]);
+      } else if (!itemViewer.tem_anexo) {
+        const docArea = document.getElementById('dev-viewer-doc-area');
+        if (docArea) {
+          docArea.innerHTML = `<div style="padding:26px;text-align:center;color:#94a3b8;font-weight:700;">📄 Nenhum documento visual anexado (ou já removido após expiração/correção).<br><span style="font-size:12px;">Confira todos os dados detalhados da ficha ao lado direito.</span></div>`;
+        }
+      }
+      return;
+    }
 
     const setoresBotoes = [
       { id: 'Médico', label: '🩺 Médico' },
@@ -2811,6 +3360,11 @@
           <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${item.id}, 'CID-10 correto:  | Solicitação readequada.')">🧬 Corrigir CID</button>
         `;
       const dataFmt = formatarDataRecifeDev(item.created_at);
+      const detObj = parseDetalhesDevFront(item.detalhes_json);
+      const temAnexo = Boolean(item.tem_anexo);
+      const kbAnexo = temAnexo ? Math.max(1, Math.round(Number(item.anexo_bytes || 0) / 1024)) : 0;
+      const podeAdiar = (item.status || 'pendente') !== 'corrigida' && Number(item.prorrogacoes || 0) < 3;
+      const procTermoAttr = escSisreg(item.procedimento || '').replace(/'/g, '&#39;');
       return `
         <div class="sisreg-dev-card ${item.status === 'corrigida' ? 'ok' : (item.status === 'respondida' ? 'resp' : 'pend')}">
           <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -2819,7 +3373,14 @@
               ${item.codigo_solicitacao ? `<code class="sisreg-code-badge">${escSisreg(item.codigo_solicitacao)}</code>` : ''}
               ${badgeSetorDevolucaoHtml(setorItem)}
               ${badgeStatusDevolucaoHtml(item.status || 'pendente')}
+              ${badgePrazoDevHtml(item)}
+              ${temAnexo ? `<span class="sisreg-pill-mini" style="background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;">📎 Documento (${kbAnexo} KB)</span>` : ''}
               ${dataFmt ? `<span style="font-size:11px;color:#64748b;font-weight:700;">🕒 ${escSisreg(dataFmt)}</span>` : ''}
+            </div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" style="background:#6b21a8;border-color:#6b21a8;font-weight:800;" onclick="abrirVisualizadorDevolucao(${item.id}, 'profissional')">👁️ ${temAnexo ? 'Conferir Documento e Responder' : 'Conferência Detalhada'}</button>
+              ${!isAcs ? `<button type="button" class="btn btn-outline btn-sm" onclick="abrirBuscaSisregParaDevolucao(${item.id}, '${setorItem}', '${procTermoAttr}')">🔎 Buscar SISREG</button>` : ''}
+              ${podeAdiar ? `<button type="button" class="btn btn-outline btn-sm" onclick="adiarPrazoDevolucaoSisreg(${item.id})" title="Prorrogar prazo em +3 dias">⏳ +3d</button>` : ''}
             </div>
           </div>
           <div style="font-size:12px;color:#334155;margin-top:5px;">
@@ -2829,6 +3390,7 @@
             ${item.profissional_equipe ? ` · <b>Direcionado:</b> ${escSisreg(item.profissional_equipe)}` : ''}
           </div>
           ${item.observacao ? `<div style="font-size:12px;color:#7c2d12;margin-top:5px;background:#fff7ed;padding:6px 8px;border-radius:6px;border:1px solid #fed7aa;"><b>Solicitação da Regulação:</b> ${escSisreg(item.observacao)}</div>` : ''}
+          ${renderDetalhesResumoDevHtml(detObj)}
           <div style="margin-top:8px;">
             <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px;">
               <span style="font-size:11px;font-weight:800;color:#475569;">Atalhos de resposta:</span>
@@ -2837,7 +3399,7 @@
             <textarea id="dev-prof-sol-${item.id}" rows="2" placeholder="${placeholder}" style="width:100%;padding:7px 9px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;color:#0f172a;">${escSisreg(item.solucao || '')}</textarea>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
               <span style="font-size:11px;color:#64748b;font-weight:700;">Ao enviar, o comentário aparece na Regulação e gera alerta no canal 📋 Regulação do chat interno.</span>
-              <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${item.id}, this)">💾 Enviar Solução para Regulação</button>
+              <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${item.id}, this, false)">💾 Enviar Solução para Regulação</button>
             </div>
           </div>
         </div>
@@ -2845,8 +3407,11 @@
     }).join('');
   }
 
-  async function salvarSolucaoModalProfissional(id, btn) {
-    const sol = document.getElementById(`dev-prof-sol-${id}`)?.value.trim() || '';
+  async function salvarSolucaoModalProfissional(id, btn, fromViewer = false) {
+    const elId = fromViewer ? `dev-viewer-sol-${id}` : `dev-prof-sol-${id}`;
+    const sol = document.getElementById(elId)?.value.trim()
+      || document.getElementById(`dev-prof-sol-${id}`)?.value.trim()
+      || '';
     if (!sol) {
       if (typeof showToast === 'function') showToast('Digite a solução ou comentário antes de enviar.', true);
       return;
@@ -2862,6 +3427,8 @@
       });
       if (!res.ok) throw new Error();
       if (typeof showToast === 'function') showToast('✅ Solução enviada e Regulação avisada no chat interno!');
+      _devVisualizadorState.id = null;
+      revogarDevViewerPdfUrl();
       await carregarDevolucoesSisreg();
     } catch (_) {
       if (typeof showToast === 'function') showToast('Erro ao enviar solução.', true);
@@ -2899,6 +3466,7 @@
   }
 
   function fecharModalSisregMedico() {
+    _devolucaoAlvoBuscaId = null;
     document.getElementById('modal-sisreg-medico')?.classList.remove('show');
     revogarMedPdfBlobUrl();
   }
@@ -2942,7 +3510,9 @@
       const hierNorm = normSisregFront(p.hierarchy || '');
       const ehExame = normSisregFront(p.type) === 'exame';
       const ehLab = ehExame && /patologia clinica|exames de laboratorio|exame laboratorial/.test(hierNorm);
-      const btnLabel = ehLab ? '🧪 Form. Exames' : (ehExame ? '📋 Exame na Ficha' : '📝 Usar na Ficha');
+      const btnLabel = _devolucaoAlvoBuscaId
+        ? '✅ Usar na Solução'
+        : (ehLab ? '🧪 Form. Exames' : (ehExame ? '📋 Exame na Ficha' : '📝 Usar na Ficha'));
       return `
       <tr>
         <td><code class="sisreg-code-badge">${escSisreg(p.code || '—')}</code></td>
@@ -2969,6 +3539,23 @@
   function usarResultadoModalMedNaFicha(idx) {
     const proc = _modalMedState.resultadosBusca[idx];
     if (!proc) return;
+    if (_devolucaoAlvoBuscaId) {
+      const devId = _devolucaoAlvoBuscaId;
+      _devolucaoAlvoBuscaId = null;
+      const textoProc = proc.code ? `${proc.name} (${proc.code})` : proc.name;
+      const prefix = `O procedimento correto no SISREG é: ${textoProc}. `;
+      const taViewer = document.getElementById(`dev-viewer-sol-${devId}`);
+      const taList = document.getElementById(`dev-prof-sol-${devId}`);
+      const ta = taViewer || taList;
+      if (ta) {
+        const atual = ta.value.trim();
+        ta.value = atual ? `${atual}\n${prefix}` : prefix;
+        ta.focus();
+      }
+      fecharModalSisregMedico();
+      if (typeof showToast === 'function') showToast('✅ Procedimento inserido na resposta da devolução!');
+      return;
+    }
     fecharModalSisregMedico();
     if (typeof window.aplicarProcedimentoSisregNaFicha === 'function') {
       window.aplicarProcedimentoSisregNaFicha(proc, _modalMedState.setor, _modalMedState.dados);
@@ -3166,14 +3753,15 @@
     }
   }
 
-  // CTRL+V GLOBAL PARA MODAL REGULAÇÃO E MODAL MÉDICO
+  // CTRL+V GLOBAL PARA MODAL REGULAÇÃO (LEITOR OU DEVOLUÇÕES) E MODAL MÉDICO
   document.addEventListener('paste', (e) => {
     const modalMed = document.getElementById('modal-sisreg-medico');
     const modalMedAberto = modalMed && modalMed.classList.contains('show') && _modalMedState.aba === 'leitor';
     const modalReg = document.getElementById('modal-previa-regulacao');
-    const modalRegAberto = modalReg && modalReg.classList.contains('show') && _sisregAbaAtiva === 'leitor';
+    const modalRegLeitor = modalReg && modalReg.classList.contains('show') && _sisregAbaAtiva === 'leitor';
+    const modalRegDev = modalReg && modalReg.classList.contains('show') && _sisregAbaAtiva === 'devolucoes';
     const modalCaptura = document.getElementById('modal-captura-receita')?.classList.contains('show');
-    if (modalCaptura || (!modalMedAberto && !modalRegAberto)) return;
+    if (modalCaptura || (!modalMedAberto && !modalRegLeitor && !modalRegDev)) return;
 
     const items = e.clipboardData?.items || [];
     const files = [];
@@ -3186,6 +3774,7 @@
     if (files.length > 0) {
       e.preventDefault();
       if (modalMedAberto) processarArquivoModalSisregMedico(files);
+      else if (modalRegDev) processarArquivosNovaDevolucao(files);
       else processarArquivosCopilotoSisreg(files);
     }
   });
@@ -3251,6 +3840,16 @@
   window.aplicarAtalhoSolucaoDevProf = aplicarAtalhoSolucaoDevProf;
   window.exportarDevolucoesProfissionalPDF = exportarDevolucoesProfissionalPDF;
   window.salvarSolucaoModalProfissional = salvarSolucaoModalProfissional;
+  window.processarArquivosNovaDevolucao = processarArquivosNovaDevolucao;
+  window.removerAnexoNovaDevolucao = removerAnexoNovaDevolucao;
+  window.limparAnexosVencidosSisreg = limparAnexosVencidosSisreg;
+  window.adiarPrazoDevolucaoSisreg = adiarPrazoDevolucaoSisreg;
+  window.abrirVisualizadorDevolucao = abrirVisualizadorDevolucao;
+  window.fecharVisualizadorDevolucao = fecharVisualizadorDevolucao;
+  window.zoomDevViewerImg = zoomDevViewerImg;
+  window.girarDevViewerImg = girarDevViewerImg;
+  window.resetDevViewerImg = resetDevViewerImg;
+  window.abrirBuscaSisregParaDevolucao = abrirBuscaSisregParaDevolucao;
   window.abrirModalSisregConsulta = abrirModalSisregConsulta;
   window.abrirModalSisregLeitor = abrirModalSisregLeitor;
   window.fecharModalSisregMedico = fecharModalSisregMedico;

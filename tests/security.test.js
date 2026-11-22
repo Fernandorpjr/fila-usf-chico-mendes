@@ -582,7 +582,6 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.equal(indexHtml.includes("buscarAtalhoModalSisregMedico('EXAMES DE LABORATORIO')"), true);
   assert.equal(sisregFront.includes("buscarAtalhoSisreg('EXAMES DE LABORATORIO')"), true);
   assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
-  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=1.7'), true);
   assert.equal(indexHtml.includes('formularios-pec.js?v=1.9'), true);
   assert.equal(indexHtml.includes('app.js?v=8.1'), true);
 });
@@ -610,4 +609,18 @@ test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e P
   assert.equal(sisregFront.includes('id="dev-setor-destino"'), true);
   assert.equal(sisregFront.includes('id="dev-profissional"'), true);
   assert.equal(sisregFront.includes('Mudou de endereço'), true);
+  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=1.8'), true);
+  assert.equal(indexHtml.includes('.sisreg-med-modal-backdrop { z-index: 10080; }'), true);
+
+  // Conferência de anexo (lazy-load), apagamento imediato ao corrigir, prazo 3d (+3d adiar) e atalho de busca
+  assert.equal(sisregBack.includes('/api/sisreg/devolucoes/:id/anexo'), true);
+  assert.equal(sisregBack.includes('/api/sisreg/devolucoes/:id/adiar'), true);
+  assert.equal(sisregBack.includes('/api/sisreg/devolucoes/limpar-anexos'), true);
+  assert.equal(sisregBack.includes('COLS_DEVOLUCAO_LISTA'), true);
+  assert.equal(sisregBack.includes("(anexo_base64 IS NOT NULL) AS tem_anexo"), true);
+  assert.equal(sisregBack.includes("CASE WHEN COALESCE($2, status) = 'corrigida' THEN NULL ELSE"), true);
+  assert.equal(sisregFront.includes('abrirVisualizadorDevolucao'), true);
+  assert.equal(sisregFront.includes('abrirBuscaSisregParaDevolucao'), true);
+  assert.equal(sisregFront.includes('adiarPrazoDevolucaoSisreg'), true);
+  assert.equal(sisregFront.includes('limparAnexosVencidosSisreg'), true);
 });
