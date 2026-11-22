@@ -229,3 +229,13 @@ test('Static security audit verifies secrets and insecure patterns are removed',
   assert.equal(dispJs.includes('req.query.senha'), false);
   assert.equal(histJs.includes('req.query.senha'), false);
 });
+
+test('Forms do not leak internal 1a/2a Escuta comments', () => {
+  const root = path.join(__dirname, '..');
+  const formsJs = fs.readFileSync(path.join(root, 'public', 'formularios-pec.js'), 'utf8');
+
+  assert.equal(formsJs.includes('motivo_primeira_escuta'), false);
+  assert.equal(formsJs.includes('observacao_segunda_escuta'), false);
+  assert.equal(formsJs.includes('1ª Escuta:'), false);
+  assert.equal(formsJs.includes('2ª Escuta:'), false);
+});

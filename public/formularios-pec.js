@@ -136,18 +136,11 @@ function montarPrescricaoTextoFonte(fonte) {
   return linhas.join('\n');
 }
 
-function montarJustificativaClinica(paciente, extraJustificativa) {
-  const partes = [];
-  if (extraJustificativa && String(extraJustificativa).trim()) {
-    partes.push(String(extraJustificativa).trim());
-  }
-  if (paciente) {
-    const m1 = String(paciente.motivo_primeira_escuta || '').trim();
-    const m2 = String(paciente.observacao_segunda_escuta || '').trim();
-    if (m1) partes.push(`1ª Escuta: ${m1}`);
-    if (m2) partes.push(`2ª Escuta: ${m2}`);
-  }
-  return partes.join('\n');
+function montarJustificativaClinica(_paciente, extraJustificativa) {
+  // Comentários internos do Acolhimento (1ª e 2ª Escuta / queixa) NUNCA devem sair em formulários ou receituários.
+  return extraJustificativa && String(extraJustificativa).trim()
+    ? String(extraJustificativa).trim()
+    : '';
 }
 
 function montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexoAtivo, tipoForm }) {
