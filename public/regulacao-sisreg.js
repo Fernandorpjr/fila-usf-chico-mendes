@@ -14,11 +14,12 @@
   let _sisregDevFiltro = 'abertas';
   let _sisregDevSetorFiltro = 'todos';
   let _sisregDevBusca = '';
-  const _devProfModalState = { setor: 'Médico', status: 'abertas', busca: '' };
+  const _devProfModalState = { setor: 'Médico', status: 'pendente', busca: '' };
   let _devNovoAnexo = { base64: null, tipo: null, nome: '', bytes: 0 };
   const _cacheAnexosDev = {};
   let _devVisualizadorState = { id: null, zoom: 1, rot: 0, panX: 0, panY: 0, pdfBlobUrl: null };
   let _devolucaoAlvoBuscaId = null;
+  let _salvandoSolucaoDevId = null;
   let _copilotoPdfBlobUrl = null;
   let _medPdfBlobUrl = null;
 
@@ -3014,12 +3015,24 @@
     _devVisualizadorState.id = null;
     revogarDevViewerPdfUrl();
     _devProfModalState.setor = SETOR_DEV_META[setor] ? setor : 'todos';
-    if (!_devProfModalState.status) _devProfModalState.status = 'abertas';
+    _devProfModalState.status = 'pendente';
     const modal = document.getElementById('modal-devolucoes-profissional');
     if (!modal) return;
     renderModalDevolucoesProfissional();
     modal.classList.add('show');
     carregarDevolucoesSisreg();
+  }
+
+  function toggleComplementoDevProf(id, isViewer = false) {
+    const boxId = isViewer ? `dev-viewer-edit-wrap-${id}` : `dev-prof-edit-wrap-${id}`;
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    const aberto = box.style.display !== 'none';
+    box.style.display = aberto ? 'none' : 'block';
+    if (!aberto) {
+      const taId = isViewer ? `dev-viewer-sol-${id}` : `dev-prof-sol-${id}`;
+      document.getElementById(taId)?.focus();
+    }
   }
 
   function fecharModalDevolucoesProfissional() {
@@ -3259,14 +3272,36 @@
                 <div class="sisreg-box">
                   <div class="sisreg-box-head" style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
                     <span>💬 Resposta / Solução Correta</span>
-                    ${!isAcs ? `<button type="button" class="btn btn-primary btn-sm" style="background:#0f2c73;border-color:#0f2c73;" onclick="abrirBuscaSisregParaDevolucao(${itemViewer.id}, '${setorItem}', '${procTermoAttr}')">🔎 Buscar Código SISREG</button>` : ''}
+                    ${!isAcs && (itemViewer.status || 'pendente') !== 'corrigida' ? `<button type="button" class="btn btn-primary btn-sm" style="background:#0f2c73;border-color:#0f2c73;" onclick="abrirBuscaSisregParaDevolucao(${itemViewer.id}, '${setorItem}', '${procTermoAttr}')">🔎 Buscar Código SISREG</button>` : ''}
                   </div>
-                  <input type="text" id="dev-prof-autor-nome" value="${escSisreg(autorPadrao)}" placeholder="Seu nome (Profissional / ACS) *" style="width:100%;padding:7px 10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;margin-bottom:6px;">
-                  <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">${atalhosViewer}</div>
-                  <textarea id="dev-viewer-sol-${itemViewer.id}" rows="4" placeholder="${isAcs ? 'Ex: Paciente mudou para Rua X, nº Y, Bairro Z...' : 'Ex: O procedimento correto no SISREG é..., CID..., justificativa...'}" style="width:100%;padding:8px 10px;border:1.5px solid #2563eb;border-radius:8px;font-size:13px;font-weight:700;">${escSisreg(itemViewer.solucao || '')}</textarea>
-                  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
-                    <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;padding:8px 14px;" onclick="salvarSolucaoModalProfissional(${itemViewer.id}, this, true)">💾 Enviar Solução para Regulação</button>
-                  </div>
+                  ${(itemViewer.status || 'pendente') === 'pendente'
+                    ? `
+                      <input type="text" id="dev-prof-autor-nome" value="${escSisreg(autorPadrao)}" placeholder="Seu nome (Profissional / ACS) *" style="width:100%;padding:7px 10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;margin-bottom:6px;">
+                      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">${atalhosViewer}</div>
+                      <textarea id="dev-viewer-sol-${itemViewer.id}" rows="4" placeholder="${isAcs ? 'Ex: Paciente mudou para Rua X, nº Y, Bairro Z...' : 'Ex: O procedimento correto no SISREG é..., CID..., justificativa...'}" style="width:100%;padding:8px 10px;border:1.5px solid #2563eb;border-radius:8px;font-size:13px;font-weight:700;">${escSisreg(itemViewer.solucao || '')}</textarea>
+                      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+                        <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;padding:8px 14px;" onclick="salvarSolucaoModalProfissional(${itemViewer.id}, this, true)">💾 Enviar Solução para Regulação</button>
+                      </div>
+                    `
+                    : `
+                      <div style="font-size:12.5px;color:#065f46;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:9px 11px;">
+                        <div style="font-weight:900;margin-bottom:4px;">${itemViewer.status === 'corrigida' ? '✅ Devolução corrigida pela Regulação' : '✅ Resposta já enviada para a Regulação'}${itemViewer.solucao_autor ? ` (${escSisreg(itemViewer.solucao_autor)})` : ''}</div>
+                        <div>${escSisreg(itemViewer.solucao || 'Sem texto registrado.')}</div>
+                      </div>
+                      ${itemViewer.status === 'respondida' ? `
+                        <div style="margin-top:8px;">
+                          <button type="button" class="btn btn-outline btn-sm" onclick="toggleComplementoDevProf(${itemViewer.id}, true)">✏️ Complementar / Alterar Resposta</button>
+                          <div id="dev-viewer-edit-wrap-${itemViewer.id}" style="display:none;margin-top:8px;">
+                            <input type="text" id="dev-prof-autor-nome" value="${escSisreg(autorPadrao)}" placeholder="Seu nome (Profissional / ACS) *" style="width:100%;padding:7px 10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;margin-bottom:6px;">
+                            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">${atalhosViewer}</div>
+                            <textarea id="dev-viewer-sol-${itemViewer.id}" rows="3" style="width:100%;padding:8px 10px;border:1.5px solid #2563eb;border-radius:8px;font-size:13px;font-weight:700;">${escSisreg(itemViewer.solucao || '')}</textarea>
+                            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+                              <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${itemViewer.id}, this, true)">💾 Enviar Atualização</button>
+                            </div>
+                          </div>
+                        </div>
+                      ` : ''}
+                    `}
                 </div>
               </div>
             </div>
@@ -3391,23 +3426,44 @@
           </div>
           ${item.observacao ? `<div style="font-size:12px;color:#7c2d12;margin-top:5px;background:#fff7ed;padding:6px 8px;border-radius:6px;border:1px solid #fed7aa;"><b>Solicitação da Regulação:</b> ${escSisreg(item.observacao)}</div>` : ''}
           ${renderDetalhesResumoDevHtml(detObj)}
-          <div style="margin-top:8px;">
-            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px;">
-              <span style="font-size:11px;font-weight:800;color:#475569;">Atalhos de resposta:</span>
-              ${atalhosHtml}
-            </div>
-            <textarea id="dev-prof-sol-${item.id}" rows="2" placeholder="${placeholder}" style="width:100%;padding:7px 9px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;color:#0f172a;">${escSisreg(item.solucao || '')}</textarea>
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
-              <span style="font-size:11px;color:#64748b;font-weight:700;">Ao enviar, o comentário aparece na Regulação e gera alerta no canal 📋 Regulação do chat interno.</span>
-              <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${item.id}, this, false)">💾 Enviar Solução para Regulação</button>
-            </div>
-          </div>
+          ${(item.status || 'pendente') === 'pendente'
+            ? `
+              <div style="margin-top:8px;">
+                <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px;">
+                  <span style="font-size:11px;font-weight:800;color:#475569;">Atalhos de resposta:</span>
+                  ${atalhosHtml}
+                </div>
+                <textarea id="dev-prof-sol-${item.id}" rows="2" placeholder="${placeholder}" style="width:100%;padding:7px 9px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;color:#0f172a;">${escSisreg(item.solucao || '')}</textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
+                  <span style="font-size:11px;color:#64748b;font-weight:700;">Ao enviar, fecha automaticamente e notifica a Regulação uma única vez no chat.</span>
+                  <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${item.id}, this, false)">💾 Enviar Solução para Regulação</button>
+                </div>
+              </div>
+            `
+            : `
+              <div style="margin-top:8px;font-size:12px;color:#065f46;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:8px 10px;">
+                <div style="font-weight:900;margin-bottom:3px;">${item.status === 'corrigida' ? '✅ Devolução corrigida pela Regulação' : '✅ Resposta já enviada para a Regulação'}${item.solucao_autor ? ` (${escSisreg(item.solucao_autor)})` : ''}</div>
+                <div>${escSisreg(item.solucao || 'Sem texto registrado.')}</div>
+                ${item.status === 'respondida' ? `
+                  <div style="margin-top:6px;">
+                    <button type="button" class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="toggleComplementoDevProf(${item.id}, false)">✏️ Complementar resposta</button>
+                    <div id="dev-prof-edit-wrap-${item.id}" style="display:none;margin-top:6px;">
+                      <textarea id="dev-prof-sol-${item.id}" rows="2" placeholder="${placeholder}" style="width:100%;padding:7px 9px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;color:#0f172a;">${escSisreg(item.solucao || '')}</textarea>
+                      <div style="display:flex;justify-content:flex-end;margin-top:5px;">
+                        <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${item.id}, this, false)">💾 Enviar Atualização</button>
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            `}
         </div>
       `;
     }).join('');
   }
 
   async function salvarSolucaoModalProfissional(id, btn, fromViewer = false) {
+    if (_salvandoSolucaoDevId === id) return;
     const elId = fromViewer ? `dev-viewer-sol-${id}` : `dev-prof-sol-${id}`;
     const sol = document.getElementById(elId)?.value.trim()
       || document.getElementById(`dev-prof-sol-${id}`)?.value.trim()
@@ -3418,7 +3474,13 @@
     }
     const autorInp = document.getElementById('dev-prof-autor-nome')?.value.trim() || '';
     const autor = autorInp || _devProfModalState.setor || 'Profissional';
-    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    _salvandoSolucaoDevId = id;
+    const textoOriginalBtn = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.textContent = '⏳ Enviando...';
+    }
     try {
       const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes/${id}`, {
         method: 'PUT',
@@ -3426,14 +3488,18 @@
         body: JSON.stringify({ solucao: sol, solucao_autor: autor, notificar_chat: true })
       });
       if (!res.ok) throw new Error();
-      if (typeof showToast === 'function') showToast('✅ Solução enviada e Regulação avisada no chat interno!');
-      _devVisualizadorState.id = null;
-      revogarDevViewerPdfUrl();
+      fecharModalDevolucoesProfissional();
+      if (typeof showToast === 'function') showToast('✅ Solução enviada para a Regulação!');
       await carregarDevolucoesSisreg();
     } catch (_) {
       if (typeof showToast === 'function') showToast('Erro ao enviar solução.', true);
+      if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.textContent = textoOriginalBtn;
+      }
     } finally {
-      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      _salvandoSolucaoDevId = null;
     }
   }
 
@@ -3839,6 +3905,7 @@
   window.onBuscaModalDevProfInput = onBuscaModalDevProfInput;
   window.aplicarAtalhoSolucaoDevProf = aplicarAtalhoSolucaoDevProf;
   window.exportarDevolucoesProfissionalPDF = exportarDevolucoesProfissionalPDF;
+  window.toggleComplementoDevProf = toggleComplementoDevProf;
   window.salvarSolucaoModalProfissional = salvarSolucaoModalProfissional;
   window.processarArquivosNovaDevolucao = processarArquivosNovaDevolucao;
   window.removerAnexoNovaDevolucao = removerAnexoNovaDevolucao;

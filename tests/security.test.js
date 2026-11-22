@@ -609,7 +609,7 @@ test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e P
   assert.equal(sisregFront.includes('id="dev-setor-destino"'), true);
   assert.equal(sisregFront.includes('id="dev-profissional"'), true);
   assert.equal(sisregFront.includes('Mudou de endereço'), true);
-  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=1.8'), true);
+  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=1.9'), true);
   assert.equal(indexHtml.includes('.sisreg-med-modal-backdrop { z-index: 10080; }'), true);
 
   // Conferência de anexo (lazy-load), apagamento imediato ao corrigir, prazo 3d (+3d adiar) e atalho de busca
@@ -619,8 +619,14 @@ test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e P
   assert.equal(sisregBack.includes('COLS_DEVOLUCAO_LISTA'), true);
   assert.equal(sisregBack.includes("(anexo_base64 IS NOT NULL) AS tem_anexo"), true);
   assert.equal(sisregBack.includes("CASE WHEN COALESCE($2, status) = 'corrigida' THEN NULL ELSE"), true);
+  assert.equal(sisregBack.includes('jaRespondidaMesmaSolucao'), true);
   assert.equal(sisregFront.includes('abrirVisualizadorDevolucao'), true);
   assert.equal(sisregFront.includes('abrirBuscaSisregParaDevolucao'), true);
   assert.equal(sisregFront.includes('adiarPrazoDevolucaoSisreg'), true);
   assert.equal(sisregFront.includes('limparAnexosVencidosSisreg'), true);
+  assert.equal(sisregFront.includes('_salvandoSolucaoDevId'), true);
+  const idxSalvarSol = sisregFront.indexOf('async function salvarSolucaoModalProfissional');
+  assert.ok(idxSalvarSol > 0);
+  const salvarSlice = sisregFront.slice(idxSalvarSol, idxSalvarSol + 2000);
+  assert.equal(salvarSlice.includes('fecharModalDevolucoesProfissional()'), true);
 });
