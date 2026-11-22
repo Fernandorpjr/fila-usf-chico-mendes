@@ -261,9 +261,12 @@
     }
     set0('dist', 'IV');
     set0('unid', d.unidade||'US 177 USF CHICO MENDES');
-    set0('e_nome', saved.e_nome||d.profissional||'');
-    set0('e_nome2', saved.e_nome2||'');
-    set0('e_crm', saved.e_crm||'');
+    var profNorm = String(d.profissional || '').trim().toLowerCase();
+    var savedNomeNorm = String(saved.e_nome || '').trim().toLowerCase();
+    var mesmoEmitente = !profNorm || !savedNomeNorm || profNorm === savedNomeNorm;
+    set0('e_nome', d.profissional || saved.e_nome || '');
+    set0('e_nome2', mesmoEmitente ? (saved.e_nome2 || '') : '');
+    set0('e_crm', mesmoEmitente ? (saved.e_crm || '') : '');
     set0('e_uf', saved.e_uf||'PE');
     set0('e_n', saved.e_n||'');
     set0('e_end', saved.e_end||'');

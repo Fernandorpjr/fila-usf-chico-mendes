@@ -1344,7 +1344,7 @@
             setInputByLabel('Telefone', d.paciente_telefone || '', 0);
 
             setInputByLabel('Data da coleta*', d.data_br || dataHojeBR(), 0);
-            setInputByLabel('Responsável*', saved.resp_cito || saved.ass || d.profissional || '', 0);
+            setInputByLabel('Responsável*', d.profissional || saved.resp_cito || saved.ass || '', 0);
         }
 
         function updateLogo(index, input) {

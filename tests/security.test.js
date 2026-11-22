@@ -239,3 +239,78 @@ test('Forms do not leak internal 1a/2a Escuta comments', () => {
   assert.equal(formsJs.includes('1ª Escuta:'), false);
   assert.equal(formsJs.includes('2ª Escuta:'), false);
 });
+
+test('2a Escuta resolves profissional_destino cleanly and HTML forms prioritize directed profissional over localStorage', () => {
+  const vm = require('node:vm');
+  const root = path.join(__dirname, '..');
+  const formsJs = fs.readFileSync(path.join(root, 'public', 'formularios-pec.js'), 'utf8');
+
+  const sandbox = {
+    window: { location: { origin: 'http://localhost:3000' }, addEventListener: () => {} },
+    document: { getElementById: () => null },
+    SECTOR_CONFIG: {
+      'Médico': { key: 'medico', profissionais: ['Dr. Israel Christian', 'Dr. Joene Halan', 'Dra. Mirela Mota'] },
+      'Acolhimento': { key: 'acolhimento' }
+    },
+    sectorFilters: {},
+    queues: {},
+    acolhimentoFluxo: { recepcao: [], primeira_escuta: [], segunda_escuta: [] },
+    attendedPatients: [],
+    console
+  };
+  vm.runInNewContext(formsJs, sandbox);
+
+  // 1. 2ª Escuta com profissional_destino='Dra. Mirela Mota' e profissional=null/medico=null
+  assert.equal(
+    sandbox.obterProfissionalSelecionadoSetor('Acolhimento', {
+      id: 10,
+      setor: 'Acolhimento',
+      etapa_fluxo: 'segunda_escuta',
+      profissional_destino: 'Dra. Mirela Mota',
+      profissional: null,
+      medico: null
+    }),
+    'Dra. Mirela Mota'
+  );
+
+  // 2. 2ª Escuta com medico='2ª Escuta' e profissional_destino='Dra. Mirela Mota'
+  assert.equal(
+    sandbox.obterProfissionalSelecionadoSetor('Acolhimento', {
+      id: 11,
+      setor: 'Acolhimento',
+      etapa_fluxo: 'segunda_escuta',
+      medico: '2ª Escuta',
+      profissional_destino: 'Dra. Mirela Mota'
+    }),
+    'Dra. Mirela Mota'
+  );
+
+  // 3. limparNomeProfissional strips prefixes/parentheses and rejects generic placeholders
+  assert.equal(sandbox.limparNomeProfissional('2ª Escuta (Dra. Mirela Mota)'), 'Dra. Mirela Mota');
+  assert.equal(sandbox.limparNomeProfissional('2ª Escuta - Dra. Mirela Mota'), 'Dra. Mirela Mota');
+  assert.equal(sandbox.limparNomeProfissional('Se dirija à 2ª Escuta'), '');
+
+  // 4. Paciente na 2ª Escuta sem profissional direcionado NÃO inventa Dr. Israel Christian
+  assert.equal(
+    sandbox.obterProfissionalSelecionadoSetor('Médico', {
+      id: 12,
+      setor: 'Acolhimento',
+      etapa_fluxo: 'segunda_escuta',
+      profissional_destino: null,
+      profissional: null,
+      medico: null
+    }),
+    ''
+  );
+
+  // 5. Os 4 formulários HTML priorizam d.profissional antes de saved.*
+  const recHtml = fs.readFileSync(path.join(root, 'public', 'formularios', 'receituario.html'), 'utf8');
+  const espHtml = fs.readFileSync(path.join(root, 'public', 'formularios', 'receituario-controle-especial.html'), 'utf8');
+  const labHtml = fs.readFileSync(path.join(root, 'public', 'formularios', 'receituario-exames-laboratoriais.html'), 'utf8');
+  const citoHtml = fs.readFileSync(path.join(root, 'public', 'formularios', 'requisicao-exame-citopatologico.html'), 'utf8');
+
+  assert.equal(recHtml.includes("set0('ass', d.profissional||saved.ass||'');"), true);
+  assert.equal(espHtml.includes("set0('e_nome', d.profissional || saved.e_nome || '');"), true);
+  assert.equal(labHtml.includes("setK('k42', d.profissional||saved.solicitante_lab||saved.ass||'');"), true);
+  assert.equal(citoHtml.includes("setInputByLabel('Responsável*', d.profissional || saved.resp_cito || saved.ass || '', 0);"), true);
+});

@@ -488,7 +488,7 @@
     setK('n3', dn[2]);
     setK('sus', d.paciente_cns||'');
     setK('fone', d.paciente_telefone||'');
-    setK('k42', saved.solicitante_lab||saved.ass||d.profissional||'');
+    setK('k42', d.profissional||saved.solicitante_lab||saved.ass||'');
 
     var sx=String(d.paciente_sexo||'').trim().toUpperCase();
     if(sx==='M' || sx==='F'){

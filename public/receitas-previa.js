@@ -881,11 +881,42 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
   _previaModalAnexos = [];
   _previaModalFotoIdx = 0;
   resetPreviaImgView();
-  window._previaModalDadosAtuais = { patientId, nomePaciente, setor, previa: null, anexos: [], activeIdx: 0 };
+  const paciente = typeof buscarPacienteNaMemoria === 'function'
+    ? buscarPacienteNaMemoria(patientId, setor)
+    : null;
+  const profDirecionado = typeof obterProfissionalSelecionadoSetor === 'function'
+    ? obterProfissionalSelecionadoSetor(setor, paciente)
+    : String(paciente?.profissional_destino || paciente?.profissional || paciente?.medico || '').trim();
+  const setorExibicao = (paciente?.etapa_fluxo === 'segunda_escuta' || (setor === 'Acolhimento' && profDirecionado))
+    ? `${setor} (2ª Escuta)`
+    : setor;
+
+  window._previaModalDadosAtuais = {
+    patientId,
+    nomePaciente,
+    setor,
+    paciente,
+    profissionalDirecionado: profDirecionado || '',
+    previa: null,
+    anexos: [],
+    activeIdx: 0
+  };
   inicializarPanZoomPreviaModal();
 
+  const profRow = document.getElementById('vp-prof-direcionado-row');
+  const profValEl = document.getElementById('vp-prof-direcionado');
+  if (profRow && profValEl) {
+    if (profDirecionado) {
+      profValEl.textContent = profDirecionado;
+      profRow.style.display = 'block';
+    } else {
+      profValEl.textContent = '—';
+      profRow.style.display = 'none';
+    }
+  }
+
   document.getElementById('vp-titulo').textContent = `📄 Prévia de Documentos — ${nomePaciente}`;
-  document.getElementById('vp-subtitulo').textContent = `Setor: ${setor} · Carregando dados...`;
+  document.getElementById('vp-subtitulo').textContent = `Setor: ${setorExibicao}${profDirecionado ? ` · 👨‍⚕️ ${profDirecionado}` : ''} · Carregando dados...`;
   document.getElementById('vp-img').src = '';
   document.getElementById('vp-img').style.display = 'none';
   document.getElementById('vp-sem-img').style.display = 'flex';
@@ -929,13 +960,16 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
       patientId,
       nomePaciente,
       setor,
+      paciente,
+      profissionalDirecionado: profDirecionado || '',
       previa: pr,
       anexos: _previaModalAnexos,
       activeIdx: 0
     };
 
     const totalTxt = _previaModalAnexos.length > 1 ? ` · 📎 ${_previaModalAnexos.length} arquivos` : '';
-    document.getElementById('vp-subtitulo').textContent = `Setor: ${setor}${totalTxt}${pr.status_revisao === 'revisada' ? ' · ✅ Marcada como pronta' : ' · ⏳ Aguardando revisão'}`;
+    const profTxt = profDirecionado ? ` · 👨‍⚕️ ${profDirecionado}` : '';
+    document.getElementById('vp-subtitulo').textContent = `Setor: ${setorExibicao}${profTxt}${totalTxt}${pr.status_revisao === 'revisada' ? ' · ✅ Marcada como pronta' : ' · ⏳ Aguardando revisão'}`;
     document.getElementById('vp-nome-pac').textContent = pr.paciente_nome_ocr || nomePaciente;
     document.getElementById('vp-cns').textContent = pr.paciente_cns || 'Não identificado';
     document.getElementById('vp-tipo').textContent = pr.tipo_receita === 'sisreg'

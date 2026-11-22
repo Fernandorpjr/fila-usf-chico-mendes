@@ -6,31 +6,31 @@ const SETORES_CLINICOS_FILA = ['Médico', 'Enfermagem', 'Odontologia'];
 
 const FORMULARIOS_PEC_REG = {
   'receituario': {
-    url: '/formularios/receituario.html',
+    url: '/formularios/receituario.html?v=1.1',
     titulo: '📄 Receituário (2 vias espelhadas)',
     shortLabel: '📄 Receituário',
     icon: '📄'
   },
   'controle-especial': {
-    url: '/formularios/receituario-controle-especial.html',
+    url: '/formularios/receituario-controle-especial.html?v=1.1',
     titulo: '🔵 Receituário de Controle Especial (2 vias espelhadas)',
     shortLabel: '🔵 Controle Especial',
     icon: '🔵'
   },
   'exames-laboratoriais': {
-    url: '/formularios/receituario-exames-laboratoriais.html',
+    url: '/formularios/receituario-exames-laboratoriais.html?v=1.1',
     titulo: '🧪 Receituário para Exames Laboratoriais',
     shortLabel: '🧪 Exames Lab.',
     icon: '🧪'
   },
   'ficha-ambulatorial': {
-    url: '/formularios/ficha-solicitacao-ambulatorial.html',
+    url: '/formularios/ficha-solicitacao-ambulatorial.html?v=1.1',
     titulo: '📋 Ficha de Solicitação Ambulatorial',
     shortLabel: '📋 Ficha Ambulatorial',
     icon: '📋'
   },
   'citopatologico': {
-    url: '/formularios/requisicao-exame-citopatologico.html',
+    url: '/formularios/requisicao-exame-citopatologico.html?v=1.1',
     titulo: '🔬 Requisição de Exame Citopatológico',
     shortLabel: '🔬 Citopatológico',
     icon: '🔬'
@@ -96,20 +96,55 @@ function obterDataHojeRecife() {
   }
 }
 
+function limparNomeProfissional(raw) {
+  let s = String(raw || '').trim();
+  if (!s) return '';
+  s = s.replace(/^2[ªa]\s*Escuta\s*[-–:]\s*/i, '').trim();
+  const parenMatch = s.match(/^2[ªa]\s*Escuta\s*\(([^)]+)\)$/i);
+  if (parenMatch) {
+    s = parenMatch[1].trim();
+  }
+  const norm = s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const INVALIDOS = [
+    '', '2a escuta', '1a escuta', 'acolhimento', 'se dirija a 2a escuta',
+    'nao especificado', 'sem designacao', 'a definir', 'outro'
+  ];
+  if (INVALIDOS.includes(norm)) return '';
+  return s;
+}
+
 function obterProfissionalSelecionadoSetor(setor, paciente) {
-  if (paciente?.medico && String(paciente.medico).trim()) {
-    return String(paciente.medico).trim();
+  if (paciente && typeof paciente === 'object') {
+    const isEscuta2OuAcolh = paciente.etapa_fluxo === 'segunda_escuta' ||
+      paciente.setor === 'Acolhimento' ||
+      setor === 'Acolhimento';
+    const candidatos = isEscuta2OuAcolh
+      ? [paciente.profissional_destino, paciente.profissional, paciente.medico]
+      : [paciente.profissional, paciente.medico, paciente.profissional_destino];
+    for (const c of candidatos) {
+      const limpo = limparNomeProfissional(c);
+      if (limpo) return limpo;
+    }
+    if (typeof SECTOR_CONFIG !== 'undefined' && SECTOR_CONFIG[setor]) {
+      const key = SECTOR_CONFIG[setor].key;
+      const sel = document.getElementById(`profissional-${key}`);
+      const selLimpo = sel ? limparNomeProfissional(sel.value) : '';
+      if (selLimpo) return selLimpo;
+      const filtLimpo = typeof sectorFilters !== 'undefined' ? limparNomeProfissional(sectorFilters[key]) : '';
+      if (filtLimpo) return filtLimpo;
+    }
+    return '';
   }
-  if (paciente?.profissional && String(paciente.profissional).trim()) {
-    return String(paciente.profissional).trim();
-  }
+
   if (typeof SECTOR_CONFIG !== 'undefined' && SECTOR_CONFIG[setor]) {
     const key = SECTOR_CONFIG[setor].key;
     const sel = document.getElementById(`profissional-${key}`);
-    if (sel && sel.value) return sel.value;
-    if (typeof sectorFilters !== 'undefined' && sectorFilters[key]) return sectorFilters[key];
+    const selLimpo = sel ? limparNomeProfissional(sel.value) : '';
+    if (selLimpo) return selLimpo;
+    const filtLimpo = typeof sectorFilters !== 'undefined' ? limparNomeProfissional(sectorFilters[key]) : '';
+    if (filtLimpo) return filtLimpo;
     if (Array.isArray(SECTOR_CONFIG[setor].profissionais) && SECTOR_CONFIG[setor].profissionais[0]) {
-      return SECTOR_CONFIG[setor].profissionais[0];
+      return limparNomeProfissional(SECTOR_CONFIG[setor].profissionais[0]);
     }
   }
   return '';
@@ -193,6 +228,20 @@ function montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexo
 
 function buscarPacienteNaMemoria(patientId, setor) {
   const pid = Number(patientId);
+  const buscarEmAcolhimento = () => {
+    if (typeof acolhimentoFluxo !== 'undefined' && acolhimentoFluxo) {
+      for (const et of ['segunda_escuta', 'primeira_escuta', 'recepcao']) {
+        const found = (acolhimentoFluxo[et] || []).find(p => Number(p.id) === pid);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  if (setor === 'Acolhimento' || String(setor || '').startsWith('Acolhimento')) {
+    const foundAcol = buscarEmAcolhimento();
+    if (foundAcol) return foundAcol;
+  }
   if (typeof queues !== 'undefined' && queues && Array.isArray(queues[setor])) {
     const found = queues[setor].find(p => Number(p.id) === pid);
     if (found) return found;
@@ -203,12 +252,8 @@ function buscarPacienteNaMemoria(patientId, setor) {
       if (found) return found;
     }
   }
-  if (typeof acolhimentoFluxo !== 'undefined' && acolhimentoFluxo) {
-    for (const et of ['recepcao', 'primeira_escuta', 'segunda_escuta']) {
-      const found = (acolhimentoFluxo[et] || []).find(p => Number(p.id) === pid);
-      if (found) return found;
-    }
-  }
+  const foundAcol = buscarEmAcolhimento();
+  if (foundAcol) return foundAcol;
   if (typeof attendedPatients !== 'undefined' && Array.isArray(attendedPatients)) {
     const found = attendedPatients.find(p => Number(p.id) === pid);
     if (found) return found;
@@ -354,9 +399,10 @@ function abrirFormularioOficial(tipoForm, contexto = {}) {
     try { return iframe.contentWindow?.location?.pathname || ''; } catch (_) { return ''; }
   })();
 
-  if (currentPath === targetUrl) {
+  if (iframe.dataset.formUrl === targetUrl && currentPath === targetUrl.split('?')[0]) {
     enviarPayloadAoIframe();
   } else {
+    iframe.dataset.formUrl = targetUrl;
     iframe.onload = () => enviarPayloadAoIframe();
     iframe.src = targetUrl;
   }
@@ -365,9 +411,15 @@ function abrirFormularioOficial(tipoForm, contexto = {}) {
 function abrirFormularioDaPrevia(tipoForm) {
   const ctx = window._previaModalDadosAtuais || {};
   const setor = ctx.setor || 'Médico';
-  const paciente = ctx.patientId ? buscarPacienteNaMemoria(ctx.patientId, setor) : null;
-  const previa = ctx.previa || paciente?.previa_receita || null;
-  const pacienteFinal = paciente || (ctx.nomePaciente ? { id: ctx.patientId, nome: ctx.nomePaciente } : null);
+  const pacMemoria = ctx.patientId ? buscarPacienteNaMemoria(ctx.patientId, setor) : null;
+  const pacCtx = (ctx.paciente && typeof ctx.paciente === 'object') ? ctx.paciente : null;
+  const previa = ctx.previa || pacMemoria?.previa_receita || pacCtx?.previa_receita || null;
+  let pacienteFinal = (pacMemoria || pacCtx)
+    ? { ...(pacCtx || {}), ...(pacMemoria || {}) }
+    : (ctx.nomePaciente ? { id: ctx.patientId, nome: ctx.nomePaciente } : null);
+  if (pacienteFinal && ctx.profissionalDirecionado && !limparNomeProfissional(pacienteFinal.profissional_destino) && !limparNomeProfissional(pacienteFinal.profissional)) {
+    pacienteFinal.profissional_destino = ctx.profissionalDirecionado;
+  }
   const anexos = Array.isArray(ctx.anexos) && ctx.anexos.length > 0 ? ctx.anexos : (previa?.anexos || []);
   const refIdx = Number.isInteger(ctx.activeIdx) ? ctx.activeIdx : 0;
 
@@ -627,6 +679,7 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
           tipo_solicitacao: isExame ? 'exame' : 'consulta',
           especialidade: isExame ? '' : procTexto,
           exame_descricao: isExame ? procTexto : '',
+          profissional: obterProfissionalSelecionadoSetor(setor, _foEstadoAtual.paciente),
           cid10: d.cid10 || '',
           hipotese_diagnostica: d.hipotese_diagnostica || '',
           justificativa: d.observacoes_revisada || d.observacoes_original || '',
@@ -645,7 +698,14 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
     }
   }
 
-  const basePac = modalAbertoQualquer ? _foEstadoAtual.paciente : null;
+  const normNomeCmp = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const pacModalPrevia = (!modalAbertoQualquer && window._previaModalDadosAtuais?.paciente)
+    ? window._previaModalDadosAtuais.paciente
+    : null;
+  const pacCompPrevia = pacModalPrevia && (!d.paciente_nome || normNomeCmp(pacModalPrevia.nome) === normNomeCmp(d.paciente_nome))
+    ? pacModalPrevia
+    : null;
+  const basePac = modalAbertoQualquer ? _foEstadoAtual.paciente : pacCompPrevia;
   const basePrev = modalAbertoQualquer ? _foEstadoAtual.previa : null;
   const baseExt = (basePrev?.dados_extras && typeof basePrev.dados_extras === 'object') ? basePrev.dados_extras : {};
   const baseAnexos = modalAbertoQualquer && Array.isArray(_foEstadoAtual.anexos) ? _foEstadoAtual.anexos : [];
