@@ -17,6 +17,22 @@ window.fetch = function(resource, config) {
   if (isApiCall) {
     nextConfig = config ? { ...config } : {};
     if (!nextConfig.credentials) nextConfig.credentials = 'same-origin';
+    let devId = '';
+    try {
+      devId = (typeof _dispositivoAtualId === 'string' && _dispositivoAtualId) || localStorage.getItem('usf_device_id') || '';
+    } catch (e) {}
+    if (devId) {
+      if (nextConfig.headers instanceof Headers) {
+        const cloned = new Headers(nextConfig.headers);
+        if (!cloned.has('x-device-id')) cloned.set('x-device-id', devId);
+        nextConfig.headers = cloned;
+      } else {
+        const hdrObj = (nextConfig.headers && typeof nextConfig.headers === 'object') ? { ...nextConfig.headers } : {};
+        const hasKey = Object.keys(hdrObj).some(k => k.toLowerCase() === 'x-device-id');
+        if (!hasKey) hdrObj['x-device-id'] = devId;
+        nextConfig.headers = hdrObj;
+      }
+    }
     if (!nextConfig.method || nextConfig.method.toUpperCase() === 'GET') {
       const separator = resource.includes('?') ? '&' : '?';
       resource += `${separator}_t=${Date.now()}`;
@@ -36,6 +52,12 @@ window.fetch = function(resource, config) {
         !resource.includes('/config/jingle')
       ) {
         handleSessaoExpirada();
+      } else if (res.status === 423 && !isModoTV()) {
+        res.clone().json().catch(() => ({})).then(body => {
+          if (typeof window.mostrarAlertaDispositivoBloqueado === 'function') {
+            window.mostrarAlertaDispositivoBloqueado(body || {});
+          }
+        });
       }
       return res;
     });
@@ -3820,7 +3842,7 @@ function resolverSetorChatCompativel(setorDisp) {
 function obterIdentificacaoRemetenteChat() {
   const sel = document.getElementById('chat-remetente');
   const inpNome = document.getElementById('chat-remetente-nome');
-  const setor = (sel && sel.value) || _chatDeviceSetorOficial || 'Recepção';
+  const setor = _chatDeviceSetorOficial || (sel && sel.value) || 'Recepção';
   const nome = _chatDeviceNomeOficial || (inpNome ? inpNome.value.trim() : '');
   if (!nome) return { setor, nome: '', autor: setor };
   const nNorm = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -3835,6 +3857,10 @@ window.sincronizarIdentidadeDispositivoNoChat = function(nomeDisp, setorDisp) {
   const inpNome = document.getElementById('chat-remetente-nome');
   const selSetor = document.getElementById('chat-remetente');
   const statusEl = document.getElementById('chat-device-id-status');
+  const cardEl = document.getElementById('chat-device-id-card');
+  const cardNomeEl = document.getElementById('chat-device-id-nome');
+  const cardSetorEl = document.getElementById('chat-device-id-setor');
+  const manualFieldsEl = document.getElementById('chat-manual-id-fields');
 
   if (ehValido) {
     _chatDeviceNomeOficial = limpo;
@@ -3850,16 +3876,36 @@ window.sincronizarIdentidadeDispositivoNoChat = function(nomeDisp, setorDisp) {
       const existe = Array.from(selSetor.options).some(o => o.value === _chatDeviceSetorOficial);
       if (existe) {
         selSetor.value = _chatDeviceSetorOficial;
-        localStorage.setItem('chatSetor', _chatDeviceSetorOficial);
       }
+      try { localStorage.setItem('chatSetor', _chatDeviceSetorOficial); } catch (e) {}
     }
-    if (statusEl) {
-      statusEl.innerHTML = `💻 Identificado pelo Dispositivo: <strong>${escapeText(limpo)}</strong>`;
+
+    if (_chatDeviceSetorOficial) {
+      // Dispositivo completo (Nome + Setor): ocultar campos manuais e mostrar cartão oficial
+      if (manualFieldsEl) manualFieldsEl.style.display = 'none';
+      if (inpNome) inpNome.style.display = '';
+      if (cardEl) cardEl.style.display = '';
+      if (cardNomeEl) cardNomeEl.textContent = `💻 ${limpo}`;
+      if (cardSetorEl) cardSetorEl.textContent = _chatDeviceSetorOficial;
+      if (statusEl) statusEl.textContent = '';
+    } else {
+      // Dispositivo com Nome mas ainda sem Setor: mostra cartão com nome e mantém seletor como contingência
+      if (cardEl) cardEl.style.display = '';
+      if (cardNomeEl) cardNomeEl.textContent = `💻 ${limpo}`;
+      if (cardSetorEl) cardSetorEl.textContent = 'Setor não definido';
+      if (manualFieldsEl) manualFieldsEl.style.display = 'flex';
+      if (inpNome) inpNome.style.display = 'none';
+      if (statusEl) {
+        statusEl.textContent = '⚠️ Defina o setor deste aparelho em Dispositivos para ocultar o seletor';
+      }
     }
   } else {
     _chatDeviceNomeOficial = '';
     _chatDeviceSetorOficial = '';
+    if (cardEl) cardEl.style.display = 'none';
+    if (manualFieldsEl) manualFieldsEl.style.display = 'flex';
     if (inpNome) {
+      inpNome.style.display = '';
       if (inpNome.readOnly) {
         inpNome.value = localStorage.getItem('chatNome') || '';
       }
@@ -3869,7 +3915,7 @@ window.sincronizarIdentidadeDispositivoNoChat = function(nomeDisp, setorDisp) {
       inpNome.title = '';
     }
     if (statusEl) {
-      statusEl.textContent = '⚠️ Dispositivo sem nome (modo livre — sem bloqueio)';
+      statusEl.textContent = '⚠️ Dispositivo sem nome (modo livre)';
     }
   }
 
@@ -3919,7 +3965,7 @@ async function loadChatPresenca() {
 }
 
 function registerPresenca() {
-  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
+  const setor = obterIdentificacaoRemetenteChat().setor || 'Recepção';
   fetch(`${API_URL}/chat/presenca`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({setor}) }).catch(()=>{});
 }
 
@@ -3947,7 +3993,7 @@ function getLastMessagePreview(canalId) {
 function markCanalAsRead(canalId) {
   localStorage.setItem('chatLastRead_' + canalId, Date.now().toString());
   channelUnread[canalId] = 0;
-  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
+  const setor = obterIdentificacaoRemetenteChat().setor || 'Recepção';
   fetch(`${API_URL}/chat/read`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({canal:canalId,setor}) }).catch(()=>{});
 }
 
@@ -4107,7 +4153,7 @@ async function loadAllChannels() {
   await Promise.all(getVisibleCanais().map(c => loadChannelMessages(c.id)));
   renderChannelChat();
   // Load unread counts
-  const setor = document.getElementById('chat-remetente')?.value || 'Recepção';
+  const setor = obterIdentificacaoRemetenteChat().setor || 'Recepção';
   try { const r = await fetch(`${API_URL}/chat/unread/${encodeURIComponent(setor)}`); const d = await r.json(); Object.keys(d).forEach(k => { channelUnread[k] = d[k]; }); } catch(e){}
   renderCanalList();
   updateChatBadge();

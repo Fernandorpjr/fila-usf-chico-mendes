@@ -6,6 +6,19 @@ let _dispositivoAtualNome = 'Sem nome';
 let _dispositivoAtualSetor = '';
 let _timerHeartbeat = null;
 let _dispositivosAdminDados = [];
+let _bloquearSemNomeAtivo = false;
+let _ultimoResumoDispositivos = null;
+
+function _escDisp(str) {
+  if (typeof escHtml === 'function') return escHtml(str);
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
 
 // Helper para verificar se está no horário de expediente (06:00 às 20:00 Recife | Seg-Sex ou Mutirão)
 function isHorarioHeartbeatRecife() {
@@ -51,9 +64,10 @@ function iniciarIdentificacaoDispositivo() {
   });
 }
 
-async function executarHeartbeatDispositivo() {
-  // Executar apenas entre 06h e 18h no fuso de Recife
-  if (!isHorarioHeartbeatRecife()) return;
+async function executarHeartbeatDispositivo(forcarVerificacao = false) {
+  if (typeof isModoTV === 'function' && isModoTV()) return;
+  // Executar apenas entre 06h e 20h no fuso de Recife (exceto quando clicado para revalidar)
+  if (!forcarVerificacao && !isHorarioHeartbeatRecife()) return;
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -68,14 +82,33 @@ async function executarHeartbeatDispositivo() {
     });
 
     if (res.status === 423) {
-      // Dispositivo bloqueado pelo administrador
-      mostrarAlertaDispositivoBloqueado();
+      const errData = await res.json().catch(() => ({}));
+      if (errData.id) {
+        _dispositivoAtualId = errData.id;
+        try { localStorage.setItem('usf_device_id', errData.id); } catch (e) {}
+      }
+      if (typeof errData.bloquear_sem_nome === 'boolean') {
+        _bloquearSemNomeAtivo = errData.bloquear_sem_nome;
+      }
+      mostrarAlertaDispositivoBloqueado(errData);
+      if (forcarVerificacao) {
+        const msgEl = document.getElementById('bloqueio-status-msg');
+        if (msgEl) {
+          msgEl.textContent = errData.motivo === 'bloqueado'
+            ? '🚫 Este aparelho ainda consta como bloqueado pela coordenação.'
+            : '⏳ Ainda aguardando liberação pela coordenação. Assim que o Admin salvar um nome, clique novamente.';
+          msgEl.style.color = '#b91c1c';
+        }
+      }
       return;
     }
 
     if (!res.ok) return;
 
     const data = await res.json();
+    if (typeof data.bloquear_sem_nome === 'boolean') {
+      _bloquearSemNomeAtivo = data.bloquear_sem_nome;
+    }
     if (data.id) {
       _dispositivoAtualId = data.id;
       _dispositivoAtualNome = data.nome || 'Sem nome';
@@ -90,10 +123,18 @@ async function executarHeartbeatDispositivo() {
       }
 
       if (data.ativo === false) {
-        mostrarAlertaDispositivoBloqueado();
+        mostrarAlertaDispositivoBloqueado({ ...data, motivo: 'bloqueado', code: 'DEVICE_BLOCKED' });
       } else {
         const existingOverlay = document.getElementById('bloqueio-overlay');
-        if (existingOverlay) existingOverlay.remove();
+        if (existingOverlay) {
+          existingOverlay.remove();
+          if (typeof isGateAuthenticated !== 'undefined' && isGateAuthenticated && typeof iniciarCarregamentoAutenticado === 'function') {
+            iniciarCarregamentoAutenticado();
+          }
+          if (typeof showToast === 'function') {
+            showToast('✅ Dispositivo liberado com sucesso!');
+          }
+        }
       }
     }
   } catch (err) {
@@ -114,12 +155,23 @@ async function registrarAcessoDispositivo() {
       headers,
       credentials: 'include'
     });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 423) {
+      if (data.id) {
+        _dispositivoAtualId = data.id;
+        try { localStorage.setItem('usf_device_id', data.id); } catch (e) {}
+      }
+      mostrarAlertaDispositivoBloqueado(data);
+      return;
+    }
     if (res.ok) {
-      const data = await res.json();
       const idRet = data.id || data.deviceId;
       if (idRet) {
         _dispositivoAtualId = idRet;
         localStorage.setItem('usf_device_id', idRet);
+      }
+      if (typeof data.bloquear_sem_nome === 'boolean') {
+        _bloquearSemNomeAtivo = data.bloquear_sem_nome;
       }
       if (data.nome !== undefined) {
         _dispositivoAtualNome = data.nome || 'Sem nome';
@@ -131,25 +183,149 @@ async function registrarAcessoDispositivo() {
           window.sincronizarIdentidadeDispositivoNoChat(_dispositivoAtualNome, _dispositivoAtualSetor);
         }
       }
+      if (data.ativo === false || data.bloqueado_sem_nome === true) {
+        mostrarAlertaDispositivoBloqueado(data);
+      }
     }
   } catch (e) {}
 }
 
-function mostrarAlertaDispositivoBloqueado() {
-  if (document.getElementById('bloqueio-overlay')) return;
+function mostrarAlertaDispositivoBloqueado(info = {}) {
+  if (typeof isModoTV === 'function' && isModoTV()) return;
+
+  const isSemNome = info.motivo === 'sem_nome' || info.code === 'DEVICE_UNNAMED';
+  if (isSemNome && typeof isAdmin !== 'undefined' && isAdmin) {
+    const existingAdminOverlay = document.getElementById('bloqueio-overlay');
+    if (existingAdminOverlay) existingAdminOverlay.remove();
+    return;
+  }
+
+  if (info.id && !_dispositivoAtualId) {
+    _dispositivoAtualId = info.id;
+    try { localStorage.setItem('usf_device_id', info.id); } catch (e) {}
+  }
+
+  const deviceIdExibido = info.id || _dispositivoAtualId || '';
+  const codigoCurto = deviceIdExibido ? deviceIdExibido.slice(0, 8).toUpperCase() : 'PENDENTE';
+  const motivoChave = isSemNome ? 'sem_nome' : 'bloqueado';
+
+  const existing = document.getElementById('bloqueio-overlay');
+  if (existing) {
+    if (existing.dataset.motivo === motivoChave && existing.dataset.deviceId === deviceIdExibido) {
+      return;
+    }
+    existing.remove();
+  }
+
   const overlay = document.createElement('div');
   overlay.id = 'bloqueio-overlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(185,28,28,0.95);color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:sans-serif;';
-  overlay.innerHTML = `
-    <div style="max-width:480px;background:#fff;color:#1f2937;padding:30px;border-radius:16px;box-shadow:0 10px 25px rgba(0,0,0,0.3);">
-      <div style="font-size:48px;margin-bottom:12px;">🚫</div>
-      <h2 style="color:#b91c1c;margin:0 0 10px 0;">Dispositivo Bloqueado</h2>
-      <p style="font-size:14px;color:#4b5563;line-height:1.5;">Este aparelho foi desativado ou bloqueado no painel de administração da USF Chico Mendes.</p>
-      <p style="font-size:13px;color:#6b7280;margin-top:10px;">ID do dispositivo: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${_dispositivoAtualId || 'N/A'}</code></p>
-      <div style="margin-top:20px;font-size:12px;color:#9ca3af;">Procure a coordenação para solicitar o desbloqueio.</div>
-    </div>
-  `;
+  overlay.dataset.motivo = motivoChave;
+  overlay.dataset.deviceId = deviceIdExibido;
+  overlay.style.cssText = isSemNome
+    ? 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,44,115,0.96);color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:sans-serif;'
+    : 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(185,28,28,0.95);color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:sans-serif;';
+
+  if (isSemNome) {
+    overlay.innerHTML = `
+      <div style="max-width:480px;width:100%;background:#fff;color:#1f2937;padding:30px;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,0.35);">
+        <div style="font-size:48px;margin-bottom:10px;">🔒</div>
+        <h2 style="color:#0f2c73;margin:0 0 10px 0;">Dispositivo Não Cadastrado</h2>
+        <p style="font-size:14px;color:#4b5563;line-height:1.55;margin:0 0 14px 0;">
+          O modo de acesso restrito está ativo na USF Chico Mendes. Apenas aparelhos com nome cadastrado e autorizado pelo Administrador podem operar o sistema.
+        </p>
+        <div style="background:#eff6ff;border:1.5px dashed #93c5fd;border-radius:10px;padding:12px;margin-bottom:14px;">
+          <div style="font-size:11px;font-weight:800;color:#1d4ed8;text-transform:uppercase;">Código para informar à coordenação</div>
+          <div style="font-size:22px;font-weight:900;color:#0f2c73;font-family:monospace;letter-spacing:1.5px;margin-top:4px;">${_escDisp(codigoCurto)}</div>
+          ${deviceIdExibido ? `<div style="font-size:11px;color:#64748b;font-family:monospace;margin-top:4px;word-break:break-all;">${_escDisp(deviceIdExibido)}</div>` : ''}
+        </div>
+        <div id="bloqueio-status-msg" style="font-size:12.5px;color:#475569;min-height:18px;margin-bottom:14px;">
+          Peça à coordenação para clicar em <b>"✏️ Nome"</b> na aba <b>Dispositivos</b>.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button type="button" onclick="verificarLiberacaoDispositivoAgora()" style="width:100%;padding:11px 16px;border-radius:10px;border:none;background:#1a4fc4;color:#fff;font-size:14px;font-weight:800;cursor:pointer;">
+            🔄 Já fui liberado — Verificar agora
+          </button>
+          <button type="button" onclick="desbloqueioEmergencialAdmin()" style="width:100%;padding:9px 14px;border-radius:10px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:12.5px;font-weight:700;cursor:pointer;">
+            🔑 Acesso Emergencial (Administrador)
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    overlay.innerHTML = `
+      <div style="max-width:480px;width:100%;background:#fff;color:#1f2937;padding:30px;border-radius:16px;box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+        <div style="font-size:48px;margin-bottom:12px;">🚫</div>
+        <h2 style="color:#b91c1c;margin:0 0 10px 0;">Dispositivo Bloqueado</h2>
+        <p style="font-size:14px;color:#4b5563;line-height:1.5;">Este aparelho foi desativado ou bloqueado no painel de administração da USF Chico Mendes.</p>
+        <p style="font-size:13px;color:#6b7280;margin-top:10px;">ID do dispositivo: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${_escDisp(deviceIdExibido || 'N/A')}</code></p>
+        <div id="bloqueio-status-msg" style="margin-top:14px;font-size:12px;color:#9ca3af;">Procure a coordenação para solicitar o desbloqueio.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
+          <button type="button" onclick="verificarLiberacaoDispositivoAgora()" style="width:100%;padding:10px 14px;border-radius:10px;border:none;background:#1f2937;color:#fff;font-size:13px;font-weight:800;cursor:pointer;">
+            🔄 Verificar se já foi desbloqueado
+          </button>
+          <button type="button" onclick="desbloqueioEmergencialAdmin()" style="width:100%;padding:9px 14px;border-radius:10px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:12.5px;font-weight:700;cursor:pointer;">
+            🔑 Acesso Emergencial (Administrador)
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   document.body.appendChild(overlay);
+}
+
+window.mostrarAlertaDispositivoBloqueado = mostrarAlertaDispositivoBloqueado;
+
+async function verificarLiberacaoDispositivoAgora() {
+  const msgEl = document.getElementById('bloqueio-status-msg');
+  if (msgEl) {
+    msgEl.textContent = '⏳ Verificando liberação no servidor...';
+    msgEl.style.color = '#1d4ed8';
+  }
+  await executarHeartbeatDispositivo(true);
+}
+
+async function desbloqueioEmergencialAdmin() {
+  const senha = prompt('🔑 Digite a senha de Administrador para acesso emergencial:');
+  if (!senha) return;
+  const s = senha.trim();
+  if (!s) return;
+
+  try {
+    const res = await fetch(`${API_URL}/verify-admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ senha: s })
+    });
+    if (!res.ok) {
+      alert('❌ Senha de administrador incorreta!');
+      return;
+    }
+
+    if (typeof isAdmin !== 'undefined') isAdmin = true;
+    if (typeof adminPassword !== 'undefined') adminPassword = s;
+    try { sessionStorage.setItem('usf_admin_pwd', s); } catch (e) {}
+
+    if (typeof isGateAuthenticated !== 'undefined') isGateAuthenticated = true;
+    try {
+      sessionStorage.setItem('usf_gate_auth', 'true');
+      sessionStorage.setItem('usf_gate_time', Date.now().toString());
+    } catch (e) {}
+
+    const existingOverlay = document.getElementById('bloqueio-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    if (typeof hideGate === 'function') hideGate();
+    if (typeof updateAdminUI === 'function') updateAdminUI();
+    if (typeof iniciarCarregamentoAutenticado === 'function') iniciarCarregamentoAutenticado();
+    if (typeof showScreen === 'function') showScreen('dispositivos');
+    if (typeof showToast === 'function') {
+      showToast('🔓 Acesso emergencial Admin liberado! Nomeie ou desbloqueie este aparelho na aba Dispositivos.');
+    }
+  } catch (err) {
+    alert('🔴 Erro de conexão ao validar acesso administrativo.');
+  }
 }
 
 // ====== PAINEL ADMIN: DISPOSITIVOS CONECTADOS ======
@@ -194,9 +370,12 @@ async function carregarDispositivosAdmin() {
 
     const data = await res.json();
     _dispositivosAdminDados = data.dispositivos || [];
+    _bloquearSemNomeAtivo = Boolean(data.config && data.config.bloquear_sem_nome);
+    _ultimoResumoDispositivos = data.resumo || null;
 
-    // Renderizar resumo e avisos/alertas
-    renderizarResumoDispositivos(data.resumo, _dispositivosAdminDados);
+    // Renderizar resumo, chave de bloqueio global e alertas
+    renderizarResumoDispositivos(_ultimoResumoDispositivos, _dispositivosAdminDados);
+    renderizarControleBloqueioSemNome(_bloquearSemNomeAtivo, _ultimoResumoDispositivos);
     renderizarAlertasDispositivos(data.alertas);
 
     // Renderizar tabela de dispositivos
@@ -204,6 +383,123 @@ async function carregarDispositivosAdmin() {
   } catch (err) {
     console.error('Erro ao carregar dispositivos:', err);
     container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red);">Erro ao carregar lista de dispositivos.</div>';
+  }
+}
+
+function renderizarControleBloqueioSemNome(ativo, resumo) {
+  const container = document.getElementById('disp-bloqueio-sem-nome-card');
+  if (!container) return;
+
+  const comNome = Number((resumo && resumo.com_nome) || (_dispositivosAdminDados || []).filter(d => d.nome && d.nome !== 'Sem nome').length || 0);
+  const semNome = Number((resumo && resumo.sem_nome) || (_dispositivosAdminDados || []).filter(d => !d.nome || d.nome === 'Sem nome').length || 0);
+
+  if (ativo) {
+    container.innerHTML = `
+      <div class="card-white" style="padding:16px 18px;border:2px solid #dc2626;background:linear-gradient(135deg,#fff5f5,#fee2e2);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:250px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="background:#dc2626;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:999px;letter-spacing:0.4px;">🛡️ MODO RESTRITO ATIVO</span>
+            <span style="font-size:15px;font-weight:900;color:#7f1d1d;">Bloqueio de dispositivos não cadastrados LIGADO</span>
+          </div>
+          <div style="font-size:12.5px;color:#7f1d1d;line-height:1.45;">
+            Apenas dispositivos com nome cadastrado (<b>${comNome}</b>) podem acessar o sistema. Os <b>${semNome}</b> aparelho(s) sem nome e novos aparelhos ficam bloqueados até você clicar em <b>"✏️ Nome"</b>. <i>TV, QR Code de pacientes e Admin continuam isentos.</i>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm" onclick="alternarBloqueioDispositivosSemNome()" style="background:#ffffff;color:#991b1b;border:2px solid #dc2626;font-weight:900;padding:10px 16px;white-space:nowrap;">
+          🔓 Desligar Bloqueio (Voltar ao Modo Aberto)
+        </button>
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div class="card-white" style="padding:16px 18px;border:2px solid #93c5fd;background:linear-gradient(135deg,#f8fafc,#eff6ff);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:250px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="background:#16a34a;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:999px;letter-spacing:0.4px;">🔓 MODO ABERTO</span>
+            <span style="font-size:15px;font-weight:900;color:#1e3a8a;">Bloqueio de dispositivos não cadastrados DESLIGADO</span>
+          </div>
+          <div style="font-size:12.5px;color:#334155;line-height:1.45;">
+            No momento há <b>${comNome}</b> aparelho(s) com nome e <b>${semNome}</b> sem nome. Quando todos os PCs da USF já tiverem nome, clique ao lado para bloquear qualquer aparelho sem cadastro. <i>TV, QR Code de pacientes e Admin nunca são bloqueados.</i>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm" onclick="alternarBloqueioDispositivosSemNome()" style="background:#b91c1c;color:#fff;border:none;font-weight:900;padding:10px 16px;white-space:nowrap;box-shadow:0 3px 10px rgba(185,28,28,0.28);">
+          🔒 Bloquear Dispositivos Não Cadastrados
+        </button>
+      </div>
+    `;
+  }
+}
+
+async function alternarBloqueioDispositivosSemNome() {
+  const novoEstado = !_bloquearSemNomeAtivo;
+  const r = _ultimoResumoDispositivos || {
+    com_nome: (_dispositivosAdminDados || []).filter(d => d.nome && d.nome !== 'Sem nome').length,
+    sem_nome: (_dispositivosAdminDados || []).filter(d => !d.nome || d.nome === 'Sem nome').length
+  };
+  const comNome = Number(r.com_nome || 0);
+  const semNome = Number(r.sem_nome || 0);
+
+  if (novoEstado) {
+    const selfDev = (_dispositivosAdminDados || []).find(d => d.id === _dispositivoAtualId);
+    const selfNome = selfDev ? selfDev.nome : _dispositivoAtualNome;
+    const selfTemNome = Boolean(selfNome && String(selfNome).trim() && String(selfNome).trim().toLowerCase() !== 'sem nome');
+    if (!selfTemNome) {
+      showToast('⚠️ Antes de ativar o bloqueio, dê um nome a ESTE APARELHO na tabela abaixo!', true);
+      return;
+    }
+
+    const msgConfirm =
+      `🛡️ ATIVAR BLOQUEIO DE DISPOSITIVOS NÃO CADASTRADOS?\n\n` +
+      `• Dispositivos identificados (COM NOME): ${comNome} — continuarão com acesso normal.\n` +
+      `• Dispositivos pendentes (SEM NOME): ${semNome} — serão bloqueados até receberem um nome aqui.\n` +
+      `• Painel TV, QR Code dos pacientes e acesso de Administrador NÃO são bloqueados.\n\n` +
+      `Deseja ativar o bloqueio agora?`;
+    if (!confirm(msgConfirm)) return;
+  } else {
+    const msgDesativar =
+      `🔓 DESATIVAR BLOQUEIO DE DISPOSITIVOS NÃO CADASTRADOS?\n\n` +
+      `Qualquer computador ou celular com a senha da USF voltará a acessar mesmo sem nome cadastrado.\n\n` +
+      `Deseja voltar ao modo aberto?`;
+    if (!confirm(msgDesativar)) return;
+  }
+
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-admin-password': adminPassword || ''
+    };
+    if (_dispositivoAtualId) {
+      headers['x-device-id'] = _dispositivoAtualId;
+    }
+
+    const res = await fetch(`${API_URL}/admin/dispositivos/config-bloqueio-sem-nome`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        senha: adminPassword || '',
+        bloquear_sem_nome: novoEstado
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 403) {
+      showToast('❌ Senha administrativa incorreta ou expirada!', true);
+      return;
+    }
+    if (!res.ok) {
+      showToast(data.error || 'Não foi possível alterar o bloqueio global.', true);
+      return;
+    }
+
+    _bloquearSemNomeAtivo = Boolean(data.bloquear_sem_nome);
+    showToast(
+      _bloquearSemNomeAtivo
+        ? '🛡️ Bloqueio ativo! Apenas dispositivos com nome cadastrado podem acessar.'
+        : '🔓 Modo aberto restaurado! Dispositivos sem nome voltaram a ter acesso.'
+    );
+    await carregarDispositivosAdmin();
+  } catch (err) {
+    showToast('Erro de conexão ao salvar configuração de bloqueio.', true);
   }
 }
 
@@ -290,9 +586,14 @@ function renderizarTabelaDispositivos(lista, container) {
     const isOnline = d.online === true;
     const isBloqueado = d.ativo === false;
 
+    const ehAparelhoAtual = d.id === _dispositivoAtualId;
+    const temNomeOficial = Boolean(d.nome && String(d.nome).trim() && String(d.nome).trim().toLowerCase() !== 'sem nome');
+
     let statusBadge = '';
     if (isBloqueado) {
       statusBadge = '<span style="background:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:800;">🚫 Bloqueado</span>';
+    } else if (_bloquearSemNomeAtivo && !temNomeOficial) {
+      statusBadge = '<span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:800;">🔒 Aguardando Nome</span>';
     } else if (isOnline) {
       statusBadge = '<span style="background:#dcfce7;color:#166534;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:800;">🟢 Online</span>';
     } else {
@@ -307,11 +608,11 @@ function renderizarTabelaDispositivos(lista, container) {
       ? new Date(d.primeiro_acesso).toLocaleDateString('pt-BR', { timeZone: 'America/Recife' }) 
       : '-';
 
-    const ehAparelhoAtual = d.id === _dispositivoAtualId;
-    const temNomeOficial = Boolean(d.nome && String(d.nome).trim() && String(d.nome).trim().toLowerCase() !== 'sem nome');
     const chatIdentBadge = temNomeOficial
       ? `<div style="font-size:11px;color:#15803d;font-weight:700;margin-top:2px;">💬 Chat Interno: ${escHtml(d.nome)}</div>`
-      : `<div style="font-size:11px;color:#b45309;font-weight:700;margin-top:2px;">⚠️ Sem nome (modo livre — sem bloqueio)</div>`;
+      : (_bloquearSemNomeAtivo
+          ? `<div style="font-size:11px;color:#b91c1c;font-weight:700;margin-top:2px;">🔒 Bloqueado por estar sem nome — clique em "✏️ Nome" para liberar</div>`
+          : `<div style="font-size:11px;color:#b45309;font-weight:700;margin-top:2px;">⚠️ Sem nome (modo livre — sem bloqueio)</div>`);
 
     return `
       <tr style="border-bottom:1px solid var(--gray-200);background:${ehAparelhoAtual ? 'rgba(26,79,196,0.04)' : '#fff'};">

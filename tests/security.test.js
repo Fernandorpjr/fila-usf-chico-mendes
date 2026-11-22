@@ -344,17 +344,141 @@ test('Previa UI displays Liberado para teste label cleanly', () => {
   assert.equal(regJs.includes('Liberado para teste'), true);
 });
 
-test('Device identification integrates automatically into internal chat without blocking unnamed devices', () => {
+test('Device identification integrates automatically into internal chat and hides manual selector when identified', () => {
   const root = path.join(__dirname, '..');
+  const indexHtml = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
   const appJs = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
   const dispFrontJs = fs.readFileSync(path.join(root, 'public', 'dispositivos.js'), 'utf8');
   const dispBackJs = fs.readFileSync(path.join(root, 'lib', 'dispositivos.js'), 'utf8');
 
+  assert.equal(indexHtml.includes('id="chat-device-id-card"'), true);
+  assert.equal(indexHtml.includes('id="chat-manual-id-fields"'), true);
+  assert.equal(indexHtml.includes('id="disp-bloqueio-sem-nome-card"'), true);
+
   assert.equal(appJs.includes('sincronizarIdentidadeDispositivoNoChat'), true);
   assert.equal(appJs.includes('obterIdentificacaoRemetenteChat'), true);
+  assert.equal(appJs.includes("manualFieldsEl.style.display = 'none'"), true);
+  assert.equal(appJs.includes('x-device-id'), true);
+  assert.equal(appJs.includes('res.status === 423'), true);
+
+  // registerPresenca, markCanalAsRead e loadAllChannels leem setor de obterIdentificacaoRemetenteChat()
+  const matchSetorRefs = appJs.match(/obterIdentificacaoRemetenteChat\(\)\.setor/g) || [];
+  assert.equal(matchSetorRefs.length >= 3, true);
+
   assert.equal(dispFrontJs.includes('const editedId = _dispositivoEdicaoId;'), true);
   assert.equal(dispFrontJs.includes('sincronizarIdentidadeDispositivoNoChat'), true);
+  assert.equal(dispFrontJs.includes('alternarBloqueioDispositivosSemNome'), true);
+  assert.equal(dispFrontJs.includes('desbloqueioEmergencialAdmin'), true);
   assert.equal(dispBackJs.includes("status === 'sem_nome'"), true);
-  // Nao deve bloquear dispositivo apenas por estar sem nome nesta fase de teste
-  assert.equal(dispBackJs.includes('if (cached.ativo === false)'), true);
+  assert.equal(dispBackJs.includes('/api/admin/dispositivos/config-bloqueio-sem-nome'), true);
+  assert.equal(dispBackJs.includes('ADMIN_DEVICE_UNNAMED'), true);
+});
+
+test('Global unnamed-device blocking logic enforces 5 safety guards accurately', () => {
+  const {
+    isNomeDispositivoValido,
+    isRotaIsentaBloqueioDispositivo,
+    avaliarAcessoDispositivo
+  } = require('../lib/dispositivos');
+
+  assert.equal(isNomeDispositivoValido(''), false);
+  assert.equal(isNomeDispositivoValido('   '), false);
+  assert.equal(isNomeDispositivoValido('Sem nome'), false);
+  assert.equal(isNomeDispositivoValido('sem nome'), false);
+  assert.equal(isNomeDispositivoValido('Consultório 1'), true);
+
+  // Rotas de TV, QR Code do paciente, login e admin devem sempre ficar isentas
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/health'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/current-calling'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/tv/history'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/voice-call/pending'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('POST', '/api/voice-call/99/ack'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/tts'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/patients/42/status'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('POST', '/api/auth/login'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('POST', '/api/verify-admin'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('POST', '/api/dispositivos/heartbeat'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/admin/dispositivos'), true);
+  assert.equal(isRotaIsentaBloqueioDispositivo('POST', '/api/admin/dispositivos/config-bloqueio-sem-nome'), true);
+
+  // Rotas operacionais internas sofrem checagem normal
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/queues'), false);
+  assert.equal(isRotaIsentaBloqueioDispositivo('POST', '/api/patients'), false);
+  assert.equal(isRotaIsentaBloqueioDispositivo('GET', '/api/chat/canais/geral'), false);
+
+  // 1. Modo restrito DESLIGADO: libera dispositivo sem nome
+  assert.deepEqual(
+    avaliarAcessoDispositivo({
+      deviceId: 'uuid-1',
+      dispositivo: { nome: 'Sem nome', ativo: true },
+      bloquearSemNome: false,
+      isAdmin: false
+    }),
+    { permitido: true, motivo: null, code: null, error: null }
+  );
+
+  // 2. Modo restrito LIGADO + dispositivo COM nome ativo: liberado
+  assert.deepEqual(
+    avaliarAcessoDispositivo({
+      deviceId: 'uuid-2',
+      dispositivo: { nome: 'Recepção 1', ativo: true },
+      bloquearSemNome: true,
+      isAdmin: false
+    }),
+    { permitido: true, motivo: null, code: null, error: null }
+  );
+
+  // 3. Modo restrito LIGADO + dispositivo SEM nome: bloqueado (DEVICE_UNNAMED)
+  const resSemNome = avaliarAcessoDispositivo({
+    deviceId: 'uuid-3',
+    dispositivo: { nome: 'Sem nome', ativo: true },
+    bloquearSemNome: true,
+    isAdmin: false
+  });
+  assert.equal(resSemNome.permitido, false);
+  assert.equal(resSemNome.motivo, 'sem_nome');
+  assert.equal(resSemNome.code, 'DEVICE_UNNAMED');
+
+  // 4. Modo restrito LIGADO + sem deviceId (novo navegador/sem cookie): bloqueado (DEVICE_UNNAMED)
+  const resSemId = avaliarAcessoDispositivo({
+    deviceId: null,
+    dispositivo: null,
+    bloquearSemNome: true,
+    isAdmin: false
+  });
+  assert.equal(resSemId.permitido, false);
+  assert.equal(resSemId.code, 'DEVICE_UNNAMED');
+
+  // 5. Modo restrito LIGADO + sessão Admin em aparelho sem nome: NÃO tranca Admin
+  assert.deepEqual(
+    avaliarAcessoDispositivo({
+      deviceId: 'uuid-4',
+      dispositivo: { nome: 'Sem nome', ativo: true },
+      bloquearSemNome: true,
+      isAdmin: true
+    }),
+    { permitido: true, motivo: null, code: null, error: null }
+  );
+
+  // 6. Bloqueio manual explícito (ativo = false): bloqueia usuário comum mesmo no modo aberto
+  const resBloqManual = avaliarAcessoDispositivo({
+    deviceId: 'uuid-5',
+    dispositivo: { nome: 'PC Antigo', ativo: false },
+    bloquearSemNome: false,
+    isAdmin: false
+  });
+  assert.equal(resBloqManual.permitido, false);
+  assert.equal(resBloqManual.motivo, 'bloqueado');
+  assert.equal(resBloqManual.code, 'DEVICE_BLOCKED');
+
+  // 7. Bloqueio manual + acesso Admin emergencial: permite recuperar acesso
+  assert.deepEqual(
+    avaliarAcessoDispositivo({
+      deviceId: 'uuid-5',
+      dispositivo: { nome: 'PC Antigo', ativo: false },
+      bloquearSemNome: false,
+      isAdmin: true
+    }),
+    { permitido: true, motivo: null, code: null, error: null }
+  );
 });
