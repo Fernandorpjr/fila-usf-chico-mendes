@@ -583,7 +583,7 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.equal(sisregFront.includes("buscarAtalhoSisreg('EXAMES DE LABORATORIO')"), true);
   assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
   assert.equal(indexHtml.includes('formularios-pec.js?v=1.9'), true);
-  assert.equal(indexHtml.includes('app.js?v=8.1'), true);
+  assert.equal(indexHtml.includes('app.js?v=8.2'), true);
 });
 
 test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e PDF estão integrados', () => {
@@ -603,13 +603,14 @@ test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e P
   assert.equal(indexHtml.includes("abrirModalDevolucoesProfissional('ACS')"), true);
   assert.equal(formPec.includes('abrirModalDevolucoesProfissional'), true);
   assert.equal(appJs.includes('abrirDevolucaoDoChat') && appJs.includes('abrirDevolucaoRegulacaoDoChat'), true);
+  assert.equal(appJs.includes("abrirModalPreviaRegulacao('devolucoes', 'respondida')"), true);
 
   assert.equal(sisregFront.includes('exportarDevolucoesSisregPDF'), true);
   assert.equal(sisregFront.includes('salvarSolucaoModalProfissional'), true);
   assert.equal(sisregFront.includes('id="dev-setor-destino"'), true);
   assert.equal(sisregFront.includes('id="dev-profissional"'), true);
   assert.equal(sisregFront.includes('Mudou de endereço'), true);
-  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=1.9'), true);
+  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=2.0'), true);
   assert.equal(indexHtml.includes('.sisreg-med-modal-backdrop { z-index: 10080; }'), true);
 
   // Conferência de anexo (lazy-load), apagamento imediato ao corrigir, prazo 3d (+3d adiar) e atalho de busca
@@ -625,6 +626,12 @@ test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e P
   assert.equal(sisregFront.includes('adiarPrazoDevolucaoSisreg'), true);
   assert.equal(sisregFront.includes('limparAnexosVencidosSisreg'), true);
   assert.equal(sisregFront.includes('_salvandoSolucaoDevId'), true);
+  assert.equal(sisregFront.includes('id="sisreg-resp-badge-bar"'), true);
+  assert.equal(sisregFront.includes('id="sisreg-resp-badge"'), true);
+  assert.equal(sisregFront.includes('id="sisreg-tab-respondidas"'), true);
+  assert.equal(sisregFront.includes('dev-prof-chat-'), true);
+  assert.equal(sisregFront.includes('dev-viewer-chat-'), true);
+  assert.equal(sisregFront.includes('id="dev-enviar-chat" checked'), false);
   const idxSalvarSol = sisregFront.indexOf('async function salvarSolucaoModalProfissional');
   assert.ok(idxSalvarSol > 0);
   const salvarSlice = sisregFront.slice(idxSalvarSol, idxSalvarSol + 2000);

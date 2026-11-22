@@ -766,7 +766,8 @@
           <span class="pec-forms-title">📋 Prévia Regulação (SISREG):</span>
           <button type="button" class="pec-form-btn sisreg" onclick="abrirModalPreviaRegulacao('leitor')">👁️ Abrir Prévia SISREG <span class="previa-teste-tag">Liberado para teste</span></button>
           <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('busca')">🔎 Busca SISREG</button>
-          <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('devolucoes')">↩️ Devoluções <span id="sisreg-dev-badge-bar" class="sisreg-dev-count" style="display:none;">0</span></button>
+          <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('devolucoes','pendente')" title="Pendências aguardando resposta dos profissionais/ACS">↩️ Devoluções <span id="sisreg-dev-badge-bar" class="sisreg-dev-count" style="display:none;">0</span></button>
+          <button type="button" class="pec-form-btn" style="background:#ecfdf5;color:#065f46;border-color:#6ee7b7;" onclick="abrirModalPreviaRegulacao('devolucoes','respondida')" title="Ver pendências já respondidas pelos profissionais/ACS prontas para corrigir no SISREG">✅ Respondidas <span id="sisreg-resp-badge-bar" class="sisreg-dev-count resp" style="display:none;">0</span></button>
           <span id="sisreg-lidas-hoje-badge" class="sisreg-stat-pill dark" style="margin-left:auto;">📊 Lidas hoje: ${getContadorLidasHoje()}</span>
         </div>
       `;
@@ -798,7 +799,8 @@
           <div class="sisreg-tabs-row">
             <button type="button" class="sisreg-tab-btn ${_sisregAbaAtiva === 'leitor' ? 'active' : ''}" id="sisreg-tab-leitor" onclick="trocarAbaCopilotoRegulacao('leitor')">📷 Prévia / Ficha + PDF</button>
             <button type="button" class="sisreg-tab-btn ${_sisregAbaAtiva === 'busca' ? 'active' : ''}" id="sisreg-tab-busca" onclick="trocarAbaCopilotoRegulacao('busca')">🔎 Busca de Procedimentos SISREG</button>
-            <button type="button" class="sisreg-tab-btn ${_sisregAbaAtiva === 'devolucoes' ? 'active' : ''}" id="sisreg-tab-devolucoes" onclick="trocarAbaCopilotoRegulacao('devolucoes')">↩️ Devoluções <span id="sisreg-dev-badge" class="sisreg-dev-count" style="display:none;">0</span></button>
+            <button type="button" class="sisreg-tab-btn ${_sisregAbaAtiva === 'devolucoes' && _sisregDevFiltro !== 'respondida' ? 'active' : ''}" id="sisreg-tab-devolucoes" onclick="trocarAbaCopilotoRegulacao('devolucoes','pendente')">↩️ Devoluções <span id="sisreg-dev-badge" class="sisreg-dev-count" style="display:none;">0</span></button>
+            <button type="button" class="sisreg-tab-btn respondidas ${_sisregAbaAtiva === 'devolucoes' && _sisregDevFiltro === 'respondida' ? 'active' : ''}" id="sisreg-tab-respondidas" onclick="trocarAbaCopilotoRegulacao('devolucoes','respondida')">✅ Respondidas <span id="sisreg-resp-badge" class="sisreg-dev-count resp" style="display:none;">0</span></button>
           </div>
 
           <!-- ABA 1: PRÉVIA / LEITOR DE FICHA E PDF -->
@@ -1076,8 +1078,8 @@
 
           <!-- ABA 3: CONTROLE DIRECIONADO DE DEVOLUÇÕES -->
           <div id="sisreg-pane-devolucoes" style="${_sisregAbaAtiva === 'devolucoes' ? '' : 'display:none;'}">
-            <div class="sisreg-dev-form">
-              <div style="font-size:12.5px;font-weight:900;color:#1e3a8a;margin-bottom:8px;">↩️ Registrar e Direcionar Devolução no SISREG (com Alerta no Chat Interno)</div>
+            <div class="sisreg-dev-form" id="sisreg-dev-form-wrap">
+              <div style="font-size:12.5px;font-weight:900;color:#1e3a8a;margin-bottom:8px;">↩️ Registrar e Direcionar Devolução no SISREG</div>
               <div class="sisreg-dev-grid">
                 <input type="text" id="dev-pac-nome" placeholder="Nome do Paciente *">
                 <input type="text" id="dev-protocolo" placeholder="Código Solicitação">
@@ -1120,10 +1122,14 @@
               </details>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
                 <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#1e3a8a;cursor:pointer;">
-                  <input type="checkbox" id="dev-enviar-chat" checked> 💬 Avisar no Chat Interno (⏳ Prazo padrão: 3 dias)
+                  <input type="checkbox" id="dev-enviar-chat"> 💬 Avisar também no Chat Interno (opcional · ⏳ Prazo padrão: 3 dias)
                 </label>
                 <button type="button" class="btn btn-primary btn-sm" onclick="salvarNovaDevolucaoSisreg()">➕ Registrar e Direcionar</button>
               </div>
+            </div>
+            <div id="sisreg-resp-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#ecfdf5;border:1.5px solid #6ee7b7;border-radius:10px;padding:10px 12px;color:#065f46;font-size:12.5px;font-weight:800;">
+              <span>✅ Pendências respondidas pelos profissionais/ACS — confira a solução, corrija no SISREG e clique em <b>✅ Corrigida</b>.</span>
+              <button type="button" class="btn btn-outline btn-sm" style="background:#fff;border-color:#6ee7b7;color:#065f46;font-weight:800;" onclick="filtrarDevolucoesSisreg('pendente')">➕ Registrar Nova Devolução</button>
             </div>
 
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 8px;flex-wrap:wrap;">
@@ -1158,13 +1164,26 @@
     inicializarPanZoomCopiloto();
     renderEstadoFormularioCopiloto();
     onDevSetorDestinoChange();
+    sincronizarModoAbaDevolucoes();
   }
 
-  function abrirModalPreviaRegulacao(aba = 'leitor') {
+  function sincronizarModoAbaDevolucoes() {
+    const isDevAba = _sisregAbaAtiva === 'devolucoes';
+    const isResp = isDevAba && _sisregDevFiltro === 'respondida';
+    document.getElementById('sisreg-tab-devolucoes')?.classList.toggle('active', isDevAba && !isResp);
+    document.getElementById('sisreg-tab-respondidas')?.classList.toggle('active', isResp);
+    const formWrap = document.getElementById('sisreg-dev-form-wrap');
+    if (formWrap) formWrap.style.display = isResp ? 'none' : '';
+    const respBanner = document.getElementById('sisreg-resp-banner');
+    if (respBanner) respBanner.style.display = isResp ? 'flex' : 'none';
+    document.getElementById('sisreg-dev-lista')?.classList.toggle('expanded', isResp);
+  }
+
+  function abrirModalPreviaRegulacao(aba = 'leitor', subFiltroDev = null) {
     garantirModalPreviaRegulacaoMontado();
     const modal = document.getElementById('modal-previa-regulacao');
     if (!modal) return;
-    trocarAbaCopilotoRegulacao(aba || 'leitor');
+    trocarAbaCopilotoRegulacao(aba || 'leitor', subFiltroDev);
     modal.classList.add('show');
     inicializarPanZoomCopiloto();
     garantirCatalogoSisregCarregado().then(() => {
@@ -1184,19 +1203,37 @@
     abrirModalPreviaRegulacao(_sisregAbaAtiva || 'leitor');
   }
 
-  function trocarAbaCopilotoRegulacao(aba) {
+  function trocarAbaCopilotoRegulacao(aba, subFiltroDev = null) {
     _sisregAbaAtiva = aba;
-    ['leitor', 'busca', 'devolucoes'].forEach(k => {
+    if (aba === 'devolucoes' && subFiltroDev) {
+      _sisregDevFiltro = subFiltroDev;
+      const btns = {
+        abertas: 'dev-flt-abertas',
+        pendente: 'dev-flt-pend',
+        respondida: 'dev-flt-resp',
+        corrigida: 'dev-flt-corr',
+        todas: 'dev-flt-todas'
+      };
+      Object.keys(btns).forEach(k => {
+        document.getElementById(btns[k])?.classList.toggle('active', k === _sisregDevFiltro);
+      });
+    }
+    ['leitor', 'busca'].forEach(k => {
       document.getElementById(`sisreg-tab-${k}`)?.classList.toggle('active', k === aba);
+    });
+    ['leitor', 'busca', 'devolucoes'].forEach(k => {
       const pane = document.getElementById(`sisreg-pane-${k}`);
       if (pane) pane.style.display = k === aba ? 'block' : 'none';
     });
+    sincronizarModoAbaDevolucoes();
     if (aba === 'busca') {
       garantirCatalogoSisregCarregado().then(() => {
         executarBuscaManualSisreg();
         document.getElementById('sisreg-busca-input')?.focus();
       });
     } else if (aba === 'devolucoes') {
+      _sisregDevolucoes = aplicarFiltrosDevolucoesLista(_sisregDevolucoesTodas, _sisregDevFiltro, _sisregDevSetorFiltro, _sisregDevBusca);
+      renderDevolucoesSisreg();
       carregarDevolucoesSisreg();
     }
   }
@@ -2257,7 +2294,7 @@
 
   async function preencherDevolucaoDaFichaAtual() {
     const d = _copilotoState.dados;
-    trocarAbaCopilotoRegulacao('devolucoes');
+    trocarAbaCopilotoRegulacao('devolucoes', 'pendente');
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
     set('dev-pac-nome', d.paciente_nome || _copilotoState.patientNomeFila || '');
     set('dev-protocolo', d.codigo_solicitacao || '');
@@ -2576,21 +2613,39 @@
     Object.keys(btns).forEach(k => {
       document.getElementById(btns[k])?.classList.toggle('active', k === _sisregDevFiltro);
     });
+    sincronizarModoAbaDevolucoes();
     _sisregDevolucoes = aplicarFiltrosDevolucoesLista(_sisregDevolucoesTodas, _sisregDevFiltro, _sisregDevSetorFiltro, _sisregDevBusca);
     renderDevolucoesSisreg();
   }
 
   function atualizarBadgesDevolucoesSetores() {
     const todas = _sisregDevolucoesTodas || [];
-    const abertasRegulacao = todas.filter(x => x.status === 'pendente' || x.status === 'respondida').length;
+    const pendentesRegulacao = todas.filter(x => (x.status || 'pendente') === 'pendente').length;
+    const respondidasRegulacao = todas.filter(x => x.status === 'respondida').length;
+
     const badge = document.getElementById('sisreg-dev-badge');
     const badgeBar = document.getElementById('sisreg-dev-badge-bar');
     [badge, badgeBar].forEach(el => {
       if (el) {
-        el.style.display = abertasRegulacao > 0 ? 'inline-flex' : 'none';
-        el.textContent = String(abertasRegulacao);
+        el.style.display = pendentesRegulacao > 0 ? 'inline-flex' : 'none';
+        el.textContent = String(pendentesRegulacao);
       }
     });
+
+    const respBadge = document.getElementById('sisreg-resp-badge');
+    const respBadgeBar = document.getElementById('sisreg-resp-badge-bar');
+    [respBadge, respBadgeBar].forEach(el => {
+      if (el) {
+        el.style.display = respondidasRegulacao > 0 ? 'inline-flex' : 'none';
+        el.textContent = String(respondidasRegulacao);
+      }
+    });
+
+    const fltPend = document.getElementById('dev-flt-pend');
+    if (fltPend) fltPend.textContent = `⏳ Pendentes (${pendentesRegulacao})`;
+    const fltResp = document.getElementById('dev-flt-resp');
+    if (fltResp) fltResp.textContent = `💬 Respondidas (${respondidasRegulacao})`;
+
     document.querySelectorAll('.sisreg-dev-badge-setor').forEach(el => {
       const setor = el.dataset.setor || '';
       const count = todas.filter(x => {
@@ -2759,7 +2814,7 @@
     const nome = document.getElementById('dev-pac-nome')?.value.trim() || '';
     const motivo = document.getElementById('dev-motivo')?.value.trim() || '';
     const setorDestino = document.getElementById('dev-setor-destino')?.value || 'Médico';
-    const enviarChat = document.getElementById('dev-enviar-chat')?.checked !== false;
+    const enviarChat = Boolean(document.getElementById('dev-enviar-chat')?.checked);
     if (!nome) {
       if (typeof showToast === 'function') showToast('Informe o nome do paciente devolvido.', true);
       return;
@@ -2804,11 +2859,13 @@
       });
       const profSel = document.getElementById('dev-profissional');
       if (profSel) profSel.value = '';
+      const chkChat = document.getElementById('dev-enviar-chat');
+      if (chkChat) chkChat.checked = false;
       removerAnexoNovaDevolucao();
       if (typeof showToast === 'function') {
         showToast(created.chat_notificado
           ? `✅ Devolução registrada (prazo 3 dias) e alerta enviado no canal ${setorDestino}!`
-          : `✅ Devolução registrada (prazo 3 dias) para ${setorDestino}!`);
+          : `✅ Devolução registrada (prazo 3 dias) na aba Devoluções para ${setorDestino}!`);
       }
       await carregarDevolucoesSisreg();
     } catch (err) {
@@ -3279,7 +3336,10 @@
                       <input type="text" id="dev-prof-autor-nome" value="${escSisreg(autorPadrao)}" placeholder="Seu nome (Profissional / ACS) *" style="width:100%;padding:7px 10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;margin-bottom:6px;">
                       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">${atalhosViewer}</div>
                       <textarea id="dev-viewer-sol-${itemViewer.id}" rows="4" placeholder="${isAcs ? 'Ex: Paciente mudou para Rua X, nº Y, Bairro Z...' : 'Ex: O procedimento correto no SISREG é..., CID..., justificativa...'}" style="width:100%;padding:8px 10px;border:1.5px solid #2563eb;border-radius:8px;font-size:13px;font-weight:700;">${escSisreg(itemViewer.solucao || '')}</textarea>
-                      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                        <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#475569;cursor:pointer;">
+                          <input type="checkbox" id="dev-viewer-chat-${itemViewer.id}"> 💬 Avisar também no Chat Interno (opcional)
+                        </label>
                         <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;padding:8px 14px;" onclick="salvarSolucaoModalProfissional(${itemViewer.id}, this, true)">💾 Enviar Solução para Regulação</button>
                       </div>
                     `
@@ -3295,7 +3355,10 @@
                             <input type="text" id="dev-prof-autor-nome" value="${escSisreg(autorPadrao)}" placeholder="Seu nome (Profissional / ACS) *" style="width:100%;padding:7px 10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;margin-bottom:6px;">
                             <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">${atalhosViewer}</div>
                             <textarea id="dev-viewer-sol-${itemViewer.id}" rows="3" style="width:100%;padding:8px 10px;border:1.5px solid #2563eb;border-radius:8px;font-size:13px;font-weight:700;">${escSisreg(itemViewer.solucao || '')}</textarea>
-                            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
+                              <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#475569;cursor:pointer;">
+                                <input type="checkbox" id="dev-viewer-chat-${itemViewer.id}"> 💬 Avisar também no Chat Interno (opcional)
+                              </label>
                               <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${itemViewer.id}, this, true)">💾 Enviar Atualização</button>
                             </div>
                           </div>
@@ -3435,7 +3498,9 @@
                 </div>
                 <textarea id="dev-prof-sol-${item.id}" rows="2" placeholder="${placeholder}" style="width:100%;padding:7px 9px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;color:#0f172a;">${escSisreg(item.solucao || '')}</textarea>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
-                  <span style="font-size:11px;color:#64748b;font-weight:700;">Ao enviar, fecha automaticamente e notifica a Regulação uma única vez no chat.</span>
+                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#475569;cursor:pointer;">
+                    <input type="checkbox" id="dev-prof-chat-${item.id}"> 💬 Avisar também no Chat Interno (opcional)
+                  </label>
                   <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${item.id}, this, false)">💾 Enviar Solução para Regulação</button>
                 </div>
               </div>
@@ -3449,7 +3514,10 @@
                     <button type="button" class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="toggleComplementoDevProf(${item.id}, false)">✏️ Complementar resposta</button>
                     <div id="dev-prof-edit-wrap-${item.id}" style="display:none;margin-top:6px;">
                       <textarea id="dev-prof-sol-${item.id}" rows="2" placeholder="${placeholder}" style="width:100%;padding:7px 9px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;color:#0f172a;">${escSisreg(item.solucao || '')}</textarea>
-                      <div style="display:flex;justify-content:flex-end;margin-top:5px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;">
+                        <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#475569;cursor:pointer;">
+                          <input type="checkbox" id="dev-prof-chat-${item.id}"> 💬 Avisar também no Chat Interno (opcional)
+                        </label>
                         <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${item.id}, this, false)">💾 Enviar Atualização</button>
                       </div>
                     </div>
@@ -3474,6 +3542,8 @@
     }
     const autorInp = document.getElementById('dev-prof-autor-nome')?.value.trim() || '';
     const autor = autorInp || _devProfModalState.setor || 'Profissional';
+    const chatChkId = fromViewer ? `dev-viewer-chat-${id}` : `dev-prof-chat-${id}`;
+    const notificarChat = Boolean(document.getElementById(chatChkId)?.checked);
     _salvandoSolucaoDevId = id;
     const textoOriginalBtn = btn ? btn.textContent : '';
     if (btn) {
@@ -3485,11 +3555,16 @@
       const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ solucao: sol, solucao_autor: autor, notificar_chat: true })
+        body: JSON.stringify({ solucao: sol, solucao_autor: autor, notificar_chat: notificarChat })
       });
       if (!res.ok) throw new Error();
+      const updated = await res.json().catch(() => ({}));
       fecharModalDevolucoesProfissional();
-      if (typeof showToast === 'function') showToast('✅ Solução enviada para a Regulação!');
+      if (typeof showToast === 'function') {
+        showToast(updated.chat_notificado
+          ? '✅ Solução enviada (aba Respondidas) e Regulação avisada no Chat Interno!'
+          : '✅ Solução enviada! Já aparece no botão Respondidas da Regulação.');
+      }
       await carregarDevolucoesSisreg();
     } catch (_) {
       if (typeof showToast === 'function') showToast('Erro ao enviar solução.', true);

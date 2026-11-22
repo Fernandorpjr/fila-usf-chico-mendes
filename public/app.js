@@ -3949,7 +3949,7 @@ function abrirDevolucaoDoChat(canalId) {
 
 function abrirDevolucaoRegulacaoDoChat() {
   if (chatPanelOpen && typeof toggleChatPanel === 'function') toggleChatPanel();
-  if (typeof abrirModalPreviaRegulacao === 'function') abrirModalPreviaRegulacao('devolucoes');
+  if (typeof abrirModalPreviaRegulacao === 'function') abrirModalPreviaRegulacao('devolucoes', 'respondida');
 }
 
 function toggleChatSidebarMobile() {
