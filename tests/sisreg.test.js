@@ -207,3 +207,44 @@ test('formatarObservacaoSisreg and normalizarResultadoOcrSisreg sanitize properl
   assert.deepEqual(norm.procedimentos_pedidos, ['Cardiologia', 'ECG']);
   assert.equal(norm.observacoes_revisada, 'Paciente com dor torácica');
 });
+
+test('buscarProcedimentosSisreg filters Exames de Laboratorio, Idade e Retorno/1a Vez strictly (including empty query)', () => {
+  const procs = require('../data/sisreg-catalogo-padrao.json').procedimentos;
+
+  // Atalho Exames de Laboratorio deve trazer todos os exames laboratoriais (260+)
+  const labAtalho = buscarProcedimentosSisreg(procs, 'EXAMES DE LABORATORIO', { limite: 300 });
+  assert.ok(labAtalho.length >= 250, `EXAMES DE LABORATORIO deve retornar >= 250 itens, retornou ${labAtalho.length}`);
+  assert.ok(labAtalho.every(p => /PATOLOGIA CLINICA|EXAMES DE LABORATORIO/i.test(p.hierarchy)));
+
+  const labSinon = buscarProcedimentosSisreg(procs, 'laboratorio', { limite: 300 });
+  assert.ok(labSinon.length >= 250, 'sinonimo laboratorio deve encontrar exames laboratoriais');
+
+  // Filtro de idade na busca vazia e com termo deve excluir faixas incompatíveis
+  const pedVazio = buscarProcedimentosSisreg(procs, '', { idade: 8, limite: 40 });
+  assert.ok(pedVazio.length > 0);
+  assert.ok(pedVazio.every(p => !/>\s*1[4-8]\b|>\s*60\b|\bGERIATRIA\b|\bADULTO\b(?! OU INFANTIL)/i.test(p.name)));
+  assert.ok(/PEDIATR|INFANT|0 A 1|2 A 1|5 A 13|ANOS/i.test(pedVazio[0].name), 'pediatrico deve priorizar itens pediatricos no topo');
+
+  const pedOftalmo = buscarProcedimentosSisreg(procs, 'oftalmo', { idade: 8, limite: 20 });
+  assert.ok(pedOftalmo.length >= 1);
+  assert.ok(pedOftalmo.every(p => !/>\s*14\b/i.test(p.name)), 'oftalmo pediatrico nao deve retornar >14 anos');
+
+  const adultCardio = buscarProcedimentosSisreg(procs, 'cardio', { idade: 35, limite: 20 });
+  assert.ok(adultCardio.length >= 1);
+  assert.ok(adultCardio.every(p => !/PEDIATR|>\s*60\b|GERIATR/i.test(p.name)), 'cardio adulto nao deve retornar pediatria nem >60');
+
+  const idosoCardio = buscarProcedimentosSisreg(procs, 'cardio', { idade: 65, limite: 20 });
+  assert.ok(idosoCardio.length >= 1);
+  assert.ok(idosoCardio.every(p => !/PEDIATR/i.test(p.name)), 'cardio idoso nao deve retornar pediatria');
+  assert.ok(/>\s*60\b/.test(idosoCardio[0].name), 'cardio idoso deve priorizar >60 anos');
+
+  // Filtro 1a Vez vs Retorno (busca vazia e busca com termo)
+  const soRetornoVazio = buscarProcedimentosSisreg(procs, '', { tipoVaga: 'retorno', limite: 100 });
+  assert.ok(soRetornoVazio.length > 0 && soRetornoVazio.every(p => /\bRETORNO\b/i.test(p.name)));
+
+  const soPrimeiraCardio = buscarProcedimentosSisreg(procs, 'cardio', { tipoVaga: 'primeira_vez', limite: 30 });
+  assert.ok(soPrimeiraCardio.length > 0 && soPrimeiraCardio.every(p => !/\bRETORNO\b/i.test(p.name)));
+
+  const soRetornoCardio = buscarProcedimentosSisreg(procs, 'cardio', { idade: 40, tipoVaga: 'retorno', limite: 10 });
+  assert.ok(soRetornoCardio.length > 0 && soRetornoCardio.every(p => /\bRETORNO\b/i.test(p.name) && !/PEDIATR|>\s*60\b/i.test(p.name)));
+});

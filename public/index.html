@@ -4166,23 +4166,37 @@
       </div>
     </div>
 
-    <!-- MELHORIA 1: Filtro de Data -->
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-      <span style="font-size:13px;font-weight:700;color:var(--gray-300);text-transform:uppercase;letter-spacing:0.5px;">📅 Data:</span>
-      <input type="date" id="ctrl-agend-date-filter" onchange="onCtrlAgendDateChange()" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">
-      <button class="btn" style="background:rgba(255,255,255,0.1);color:var(--gray-300);border:1px solid rgba(255,255,255,0.15);font-size:12px;padding:6px 14px;border-radius:20px;font-weight:700;" onclick="verTodosCtrlAgendamentos()">📂 Ver Todos os Dias</button>
+    <!-- Filtro de Data, Busca e Equipe/Motivo -->
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;background:rgba(255,255,255,0.04);padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,0.1);">
+      <span style="font-size:12px;font-weight:800;color:var(--gray-300);text-transform:uppercase;letter-spacing:0.5px;">📅 Data:</span>
+      <input type="date" id="ctrl-agend-date-filter" onchange="onCtrlAgendDateChange()" style="padding:7px 11px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.08);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">
+      <button class="btn" style="background:rgba(26,79,196,0.28);color:#bfdbfe;border:1px solid rgba(147,197,253,0.35);font-size:12px;padding:6px 12px;border-radius:20px;font-weight:700;" onclick="voltarHojeCtrlAgendamentos()">📅 Hoje</button>
+      <button class="btn" style="background:rgba(255,255,255,0.1);color:var(--gray-300);border:1px solid rgba(255,255,255,0.15);font-size:12px;padding:6px 12px;border-radius:20px;font-weight:700;" onclick="verTodosCtrlAgendamentos()">📂 Ver Todos os Dias</button>
+      <input type="text" id="ctrl-agend-search" oninput="renderCtrlAgendamentos()" placeholder="🔎 Buscar paciente, CPF ou queixa..." style="flex:1;min-width:200px;padding:7px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.08);color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;">
+      <select id="ctrl-agend-equipe-filter" onchange="renderCtrlAgendamentos()" style="padding:7px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:#1e293b;color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;">
+        <option value="all">🏥 Todas as Equipes</option>
+        <option value="Eq 1 Chico Mendes">Eq 1 Chico Mendes</option>
+        <option value="Eq 2 Ximboré">Eq 2 Ximboré</option>
+        <option value="Eq 3 Aurora">Eq 3 Aurora</option>
+        <option value="sem_equipe">Sem Equipe</option>
+      </select>
+      <select id="ctrl-agend-motivo-filter" onchange="renderCtrlAgendamentos()" style="padding:7px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:#1e293b;color:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;">
+        <option value="all">💬 Todos os Motivos</option>
+        <option value="Agendar Consulta">🩺 Agendar Consulta</option>
+        <option value="Fazer exame de coleta">🩸 Exame de Coleta</option>
+      </select>
     </div>
-    <!-- FIM MELHORIA 1 -->
 
     <!-- Filtros rápidos e Exportação -->
-    <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <span style="font-size:13px;font-weight:700;color:var(--gray-300);text-transform:uppercase;letter-spacing:0.5px;">Filtrar:</span>
         <button class="ctrl-agend-filter active" id="ctrl-filter-todos" onclick="filtrarCtrlAgendamentos('todos')">📋 Todos</button>
         <button class="ctrl-agend-filter" id="ctrl-filter-pendente" onclick="filtrarCtrlAgendamentos('pendente')">⏳ Pendentes</button>
         <button class="ctrl-agend-filter" id="ctrl-filter-agendado" onclick="filtrarCtrlAgendamentos('agendado')">✅ Agendados</button>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn admin-only" id="btn-novo-ctrl-admin" style="background:#1a4fc4;color:white;border:none;font-size:12px;padding:6px 14px;border-radius:20px;font-weight:800;cursor:pointer;" onclick="abrirModalNovoCtrlAdmin()" title="Exclusivo do Administrador — agendamentos comuns devem passar pela 1ª Escuta">➕ Novo Registro (Admin)</button>
         <button class="btn" style="background:#1d6f42;color:white;border:none;font-size:12px;padding:6px 14px;border-radius:20px;font-weight:700;" onclick="exportarAgendamentosExcel()">📊 Baixar Excel</button>
         <button class="btn" style="background:#d32f2f;color:white;border:none;font-size:12px;padding:6px 14px;border-radius:20px;font-weight:700;" onclick="exportarAgendamentosPDF()">📄 Baixar PDF</button>
       </div>
@@ -4193,15 +4207,15 @@
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr style="background:linear-gradient(135deg,#e67e22,#d35400);">
-            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">⏰ Hora</th>
+            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">⏰ Data / Hora</th>
             <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">👤 Paciente / Equipe / CPF</th>
-            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">💬 Motivo / Queixa <span style="font-weight:400;text-transform:none;opacity:0.8;">(opcional)</span></th>
+            <th style="padding:14px 16px;text-align:left;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">💬 Motivo / Origem / Queixa</th>
             <th style="padding:14px 16px;text-align:center;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
             <th style="padding:14px 16px;text-align:center;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:0.5px;">Ação</th>
           </tr>
         </thead>
         <tbody id="ctrl-agend-tbody">
-          <tr><td colspan="4" style="padding:40px;text-align:center;color:var(--gray-600);font-size:14px;">Carregando...</td></tr>
+          <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--gray-600);font-size:14px;">Carregando...</td></tr>
         </tbody>
       </table>
     </div>
@@ -4236,22 +4250,33 @@
   <div class="screen" id="screen-atendidos">
     <div class="page-title"><div class="icon" style="background:rgba(74,171,60,0.2);">✅</div> Pacientes Atendidos</div>
     <div class="stats-row" style="margin-bottom:20px;">
-      <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.3);"><div class="stat-icon" style="background:var(--green); color:white;">✅</div><div><div class="stat-value" id="attended-count-big" style="color:var(--green);">0</div><div class="stat-label">Total Atendidos Hoje</div></div></div>
+      <div class="stat-card" style="background:rgba(74,171,60,0.15); border-color:rgba(74,171,60,0.35);"><div class="stat-icon" style="background:var(--green); color:white;">✅</div><div><div class="stat-value" id="attended-count-big" style="color:var(--green);">0</div><div class="stat-label" id="attended-total-label">Total Atendidos</div></div></div>
+      <div class="stat-card" style="background:rgba(59,130,246,0.12); border-color:rgba(59,130,246,0.3);"><div class="stat-icon" style="background:#2563eb; color:white;">🌅</div><div><div class="stat-value" id="attended-count-manha" style="color:#60a5fa;">0</div><div class="stat-label">Manhã (&lt; 12h)</div></div></div>
+      <div class="stat-card" style="background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.3);"><div class="stat-icon" style="background:#d97706; color:white;">🌇</div><div><div class="stat-value" id="attended-count-tarde" style="color:#fbbf24;">0</div><div class="stat-label">Tarde (&gt;= 12h)</div></div></div>
+      <div class="stat-card" style="background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3);"><div class="stat-icon" style="background:#dc2626; color:white;">⭐</div><div><div class="stat-value" id="attended-count-prio" style="color:#f87171;">0</div><div class="stat-label">Prioritários</div></div></div>
     </div>
     <div class="card-white">
-      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div><span>📋</span> Lista de Atendidos</div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="generatePDF()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:10px;padding:8px 16px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(74,171,60,0.3);display:flex;align-items:center;gap:6px;">📄 Exportar PDF</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="exportarAtendidosCSV()" style="background:#1d6f42;color:var(--white);border:none;border-radius:10px;padding:8px 14px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;">📊 Exportar Excel (CSV)</button>
+          <button onclick="generatePDF()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));color:var(--white);border:none;border-radius:10px;padding:8px 16px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(74,171,60,0.3);display:flex;align-items:center;gap:6px;">📄 Exportar PDF</button>
         </div>
       </div>
-      <div class="filter-row">
-        <div class="form-group"><label>Data</label><input type="date" id="filter-data"></div>
-        <div class="form-group"><label>Setor</label><select id="filter-setor" style="padding:10px;font-size:14px;"><option value="">Todos</option><option value="Acolhimento">Acolhimento</option><option value="Farmácia">Farmácia</option><option value="Regulação">Regulação</option><option value="Médico">Médico</option><option value="Enfermagem">Enfermagem</option><option value="Odontologia">Odontologia</option></select></div>
-        <div class="form-group"><label>Profissional</label><select id="filter-profissional" style="padding:10px;font-size:14px;"><option value="">Todos</option><option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option><option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Juliana Cavalcante</option></select></div>
-        <button class="btn btn-primary btn-sm" onclick="applyFilters()">🔍 Filtrar</button>
+      <div class="filter-row" style="gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group"><label>Data Início</label><input type="date" id="filter-data"></div>
+        <div class="form-group"><label>Data Fim</label><input type="date" id="filter-data-fim"></div>
+        <div class="form-group" style="flex:1;min-width:180px;"><label>Buscar Paciente</label><input type="text" id="filter-busca-nome" placeholder="Nome, CPF ou queixa..." oninput="renderAttended()" style="padding:9px 12px;font-size:13.5px;border-radius:8px;border:1px solid var(--gray-200);width:100%;"></div>
+        <div class="form-group"><label>Setor</label><select id="filter-setor" onchange="applyFilters()" style="padding:10px;font-size:13.5px;"><option value="">Todos</option><option value="Acolhimento">Acolhimento</option><option value="Farmácia">Farmácia</option><option value="Regulação">Regulação</option><option value="Médico">Médico</option><option value="Enfermagem">Enfermagem</option><option value="Téc. Enfermagem">Téc. Enfermagem</option><option value="Odontologia">Odontologia</option><option value="ACS">ACS</option></select></div>
+        <div class="form-group"><label>Profissional</label><select id="filter-profissional" onchange="applyFilters()" style="padding:10px;font-size:13.5px;"><option value="">Todos</option><option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option><option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Juliana Cavalcante</option><option>Vivi</option><option>Viviane</option><option>Vilma</option><option>Fernando</option><option>Leandra</option></select></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;padding-bottom:2px;">
+          <button class="btn btn-primary btn-sm" onclick="applyFilters()">🔍 Filtrar</button>
+          <button class="btn btn-outline btn-sm" onclick="filtrarAtendidosHoje()" title="Mostrar somente atendimentos de hoje">📅 Hoje</button>
+          <button class="btn btn-outline btn-sm" onclick="limparFiltrosAtendidos()" title="Limpar todos os filtros">🧹 Limpar</button>
+        </div>
       </div>
-      <div id="attended-list" style="display:flex;flex-direction:column;gap:8px;max-height:600px;overflow-y:auto;">
+      <div id="attended-sector-pills" style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px;"></div>
+      <div id="attended-list" style="max-height:620px;overflow-y:auto;">
         <div class="empty-state"><div class="es-icon">✅</div><p>Nenhum paciente atendido ainda</p></div>
       </div>
     </div>
@@ -4354,6 +4379,58 @@
     <div class="reorder-modal-actions">
       <button class="btn btn-primary" onclick="salvarEditarCtrlAgendamento()" style="background:#e67e22;border-color:#d35400;">💾 Salvar Alterações</button>
       <button class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalEditarCtrlAgendamento()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novo Registro Manual na Sala de Agendamento (EXCLUSIVO ADMIN) -->
+<div class="reorder-modal-overlay" id="modal-novo-ctrl-admin">
+  <div class="reorder-modal" style="max-width:440px;text-align:left;">
+    <h3>➕ Novo Registro Manual (Admin)</h3>
+    <p style="font-size:12px;color:#64748b;margin:-4px 0 12px;">Exclusivo do administrador. Atendimentos regulares devem passar pela 1ª Escuta.</p>
+
+    <div class="form-group" style="margin-bottom:10px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Nome do Paciente <span style="color:var(--red);">*</span></label>
+      <input type="text" id="novo-ctrl-nome" placeholder="Nome completo" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+    </div>
+
+    <div class="form-group" style="margin-bottom:10px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Horário <span style="color:var(--red);">*</span></label>
+      <input type="text" id="novo-ctrl-horario" placeholder="Ex: 08:30" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+    </div>
+
+    <div class="form-group" style="margin-bottom:10px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Motivo</label>
+      <select id="novo-ctrl-motivo" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+        <option value="">— Selecione —</option>
+        <option value="Agendar Consulta">🩺 Agendar Consulta</option>
+        <option value="Fazer exame de coleta">🩸 Fazer exame de coleta</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom:10px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Queixa / Observações</label>
+      <input type="text" id="novo-ctrl-queixa" placeholder="Opcional" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+    </div>
+
+    <div class="form-group" style="margin-bottom:10px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">Equipe Responsável</label>
+      <select id="novo-ctrl-equipe" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+        <option value="">— Opcional —</option>
+        <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
+        <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
+        <option value="Eq 3 Aurora">Equipe 3 Aurora</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom:18px;">
+      <label style="color:var(--gray-600);font-weight:700;font-size:12px;">CPF (6 primeiros dígitos)</label>
+      <input type="text" id="novo-ctrl-cpf6" maxlength="6" placeholder="Ex: 123456" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--gray-200);">
+    </div>
+
+    <div class="reorder-modal-actions">
+      <button class="btn btn-primary" onclick="salvarNovoCtrlAdmin()" style="background:#1a4fc4;border-color:#153e9a;">💾 Salvar (Admin)</button>
+      <button class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalNovoCtrlAdmin()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -4906,10 +4983,16 @@
             <option value="35">Adulto (15 a 59)</option>
             <option value="65">Idoso (&gt; 60 anos)</option>
           </select>
+          <select id="sm-busca-vaga" onchange="executarBuscaModalSisregMedico()">
+            <option value="">1ª Vez / Retorno</option>
+            <option value="primeira_vez">1ª Vez (Solicitação)</option>
+            <option value="retorno">Retorno</option>
+          </select>
         </div>
         <div class="sisreg-busca-atalhos">
           <span>Atalhos:</span>
           <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('USG')">USG</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('EXAMES DE LABORATORIO')">🧪 Exames Lab.</button>
           <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('ECO')">Ecocardiografia</button>
           <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('RADIOGRAFIA')">Raio-X</button>
           <button type="button" class="motivo-chip" onclick="buscarAtalhoModalSisregMedico('MAMOGRAFIA')">Mamografia</button>
@@ -5030,7 +5113,7 @@
 <script src="dispositivos.js?v=5.1"></script>
 <script src="receitas-previa.js?v=1.9"></script>
 <script src="formularios-pec.js?v=1.8"></script>
-<script src="regulacao-sisreg.js?v=1.5"></script>
-<script src="app.js?v=7.9"></script>
+<script src="regulacao-sisreg.js?v=1.6"></script>
+<script src="app.js?v=8.0"></script>
 </body>
 </html>

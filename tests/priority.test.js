@@ -111,3 +111,16 @@ test('Transferencia para Acolhimento reseta etapa_fluxo para recepcao e recupera
   assert.equal(agruparEtapaAcolhimento('finalizado'), 'recepcao');
   assert.equal(agruparEtapaAcolhimento(null), 'recepcao');
 });
+
+test('deduplicarAtendimentosPorDiaSetor keeps distinct attendance days separated and strips rechamadas', () => {
+  const { deduplicarAtendimentosPorDiaSetor } = require('../lib/prioridade');
+  const rows = [
+    { id: 10, patient_id: 1, nome: 'Maria', setor: 'Médico', profissional: 'Dra. Mirela Mota', created_at: '2026-11-22T14:00:00Z' },
+    { id: 9, patient_id: 1, nome: 'Maria', setor: 'Médico', profissional: '🔊 Rechamar (1ª)', created_at: '2026-11-22T13:55:00Z' },
+    { id: 8, patient_id: 1, nome: 'Maria', setor: 'Médico', profissional: 'Dra. Mirela Mota', created_at: '2026-11-22T13:50:00Z' },
+    { id: 5, patient_id: 1, nome: 'Maria', setor: 'Médico', profissional: 'Dra. Mirela Mota', created_at: '2026-11-21T14:00:00Z' }
+  ];
+  const dedup = deduplicarAtendimentosPorDiaSetor(rows);
+  assert.equal(dedup.length, 2, 'must preserve one attendance per (day, patient, sector)');
+  assert.deepEqual(dedup.map(r => r.id), [10, 5]);
+});

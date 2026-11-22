@@ -21,6 +21,7 @@ const {
   calcularOrdemPrioridadeOdonto,
   sortQueueRows,
   isRegistroRechamadaOuEncaminhamento,
+  deduplicarAtendimentosPorDiaSetor,
   agruparEtapaAcolhimento,
   resolverEstadoTransferenciaAcolhimento
 } = require('./lib/prioridade');
@@ -2235,33 +2236,55 @@ app.get('/api/tv/history', async (req, res) => {
 // Get filtered history (for reports)
 app.get('/api/history/filtered', async (req, res) => {
   try {
-    const { data, setor, profissional } = req.query;
-    let query = 'SELECT * FROM call_history WHERE 1=1';
+    const { data, dataInicio, dataFim, setor, profissional } = req.query;
+    const inicio = String(dataInicio || data || '').trim();
+    const fim = String(dataFim || data || '').trim();
+    let query = `SELECT * FROM call_history WHERE ${SQL_ONLY_REAL_ATTEND}`;
     const params = [];
     let idx = 1;
-    
-    if (data) {
-      query += ` AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = $${idx}`;
-      params.push(data);
+
+    if (inicio) {
+      query += ` AND DATE(created_at AT TIME ZONE 'America/Recife') >= $${idx}::date`;
+      params.push(inicio);
       idx++;
     }
-    
-    if (setor) {
+
+    if (fim) {
+      query += ` AND DATE(created_at AT TIME ZONE 'America/Recife') <= $${idx}::date`;
+      params.push(fim);
+      idx++;
+    }
+
+    if (setor && setor !== 'all') {
       query += ` AND setor = $${idx}`;
       params.push(setor);
       idx++;
     }
-    
-    if (profissional) {
-      query += ` AND (profissional = $${idx} OR medico = $${idx})`;
+
+    if (profissional && profissional !== 'all') {
+      if (profissional === 'Vivi') {
+        query += ` AND (profissional = $${idx} OR medico = $${idx} OR (COALESCE(profissional, '') = '' AND setor ILIKE '%Regula%'))`;
+      } else if (profissional === 'Leandra') {
+        query += ` AND (profissional = $${idx} OR medico = $${idx} OR (COALESCE(profissional, '') = '' AND setor ILIKE '%Farm%'))`;
+      } else {
+        query += ` AND (profissional = $${idx} OR medico = $${idx})`;
+      }
       params.push(profissional);
       idx++;
     }
-    
-    query += " ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC";
-    
+
+    query += " ORDER BY created_at DESC, id DESC LIMIT 1500";
+
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    const enriched = result.rows.map(r => {
+      if (!r.profissional && !r.medico) {
+        const s = String(r.setor || '').toLowerCase();
+        if (s.includes('regula')) return { ...r, profissional: 'Vivi' };
+        if (s.includes('farm')) return { ...r, profissional: 'Leandra' };
+      }
+      return r;
+    });
+    res.json(deduplicarAtendimentosPorDiaSetor(enriched));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -2964,17 +2987,33 @@ app.get('/api/ctrl-agendamentos', async (req, res) => {
   }
 });
 
-// POST /api/ctrl-agendamentos — Cria entrada (disparado pelo ACS ao finalizar com agendamento)
+// POST /api/ctrl-agendamentos — Cria entrada (disparado pela 1ª Escuta / setores, ou Admin manual)
 app.post('/api/ctrl-agendamentos', async (req, res) => {
   try {
-    const { patient_id, nome, horario, queixa, equipe, cpf6 } = req.body;
-    if (!nome || !horario) {
-      return res.status(400).json({ error: 'Nome e horário são obrigatórios' });
+    const { patient_id, nome, horario, queixa, equipe, cpf6, setor_origem, motivo, origem_manual, senha } = req.body;
+    if (!nome || !String(nome).trim()) {
+      return res.status(400).json({ error: 'Nome é obrigatório' });
     }
+    const isManual = origem_manual === true || !patient_id;
+    if (isManual && !isValidAdminPass(senha)) {
+      return res.status(401).json({ error: 'Registro manual é restrito ao administrador. Todos os agendamentos devem passar pela 1ª Escuta.' });
+    }
+    const horarioFinal = horario && String(horario).trim()
+      ? String(horario).trim()
+      : new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
     const result = await pool.query(
-      `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa, equipe, cpf6)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [patient_id || null, nome, horario, queixa || null, equipe || null, cpf6 || null]
+      `INSERT INTO ctrl_agendamentos (patient_id, nome, horario, queixa, equipe, cpf6, setor_origem, motivo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        patient_id || null,
+        String(nome).trim(),
+        horarioFinal,
+        queixa || null,
+        equipe || null,
+        cpf6 || null,
+        setor_origem || (isManual ? 'Admin (Manual)' : '1ª Escuta'),
+        motivo || null
+      ]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -3011,6 +3050,10 @@ app.patch('/api/ctrl-agendamentos/:id/toggle', async (req, res) => {
 app.delete('/api/ctrl-agendamentos/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const senha = (req.body && req.body.senha) || req.headers['x-admin-password'] || req.query?.senha;
+    if (!isValidAdminPass(senha)) {
+      return res.status(401).json({ error: 'Senha de administrador obrigatória para excluir agendamento!' });
+    }
     const result = await pool.query('DELETE FROM ctrl_agendamentos WHERE id = $1 RETURNING *', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Registro não encontrado' });

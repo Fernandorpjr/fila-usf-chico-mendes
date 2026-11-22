@@ -551,3 +551,37 @@ test('Global unnamed-device blocking logic enforces 5 safety guards accurately',
     { permitido: true, motivo: null, code: null, error: null }
   );
 });
+
+test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are enforced', () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const appJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const serverJs = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const sisregFront = fs.readFileSync(path.join(__dirname, '..', 'public', 'regulacao-sisreg.js'), 'utf8');
+
+  // Sala de Agendamento: registro manual restrito ao Admin no front e back
+  assert.match(indexHtml, /id="btn-novo-ctrl-admin"[^>]*class="btn admin-only"|class="btn admin-only"[^>]*id="btn-novo-ctrl-admin"/);
+  assert.match(serverJs, /POST \/api\/ctrl-agendamentos[\s\S]{0,600}isManual\s*&&\s*!isValidAdminPass\(senha\)/);
+  assert.match(serverJs, /DELETE \/api\/ctrl-agendamentos\/:id[\s\S]{0,400}!isValidAdminPass\(senha\)/);
+  assert.equal(appJs.includes("btoa(senha) !== 'Y2hpY28xMjM='"), false, 'hardcoded base64 check must be removed from exports');
+  assert.equal(appJs.includes("pedirSenhaAdmin('Exportar Controle de Agendamentos (Excel/CSV)'") && appJs.includes("pedirSenhaAdmin('Exportar Controle de Agendamentos (PDF)'"), true);
+  assert.equal(appJs.includes('abrirModalNovoCtrlAdmin'), true);
+  assert.equal(appJs.includes('removerCtrlAgendamento(id, btn)') && appJs.includes("pedirSenhaAdmin('Excluir Registro da Sala de Agendamento'"), true);
+
+  // Atendidos: SQL_ONLY_REAL_ATTEND + deduplicarAtendimentosPorDiaSetor e filtros completos
+  const idxHistFiltered = serverJs.indexOf("app.get('/api/history/filtered'");
+  assert.ok(idxHistFiltered > 0);
+  const histSlice = serverJs.slice(idxHistFiltered, idxHistFiltered + 2200);
+  assert.equal(histSlice.includes('SQL_ONLY_REAL_ATTEND') && histSlice.includes('deduplicarAtendimentosPorDiaSetor'), true);
+  assert.equal(indexHtml.includes('id="attended-count-manha"'), true);
+  assert.equal(indexHtml.includes('id="attended-count-tarde"'), true);
+  assert.equal(indexHtml.includes('id="attended-count-prio"'), true);
+  assert.equal(indexHtml.includes('id="attended-sector-pills"'), true);
+  assert.equal(indexHtml.includes('<option value="Téc. Enfermagem">Téc. Enfermagem</option>'), true);
+
+  // SISREG UI: Exames Lab shortcut + sm-busca-vaga + cache busters
+  assert.equal(indexHtml.includes("buscarAtalhoModalSisregMedico('EXAMES DE LABORATORIO')"), true);
+  assert.equal(sisregFront.includes("buscarAtalhoSisreg('EXAMES DE LABORATORIO')"), true);
+  assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
+  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=1.6'), true);
+  assert.equal(indexHtml.includes('app.js?v=8.0'), true);
+});

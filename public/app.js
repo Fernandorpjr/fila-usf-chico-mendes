@@ -3655,32 +3655,173 @@ function renderAllSectorAttended() {
 }
 
 // ====== ATTENDED ======
-function renderAttended() {
+let attendedQuickSector = '';
+
+function extrairHoraRecifeAtendido(p) {
+  if (p && p.created_at) {
+    const d = safeDate(p.created_at);
+    if (!Number.isNaN(d.getTime())) {
+      const hhStr = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Recife',
+        hour: '2-digit',
+        hour12: false
+      }).format(d);
+      const hh = parseInt(hhStr, 10);
+      if (!Number.isNaN(hh)) return hh;
+    }
+  }
+  const m = String((p && (p.horario_chamada || p.horario)) || '').match(/^(\d{1,2}):/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function obterAtendidosBaseBusca() {
+  const busca = (document.getElementById('filter-busca-nome')?.value || '').trim().toLowerCase();
+  const base = Array.isArray(attendedPatients) ? attendedPatients : [];
+  if (!busca) return base;
+  return base.filter(p => {
+    const txt = `${p.nome || ''} ${p.cpf || ''} ${p.queixa || ''} ${p.profissional || ''} ${p.medico || ''} ${p.setor || ''}`.toLowerCase();
+    return txt.includes(busca);
+  });
+}
+
+function obterAtendidosVisiveis() {
+  const base = obterAtendidosBaseBusca();
+  if (!attendedQuickSector) return base;
+  return base.filter(p => String(p.setor || '') === attendedQuickSector);
+}
+
+function selecionarSetorRapidoAtendidos(setor) {
+  attendedQuickSector = setor || '';
+  renderAttended();
+}
+
+async function renderAttended() {
   const el = document.getElementById('attended-list'); if (!el) return;
-  const ce = document.getElementById('attended-count'); if (ce) ce.textContent = attendedPatients.length;
-  const cb = document.getElementById('attended-count-big'); if (cb) cb.textContent = attendedPatients.length;
-  if (!attendedPatients.length) { el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Nenhum paciente atendido ainda</p></div>'; return; }
-  el.innerHTML = attendedPatients.map((p, i) => {
+  const baseBusca = obterAtendidosBaseBusca();
+  const visiveis = obterAtendidosVisiveis();
+
+  let cntManha = 0, cntTarde = 0, cntPrio = 0;
+  visiveis.forEach(p => {
+    const hh = extrairHoraRecifeAtendido(p);
+    if (hh !== null && hh < 12) cntManha++;
+    else if (hh !== null && hh >= 12) cntTarde++;
+    if (p.prioridade === 'prioritario' || p.tipo_prioridade) cntPrio++;
+  });
+
+  const ce = document.getElementById('attended-count'); if (ce) ce.textContent = visiveis.length;
+  const cb = document.getElementById('attended-count-big'); if (cb) cb.textContent = visiveis.length;
+  const cm = document.getElementById('attended-count-manha'); if (cm) cm.textContent = cntManha;
+  const ct = document.getElementById('attended-count-tarde'); if (ct) ct.textContent = cntTarde;
+  const cp = document.getElementById('attended-count-prio'); if (cp) cp.textContent = cntPrio;
+  const lbl = document.getElementById('attended-total-label');
+  if (lbl) {
+    lbl.textContent = attendedQuickSector
+      ? `Total em ${attendedQuickSector}`
+      : ((document.getElementById('filter-data')?.value || document.getElementById('filter-data-fim')?.value) ? 'Total Filtrado' : 'Total Atendidos');
+  }
+
+  const pillsEl = document.getElementById('attended-sector-pills');
+  if (pillsEl) {
+    const contagemPorSetor = {};
+    baseBusca.forEach(p => {
+      const s = String(p.setor || 'Outro');
+      contagemPorSetor[s] = (contagemPorSetor[s] || 0) + 1;
+    });
+    const ordemSetores = ['Médico', 'Enfermagem', 'Téc. Enfermagem', 'Odontologia', 'Acolhimento', 'Regulação', 'Farmácia', 'ACS'];
+    const setoresPresentes = Object.keys(contagemPorSetor).sort((a, b) => {
+      const ia = ordemSetores.indexOf(a);
+      const ib = ordemSetores.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b, 'pt-BR');
+    });
+    const pillStyle = active => active
+      ? 'background:#1a4fc4;color:#fff;border:1px solid #1a4fc4;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:800;cursor:pointer;'
+      : 'background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;';
+    pillsEl.innerHTML = [
+      `<button type="button" style="${pillStyle(!attendedQuickSector)}" onclick="selecionarSetorRapidoAtendidos('')">📋 Todos (${baseBusca.length})</button>`,
+      ...setoresPresentes.map(s => {
+        const cfg = SECTOR_CONFIG[s] || {};
+        const sAttr = escapeText(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `<button type="button" style="${pillStyle(attendedQuickSector === s)}" onclick="selecionarSetorRapidoAtendidos('${sAttr}')">${cfg.icon || '🏥'} ${escapeText(s)} (${contagemPorSetor[s]})</button>`;
+      })
+    ].join('');
+  }
+
+  if (!visiveis.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-icon">✅</div><p>Nenhum paciente atendido encontrado</p></div>';
+    return;
+  }
+
+  const hojeRecife = typeof getDataHojeRecifeFront === 'function' ? getDataHojeRecifeFront() : '';
+  const rowsHtml = visiveis.map((p, i) => {
     const cfg = SECTOR_CONFIG[p.setor] || {};
-    const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐</span>` : '';
+    const isPrio = p.prioridade === 'prioritario' || Boolean(p.tipo_prioridade);
+    const prioBadge = isPrio ? `<span class="priority-badge" style="margin-left:6px;">⭐ ${escapeText(p.tipo_prioridade || 'Prioritário')}</span>` : '';
+    const agendBadge = p.agendamento_realizado ? `<span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:800;background:#dbeafe;color:#1e40af;">📅 Agendado</span>` : '';
+    const cpfSpan = p.cpf ? `<span style="font-size:11px;color:#64748b;margin-left:6px;">CPF: ${escapeText(p.cpf)}</span>` : '';
+    const queixaLine = p.queixa ? `<div style="font-size:11.5px;color:#475569;margin-top:2px;">💬 ${escapeText(p.queixa)}</div>` : '';
     const prof = p.profissional || p.medico || '';
-    const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${escapeText(prof)}</span>` : '';
-    const qrBtn = `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${Number(p.patient_id)})" title="Ver QR Code">📱</button>`;
+    const profLine = prof ? `<div style="font-size:11.5px;color:#475569;font-weight:700;margin-top:3px;">👤 ${escapeText(prof)}</div>` : '';
+
+    let dataHoraHtml = escapeText(p.horario_chamada || p.horario || '—');
+    if (p.created_at) {
+      const dt = safeDate(p.created_at);
+      if (!Number.isNaN(dt.getTime())) {
+        const diaIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Recife', year: 'numeric', month: '2-digit', day: '2-digit' }).format(dt);
+        const horaStr = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' }).format(dt);
+        const diaBr = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', day: '2-digit', month: '2-digit' }).format(dt);
+        dataHoraHtml = diaIso !== hojeRecife ? `${diaBr} · ${horaStr}` : horaStr;
+      }
+    }
+    const hh = extrairHoraRecifeAtendido(p);
+    const turnoBadge = hh !== null
+      ? (hh < 12
+        ? `<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;background:#dbeafe;color:#1e40af;margin-left:4px;">🌅 Manhã</span>`
+        : `<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;background:#fef3c7;color:#92400e;margin-left:4px;">🌇 Tarde</span>`)
+      : '';
+
+    const hasPid = p.patient_id !== null && p.patient_id !== undefined && Number.isFinite(Number(p.patient_id)) && Number(p.patient_id) > 0;
+    const qrBtn = hasPid ? `<button class="btn-qr" onclick="event.stopPropagation();showQrModalById(${Number(p.patient_id)})" title="Ver QR Code">📱</button>` : '';
     const safeNomeAttr = escapeText(String(p.nome || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const delBtn = isAdmin ? `<button class="btn-danger-sm" onclick="event.stopPropagation();deleteHistoryItem(${Number(p.id)},'${safeNomeAttr}')" title="Excluir do Histórico">🗑️</button>` : '';
 
-    return `<div class="queue-item" style="border-left:4px solid var(--green);">
-      <div class="queue-position" style="background:var(--green);">${attendedPatients.length - i}</div>
-      <div class="queue-name">${escapeText(p.nome)}${prioBadge}${profLabel}</div>
-      <span class="sector-tag ${cfg.tagClass||''}">${cfg.icon||''} ${escapeText(p.setor)}</span>
-      <div class="queue-time" style="margin-left:auto;">${escapeText(p.horario_chamada || p.horario)}</div>
-      <div style="display:flex;gap:4px;align-items:center;">
+    return `<tr>
+      <td><span class="queue-position" style="background:var(--green);display:inline-flex;min-width:30px;height:28px;justify-content:center;align-items:center;">${visiveis.length - i}</span></td>
+      <td>
+        <div style="font-weight:800;color:#0f172a;font-size:13.5px;">${escapeText(p.nome)}${prioBadge}${agendBadge}</div>
+        ${cpfSpan}${queixaLine}
+      </td>
+      <td>
+        <span class="sector-tag ${cfg.tagClass||''}">${cfg.icon||''} ${escapeText(p.setor)}</span>
+        ${profLine}
+      </td>
+      <td style="font-weight:700;color:#334155;font-size:12.5px;">${dataHoraHtml}${turnoBadge}</td>
+      <td class="fila-actions-cell" style="text-align:right;">
+        <div style="display:inline-flex;gap:5px;align-items:center;justify-content:flex-end;">
           ${qrBtn}
           <span class="queue-status status-done">✅ Atendido</span>
           ${delBtn}
-      </div>
-    </div>`;
+        </div>
+      </td>
+    </tr>`;
   }).join('');
+
+  el.innerHTML = `<div class="table-responsive" style="border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;">
+    <table class="fila-clean-table" style="min-width:740px;">
+      <thead>
+        <tr>
+          <th style="width:65px;">#</th>
+          <th style="width:33%;">Paciente / Queixa</th>
+          <th style="width:24%;">Setor / Profissional</th>
+          <th style="width:18%;">Data / Hora</th>
+          <th style="width:18%;text-align:right;">Status / Ações</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  </div>`;
 }
 
 async function showQrModalById(patientId) {
@@ -3705,15 +3846,59 @@ async function deleteHistoryItem(id, nome) {
 }
 
 async function applyFilters() {
-  const data = document.getElementById('filter-data').value;
-  const setor = document.getElementById('filter-setor').value;
-  const prof = document.getElementById('filter-profissional').value;
-  if (!data && !setor && !prof) { loadAttended(); return; }
+  const dataInicio = document.getElementById('filter-data')?.value || '';
+  const dataFim = document.getElementById('filter-data-fim')?.value || '';
+  const setor = document.getElementById('filter-setor')?.value || '';
+  const prof = document.getElementById('filter-profissional')?.value || '';
+  if (!dataInicio && !dataFim && !setor && !prof) {
+    attendedQuickSector = '';
+    loadAttended();
+    return;
+  }
   try {
-    const params = new URLSearchParams(); if (data) params.set('data', data); if (setor) params.set('setor', setor); if (prof) params.set('profissional', prof);
+    const params = new URLSearchParams();
+    if (dataInicio) params.set('dataInicio', dataInicio);
+    if (dataFim) params.set('dataFim', dataFim);
+    if (dataInicio && !dataFim) params.set('dataFim', dataInicio);
+    if (setor) params.set('setor', setor);
+    if (prof) params.set('profissional', prof);
     const r = await fetch(`${API_URL}/history/filtered?${params}`);
-    attendedPatients = await r.json(); renderAttended();
+    if (!r.ok) throw new Error();
+    attendedPatients = await r.json();
+    attendedQuickSector = '';
+    renderAttended();
   } catch { showToast('Erro ao filtrar', true); }
+}
+
+function filtrarAtendidosHoje() {
+  const hoje = typeof getDataHojeRecifeFront === 'function' ? getDataHojeRecifeFront() : '';
+  const df1 = document.getElementById('filter-data');
+  const df2 = document.getElementById('filter-data-fim');
+  const fs = document.getElementById('filter-setor');
+  const fp = document.getElementById('filter-profissional');
+  const fb = document.getElementById('filter-busca-nome');
+  if (df1) df1.value = hoje;
+  if (df2) df2.value = hoje;
+  if (fs) fs.value = '';
+  if (fp) fp.value = '';
+  if (fb) fb.value = '';
+  attendedQuickSector = '';
+  loadAttended();
+}
+
+function limparFiltrosAtendidos() {
+  const df1 = document.getElementById('filter-data');
+  const df2 = document.getElementById('filter-data-fim');
+  const fs = document.getElementById('filter-setor');
+  const fp = document.getElementById('filter-profissional');
+  const fb = document.getElementById('filter-busca-nome');
+  if (df1) df1.value = '';
+  if (df2) df2.value = '';
+  if (fs) fs.value = '';
+  if (fp) fp.value = '';
+  if (fb) fb.value = '';
+  attendedQuickSector = '';
+  loadAttended();
 }
 
 // ====== CHAT AVANÇADO COM CANAIS ======
@@ -6022,23 +6207,65 @@ function renderHistoricoAgendamentos(list, container) {
   `;
 }
 
-// ====== PDF ======
+// ====== PDF & CSV ATENDIDOS ======
 function generatePDF() {
-  if (!attendedPatients.length) { showToast('Não há pacientes para exportar.', true); return; }
+  const listaExport = typeof obterAtendidosVisiveis === 'function' ? obterAtendidosVisiveis() : attendedPatients;
+  if (!listaExport.length) { showToast('Não há pacientes para exportar.', true); return; }
   if (!window.jspdf || !window.jspdf.jsPDF) { showToast('Carregando biblioteca PDF...', true); return; }
   const { jsPDF } = window.jspdf; const doc = new jsPDF('l'); // Landscape
   doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('Relatório de Atendimentos', 148, 15, { align: 'center' });
-  doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.text(`USF Chico Mendes | Data: ${new Date().toLocaleDateString('pt-BR')}`, 148, 22, { align: 'center' });
-  const data = [...attendedPatients].sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map((p, i) => {
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  const dataRef = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(new Date());
+  doc.text(`USF Chico Mendes | Emitido em: ${dataRef} | Registros: ${listaExport.length}`, 148, 22, { align: 'center' });
+  const data = [...listaExport].sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map((p, i) => {
     let condLabel = '-';
     try { const arr = JSON.parse(p.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'HAS':c==='diabetico'?'DM':c==='gestante'?'GEST':c).join(', ') || '-'; } catch {}
     const risco = p.gravidade_final || p.risco_clinico || '-';
     const agend = p.agendamento_realizado ? 'Sim' : 'Não';
-    return [i + 1, p.nome, p.cpf || '-', p.setor, safeDate(p.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}), p.queixa || '-', risco, p.profissional || p.medico || '-', agend, condLabel];
+    return [i + 1, p.nome, p.cpf || '-', p.setor, safeDate(p.created_at).toLocaleString('pt-BR',{timeZone:'America/Recife',day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}), p.queixa || '-', risco, p.profissional || p.medico || '-', agend, condLabel];
   });
   doc.autoTable({ startY: 30, head: [['Nº','Nome','CPF/SUS','Setor','Data/Hora','Queixa','Risco','Profissional','Agendado?','Condições']], body: data, theme: 'grid', headStyles: { fillColor: [26,79,196], fontSize: 8 }, bodyStyles: { fontSize: 8 }, alternateRowStyles: { fillColor: [240,244,255] }, columnStyles: { 0:{cellWidth:10}, 1:{cellWidth:35}, 4:{cellWidth:28}, 5:{cellWidth:40} } });
-  const ds = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date()).replace(/\//g, '-');
+  const ds = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(new Date()).replace(/\//g, '-');
   doc.save(`atendimentos_${ds}.pdf`); showToast('✅ PDF gerado com sucesso!');
+}
+
+function exportarAtendidosCSV() {
+  const listaExport = typeof obterAtendidosVisiveis === 'function' ? obterAtendidosVisiveis() : attendedPatients;
+  if (!listaExport.length) { showToast('Não há pacientes para exportar.', true); return; }
+  const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  let csv = 'Nº,Nome,CPF/SUS,Setor,Data/Hora,Queixa,Risco,Profissional,Prioridade,Agendado?,Condições\n';
+  const ordenado = [...listaExport].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+  ordenado.forEach((p, i) => {
+    let condLabel = '-';
+    try { const arr = JSON.parse(p.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'HAS':c==='diabetico'?'DM':c==='gestante'?'GEST':c).join(', ') || '-'; } catch {}
+    const dtStr = p.created_at
+      ? safeDate(p.created_at).toLocaleString('pt-BR',{timeZone:'America/Recife',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      : (p.horario_chamada || p.horario || '-');
+    csv += [
+      i + 1,
+      esc(p.nome),
+      esc(p.cpf || '-'),
+      esc(p.setor),
+      esc(dtStr),
+      esc(p.queixa || '-'),
+      esc(p.gravidade_final || p.risco_clinico || '-'),
+      esc(p.profissional || p.medico || '-'),
+      esc(p.prioridade === 'prioritario' ? (p.tipo_prioridade || 'Prioritário') : 'Geral'),
+      esc(p.agendamento_realizado ? 'Sim' : 'Não'),
+      esc(condLabel)
+    ].join(',') + '\n';
+  });
+  const ds = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(new Date()).replace(/\//g, '-');
+  const blob = new Blob(["\ufeff", csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `atendimentos_${ds}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  showToast('✅ Planilha CSV exportada com sucesso!');
 }
 
 // ====== RESET ======
@@ -7447,6 +7674,23 @@ let ctrlAgendFiltro = 'todos';
 let ctrlAgendPollingTimer = null;
 
 // === MELHORIA 1: Estado do filtro de data ===
+function getDataHojeRecifeFront() {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Recife',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+  } catch (e) {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+}
+
 let ctrlAgendDateFilter = null; // null = hoje (default), 'todos' = sem filtro, 'YYYY-MM-DD' = data específica
 
 async function loadCtrlAgendamentos() {
@@ -7473,6 +7717,14 @@ function onCtrlAgendDateChange() {
   loadCtrlAgendamentos();
 }
 
+function voltarHojeCtrlAgendamentos() {
+  const hoje = getDataHojeRecifeFront();
+  ctrlAgendDateFilter = hoje;
+  const input = document.getElementById('ctrl-agend-date-filter');
+  if (input) input.value = hoje;
+  loadCtrlAgendamentos();
+}
+
 function verTodosCtrlAgendamentos() {
   ctrlAgendDateFilter = 'todos';
   const input = document.getElementById('ctrl-agend-date-filter');
@@ -7480,12 +7732,11 @@ function verTodosCtrlAgendamentos() {
   loadCtrlAgendamentos();
 }
 
-// Inicializar o date input com a data de hoje
+// Inicializar o date input com a data de hoje (fuso Recife)
 (function initCtrlAgendDateFilter() {
   const input = document.getElementById('ctrl-agend-date-filter');
   if (input && !input.value) {
-    const today = new Date();
-    input.value = today.toISOString().split('T')[0];
+    input.value = getDataHojeRecifeFront();
   }
 })();
 // === FIM MELHORIA 1 ===
@@ -7523,21 +7774,135 @@ function filtrarCtrlAgendamentos(filtro) {
   renderCtrlAgendamentos();
 }
 
+function obterCtrlAgendamentosFiltrados() {
+  let lista = Array.isArray(ctrlAgendamentos) ? ctrlAgendamentos : [];
+  if (ctrlAgendFiltro !== 'todos') {
+    lista = lista.filter(a => a.status === ctrlAgendFiltro);
+  }
+  const busca = (document.getElementById('ctrl-agend-search')?.value || '').trim().toLowerCase();
+  if (busca) {
+    lista = lista.filter(a => {
+      const txt = `${a.nome || ''} ${a.cpf6 || ''} ${a.queixa || ''} ${a.equipe || ''} ${a.motivo || ''}`.toLowerCase();
+      return txt.includes(busca);
+    });
+  }
+  const eqFilter = document.getElementById('ctrl-agend-equipe-filter')?.value || 'all';
+  if (eqFilter === 'sem_equipe') {
+    lista = lista.filter(a => !a.equipe || !String(a.equipe).trim());
+  } else if (eqFilter && eqFilter !== 'all') {
+    lista = lista.filter(a => String(a.equipe || '').trim() === eqFilter);
+  }
+  const motFilter = document.getElementById('ctrl-agend-motivo-filter')?.value || 'all';
+  if (motFilter && motFilter !== 'all') {
+    lista = lista.filter(a => String(a.motivo || '').trim() === motFilter);
+  }
+  return lista;
+}
+
+function copiarTextoRapidoCtrl(encodedVal, label = 'Dado') {
+  const txt = decodeURIComponent(encodedVal || '');
+  if (!txt) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(() => showToast(`📋 ${label} copiado: ${txt}`)).catch(() => showToast('Não foi possível copiar', true));
+  } else {
+    showToast(`${label}: ${txt}`);
+  }
+}
+
+function formatarTempoEsperaCtrl(criadoEm) {
+  if (!criadoEm) return '';
+  const dt = new Date(criadoEm);
+  if (Number.isNaN(dt.getTime())) return '';
+  const diffMin = Math.max(0, Math.round((Date.now() - dt.getTime()) / 60000));
+  if (diffMin < 60) return `${diffMin} min`;
+  const h = Math.floor(diffMin / 60);
+  const m = diffMin % 60;
+  return `${h}h${m > 0 ? String(m).padStart(2, '0') : ''}`;
+}
+
+function abrirModalNovoCtrlAdmin() {
+  if (!isAdmin) {
+    showToast('🔒 Registro manual é exclusivo do Administrador. Todos os agendamentos devem passar pela 1ª Escuta.', true);
+    return;
+  }
+  const agoraRecife = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
+  const elNome = document.getElementById('novo-ctrl-nome');
+  const elHora = document.getElementById('novo-ctrl-horario');
+  const elMotivo = document.getElementById('novo-ctrl-motivo');
+  const elQueixa = document.getElementById('novo-ctrl-queixa');
+  const elEquipe = document.getElementById('novo-ctrl-equipe');
+  const elCpf = document.getElementById('novo-ctrl-cpf6');
+  if (elNome) elNome.value = '';
+  if (elHora) elHora.value = agoraRecife;
+  if (elMotivo) elMotivo.value = '';
+  if (elQueixa) elQueixa.value = '';
+  if (elEquipe) elEquipe.value = '';
+  if (elCpf) elCpf.value = '';
+  document.getElementById('modal-novo-ctrl-admin')?.classList.add('show');
+  setTimeout(() => elNome?.focus(), 60);
+}
+
+function fecharModalNovoCtrlAdmin() {
+  document.getElementById('modal-novo-ctrl-admin')?.classList.remove('show');
+}
+
+async function salvarNovoCtrlAdmin() {
+  if (!isAdmin) {
+    showToast('🔒 Ação exclusiva do Administrador.', true);
+    return;
+  }
+  const nome = (document.getElementById('novo-ctrl-nome')?.value || '').trim();
+  const horario = (document.getElementById('novo-ctrl-horario')?.value || '').trim();
+  const motivo = document.getElementById('novo-ctrl-motivo')?.value || null;
+  const queixa = (document.getElementById('novo-ctrl-queixa')?.value || '').trim() || null;
+  const equipe = document.getElementById('novo-ctrl-equipe')?.value || null;
+  const cpf6 = (document.getElementById('novo-ctrl-cpf6')?.value || '').trim() || null;
+  if (!nome || !horario) {
+    showToast('Informe nome e horário.', true);
+    return;
+  }
+  pedirSenhaAdmin('Confirmar Registro Manual na Sala de Agendamento', async (senhaUsada) => {
+    try {
+      const r = await fetch(`${API_URL}/ctrl-agendamentos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome,
+          horario,
+          motivo,
+          queixa,
+          equipe,
+          cpf6,
+          setor_origem: 'Admin (Manual)',
+          origem_manual: true,
+          senha: senhaUsada
+        })
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || 'Erro ao salvar registro manual');
+      }
+      fecharModalNovoCtrlAdmin();
+      showToast(`✅ ${nome} adicionado à Sala de Agendamento (Admin)`);
+      await loadCtrlAgendamentos();
+    } catch (e) {
+      showToast(e.message || 'Erro ao salvar', true);
+    }
+  });
+}
+
 function renderCtrlAgendamentos() {
   const tbody = document.getElementById('ctrl-agend-tbody');
   if (!tbody) return;
 
-  let lista = ctrlAgendamentos;
-  if (ctrlAgendFiltro !== 'todos') {
-    lista = lista.filter(a => a.status === ctrlAgendFiltro);
-  }
+  const lista = obterCtrlAgendamentosFiltrados();
 
   if (!lista.length) {
     const msg = ctrlAgendFiltro === 'pendente'
-      ? '✅ Nenhum paciente pendente! Tudo agendado.'
+      ? '✅ Nenhum paciente pendente nos filtros atuais!'
       : ctrlAgendFiltro === 'agendado'
-        ? '⏳ Nenhum agendamento realizado ainda.'
-        : '📂 Nenhum paciente encaminhado para agendamento hoje.';
+        ? '⏳ Nenhum agendamento realizado encontrado.'
+        : '📂 Nenhum paciente encontrado na Sala de Agendamento.';
     tbody.innerHTML = `<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--gray-600);font-size:14px;font-weight:600;">${msg}</td></tr>`;
     return;
   }
@@ -7547,43 +7912,57 @@ function renderCtrlAgendamentos() {
     const badge = isPendente
       ? `<span class="ctrl-badge-pendente">⏳ Pendente</span>`
       : `<span class="ctrl-badge-agendado">✅ Agendado</span>`;
-    const editBtn = `<button class="ctrl-btn-toggle" style="background:rgba(230,126,34,0.12);color:#d35400;border:1px solid rgba(230,126,34,0.4);margin-left:4px;padding:6px 10px;" onclick="abrirEditarCtrlAgendamento(${a.id})" title="Editar registro">✏️ Editar</button>`;
-    const safeNome = (a.nome || '').replace(/'/g, "\\'");
-    const safeEquipe = (a.equipe || '').replace(/'/g, "\\'");
-    const safeMotivo = (a.motivo || a.queixa || 'Consulta').replace(/'/g, "\\'");
-    const waBtn = `<button class="ctrl-btn-toggle" style="background:#25d366;color:#fff;border:none;margin-left:4px;padding:6px 10px;font-weight:700;" onclick="enviarWhatsAppCtrlAgendamento('${safeNome}', '${safeEquipe}', '${safeMotivo}')" title="Enviar WhatsApp de Confirmação em 1 Clique">📲 WhatsApp</button>`;
-
-    const btn = isPendente
-      ? `<button class="ctrl-btn-toggle ctrl-btn-marcar" onclick="toggleCtrlAgendamento(${a.id}, this)">✅ Marcar Agendado</button>
-         ${editBtn}
-         ${waBtn}
-         <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${safeNome}')" title="Chamar paciente via voz">📢 Chamar</button>
-         <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`
-      : `<button class="ctrl-btn-toggle ctrl-btn-desfazer" onclick="toggleCtrlAgendamento(${a.id}, this)">↩ Desfazer</button>
-         ${editBtn}
-         ${waBtn}
-         <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);margin-left:4px;padding:6px 10px;" onclick="chamarPacienteVoz('${safeNome}')" title="Chamar paciente via voz">📢 Chamar</button>
-         <button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);margin-left:4px;padding:6px 10px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`;
-    const queixaCell = a.queixa
-      ? `<span style="font-size:13px;color:var(--gray-700);">${a.queixa}</span>`
-      : `<span style="font-size:12px;color:var(--gray-600);font-style:italic;">Não informada</span>`;
-    
-    // Novo layout da coluna "Paciente / Equipe / CPF"
-    const equipeTag = a.equipe ? `<span style="display:inline-block;background:#e3f2fd;color:#1565c0;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;margin-right:4px;font-weight:700;">🏥 ${a.equipe}</span>` : '';
-    const cpfTag = a.cpf6 ? `<span style="display:inline-block;background:#f5f5f5;color:#616161;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;border:1px solid #e0e0e0;font-weight:700;">🆔 ${a.cpf6}.***.***-**</span>` : '';
-    const origemTag = a.setor_origem ? `<span style="display:inline-block;background:#f3e5f5;color:#7b1fa2;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;margin-right:4px;font-weight:700;">📋 de: ${a.setor_origem}</span>` : '';
-    const motivoTag = a.motivo ? `<span style="display:inline-block;background:#e8f5e9;color:#2e7d32;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:4px;margin-right:4px;font-weight:700;">📌 ${a.motivo}</span>` : '';
-    
-    return `<tr class="ctrl-agend-row status-${a.status}">
-      <td style="font-family:'Nunito',sans-serif;font-weight:700;color:var(--blue-dark);">${a.horario}</td>
-      <td>
-        <div style="font-weight:700;">${a.nome}</div>
-        ${origemTag}${motivoTag}${equipeTag}${cpfTag}
-      </td>
-      <td>${queixaCell}</td>
-      <td style="text-align:center;">${badge}</td>
-      <td style="text-align:center;">${btn}</td>
-    </tr>`;
+    const btnToggle = isPendente
+      ? `<button class="ctrl-btn-toggle ctrl-btn-marcar" onclick="toggleCtrlAgendamento(${a.id}, this)">✅ Marcar Agendado</button>`
+      : `<button class="ctrl-btn-toggle ctrl-btn-desfazer" onclick="toggleCtrlAgendamento(${a.id}, this)">↩ Desfazer</button>`;
+    const dataStr = formatarDataHoraRecifeCtrl(a.criado_em);
+    const esperaStr = isPendente ? formatarTempoEsperaCtrl(a.criado_em) : '';
+    const esperaBadge = esperaStr
+      ? `<div style="margin-top:3px;"><span style="font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:#fef3c7;color:#92400e;">⏱️ ${escapeText(esperaStr)}</span></div>`
+      : '';
+    const copyNomeBtn = `<button type="button" onclick="copiarTextoRapidoCtrl('${encodeURIComponent(a.nome || '')}','Nome')" title="Copiar nome p/ PEC" style="border:1px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:6px;padding:1px 6px;font-size:11px;cursor:pointer;margin-left:6px;font-weight:700;">📋 Nome</button>`;
+    const copyCpfBtn = a.cpf6
+      ? `<button type="button" onclick="copiarTextoRapidoCtrl('${encodeURIComponent(a.cpf6)}','CPF')" title="Copiar CPF p/ PEC" style="border:1px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:6px;padding:1px 6px;font-size:10.5px;cursor:pointer;margin-left:4px;font-weight:700;">📋 CPF: ${escapeText(a.cpf6)}</button>`
+      : '';
+    const equipePill = a.equipe
+      ? `<span style="display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;background:#e0e7ff;color:#1e40af;">🏥 ${escapeText(a.equipe)}</span>`
+      : '';
+    const motivoPill = a.motivo
+      ? `<span style="display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#ecfeff;color:#0e7490;margin-right:4px;">${escapeText(a.motivo)}</span>`
+      : '';
+    const origemPill = `<span style="display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:700;background:#f1f5f9;color:#475569;">📍 ${escapeText(a.setor_origem || '1ª Escuta')}</span>`;
+    const delBtn = `<button class="ctrl-btn-toggle" style="background:rgba(229,57,53,0.1);color:#e53935;border:1px solid rgba(229,57,53,0.3);padding:5px 9px;" onclick="removerCtrlAgendamento(${a.id}, this)" title="Desistência / Excluir">🗑️</button>`;
+    const escAttr = v => escapeText(String(v || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const safeNome = escAttr(a.nome);
+    const safeEquipe = escAttr(a.equipe);
+    const safeMotivo = escAttr(a.motivo || a.queixa || 'Consulta');
+    return `
+      <tr class="ctrl-agend-row status-${a.status}" style="border-bottom:1px solid #e2e8f0;${!isPendente ? 'opacity:0.78;background:#f8fafc;' : ''}">
+        <td style="padding:12px 14px;font-weight:800;color:#0f172a;white-space:nowrap;vertical-align:middle;">
+          <div style="font-size:13.5px;color:var(--blue-dark);">${escapeText(a.horario || '-')}</div>
+          <div style="font-size:11px;color:#64748b;font-weight:700;">${escapeText(dataStr)}</div>
+          ${esperaBadge}
+        </td>
+        <td style="padding:12px 14px;vertical-align:middle;">
+          <div style="font-weight:800;color:#0f172a;font-size:14px;">${escapeText(a.nome)}${copyNomeBtn}</div>
+          <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${equipePill}${copyCpfBtn}</div>
+        </td>
+        <td style="padding:12px 14px;vertical-align:middle;">
+          <div style="margin-bottom:4px;">${motivoPill}${origemPill}</div>
+          <div style="font-size:12.5px;color:#334155;">${a.queixa ? escapeText(a.queixa) : '<span style="color:#94a3b8;font-style:italic;">Não informada</span>'}</div>
+        </td>
+        <td style="padding:12px 14px;text-align:center;vertical-align:middle;">${badge}</td>
+        <td style="padding:12px 14px;text-align:center;vertical-align:middle;white-space:nowrap;">
+          <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap;">
+            ${btnToggle}
+            <button class="ctrl-btn-toggle" style="background:rgba(230,126,34,0.12);color:#d35400;border:1px solid rgba(230,126,34,0.4);padding:5px 9px;" onclick="abrirEditarCtrlAgendamento(${a.id})" title="Editar registro">✏️ Editar</button>
+            <button class="ctrl-btn-toggle" style="background:#25d366;color:#fff;border:none;padding:5px 9px;font-weight:700;" onclick="enviarWhatsAppCtrlAgendamento('${safeNome}', '${safeEquipe}', '${safeMotivo}')" title="Enviar WhatsApp de Confirmação em 1 Clique">📲 WhatsApp</button>
+            <button class="ctrl-btn-toggle" style="background:rgba(26,79,196,0.1);color:#1a4fc4;border:1px solid rgba(26,79,196,0.3);padding:5px 9px;" onclick="chamarPacienteVoz('${safeNome}')" title="Chamar paciente via voz">📢 Chamar</button>
+            ${delBtn}
+          </div>
+        </td>
+      </tr>
+    `;
   }).join('');
 }
 
@@ -7700,133 +8079,156 @@ async function removerCtrlAgendamento(id, btn) {
     if (!confirm('Deseja realmente marcar desistência/excluir este encaminhamento?')) return;
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
     try {
-      const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error('Erro ao excluir');
+      const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': senhaUsada
+        },
+        body: JSON.stringify({ senha: senhaUsada })
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || 'Erro ao excluir');
+      }
       ctrlAgendamentos = ctrlAgendamentos.filter(a => a.id !== id);
       renderCtrlAgendamentos();
       updateCtrlAgendBadge();
       showToast('🗑️ Registro removido (Desistência)');
     } catch(e) {
-      showToast('Erro ao excluir registro', true);
+      showToast(e.message || 'Erro ao excluir registro', true);
       if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     }
   });
 }
 
+function formatarDataHoraRecifeCtrl(criadoEm) {
+  if (!criadoEm) return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(new Date());
+  const d = new Date(criadoEm);
+  if (Number.isNaN(d.getTime())) return '-';
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(d);
+}
+
 function exportarAgendamentosExcel() {
-  // === MELHORIA 2: Senha antes de exportar ===
-  const senha = prompt('🔒 Digite a senha para exportar:');
-  if (!senha) return;
-  if (btoa(senha) !== 'Y2hpY28xMjM=') { showToast('❌ Senha incorreta!', true); return; }
-  // === FIM MELHORIA 2 ===
-  if (!ctrlAgendamentos || ctrlAgendamentos.length === 0) {
-    showToast('Nenhum agendamento para exportar', true);
-    return;
-  }
-  let csv = "Data,Hora,Paciente,Equipe,CPF,Motivo,Status\n";
-  const dataHoje = new Date().toLocaleDateString('pt-BR');
-  ctrlAgendamentos.forEach(a => {
-    const nome = `"${(a.nome || '').replace(/"/g, '""')}"`;
-    const equipe = `"${(a.equipe || '').replace(/"/g, '""')}"`;
-    const cpf = `"${a.cpf6 || ''}"`;
-    const queixa = `"${(a.queixa || '').replace(/"/g, '""')}"`;
-    const status = a.status === 'pendente' ? 'Pendente' : 'Agendado';
-    csv += `${dataHoje},${a.horario},${nome},${equipe},${cpf},${queixa},${status}\n`;
+  pedirSenhaAdmin('Exportar Controle de Agendamentos (Excel/CSV)', () => {
+    const lista = typeof obterCtrlAgendamentosFiltrados === 'function'
+      ? obterCtrlAgendamentosFiltrados()
+      : (ctrlAgendamentos || []);
+    if (!lista || lista.length === 0) {
+      showToast('Nenhum agendamento para exportar nos filtros atuais', true);
+      return;
+    }
+    let csv = "Data,Hora,Paciente,Equipe,CPF,Motivo,Queixa,Origem,Status\n";
+    const dataHoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(new Date());
+    lista.forEach(a => {
+      const dataReg = formatarDataHoraRecifeCtrl(a.criado_em);
+      const nome = `"${String(a.nome || '').replace(/"/g, '""')}"`;
+      const equipe = `"${String(a.equipe || '').replace(/"/g, '""')}"`;
+      const cpf = `"${String(a.cpf6 || '').replace(/"/g, '""')}"`;
+      const motivo = `"${String(a.motivo || '').replace(/"/g, '""')}"`;
+      const queixa = `"${String(a.queixa || '').replace(/"/g, '""')}"`;
+      const origem = `"${String(a.setor_origem || '1ª Escuta').replace(/"/g, '""')}"`;
+      const status = a.status === 'pendente' ? 'Pendente' : 'Agendado';
+      csv += `${dataReg},${a.horario || '-'},${nome},${equipe},${cpf},${motivo},${queixa},${origem},${status}\n`;
+    });
+
+    const blob = new Blob(["\ufeff", csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Agendamentos_${dataHoje.replace(/\//g,'-')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('✅ Planilha CSV exportada com sucesso!');
   });
-  
-  const blob = new Blob(["\ufeff", csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", `Agendamentos_${dataHoje.replace(/\//g,'-')}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 }
 
 function exportarAgendamentosPDF() {
-  // === MELHORIA 2: Senha antes de exportar ===
-  const senha = prompt('🔒 Digite a senha para exportar:');
-  if (!senha) return;
-  if (btoa(senha) !== 'Y2hpY28xMjM=') { showToast('❌ Senha incorreta!', true); return; }
-  // === FIM MELHORIA 2 ===
-  if (!ctrlAgendamentos || ctrlAgendamentos.length === 0) {
-    showToast('Nenhum agendamento para exportar', true);
-    return;
-  }
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    showToast('Carregando biblioteca PDF...', true);
-    return;
-  }
+  pedirSenhaAdmin('Exportar Controle de Agendamentos (PDF)', () => {
+    const lista = typeof obterCtrlAgendamentosFiltrados === 'function'
+      ? obterCtrlAgendamentosFiltrados()
+      : (ctrlAgendamentos || []);
+    if (!lista || lista.length === 0) {
+      showToast('Nenhum agendamento para exportar nos filtros atuais', true);
+      return;
+    }
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      showToast('Carregando biblioteca PDF...', true);
+      return;
+    }
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('l');
-  const dataHoje = new Date().toLocaleDateString('pt-BR');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('Controle de Agendamentos (Acolhimento PEC Recife) — USF Chico Mendes', 148, 14, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Emitido em: ${dataHoje} | Total de registros: ${ctrlAgendamentos.length}`, 148, 21, { align: 'center' });
-
-  const bodyRows = ctrlAgendamentos.map((a, idx) => [
-    idx + 1,
-    a.horario || '-',
-    a.nome || '-',
-    a.equipe || '-',
-    a.cpf6 || '-',
-    a.queixa || '-',
-    a.status === 'pendente' ? 'Pendente' : 'Agendado'
-  ]);
-
-  doc.autoTable({
-    startY: 27,
-    head: [['Nº', 'Hora', 'Paciente', 'Equipe', 'CPF (6)', 'Motivo', 'Status']],
-    body: bodyRows,
-    theme: 'grid',
-    headStyles: { fillColor: [26, 79, 196], fontSize: 9 },
-    bodyStyles: { fontSize: 8.5 },
-    alternateRowStyles: { fillColor: [240, 244, 255] }
-  });
-
-  const equipeTotals = {};
-  ctrlAgendamentos.forEach(a => {
-    const eq = a.equipe || 'Sem Equipe';
-    if (!equipeTotals[eq]) equipeTotals[eq] = { pendente: 0, agendado: 0, total: 0 };
-    equipeTotals[eq].total++;
-    if (a.status === 'pendente') equipeTotals[eq].pendente++;
-    else equipeTotals[eq].agendado++;
-  });
-
-  const equipeKeys = Object.keys(equipeTotals).sort();
-  if (equipeKeys.length > 0) {
-    const nextY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 30) + 10;
-    let grandPendente = 0, grandAgendado = 0, grandTotal = 0;
-    const resumoRows = equipeKeys.map(eq => {
-      const t = equipeTotals[eq];
-      grandPendente += t.pendente;
-      grandAgendado += t.agendado;
-      grandTotal += t.total;
-      return [eq, t.pendente, t.agendado, t.total];
-    });
-    resumoRows.push(['TOTAL GERAL', grandPendente, grandAgendado, grandTotal]);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l');
+    const dataHoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(new Date());
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('Resumo por Equipe', 14, nextY);
-    doc.autoTable({
-      startY: nextY + 4,
-      head: [['Equipe', 'Pendentes', 'Agendados', 'Total']],
-      body: resumoRows,
-      theme: 'grid',
-      headStyles: { fillColor: [15, 118, 110], fontSize: 9 },
-      bodyStyles: { fontSize: 8.5 }
-    });
-  }
+    doc.setFontSize(16);
+    doc.text('Controle de Agendamentos (Acolhimento PEC Recife) — USF Chico Mendes', 148, 14, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Emitido em: ${dataHoje} | Total de registros: ${lista.length}`, 148, 21, { align: 'center' });
 
-  doc.save(`controle_agendamentos_${dataHoje.replace(/\//g, '-')}.pdf`);
-  showToast('✅ PDF gerado com sucesso!');
+    const bodyRows = lista.map((a, idx) => [
+      idx + 1,
+      formatarDataHoraRecifeCtrl(a.criado_em),
+      a.horario || '-',
+      a.nome || '-',
+      a.equipe || '-',
+      a.cpf6 || '-',
+      [a.motivo, a.queixa].filter(Boolean).join(' — ') || '-',
+      a.status === 'pendente' ? 'Pendente' : 'Agendado'
+    ]);
+
+    doc.autoTable({
+      startY: 27,
+      head: [['Nº', 'Data', 'Hora', 'Paciente', 'Equipe', 'CPF (6)', 'Motivo / Queixa', 'Status']],
+      body: bodyRows,
+      theme: 'grid',
+      headStyles: { fillColor: [26, 79, 196], fontSize: 8.5 },
+      bodyStyles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [240, 244, 255] }
+    });
+
+    const equipeTotals = {};
+    lista.forEach(a => {
+      const eq = a.equipe || 'Sem Equipe';
+      if (!equipeTotals[eq]) equipeTotals[eq] = { pendente: 0, agendado: 0, total: 0 };
+      equipeTotals[eq].total++;
+      if (a.status === 'pendente') equipeTotals[eq].pendente++;
+      else equipeTotals[eq].agendado++;
+    });
+
+    const equipeKeys = Object.keys(equipeTotals).sort();
+    if (equipeKeys.length > 0) {
+      const nextY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 30) + 10;
+      let grandPendente = 0, grandAgendado = 0, grandTotal = 0;
+      const resumoRows = equipeKeys.map(eq => {
+        const t = equipeTotals[eq];
+        grandPendente += t.pendente;
+        grandAgendado += t.agendado;
+        grandTotal += t.total;
+        return [eq, t.pendente, t.agendado, t.total];
+      });
+      resumoRows.push(['TOTAL GERAL', grandPendente, grandAgendado, grandTotal]);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('Resumo por Equipe', 14, nextY);
+      doc.autoTable({
+        startY: nextY + 4,
+        head: [['Equipe', 'Pendentes', 'Agendados', 'Total']],
+        body: resumoRows,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 9 },
+        bodyStyles: { fontSize: 8.5 }
+      });
+    }
+
+    doc.save(`controle_agendamentos_${dataHoje.replace(/\//g, '-')}.pdf`);
+    showToast('✅ PDF gerado com sucesso!');
+  });
 }
 
 // Polling dedicado para a aba de agendamento (8s foreground / 60s background)
@@ -8265,9 +8667,13 @@ function renderVagasMedicos(data) {
 
   container.innerHTML = MEDICOS_VAGAS.map(medico => {
     const info = vagasMap[medico] || { vagas: 0, usados: 0, restantes: 0, id: null };
-    const vagasVal = info.vagas || 0;
-    const usadosVal = info.usados || 0;
-    const restantesVal = info.restantes || (vagasVal - usadosVal);
+    const vagasVal = Number(info.vagas || 0);
+    const usadosVal = Number(info.usados || 0);
+    const restantesVal = info.restantes !== undefined && info.restantes !== null
+      ? Number(info.restantes)
+      : (vagasVal - usadosVal);
+    const pctOcupado = vagasVal > 0 ? Math.min(100, Math.round((usadosVal / vagasVal) * 100)) : 0;
+    const barColor = pctOcupado >= 90 ? '#ef4444' : (pctOcupado >= 70 ? '#f59e0b' : '#22c55e');
     // Botão de excluir: só aparece se houver registro salvo (id existe)
     const deleteBtn = info.id
       ? `<button class="btn btn-sm" onclick="excluirVagaMedico(${info.id}, '${medico}')" style="background: rgba(229,57,53,0.15); color: var(--red); border: 1px solid rgba(229,57,53,0.3); font-size: 11px; padding: 6px; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 4px;" title="Excluir registro de vagas (permite refazer)">🗑️ Excluir Vagas</button>`
@@ -8275,7 +8681,13 @@ function renderVagasMedicos(data) {
 
     return `
       <div class="card-white" style="padding: 16px; border: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 10px; background: rgba(255,255,255,0.05); border-radius: 12px;">
-        <div style="font-weight: 800; font-size: 15px; color: var(--orange);">${medico}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="font-weight: 800; font-size: 15px; color: var(--orange);">${medico}</div>
+          <span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.08);color:${barColor};">${vagasVal > 0 ? pctOcupado + '% ocupado' : 'Sem cota'}</span>
+        </div>
+        <div style="width:100%;height:7px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;">
+          <div style="width:${pctOcupado}%;height:100%;background:${barColor};border-radius:999px;transition:width .3s ease;"></div>
+        </div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 12px; color: var(--gray-300);">Vagas no Mês:</span>
           <input type="number" id="vagas-input-${medico.replace(/\s+/g, '_')}" value="${vagasVal}" min="0" style="width: 70px; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: white; text-align: center; font-weight: 700;">

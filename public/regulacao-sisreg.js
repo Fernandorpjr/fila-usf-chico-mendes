@@ -127,10 +127,13 @@
     eas: ['sumario de urina', 'eas'],
     iono: ['sodio', 'potassio', 'iono'],
     lipidograma: ['colesterol'],
-    vdrl: ['vdrl', 'sifilis']
+    vdrl: ['vdrl', 'sifilis'],
+    laboratorio: ['exames de laboratorio', 'patologia clinica'],
+    lab: ['exames de laboratorio', 'patologia clinica'],
+    'exames de laboratorio': ['exames de laboratorio', 'patologia clinica']
   };
   const STOPWORDS_FRONT = new Set(['de', 'da', 'do', 'dos', 'das', 'em', 'para', 'p/', 'com', 'c/', 'sem', 'e', 'ou', 'a', 'o', 'os', 'as', 'ao', 'no', 'na']);
-  const SIGLAS_SO_SINONIMO_FRONT = new Set(['tc', 'tomo', 'rnm', 'rm', 'usg', 'us', 'eco', 'ecott', 'eda', 'espiro', 'densi', 'dmo', 'mamo', 'mmg', 'orl', 'go', 'tv', 'colono', 'reto', 'peate', 'ped']);
+  const SIGLAS_SO_SINONIMO_FRONT = new Set(['tc', 'tomo', 'rnm', 'rm', 'usg', 'us', 'eco', 'ecott', 'eda', 'espiro', 'densi', 'dmo', 'mamo', 'mmg', 'orl', 'go', 'tv', 'colono', 'reto', 'peate', 'ped', 'lab', 'laboratorio']);
   const SIGLAS_EXATAS_FRONT = new Set(['bera', 'mapa', 'ecg', 'eeg', 'enmg', 'emg', 'psa', 'tsh', 'hba1c', 'hbgl', 'eas', 'vdrl', 'iono', 'rx', 'mid', 'mie', 'msd', 'mse']);
 
   function escRxFront(s) {
@@ -496,6 +499,62 @@
     return _sisregCatalogoPromise;
   }
 
+  function classificarFaixaEtariaFront(nomeNorm, hierNorm) {
+    const txt = `${nomeNorm} ${hierNorm}`.replace(/\s+/g, ' ').trim();
+    const isMistoAdultoInfantil = /\badulto ou infantil\b|\binfantil ou adulto\b/.test(txt);
+    const isTeen14a17 = /\b14 a 17\s*anos?\b|\binfanto[\s-]*puberal\b|\b10 a 17\s*anos?\b/.test(txt);
+    const isPed = !isMistoAdultoInfantil && (
+      /\bpediatr|\binfant|\bneonat|\bmicrocefalia|\bhebiatria|\btetse do olhinho|\bteste do olhinho/.test(txt) ||
+      /\b0 a 1[0-4]\b|\b0 a [1-9]\b|\b2 a 1[0-4]\b|\b5 a 13\b|<\s*[1-9]\s*anos?\b|<\s*1[0-4]\s*anos?\b/.test(txt) ||
+      /(?:^|[\s\-(])(?:[1-9]|1[0-4])\s*anos?(?:\b|$)/.test(nomeNorm.replace(/>\s*\d+\s*anos?/g, '').replace(/\d+\s*a\s*\d+\s*anos?/g, '').replace(/a partir de \d+\s*anos?/g, '')) ||
+      isTeen14a17
+    );
+    const isIdoso = />\s*60\b|\bgeriatr/.test(txt);
+    const isFaixaAdultoCap59 = /\b1[48]\s*a\s*59\s*anos?\b/.test(txt);
+    const isAdultoMaior = !isMistoAdultoInfantil && (
+      />\s*1[4-8]\b|\badulto\b|\badultos\b/.test(txt) || isFaixaAdultoCap59 || isTeen14a17
+    );
+    return { isPed, isTeen14a17, isIdoso, isFaixaAdultoCap59, isAdultoMaior, isMistoAdultoInfantil };
+  }
+
+  function compativelFaixaEtariaEVagaFront(nomeNorm, hierNorm, { idade, tipoVaga } = {}) {
+    if (tipoVaga === 'retorno' || tipoVaga === 'primeira_vez') {
+      const isRetorno = /\bretorno\b/.test(nomeNorm);
+      if (tipoVaga === 'retorno' && !isRetorno) return false;
+      if (tipoVaga === 'primeira_vez' && isRetorno) return false;
+    }
+    if (idade !== null && idade !== undefined && String(idade).trim() !== '' && Number.isFinite(Number(idade))) {
+      const id = Number(idade);
+      const { isPed, isTeen14a17, isIdoso, isAdultoMaior } = classificarFaixaEtariaFront(nomeNorm, hierNorm);
+      if (id <= 14) {
+        if ((isAdultoMaior && !isTeen14a17) || isIdoso) return false;
+      } else if (id >= 60) {
+        if (isPed || /\b1[48]\s*a\s*59\s*anos?\b/.test(`${nomeNorm} ${hierNorm}`)) return false;
+      } else {
+        if ((isPed && !isTeen14a17) || isIdoso) return false;
+      }
+    }
+    return true;
+  }
+
+  function pontuarFaixaEtariaFront(nomeNorm, hierNorm, idade) {
+    if (idade === null || idade === undefined || !Number.isFinite(Number(idade))) return 0;
+    const id = Number(idade);
+    const { isPed, isTeen14a17, isIdoso, isAdultoMaior } = classificarFaixaEtariaFront(nomeNorm, hierNorm);
+    if (id <= 14) {
+      if (isPed) return isTeen14a17 ? 20 : 45;
+      if (isAdultoMaior || isIdoso) return -35;
+    } else if (id >= 60) {
+      if (isIdoso) return 45;
+      if (isPed) return -50;
+      if (isAdultoMaior) return 15;
+    } else {
+      if (isAdultoMaior) return isTeen14a17 ? 20 : 35;
+      if (isPed || isIdoso) return -35;
+    }
+    return 0;
+  }
+
   function buscarProcedimentosFront(query, opts = {}) {
     const lista = _sisregCatalogo?.procedimentos || [];
     const qStr = String(query || '').trim();
@@ -505,10 +564,29 @@
     const limite = Number(opts.limite) > 0 ? Number(opts.limite) : 40;
 
     if (!qStr) {
-      return lista
-        .filter(p => !tipoFiltro || p.type === tipoFiltro)
-        .slice(0, limite)
-        .map(p => ({ ...p, score: 1 }));
+      const temIdade = idade !== null && Number.isFinite(idade);
+      const temVaga = tipoVaga === 'retorno' || tipoVaga === 'primeira_vez';
+      const filtrados = lista
+        .filter(p => {
+          if (tipoFiltro && p.type !== tipoFiltro) return false;
+          const nameRawNorm = normSisregFront(p.name);
+          const hierNorm = normSisregFront(p.hierarchy || '');
+          return compativelFaixaEtariaEVagaFront(nameRawNorm, hierNorm, { idade, tipoVaga });
+        })
+        .map(p => {
+          const nameRawNorm = normSisregFront(p.name);
+          const hierNorm = normSisregFront(p.hierarchy || '');
+          const isRetorno = /\bretorno\b/.test(nameRawNorm);
+          let score = 1;
+          if (temIdade) score += pontuarFaixaEtariaFront(nameRawNorm, hierNorm, idade);
+          if (tipoVaga === 'retorno') score += isRetorno ? 40 : 0;
+          else if (tipoVaga === 'primeira_vez') score += isRetorno ? -25 : 15;
+          return { ...p, score };
+        });
+      if (temIdade || temVaga) {
+        filtrados.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'pt-BR'));
+      }
+      return filtrados.slice(0, limite);
     }
 
     const qDigits = qStr.replace(/\D/g, '');
@@ -542,6 +620,7 @@
         .replace(/ultra[\s-]*sonograf[ia]+/g, 'ultrassonografia')
         .replace(/\braio[\s-]*x\b/g, 'radiografia');
       const hierNorm = normSisregFront(proc.hierarchy || '');
+      if (!compativelFaixaEtariaEVagaFront(nameRawNorm, hierNorm, { idade, tipoVaga })) continue;
       const fullText = `${nameRawNorm} ${nameUnified} ${hierNorm} ${codeNorm}`;
 
       let score = 0;
@@ -573,15 +652,7 @@
         score = 20;
       }
 
-      if (idade !== null && Number.isFinite(idade)) {
-        const txt = `${nameRawNorm} ${hierNorm}`;
-        const isPed = /\bpediatr|\binfant|\b0 a 1[0-4]|\b2 a 1[0-4]|\b5 a 13|\bmicrocefalia|\bhebiatria/.test(txt);
-        const isIdoso = /> ?60\b|\bgeriatr/.test(txt);
-        const isAdulto14 = /> ?14\b|\badulto\b|\b14 a 59|\b18 a 59/.test(txt);
-        if (idade <= 14) score += isPed ? 45 : ((isAdulto14 || isIdoso) ? -35 : 0);
-        else if (idade >= 60) score += isIdoso ? 45 : (isPed ? -50 : (isAdulto14 ? 15 : 0));
-        else score += isAdulto14 ? 35 : ((isPed || isIdoso) ? -35 : 0);
-      }
+      score += pontuarFaixaEtariaFront(nameRawNorm, hierNorm, idade);
 
       const isRetorno = /\bretorno\b/.test(nameRawNorm);
       if (tipoVaga === 'retorno') score += isRetorno ? 40 : -10;
@@ -595,9 +666,10 @@
     return resultados.slice(0, limite);
   }
 
-  function atualizarRodapeCatalogoUI() {
+  function atualizarRodapeCatalogoUI(exibidos = null) {
+    const prefix = typeof exibidos === 'number' ? `Exibindo ${exibidos} · ` : '';
     const txt = _sisregCatalogo
-      ? `Tabela SISREG: ${_sisregCatalogo.total || 0} procedimentos · Atualizada em ${_sisregCatalogo.versao || '—'} · ${SISREG_UNIDADE_DEFAULT} · ${SISREG_DISTRITO_DEFAULT}`
+      ? `${prefix}Tabela SISREG: ${_sisregCatalogo.total || 0} procedimentos · Atualizada em ${_sisregCatalogo.versao || '—'} · ${SISREG_UNIDADE_DEFAULT} · ${SISREG_DISTRITO_DEFAULT}`
       : 'Carregando tabela SISREG...';
     const el1 = document.getElementById('sisreg-busca-footer-meta');
     const el2 = document.getElementById('sisreg-med-footer-meta');
@@ -935,6 +1007,7 @@
             <div class="sisreg-busca-atalhos">
               <span>Atalhos:</span>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('USG')">USG</button>
+          <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('EXAMES DE LABORATORIO')">🧪 Exames Lab.</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('ECO')">Ecocardiografia</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('RADIOGRAFIA')">Raio-X</button>
               <button type="button" class="motivo-chip" onclick="buscarAtalhoSisreg('MAMOGRAFIA')">Mamografia</button>
@@ -1871,15 +1944,16 @@
     const idade = document.getElementById('sisreg-busca-idade')?.value || '';
     const tipoVaga = document.getElementById('sisreg-busca-vaga')?.value || '';
 
-    const lista = buscarProcedimentosFront(q, { tipo, idade, tipoVaga, limite: 80 });
-    atualizarRodapeCatalogoUI();
+    const lista = buscarProcedimentosFront(q, { tipo, idade, tipoVaga, limite: 300 });
+    atualizarRodapeCatalogoUI(lista.length);
 
     if (lista.length === 0) {
+      const descFiltro = q ? `para "<strong>${escSisreg(q)}</strong>"` : 'para os filtros selecionados (Idade / Tipo / 1ª Vez ou Retorno)';
       tbody.innerHTML = `
         <tr>
           <td colspan="5" style="text-align:center;padding:22px;color:#9a3412;background:#fff7ed;font-weight:800;">
-            ⚠️ Nenhum procedimento encontrado para "<strong>${escSisreg(q)}</strong>".<br>
-            <span style="font-size:12px;font-weight:700;">Verifique a ortografia/sigla ou procure o <strong>${escSisreg(SISREG_CONTATO_FALLBACK)}</strong>.</span>
+            ⚠️ Nenhum procedimento encontrado ${descFiltro}.<br>
+            <span style="font-size:12px;font-weight:700;">Verifique a ortografia/sigla/filtros ou procure o <strong>${escSisreg(SISREG_CONTATO_FALLBACK)}</strong>.</span>
           </td>
         </tr>
       `;
@@ -2267,15 +2341,17 @@
     const q = document.getElementById('sm-busca-input')?.value || '';
     const tipo = document.getElementById('sm-busca-tipo')?.value || 'all';
     const idade = document.getElementById('sm-busca-idade')?.value || '';
-    const lista = buscarProcedimentosFront(q, { tipo, idade, limite: 70 });
-    atualizarRodapeCatalogoUI();
+    const tipoVaga = document.getElementById('sm-busca-vaga')?.value || '';
+    const lista = buscarProcedimentosFront(q, { tipo, idade, tipoVaga, limite: 300 });
+    atualizarRodapeCatalogoUI(lista.length);
 
     if (lista.length === 0) {
+      const descFiltro = q ? `para "<strong>${escSisreg(q)}</strong>"` : 'para os filtros selecionados (Idade / Tipo / 1ª Vez ou Retorno)';
       tbody.innerHTML = `
         <tr>
           <td colspan="5" style="text-align:center;padding:20px;color:#9a3412;background:#fff7ed;font-weight:800;">
-            ⚠️ Nenhum procedimento encontrado para "<strong>${escSisreg(q)}</strong>".<br>
-            <span style="font-size:12px;">Procure o <strong>${escSisreg(SISREG_CONTATO_FALLBACK)}</strong>.</span>
+            ⚠️ Nenhum procedimento encontrado ${descFiltro}.<br>
+            <span style="font-size:12px;">Tente ajustar os filtros ou procure o <strong>${escSisreg(SISREG_CONTATO_FALLBACK)}</strong>.</span>
           </td>
         </tr>
       `;
