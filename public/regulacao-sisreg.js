@@ -665,7 +665,7 @@
       root.innerHTML = `
         <div class="pec-forms-bar" style="margin-bottom:14px;">
           <span class="pec-forms-title">📋 Prévia Regulação (SISREG):</span>
-          <button type="button" class="pec-form-btn sisreg" onclick="abrirModalPreviaRegulacao('leitor')">👁️ Abrir Prévia SISREG</button>
+          <button type="button" class="pec-form-btn sisreg" onclick="abrirModalPreviaRegulacao('leitor')">👁️ Abrir Prévia SISREG <span class="previa-teste-tag">Liberado para teste</span></button>
           <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('busca')">🔎 Busca SISREG</button>
           <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('devolucoes')">↩️ Devoluções <span id="sisreg-dev-badge-bar" class="sisreg-dev-count" style="display:none;">0</span></button>
           <span id="sisreg-lidas-hoje-badge" class="sisreg-stat-pill dark" style="margin-left:auto;">📊 Lidas hoje: ${getContadorLidasHoje()}</span>
@@ -685,8 +685,9 @@
     modal.innerHTML = `
       <div class="previa-modal-card wide">
         <div class="previa-modal-head" style="background:linear-gradient(135deg,#0f2c73,#0f766e);">
-          <div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div style="font-weight:900;font-size:15.5px;">📋 Prévia Regulação — SISREG III (${SISREG_UNIDADE_DEFAULT} · ${SISREG_DISTRITO_DEFAULT})</div>
+            <span class="previa-teste-pill">🧪 Liberado para teste</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
             <span id="sisreg-lidas-hoje-modal" class="sisreg-stat-pill">📊 Lidas hoje: ${getContadorLidasHoje()}</span>

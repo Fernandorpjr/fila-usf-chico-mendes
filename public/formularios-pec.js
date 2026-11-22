@@ -6,37 +6,37 @@ const SETORES_CLINICOS_FILA = ['Médico', 'Enfermagem', 'Odontologia'];
 
 const FORMULARIOS_PEC_REG = {
   'receituario': {
-    url: '/formularios/receituario.html?v=1.1',
+    url: '/formularios/receituario.html?v=1.2',
     titulo: '📄 Receituário (2 vias espelhadas)',
     shortLabel: '📄 Receituário',
     icon: '📄'
   },
   'controle-especial': {
-    url: '/formularios/receituario-controle-especial.html?v=1.1',
+    url: '/formularios/receituario-controle-especial.html?v=1.2',
     titulo: '🔵 Receituário de Controle Especial (2 vias espelhadas)',
     shortLabel: '🔵 Controle Especial',
     icon: '🔵'
   },
   'exames-laboratoriais': {
-    url: '/formularios/receituario-exames-laboratoriais.html?v=1.1',
+    url: '/formularios/receituario-exames-laboratoriais.html?v=1.2',
     titulo: '🧪 Receituário para Exames Laboratoriais',
     shortLabel: '🧪 Exames Lab.',
     icon: '🧪'
   },
   'ficha-ambulatorial': {
-    url: '/formularios/ficha-solicitacao-ambulatorial.html?v=1.1',
+    url: '/formularios/ficha-solicitacao-ambulatorial.html?v=1.2',
     titulo: '📋 Ficha de Solicitação Ambulatorial',
     shortLabel: '📋 Ficha Ambulatorial',
     icon: '📋'
   },
   'citopatologico': {
-    url: '/formularios/requisicao-exame-citopatologico.html?v=1.1',
+    url: '/formularios/requisicao-exame-citopatologico.html?v=1.2',
     titulo: '🔬 Requisição de Exame Citopatológico',
     shortLabel: '🔬 Citopatológico',
     icon: '🔬'
   },
   'declaracao-residencia': {
-    url: '/formularios/declaracao-residencia.html',
+    url: '/formularios/declaracao-residencia.html?v=1.2',
     titulo: '🏠 Declaração de Residência (ACS)',
     shortLabel: '🏠 Decl. Residência',
     icon: '🏠'
@@ -616,7 +616,7 @@ function renderBarraFormulariosSetor(setor) {
   const primeiro = lista[0] || 'receituario';
   const btnSisregBusca = `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregConsulta('${setor}')" title="Consultar códigos, procedimentos e fluxo no SISREG (DS5)">🔎 Consultar SISREG</button>`;
   const btnSisregLeitor = setor === 'Médico'
-    ? `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregLeitor('${setor}')" title="Abrir Prévia SISREG (Foto ou PDF) para preencher Ficha Ambulatorial">📋 Prévia SISREG</button>`
+    ? `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregLeitor('${setor}')" title="Abrir Prévia SISREG (Liberado para teste — Foto ou PDF)">📋 Prévia SISREG <span class="previa-teste-tag">Liberado para teste</span></button>`
     : '';
   return `<div class="pec-forms-bar">
     <span class="pec-forms-title">🖨️ Formulários (PEC Offline):</span>

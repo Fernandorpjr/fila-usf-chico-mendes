@@ -31,6 +31,11 @@ function isHorarioHeartbeatRecife() {
 // Inicializar identificação do dispositivo e heartbeat a cada 30s
 function iniciarIdentificacaoDispositivo() {
   _dispositivoAtualId = localStorage.getItem('usf_device_id') || null;
+  _dispositivoAtualNome = localStorage.getItem('usf_device_nome') || 'Sem nome';
+  _dispositivoAtualSetor = localStorage.getItem('usf_device_setor') || '';
+  if (typeof window.sincronizarIdentidadeDispositivoNoChat === 'function') {
+    window.sincronizarIdentidadeDispositivoNoChat(_dispositivoAtualNome, _dispositivoAtualSetor);
+  }
 
   // Primeiro heartbeat imediato
   executarHeartbeatDispositivo();
@@ -78,6 +83,11 @@ async function executarHeartbeatDispositivo() {
       localStorage.setItem('usf_device_id', data.id);
       localStorage.setItem('usf_device_nome', _dispositivoAtualNome);
       if (data.setor) localStorage.setItem('usf_device_setor', data.setor);
+      else localStorage.removeItem('usf_device_setor');
+
+      if (typeof window.sincronizarIdentidadeDispositivoNoChat === 'function') {
+        window.sincronizarIdentidadeDispositivoNoChat(_dispositivoAtualNome, _dispositivoAtualSetor);
+      }
 
       if (data.ativo === false) {
         mostrarAlertaDispositivoBloqueado();
@@ -106,9 +116,20 @@ async function registrarAcessoDispositivo() {
     });
     if (res.ok) {
       const data = await res.json();
-      if (data.deviceId) {
-        _dispositivoAtualId = data.deviceId;
-        localStorage.setItem('usf_device_id', data.deviceId);
+      const idRet = data.id || data.deviceId;
+      if (idRet) {
+        _dispositivoAtualId = idRet;
+        localStorage.setItem('usf_device_id', idRet);
+      }
+      if (data.nome !== undefined) {
+        _dispositivoAtualNome = data.nome || 'Sem nome';
+        _dispositivoAtualSetor = data.setor || '';
+        localStorage.setItem('usf_device_nome', _dispositivoAtualNome);
+        if (data.setor) localStorage.setItem('usf_device_setor', data.setor);
+        else localStorage.removeItem('usf_device_setor');
+        if (typeof window.sincronizarIdentidadeDispositivoNoChat === 'function') {
+          window.sincronizarIdentidadeDispositivoNoChat(_dispositivoAtualNome, _dispositivoAtualSetor);
+        }
       }
     }
   } catch (e) {}
@@ -174,7 +195,8 @@ async function carregarDispositivosAdmin() {
     const data = await res.json();
     _dispositivosAdminDados = data.dispositivos || [];
 
-    // Renderizar avisos/alertas
+    // Renderizar resumo e avisos/alertas
+    renderizarResumoDispositivos(data.resumo, _dispositivosAdminDados);
     renderizarAlertasDispositivos(data.alertas);
 
     // Renderizar tabela de dispositivos
@@ -183,6 +205,42 @@ async function carregarDispositivosAdmin() {
     console.error('Erro ao carregar dispositivos:', err);
     container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red);">Erro ao carregar lista de dispositivos.</div>';
   }
+}
+
+function renderizarResumoDispositivos(resumo, listaFallback) {
+  const container = document.getElementById('disp-resumo-bar');
+  if (!container) return;
+  const r = resumo || {
+    total: (listaFallback || []).length,
+    online: (listaFallback || []).filter(d => d.online).length,
+    com_nome: (listaFallback || []).filter(d => d.nome && d.nome !== 'Sem nome').length,
+    sem_nome: (listaFallback || []).filter(d => !d.nome || d.nome === 'Sem nome').length,
+    bloqueados: (listaFallback || []).filter(d => d.ativo === false).length
+  };
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+      <div class="card-white" style="padding:12px 14px;border-left:4px solid var(--blue);">
+        <div style="font-size:11px;font-weight:800;color:var(--gray-500);text-transform:uppercase;">Total Registrados</div>
+        <div style="font-size:22px;font-weight:900;color:var(--blue-dark);">${Number(r.total || 0)}</div>
+      </div>
+      <div class="card-white" style="padding:12px 14px;border-left:4px solid #16a34a;">
+        <div style="font-size:11px;font-weight:800;color:var(--gray-500);text-transform:uppercase;">🟢 Online Agora</div>
+        <div style="font-size:22px;font-weight:900;color:#15803d;">${Number(r.online || 0)}</div>
+      </div>
+      <div class="card-white" style="padding:12px 14px;border-left:4px solid #0284c7;">
+        <div style="font-size:11px;font-weight:800;color:var(--gray-500);text-transform:uppercase;">💬 Com Nome (Chat)</div>
+        <div style="font-size:22px;font-weight:900;color:#0369a1;">${Number(r.com_nome || 0)}</div>
+      </div>
+      <div class="card-white" style="padding:12px 14px;border-left:4px solid #d97706;">
+        <div style="font-size:11px;font-weight:800;color:var(--gray-500);text-transform:uppercase;">⚠️ Sem Nome</div>
+        <div style="font-size:22px;font-weight:900;color:#b45309;">${Number(r.sem_nome || 0)}</div>
+      </div>
+      <div class="card-white" style="padding:12px 14px;border-left:4px solid #dc2626;">
+        <div style="font-size:11px;font-weight:800;color:var(--gray-500);text-transform:uppercase;">🚫 Bloqueados</div>
+        <div style="font-size:22px;font-weight:900;color:#b91c1c;">${Number(r.bloqueados || 0)}</div>
+      </div>
+    </div>
+  `;
 }
 
 function renderizarAlertasDispositivos(alertas) {
@@ -250,6 +308,10 @@ function renderizarTabelaDispositivos(lista, container) {
       : '-';
 
     const ehAparelhoAtual = d.id === _dispositivoAtualId;
+    const temNomeOficial = Boolean(d.nome && String(d.nome).trim() && String(d.nome).trim().toLowerCase() !== 'sem nome');
+    const chatIdentBadge = temNomeOficial
+      ? `<div style="font-size:11px;color:#15803d;font-weight:700;margin-top:2px;">💬 Chat Interno: ${escHtml(d.nome)}</div>`
+      : `<div style="font-size:11px;color:#b45309;font-weight:700;margin-top:2px;">⚠️ Sem nome (modo livre — sem bloqueio)</div>`;
 
     return `
       <tr style="border-bottom:1px solid var(--gray-200);background:${ehAparelhoAtual ? 'rgba(26,79,196,0.04)' : '#fff'};">
@@ -258,6 +320,7 @@ function renderizarTabelaDispositivos(lista, container) {
             ${escHtml(d.nome || 'Sem nome')}
             ${ehAparelhoAtual ? '<span style="background:var(--blue);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">ESTE APARELHO</span>' : ''}
           </div>
+          ${chatIdentBadge}
           <div style="font-size:11px;color:var(--gray-500);margin-top:2px;font-family:monospace;">UUID: ${escHtml(d.id.substring(0, 8))}...</div>
         </td>
         <td style="padding:12px 10px;">
@@ -340,6 +403,7 @@ function fecharModalEditarDispositivo() {
 
 async function salvarEditarDispositivo() {
   if (!_dispositivoEdicaoId) return;
+  const editedId = _dispositivoEdicaoId;
 
   const nome = document.getElementById('edit-disp-nome')?.value.trim();
   const setor = document.getElementById('edit-disp-setor')?.value;
@@ -350,9 +414,12 @@ async function salvarEditarDispositivo() {
   }
 
   try {
-    const res = await fetch(`${API_URL}/admin/dispositivos/${_dispositivoEdicaoId}`, {
+    const res = await fetch(`${API_URL}/admin/dispositivos/${encodeURIComponent(editedId)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': adminPassword || ''
+      },
       body: JSON.stringify({
         senha: adminPassword,
         nome,
@@ -370,12 +437,16 @@ async function salvarEditarDispositivo() {
     fecharModalEditarDispositivo();
     carregarDispositivosAdmin();
 
-    // Se editou o próprio dispositivo, atualizar localmente
-    if (_dispositivoEdicaoId === _dispositivoAtualId) {
+    // Se editou o próprio dispositivo, atualizar localmente e sincronizar no Chat Interno
+    if (editedId === _dispositivoAtualId) {
       _dispositivoAtualNome = nome;
-      _dispositivoAtualSetor = setor;
+      _dispositivoAtualSetor = setor || '';
       localStorage.setItem('usf_device_nome', nome);
-      localStorage.setItem('usf_device_setor', setor);
+      if (setor) localStorage.setItem('usf_device_setor', setor);
+      else localStorage.removeItem('usf_device_setor');
+      if (typeof window.sincronizarIdentidadeDispositivoNoChat === 'function') {
+        window.sincronizarIdentidadeDispositivoNoChat(nome, setor || '');
+      }
     }
   } catch (err) {
     showToast('Erro ao atualizar dispositivo!', true);

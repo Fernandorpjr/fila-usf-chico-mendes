@@ -314,3 +314,47 @@ test('2a Escuta resolves profissional_destino cleanly and HTML forms prioritize 
   assert.equal(labHtml.includes("setK('k42', d.profissional||saved.solicitante_lab||saved.ass||'');"), true);
   assert.equal(citoHtml.includes("setInputByLabel('Responsável*', d.profissional || saved.resp_cito || saved.ass || '', 0);"), true);
 });
+
+test('Forms remove duplicate Limpar campos button and keep Deixar em Branco', () => {
+  const root = path.join(__dirname, '..');
+  const formFiles = [
+    'receituario.html',
+    'receituario-controle-especial.html',
+    'receituario-exames-laboratoriais.html',
+    'ficha-solicitacao-ambulatorial.html',
+    'requisicao-exame-citopatologico.html',
+    'declaracao-residencia.html'
+  ];
+  for (const fname of formFiles) {
+    const html = fs.readFileSync(path.join(root, 'public', 'formularios', fname), 'utf8');
+    assert.equal(html.includes('Limpar campos'), false, `${fname} should not have duplicate Limpar campos button`);
+    assert.equal(html.includes('Deixar em Branco'), true, `${fname} should keep Deixar em Branco button`);
+  }
+});
+
+test('Previa UI displays Liberado para teste label cleanly', () => {
+  const root = path.join(__dirname, '..');
+  const indexHtml = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+  const previaJs = fs.readFileSync(path.join(root, 'public', 'receitas-previa.js'), 'utf8');
+  const regJs = fs.readFileSync(path.join(root, 'public', 'regulacao-sisreg.js'), 'utf8');
+
+  assert.equal(indexHtml.includes('Prévia (Liberado para teste)'), true);
+  assert.equal(indexHtml.includes('Liberado para teste'), true);
+  assert.equal(previaJs.includes('Liberado para teste'), true);
+  assert.equal(regJs.includes('Liberado para teste'), true);
+});
+
+test('Device identification integrates automatically into internal chat without blocking unnamed devices', () => {
+  const root = path.join(__dirname, '..');
+  const appJs = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
+  const dispFrontJs = fs.readFileSync(path.join(root, 'public', 'dispositivos.js'), 'utf8');
+  const dispBackJs = fs.readFileSync(path.join(root, 'lib', 'dispositivos.js'), 'utf8');
+
+  assert.equal(appJs.includes('sincronizarIdentidadeDispositivoNoChat'), true);
+  assert.equal(appJs.includes('obterIdentificacaoRemetenteChat'), true);
+  assert.equal(dispFrontJs.includes('const editedId = _dispositivoEdicaoId;'), true);
+  assert.equal(dispFrontJs.includes('sincronizarIdentidadeDispositivoNoChat'), true);
+  assert.equal(dispBackJs.includes("status === 'sem_nome'"), true);
+  // Nao deve bloquear dispositivo apenas por estar sem nome nesta fase de teste
+  assert.equal(dispBackJs.includes('if (cached.ativo === false)'), true);
+});

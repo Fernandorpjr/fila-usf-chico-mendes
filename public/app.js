@@ -3791,13 +3791,107 @@ let chatUrgent = false;
 let typingTimeout = null;
 CANAIS.forEach(c => { channelMessages[c.id] = []; channelUnread[c.id] = 0; });
 
+let _chatDeviceNomeOficial = '';
+let _chatDeviceSetorOficial = '';
+
+function resolverSetorChatCompativel(setorDisp) {
+  const s = String(setorDisp || '').trim();
+  if (!s) return '';
+  const norm = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const sel = document.getElementById('chat-remetente');
+  if (sel) {
+    const optExata = Array.from(sel.options).find(o =>
+      o.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === norm
+    );
+    if (optExata) return optExata.value;
+  }
+  if (norm.includes('coorden') || norm.includes('gerenc') || norm.includes('admin')) return 'Gerência';
+  if (norm.includes('acolh')) return 'Acolhimento';
+  if (norm.includes('farm')) return 'Farmácia';
+  if (norm.includes('regula')) return 'Regulação';
+  if (norm.includes('med')) return 'Médico';
+  if (norm.includes('tec')) return 'Téc. Enfermagem';
+  if (norm.includes('enf')) return 'Enfermagem';
+  if (norm.includes('odont')) return 'Odontologia';
+  if (norm.includes('recep')) return 'Recepção';
+  return s;
+}
+
+function obterIdentificacaoRemetenteChat() {
+  const sel = document.getElementById('chat-remetente');
+  const inpNome = document.getElementById('chat-remetente-nome');
+  const setor = (sel && sel.value) || _chatDeviceSetorOficial || 'Recepção';
+  const nome = _chatDeviceNomeOficial || (inpNome ? inpNome.value.trim() : '');
+  if (!nome) return { setor, nome: '', autor: setor };
+  const nNorm = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const sNorm = setor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const autor = nNorm === sNorm ? nome : `${nome} (${setor})`;
+  return { setor, nome, autor };
+}
+
+window.sincronizarIdentidadeDispositivoNoChat = function(nomeDisp, setorDisp) {
+  const limpo = String(nomeDisp || '').trim();
+  const ehValido = Boolean(limpo) && limpo.toLowerCase() !== 'sem nome';
+  const inpNome = document.getElementById('chat-remetente-nome');
+  const selSetor = document.getElementById('chat-remetente');
+  const statusEl = document.getElementById('chat-device-id-status');
+
+  if (ehValido) {
+    _chatDeviceNomeOficial = limpo;
+    _chatDeviceSetorOficial = resolverSetorChatCompativel(setorDisp);
+    if (inpNome) {
+      inpNome.value = limpo;
+      inpNome.readOnly = true;
+      inpNome.style.background = 'rgba(34,197,94,0.22)';
+      inpNome.style.borderColor = 'rgba(134,239,172,0.75)';
+      inpNome.title = 'Identificação automática pelo nome deste dispositivo cadastrado';
+    }
+    if (selSetor && _chatDeviceSetorOficial) {
+      const existe = Array.from(selSetor.options).some(o => o.value === _chatDeviceSetorOficial);
+      if (existe) {
+        selSetor.value = _chatDeviceSetorOficial;
+        localStorage.setItem('chatSetor', _chatDeviceSetorOficial);
+      }
+    }
+    if (statusEl) {
+      statusEl.innerHTML = `💻 Identificado pelo Dispositivo: <strong>${escapeText(limpo)}</strong>`;
+    }
+  } else {
+    _chatDeviceNomeOficial = '';
+    _chatDeviceSetorOficial = '';
+    if (inpNome) {
+      if (inpNome.readOnly) {
+        inpNome.value = localStorage.getItem('chatNome') || '';
+      }
+      inpNome.readOnly = false;
+      inpNome.style.background = '';
+      inpNome.style.borderColor = '';
+      inpNome.title = '';
+    }
+    if (statusEl) {
+      statusEl.textContent = '⚠️ Dispositivo sem nome (modo livre — sem bloqueio)';
+    }
+  }
+
+  if (typeof renderCanalList === 'function') renderCanalList();
+  if (typeof renderChannelChat === 'function') renderChannelChat();
+};
+
 // Restore saved setor e nome
 const savedSetor = localStorage.getItem('chatSetor');
-if (savedSetor) { setTimeout(() => { const sel = document.getElementById('chat-remetente'); if (sel) sel.value = savedSetor; }, 100); }
+if (savedSetor) { setTimeout(() => { const sel = document.getElementById('chat-remetente'); if (sel && !_chatDeviceSetorOficial) sel.value = savedSetor; }, 100); }
 const savedChatNome = localStorage.getItem('chatNome');
-if (savedChatNome) { setTimeout(() => { const inpNome = document.getElementById('chat-remetente-nome'); if (inpNome) inpNome.value = savedChatNome; }, 100); }
+if (savedChatNome) { setTimeout(() => { const inpNome = document.getElementById('chat-remetente-nome'); if (inpNome && !_chatDeviceNomeOficial) inpNome.value = savedChatNome; }, 100); }
+setTimeout(() => {
+  const dispNomeSalvo = localStorage.getItem('usf_device_nome');
+  const dispSetorSalvo = localStorage.getItem('usf_device_setor');
+  if (dispNomeSalvo && typeof window.sincronizarIdentidadeDispositivoNoChat === 'function') {
+    window.sincronizarIdentidadeDispositivoNoChat(dispNomeSalvo, dispSetorSalvo || '');
+  }
+}, 120);
 
 function onChatNomeChange() {
+  if (_chatDeviceNomeOficial) return;
   const inpNome = document.getElementById('chat-remetente-nome');
   if (inpNome) localStorage.setItem('chatNome', inpNome.value.trim());
 }
@@ -3983,12 +4077,10 @@ async function loadChannelMessages(canalId) {
       
       // Se houver uma nova mensagem
       if (!oldLast || newLast.id > oldLast.id) {
-        const meuSetor = document.getElementById('chat-remetente')?.value || '';
-        const meuNome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
-        const meuIdentificador = meuNome ? `${meuNome} (${meuSetor})` : meuSetor;
-        
+        const { setor: meuSetor, nome: meuNome, autor: meuIdentificador } = obterIdentificacaoRemetenteChat();
+
         // Só toca o som e alerta se a mensagem não foi enviada por mim
-        if (newLast.autor !== meuIdentificador && newLast.autor !== meuSetor) {
+        if (newLast.autor !== meuIdentificador && newLast.autor !== meuSetor && (!meuNome || newLast.autor !== meuNome)) {
           playChatSound();
           if (newLast.urgente) {
             const fab = document.getElementById('chat-fab');
@@ -4041,9 +4133,7 @@ function renderChannelChat(forceScroll = false) {
         String(m.anexo_nome || '').toLowerCase().includes(chatSearchQuery)
       )
     : allMsgs;
-  const meuSetor = document.getElementById('chat-remetente')?.value || '';
-  const meuNome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
-  const meuIdentificador = meuNome ? `${meuNome} (${meuSetor})` : meuSetor;
+  const { setor: meuSetor, nome: meuNome, autor: meuIdentificador } = obterIdentificacaoRemetenteChat();
 
   let html = '';
   if (!msgs.length) {
@@ -4061,7 +4151,7 @@ function renderChannelChat(forceScroll = false) {
       ultimoDiaRotulo = diaRotulo;
 
       const t = dt.toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
-      const isMe = m.autor === meuIdentificador || m.autor === meuSetor;
+      const isMe = m.autor === meuIdentificador || m.autor === meuSetor || (Boolean(meuNome) && m.autor === meuNome);
       const urgClass = m.urgente ? ' bubble-urgent bubble-urgent-anim' : '';
       const urgTag = m.urgente ? '<span style="color:var(--red);font-weight:800;">🚨 URGENTE</span> ' : '';
       
@@ -4267,10 +4357,8 @@ async function sendChatChannelMessage() {
     showToast('🔴 Sem internet! Não foi possível enviar a mensagem.', true);
     return;
   }
-  const setor = document.getElementById('chat-remetente')?.value || 'Equipe';
-  const nome = document.getElementById('chat-remetente-nome')?.value.trim() || '';
-  if (nome) localStorage.setItem('chatNome', nome);
-  const autor = nome ? `${nome} (${setor})` : setor;
+  const { setor, nome, autor } = obterIdentificacaoRemetenteChat();
+  if (nome && !_chatDeviceNomeOficial) localStorage.setItem('chatNome', nome);
   
   const inp = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send-btn');

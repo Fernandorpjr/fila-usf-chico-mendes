@@ -114,10 +114,10 @@ function atualizarBotaoPreviaReceitaRecepcao() {
     const iconeTipo = ehSisreg ? '📋 SISREG' : '💊 Receita';
     if (pill) pill.style.display = 'inline-flex';
     if (txtPill) txtPill.textContent = `📎 ${qtd || 1} arquivo(s) · ${iconeTipo}${resumo ? ': ' + resumo : ''}`;
-    if (btnCap) btnCap.textContent = qtd > 0 ? `✏️ Editar Prévia (${qtd} arquivo${qtd > 1 ? 's' : ''})` : '✏️ Editar Prévia';
+    if (btnCap) btnCap.textContent = qtd > 0 ? `✏️ Editar Prévia (${qtd} arquivo${qtd > 1 ? 's' : ''} · Liberado para teste)` : '✏️ Editar Prévia (Liberado para teste)';
   } else {
     if (pill) pill.style.display = 'none';
-    if (btnCap) btnCap.textContent = '📷 Prévia (Foto ou PDF)';
+    if (btnCap) btnCap.textContent = '📷 Prévia (Liberado para teste)';
   }
 }
 
@@ -730,22 +730,23 @@ function renderPreviaReceitaBadgeLinha(p) {
 function renderBotaoPreviaReceitaLinha(p, setor) {
   const safeNome = String(p?.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const safeSetor = String(setor || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const testeTag = '<span class="previa-teste-tag">Liberado para teste</span>';
   if (setor === 'Regulação' && p?.id) {
     if (p.previa_receita) {
       const qtd = Number(p.previa_receita.qtd_anexos) || 0;
       const sufixo = qtd > 1 ? ` (${qtd})` : '';
-      return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#0f766e,#0d9488);" onclick="event.stopPropagation();abrirPacienteNoCopilotoSisreg(${p.id},'${safeNome}',false)" title="Abrir Prévia SISREG">👁️ Prévia${sufixo}</button>`;
+      return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#0f766e,#0d9488);" onclick="event.stopPropagation();abrirPacienteNoCopilotoSisreg(${p.id},'${safeNome}',false)" title="Abrir Prévia SISREG (Liberado para teste)">👁️ Prévia${sufixo} ${testeTag}</button>`;
     }
-    return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#1d4ed8,#1e40af);" onclick="event.stopPropagation();abrirPacienteNoCopilotoSisreg(${p.id},'${safeNome}',true)" title="Anexar foto ou PDF na Prévia SISREG">📷 Prévia</button>`;
+    return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#1d4ed8,#1e40af);" onclick="event.stopPropagation();abrirPacienteNoCopilotoSisreg(${p.id},'${safeNome}',true)" title="Anexar foto ou PDF na Prévia SISREG (Liberado para teste)">📷 Prévia ${testeTag}</button>`;
   }
   if (!p?.id) return '';
   if (!p.previa_receita) {
-    return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#475569,#334155);" onclick="event.stopPropagation();abrirModalCapturaReceitaPaciente(${p.id},'${safeNome}','${safeSetor}')" title="Anexar foto ou PDF de receita/encaminhamento nesta fila">📷 Prévia</button>`;
+    return `<button class="btn-previa-receita" style="background:linear-gradient(135deg,#475569,#334155);" onclick="event.stopPropagation();abrirModalCapturaReceitaPaciente(${p.id},'${safeNome}','${safeSetor}')" title="Prévia — Liberado para teste (anexe foto ou PDF)">📷 Prévia ${testeTag}</button>`;
   }
   const pronto = p.previa_receita.status_revisao === 'revisada';
   const qtd = Number(p.previa_receita.qtd_anexos) || 0;
   const sufixo = qtd > 1 ? ` (${qtd})` : '';
-  return `<button class="btn-previa-receita ${pronto ? 'revisada' : ''}" onclick="event.stopPropagation();abrirModalVerPreviaReceita(${p.id},'${safeNome}','${safeSetor}')" title="Ver foto(s)/PDF, medicamentos e formulários">${pronto ? '✅ Prévia' : '👁️ Prévia'}${sufixo}</button>`;
+  return `<button class="btn-previa-receita ${pronto ? 'revisada' : ''}" onclick="event.stopPropagation();abrirModalVerPreviaReceita(${p.id},'${safeNome}','${safeSetor}')" title="Prévia — Liberado para teste (ver foto(s)/PDF e formulários)">${pronto ? '✅ Prévia' : '👁️ Prévia'}${sufixo} ${testeTag}</button>`;
 }
 
 function renderFotoAtivaPreviaModal() {
