@@ -11,7 +11,11 @@ const {
   calcularIdadeDataBR,
   buscarProcedimentosSisreg,
   formatarObservacaoSisreg,
-  normalizarResultadoOcrSisreg
+  normalizarResultadoOcrSisreg,
+  inferirSetorDestinoDevolucao,
+  resolverCanalChatDevolucao,
+  normalizarStatusDevolucao,
+  formatarMensagemChatDevolucao
 } = require('../lib/sisreg');
 
 test('repararMojibake cleans Latin-1/UTF-8 artifacts and HTML typos', () => {
@@ -247,4 +251,45 @@ test('buscarProcedimentosSisreg filters Exames de Laboratorio, Idade e Retorno/1
 
   const soRetornoCardio = buscarProcedimentosSisreg(procs, 'cardio', { idade: 40, tipoVaga: 'retorno', limite: 10 });
   assert.ok(soRetornoCardio.length > 0 && soRetornoCardio.every(p => /\bRETORNO\b/i.test(p.name) && !/PEDIATR|>\s*60\b/i.test(p.name)));
+});
+
+test('Devoluções SISREG direcionam corretamente ACS/Médico/Enfermagem/Odonto, canais e mensagens de alerta/solução', () => {
+  assert.equal(inferirSetorDestinoDevolucao('Endereço de outra cidade (fora de Recife) / Cadastro', 'Dra. Mirela Mota'), 'ACS');
+  assert.equal(inferirSetorDestinoDevolucao('Telefone / CNS desatualizado', 'Dr. Israel Christian'), 'ACS');
+  assert.equal(inferirSetorDestinoDevolucao('Procedimento incorreto / faixa etária', 'Dra. Mirela Mota'), 'Médico');
+  assert.equal(inferirSetorDestinoDevolucao('Falta justificativa clínica', 'Mariana Vaz'), 'Enfermagem');
+  assert.equal(inferirSetorDestinoDevolucao('Procedimento incorreto', 'Dra. Juliana Cavalcante'), 'Odontologia');
+  assert.equal(inferirSetorDestinoDevolucao('Outro', 'Ana Paula (ACS)'), 'ACS');
+
+  assert.equal(resolverCanalChatDevolucao('ACS'), 'acs');
+  assert.equal(resolverCanalChatDevolucao('Enfermagem'), 'enfermagem');
+  assert.equal(resolverCanalChatDevolucao('Odontologia'), 'odontologia');
+  assert.equal(resolverCanalChatDevolucao('Médico'), 'medico');
+
+  assert.equal(normalizarStatusDevolucao('respondida'), 'respondida');
+  assert.equal(normalizarStatusDevolucao('corrigida'), 'corrigida');
+  assert.equal(normalizarStatusDevolucao('desconhecido'), 'pendente');
+
+  const msgAlerta = formatarMensagemChatDevolucao({
+    paciente_nome: 'Maria José',
+    codigo_solicitacao: '12345',
+    procedimento: 'USG ABDOMEN',
+    motivo: 'Endereço / Cadastro desatualizado (ACS)',
+    setor_destino: 'ACS',
+    profissional_equipe: 'Ana Paula',
+    observacao: 'Confirmar rua atual'
+  }, 'alerta');
+  assert.ok(msgAlerta.includes('DEVOLUÇÃO SISREG [Setor: ACS · Ana Paula]'));
+  assert.ok(msgAlerta.includes('Devoluções SISREG'));
+
+  const msgSol = formatarMensagemChatDevolucao({
+    paciente_nome: 'Maria José',
+    codigo_solicitacao: '12345',
+    setor_destino: 'ACS',
+    solucao: 'Mudou para Rua da Aurora, 100',
+    solucao_autor: 'Ana Paula'
+  }, 'solucao');
+  assert.ok(msgSol.includes('SOLUÇÃO DEVOLUÇÃO SISREG'));
+  assert.ok(msgSol.includes('Ana Paula (ACS)'));
+  assert.ok(msgSol.includes('Mudou para Rua da Aurora, 100'));
 });

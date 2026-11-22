@@ -618,12 +618,14 @@ function renderBarraFormulariosSetor(setor) {
   const btnSisregLeitor = setor === 'Médico'
     ? `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregLeitor('${setor}')" title="Abrir Prévia SISREG (Liberado para teste — Foto ou PDF)">📋 Prévia SISREG <span class="previa-teste-tag">Liberado para teste</span></button>`
     : '';
+  const btnDevolucoes = `<button type="button" class="pec-form-btn" style="background:#fff7ed;color:#9a3412;border-color:#fdba74;" onclick="abrirModalDevolucoesProfissional('${setor}')" title="Ver e comentar devoluções do SISREG direcionadas para ${setor}">↩️ Devoluções SISREG <span class="sisreg-dev-count sisreg-dev-badge-setor" data-setor="${setor}" style="display:none;">0</span></button>`;
   return `<div class="pec-forms-bar">
     <span class="pec-forms-title">🖨️ Formulários (PEC Offline):</span>
     ${botoes}
     <button type="button" class="pec-form-btn branco" onclick="abrirFormularioAvulsoSetor('${setor}','${primeiro}',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
     ${btnSisregBusca}
     ${btnSisregLeitor}
+    ${btnDevolucoes}
   </div>`;
 }
 

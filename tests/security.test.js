@@ -582,6 +582,32 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.equal(indexHtml.includes("buscarAtalhoModalSisregMedico('EXAMES DE LABORATORIO')"), true);
   assert.equal(sisregFront.includes("buscarAtalhoSisreg('EXAMES DE LABORATORIO')"), true);
   assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
-  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=1.6'), true);
-  assert.equal(indexHtml.includes('app.js?v=8.0'), true);
+  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=1.7'), true);
+  assert.equal(indexHtml.includes('formularios-pec.js?v=1.9'), true);
+  assert.equal(indexHtml.includes('app.js?v=8.1'), true);
+});
+
+test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e PDF estão integrados', () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const appJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const sisregBack = fs.readFileSync(path.join(__dirname, '..', 'lib', 'sisreg.js'), 'utf8');
+  const sisregFront = fs.readFileSync(path.join(__dirname, '..', 'public', 'regulacao-sisreg.js'), 'utf8');
+  const formPec = fs.readFileSync(path.join(__dirname, '..', 'public', 'formularios-pec.js'), 'utf8');
+  const serverJs = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+
+  assert.match(serverJs, /CANAIS_CHAT\s*=\s*\[[^\]]*'acs'/);
+  assert.match(appJs, /id:\s*'acs'/);
+  assert.equal(sisregBack.includes('setor_destino') && sisregBack.includes('solucao') && sisregBack.includes('solucao_autor'), true);
+  assert.equal(sisregBack.includes('INSERT INTO chat_channels'), true);
+
+  assert.equal(indexHtml.includes('id="modal-devolucoes-profissional"'), true);
+  assert.equal(indexHtml.includes("abrirModalDevolucoesProfissional('ACS')"), true);
+  assert.equal(formPec.includes('abrirModalDevolucoesProfissional'), true);
+  assert.equal(appJs.includes('abrirDevolucaoDoChat') && appJs.includes('abrirDevolucaoRegulacaoDoChat'), true);
+
+  assert.equal(sisregFront.includes('exportarDevolucoesSisregPDF'), true);
+  assert.equal(sisregFront.includes('salvarSolucaoModalProfissional'), true);
+  assert.equal(sisregFront.includes('id="dev-setor-destino"'), true);
+  assert.equal(sisregFront.includes('id="dev-profissional"'), true);
+  assert.equal(sisregFront.includes('Mudou de endereço'), true);
 });

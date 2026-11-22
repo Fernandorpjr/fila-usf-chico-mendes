@@ -2869,7 +2869,8 @@
         <div class="sector-icon-big" style="background:rgba(142,36,170,0.2);">💜</div>
         <div><div class="sector-page-title">ACOLHIMENTO – FLUXO INTEGRADO</div><div class="sector-page-sub">Recepção → 1ª Escuta (ACS) → 2ª Escuta (Profissional)</div></div>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button type="button" class="pec-form-btn" style="background:#fff7ed;color:#9a3412;border-color:#fdba74;" onclick="abrirModalDevolucoesProfissional('ACS')" title="Ver e responder devoluções do SISREG (endereço/cadastro)">↩️ Devoluções SISREG <span class="sisreg-dev-count sisreg-dev-badge-setor" data-setor="ACS" style="display:none;">0</span></button>
         <button class="btn btn-ghost btn-sm" onclick="gerarRelatorioAcolhimento()" title="Relatório do Acolhimento">📊 Relatório</button>
       </div>
     </div>
@@ -3785,6 +3786,7 @@
             <select id="disp-filtro-setor" onchange="carregarDispositivosAdmin()" style="padding:8px 12px;font-size:13px;">
               <option value="">Todos os Setores</option>
               <option value="Acolhimento">Acolhimento</option>
+              <option value="ACS">ACS</option>
               <option value="Farmácia">Farmácia</option>
               <option value="Regulação">Regulação</option>
               <option value="Médico">Médico</option>
@@ -5088,6 +5090,9 @@
 <!-- Modal 5: Prévia Regulação (SISREG III · Segunda Tela) -->
 <div id="modal-previa-regulacao" class="previa-modal-backdrop" onclick="if(event.target===this)fecharModalPreviaRegulacao()"></div>
 
+<!-- Modal 6: Devoluções SISREG (Atalho Rápido Profissionais / ACS) -->
+<div id="modal-devolucoes-profissional" class="previa-modal-backdrop" style="z-index:10050;" onclick="if(event.target===this)fecharModalDevolucoesProfissional()"></div>
+
 <style>
   @media print {
     body { background: #fff !important; min-height: auto !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
@@ -5112,8 +5117,8 @@
 <script src="historico.js?v=5.1"></script>
 <script src="dispositivos.js?v=5.1"></script>
 <script src="receitas-previa.js?v=1.9"></script>
-<script src="formularios-pec.js?v=1.8"></script>
-<script src="regulacao-sisreg.js?v=1.6"></script>
-<script src="app.js?v=8.0"></script>
+<script src="formularios-pec.js?v=1.9"></script>
+<script src="regulacao-sisreg.js?v=1.7"></script>
+<script src="app.js?v=8.1"></script>
 </body>
 </html>

@@ -328,7 +328,7 @@ const pool = new Pool({
 const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'];
 
 // Canais de chat válidos
-const CANAIS_CHAT = ['geral', 'recepcao', 'acolhimento', 'medico', 'enfermagem', 'odontologia', 'farmacia', 'regulacao', 'gerencia'];
+const CANAIS_CHAT = ['geral', 'recepcao', 'acolhimento', 'acs', 'medico', 'enfermagem', 'odontologia', 'farmacia', 'regulacao', 'gerencia'];
 
 // Create tables on startup
 async function initDB() {

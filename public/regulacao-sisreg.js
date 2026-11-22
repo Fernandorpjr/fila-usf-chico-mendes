@@ -9,10 +9,32 @@
   let _sisregCatalogo = null;
   let _sisregCatalogoPromise = null;
   let _sisregDevolucoes = [];
+  let _sisregDevolucoesTodas = [];
   let _sisregAbaAtiva = 'leitor'; // 'leitor' | 'busca' | 'devolucoes'
-  let _sisregDevFiltro = 'pendente';
+  let _sisregDevFiltro = 'abertas';
+  let _sisregDevSetorFiltro = 'todos';
+  let _sisregDevBusca = '';
+  const _devProfModalState = { setor: 'Médico', status: 'abertas', busca: '' };
   let _copilotoPdfBlobUrl = null;
   let _medPdfBlobUrl = null;
+
+  const PROFISSIONAIS_DEVOLUCAO_POR_SETOR = {
+    'Médico': ['Dr. Israel Christian', 'Dr. Joene Halan', 'Dra. Mirela Mota'],
+    'Enfermagem': ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu'],
+    'Odontologia': ['Dra. Juliana Cavalcante'],
+    'ACS': [
+      'Ana Paula', 'Ana Lúcia', 'Lenilda', 'Conceição', 'Joselita',
+      'Alda', 'Simone', 'Patrícia', 'Telma', 'Jeane',
+      'Josélia', 'Arlinda', 'Nena', 'Rosilene', 'Fátima'
+    ]
+  };
+
+  const SETOR_DEV_META = {
+    'Médico': { icon: '🩺', bg: '#eff6ff', fg: '#1e40af', canal: 'medico' },
+    'Enfermagem': { icon: '👩‍⚕️', bg: '#f0fdfa', fg: '#0f766e', canal: 'enfermagem' },
+    'Odontologia': { icon: '🦷', bg: '#fdf2f8', fg: '#be185d', canal: 'odontologia' },
+    'ACS': { icon: '🧡', bg: '#fff7ed', fg: '#c2410c', canal: 'acs' }
+  };
 
   const _copilotoState = {
     patientId: null,
@@ -1047,37 +1069,60 @@
             </div>
           </div>
 
-          <!-- ABA 3: CONTROLE OPCIONAL DE DEVOLUÇÕES -->
+          <!-- ABA 3: CONTROLE DIRECIONADO DE DEVOLUÇÕES -->
           <div id="sisreg-pane-devolucoes" style="${_sisregAbaAtiva === 'devolucoes' ? '' : 'display:none;'}">
             <div class="sisreg-dev-form">
-              <div style="font-size:12.5px;font-weight:900;color:#1e3a8a;margin-bottom:8px;">↩️ Registrar Caso Devolvido no SISREG (Controle Interno Opcional)</div>
+              <div style="font-size:12.5px;font-weight:900;color:#1e3a8a;margin-bottom:8px;">↩️ Registrar e Direcionar Devolução no SISREG (com Alerta no Chat Interno)</div>
               <div class="sisreg-dev-grid">
                 <input type="text" id="dev-pac-nome" placeholder="Nome do Paciente *">
                 <input type="text" id="dev-protocolo" placeholder="Código Solicitação">
                 <input type="text" id="dev-procedimento" placeholder="Procedimento / Especialidade">
-                <select id="dev-motivo">
-                  <option value="Erro de digitação / texto clínico">Erro de digitação / texto clínico</option>
-                  <option value="Endereço de outra cidade (fora de Recife)">Endereço de outra cidade (fora de Recife)</option>
-                  <option value="Falta justificativa clínica / exame prévio">Falta justificativa clínica / exame prévio</option>
-                  <option value="Telefone desatualizado">Telefone desatualizado</option>
+                <select id="dev-motivo" onchange="onDevMotivoChange()">
                   <option value="Procedimento incorreto / faixa etária">Procedimento incorreto / faixa etária</option>
+                  <option value="Falta justificativa clínica / exame prévio">Falta justificativa clínica / exame prévio</option>
+                  <option value="Erro de digitação / texto clínico / CID">Erro de digitação / texto clínico / CID</option>
+                  <option value="Endereço de outra cidade (fora de Recife) / Cadastro">Endereço / Cadastro desatualizado (ACS)</option>
+                  <option value="Telefone / CNS / dados cadastrais desatualizados">Telefone / CNS desatualizado (ACS)</option>
                   <option value="Outro">Outro motivo</option>
                 </select>
-                <input type="text" id="dev-telefone" placeholder="Telefone">
-                <input type="text" id="dev-profissional" placeholder="Médico / Equipe">
+                <select id="dev-setor-destino" onchange="onDevSetorDestinoChange()" title="Setor responsável por verificar/corrigir">
+                  <option value="Médico">🩺 Direcionar: Médico</option>
+                  <option value="Enfermagem">👩‍⚕️ Direcionar: Enfermagem</option>
+                  <option value="Odontologia">🦷 Direcionar: Odontologia</option>
+                  <option value="ACS">🧡 Direcionar: ACS (Cadastro / Endereço)</option>
+                </select>
+                <select id="dev-profissional" title="Profissional ou ACS responsável"></select>
+                <input type="text" id="dev-telefone" placeholder="Telefone do paciente">
               </div>
-              <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                <input type="text" id="dev-obs" style="flex:1;min-width:220px;" placeholder="O que precisa corrigir (ex: corrigir observação ou atualizar endereço/exame)...">
-                <button type="button" class="btn btn-primary btn-sm" onclick="salvarNovaDevolucaoSisreg()">➕ Registrar Devolução</button>
+              <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;">
+                <input type="text" id="dev-obs" style="flex:1;min-width:240px;" placeholder="O que precisa verificar/corrigir (ex: confirmar endereço/mudança c/ ACS ou procedimento correto c/ médico)...">
+                <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#1e3a8a;cursor:pointer;">
+                  <input type="checkbox" id="dev-enviar-chat" checked> 💬 Avisar no Chat Interno
+                </label>
+                <button type="button" class="btn btn-primary btn-sm" onclick="salvarNovaDevolucaoSisreg()">➕ Registrar e Direcionar</button>
               </div>
             </div>
 
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 8px;flex-wrap:wrap;">
-              <div style="display:flex;gap:6px;">
+              <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                <button type="button" class="btn-filter ${_sisregDevFiltro === 'abertas' ? 'active' : ''}" id="dev-flt-abertas" onclick="filtrarDevolucoesSisreg('abertas')">📋 Abertas</button>
                 <button type="button" class="btn-filter ${_sisregDevFiltro === 'pendente' ? 'active' : ''}" id="dev-flt-pend" onclick="filtrarDevolucoesSisreg('pendente')">⏳ Pendentes</button>
-                <button type="button" class="btn-filter ${_sisregDevFiltro === 'todas' ? 'active' : ''}" id="dev-flt-todas" onclick="filtrarDevolucoesSisreg('todas')">📋 Todas</button>
+                <button type="button" class="btn-filter ${_sisregDevFiltro === 'respondida' ? 'active' : ''}" id="dev-flt-resp" onclick="filtrarDevolucoesSisreg('respondida')">💬 Respondidas</button>
+                <button type="button" class="btn-filter ${_sisregDevFiltro === 'corrigida' ? 'active' : ''}" id="dev-flt-corr" onclick="filtrarDevolucoesSisreg('corrigida')">✅ Corrigidas</button>
+                <button type="button" class="btn-filter ${_sisregDevFiltro === 'todas' ? 'active' : ''}" id="dev-flt-todas" onclick="filtrarDevolucoesSisreg('todas')">🗂️ Todas</button>
               </div>
-              <button type="button" class="btn btn-outline btn-sm" onclick="carregarDevolucoesSisreg()">🔄 Atualizar Lista</button>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                <select id="dev-flt-setor" onchange="onDevFiltroListaChange()" style="padding:5px 8px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12px;font-weight:700;background:#fff;color:#0f172a;">
+                  <option value="todos">Todos os Setores</option>
+                  <option value="Médico">🩺 Médico</option>
+                  <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
+                  <option value="Odontologia">🦷 Odontologia</option>
+                  <option value="ACS">🧡 ACS</option>
+                </select>
+                <input type="text" id="dev-flt-busca" oninput="onDevFiltroListaChange()" placeholder="🔎 Buscar paciente, protocolo..." style="padding:5px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12px;font-weight:700;min-width:170px;">
+                <button type="button" class="btn btn-sm" style="background:#dc2626;color:#fff;border:none;font-weight:800;" onclick="exportarDevolucoesSisregPDF()" title="Imprimir/baixar lista filtrada em PDF">📄 Imprimir PDF</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="carregarDevolucoesSisreg()">🔄 Atualizar</button>
+              </div>
             </div>
             <div id="sisreg-dev-lista" class="sisreg-dev-lista"></div>
           </div>
@@ -1087,6 +1132,7 @@
 
     inicializarPanZoomCopiloto();
     renderEstadoFormularioCopiloto();
+    onDevSetorDestinoChange();
   }
 
   function abrirModalPreviaRegulacao(aba = 'leitor') {
@@ -2123,7 +2169,67 @@
     }
   }
 
-  // ===== CONTROLE OPCIONAL DE DEVOLUÇÕES =====
+  // ===== CONTROLE DIRECIONADO DE DEVOLUÇÕES (COM SOLUÇÃO, CHAT E PDF) =====
+  function normTxtDev(str) {
+    return normSisregFront(str);
+  }
+
+  function inferirSetorPorMotivoEProfFront(motivo, profissional = '') {
+    const m = normTxtDev(motivo);
+    const p = normTxtDev(profissional);
+    if (/enderec|cadastr|municip|fora de recife|telefone|cns|residenc|comprovante/.test(m)) {
+      return 'ACS';
+    }
+    if (/odont|dentist|juliana cavalcante|\bcro\b/.test(p)) return 'Odontologia';
+    if (/enferm|mariana vaz|jorge marcio|lucelia|\bcoren\b/.test(p)) return 'Enfermagem';
+    if (/\bacs\b|agente comunit|ana paula|ana lucia|lenilda|conceicao|joselita|alda|simone|patricia|telma|jeane|joselia|arlinda|nena|rosilene|fatima/.test(p)) {
+      return 'ACS';
+    }
+    return 'Médico';
+  }
+
+  function popularSelectProfissionaisDevolucao(setor = 'Médico', selecionado = '') {
+    const sel = document.getElementById('dev-profissional');
+    if (!sel) return;
+    const setorNorm = SETOR_DEV_META[setor] ? setor : 'Médico';
+    const baseLista = PROFISSIONAIS_DEVOLUCAO_POR_SETOR[setorNorm] || [];
+    const selNorm = normTxtDev(selecionado);
+    let matched = '';
+    if (selNorm) {
+      matched = baseLista.find(p => normTxtDev(p) === selNorm)
+        || baseLista.find(p => normTxtDev(p).includes(selNorm) || selNorm.includes(normTxtDev(p)))
+        || '';
+    }
+    const opts = [`<option value="">Todos (${escSisreg(setorNorm)})</option>`]
+      .concat(baseLista.map(p => `<option value="${escSisreg(p)}">${escSisreg(p)}</option>`));
+    if (selecionado && !matched) {
+      opts.push(`<option value="${escSisreg(selecionado)}">${escSisreg(selecionado)}</option>`);
+      matched = selecionado;
+    }
+    sel.innerHTML = opts.join('');
+    sel.value = matched || '';
+  }
+
+  function onDevMotivoChange() {
+    const motEl = document.getElementById('dev-motivo');
+    const setorEl = document.getElementById('dev-setor-destino');
+    if (!motEl || !setorEl) return;
+    const motNorm = normTxtDev(motEl.value);
+    if (/enderec|cadastr|municip|fora de recife|telefone|cns/.test(motNorm)) {
+      setorEl.value = 'ACS';
+      popularSelectProfissionaisDevolucao('ACS');
+    } else if (setorEl.value === 'ACS') {
+      setorEl.value = 'Médico';
+      popularSelectProfissionaisDevolucao('Médico');
+    }
+  }
+
+  function onDevSetorDestinoChange() {
+    const setorEl = document.getElementById('dev-setor-destino');
+    const setor = setorEl ? setorEl.value : 'Médico';
+    popularSelectProfissionaisDevolucao(setor);
+  }
+
   function preencherDevolucaoDaFichaAtual() {
     const d = _copilotoState.dados;
     trocarAbaCopilotoRegulacao('devolucoes');
@@ -2132,7 +2238,6 @@
     set('dev-protocolo', d.codigo_solicitacao || '');
     set('dev-procedimento', d.especialidade_ou_exame || '');
     set('dev-telefone', d.paciente_telefone || '');
-    set('dev-profissional', d.medico_solicitante || '');
     const endInfo = verificarEnderecoRecifeFront({
       municipio: d.paciente_municipio,
       uf: d.paciente_uf,
@@ -2140,63 +2245,164 @@
       endereco: d.paciente_endereco
     });
     const motEl = document.getElementById('dev-motivo');
+    const ehProblemaCadastro = endInfo.status === 'fora_recife' || !d.paciente_telefone;
     if (motEl) {
       motEl.value = endInfo.status === 'fora_recife'
-        ? 'Endereço de outra cidade (fora de Recife)'
-        : 'Erro de digitação / texto clínico';
+        ? 'Endereço de outra cidade (fora de Recife) / Cadastro'
+        : (!d.paciente_telefone
+          ? 'Telefone / CNS / dados cadastrais desatualizados'
+          : 'Erro de digitação / texto clínico / CID');
     }
+    const setorAuto = ehProblemaCadastro
+      ? 'ACS'
+      : inferirSetorPorMotivoEProfFront(motEl ? motEl.value : '', d.medico_solicitante || '');
+    const setorEl = document.getElementById('dev-setor-destino');
+    if (setorEl) setorEl.value = setorAuto;
+    popularSelectProfissionaisDevolucao(setorAuto, d.medico_solicitante || '');
     set('dev-obs', endInfo.status === 'fora_recife' ? (endInfo.alerta || '') : (d.alertas_digitacao?.join('; ') || ''));
     document.getElementById('dev-pac-nome')?.focus();
   }
 
+  function aplicarFiltrosDevolucoesLista(todas, statusFlt, setorFlt, busca) {
+    const bNorm = normTxtDev(busca || '');
+    return (Array.isArray(todas) ? todas : []).filter(item => {
+      const st = item.status || 'pendente';
+      if (statusFlt === 'abertas') {
+        if (st !== 'pendente' && st !== 'respondida') return false;
+      } else if (statusFlt && statusFlt !== 'todas') {
+        if (st !== statusFlt) return false;
+      }
+      const setorItem = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
+      if (setorFlt && setorFlt !== 'todos' && setorItem !== setorFlt) return false;
+      if (bNorm) {
+        const hay = normTxtDev(`${item.paciente_nome || ''} ${item.codigo_solicitacao || ''} ${item.procedimento || ''} ${item.motivo || ''} ${item.profissional_equipe || ''} ${item.observacao || ''} ${item.solucao || ''} ${setorItem}`);
+        if (!hay.includes(bNorm)) return false;
+      }
+      return true;
+    });
+  }
+
+  function onDevFiltroListaChange() {
+    _sisregDevSetorFiltro = document.getElementById('dev-flt-setor')?.value || 'todos';
+    _sisregDevBusca = document.getElementById('dev-flt-busca')?.value || '';
+    _sisregDevolucoes = aplicarFiltrosDevolucoesLista(_sisregDevolucoesTodas, _sisregDevFiltro, _sisregDevSetorFiltro, _sisregDevBusca);
+    renderDevolucoesSisreg();
+  }
+
   function filtrarDevolucoesSisreg(flt) {
-    _sisregDevFiltro = flt;
-    document.getElementById('dev-flt-pend')?.classList.toggle('active', flt === 'pendente');
-    document.getElementById('dev-flt-todas')?.classList.toggle('active', flt === 'todas');
-    carregarDevolucoesSisreg();
+    _sisregDevFiltro = flt || 'abertas';
+    const btns = {
+      abertas: 'dev-flt-abertas',
+      pendente: 'dev-flt-pend',
+      respondida: 'dev-flt-resp',
+      corrigida: 'dev-flt-corr',
+      todas: 'dev-flt-todas'
+    };
+    Object.keys(btns).forEach(k => {
+      document.getElementById(btns[k])?.classList.toggle('active', k === _sisregDevFiltro);
+    });
+    _sisregDevolucoes = aplicarFiltrosDevolucoesLista(_sisregDevolucoesTodas, _sisregDevFiltro, _sisregDevSetorFiltro, _sisregDevBusca);
+    renderDevolucoesSisreg();
+  }
+
+  function atualizarBadgesDevolucoesSetores() {
+    const todas = _sisregDevolucoesTodas || [];
+    const abertasRegulacao = todas.filter(x => x.status === 'pendente' || x.status === 'respondida').length;
+    const badge = document.getElementById('sisreg-dev-badge');
+    const badgeBar = document.getElementById('sisreg-dev-badge-bar');
+    [badge, badgeBar].forEach(el => {
+      if (el) {
+        el.style.display = abertasRegulacao > 0 ? 'inline-flex' : 'none';
+        el.textContent = String(abertasRegulacao);
+      }
+    });
+    document.querySelectorAll('.sisreg-dev-badge-setor').forEach(el => {
+      const setor = el.dataset.setor || '';
+      const count = todas.filter(x => {
+        if ((x.status || 'pendente') !== 'pendente') return false;
+        const s = x.setor_destino || inferirSetorPorMotivoEProfFront(x.motivo, x.profissional_equipe);
+        return !setor || s === setor;
+      }).length;
+      el.style.display = count > 0 ? 'inline-flex' : 'none';
+      el.textContent = String(count);
+    });
   }
 
   async function carregarDevolucoesSisreg() {
     try {
-      const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes?status=${encodeURIComponent(_sisregDevFiltro)}`, { cache: 'no-store' });
+      const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes?status=todas`, { cache: 'no-store' });
       if (!res.ok) return;
-      _sisregDevolucoes = await res.json();
+      _sisregDevolucoesTodas = await res.json();
+      atualizarBadgesDevolucoesSetores();
+      _sisregDevolucoes = aplicarFiltrosDevolucoesLista(_sisregDevolucoesTodas, _sisregDevFiltro, _sisregDevSetorFiltro, _sisregDevBusca);
       renderDevolucoesSisreg();
+      const modalProf = document.getElementById('modal-devolucoes-profissional');
+      if (modalProf && modalProf.classList.contains('show')) {
+        renderModalDevolucoesProfissional();
+      }
     } catch (_) {}
+  }
+
+  function formatarDataRecifeDev(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Recife',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(d);
+  }
+
+  function badgeStatusDevolucaoHtml(status) {
+    if (status === 'corrigida') {
+      return '<span class="sisreg-pill-mini ok">✅ Corrigida</span>';
+    }
+    if (status === 'respondida') {
+      return '<span class="sisreg-pill-mini" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;">💬 Solução Recebida</span>';
+    }
+    return '<span class="sisreg-pill-mini err">⏳ Pendente</span>';
+  }
+
+  function badgeSetorDevolucaoHtml(setor) {
+    const meta = SETOR_DEV_META[setor] || SETOR_DEV_META['Médico'];
+    return `<span class="sisreg-pill-mini" style="background:${meta.bg};color:${meta.fg};border:1px solid ${meta.fg}33;">${meta.icon} ${escSisreg(setor)}</span>`;
   }
 
   function renderDevolucoesSisreg() {
     const listEl = document.getElementById('sisreg-dev-lista');
-    const badge = document.getElementById('sisreg-dev-badge');
-    const badgeBar = document.getElementById('sisreg-dev-badge-bar');
-    const pendentes = (_sisregDevolucoes || []).filter(x => x.status === 'pendente').length;
-    [badge, badgeBar].forEach(el => {
-      if (el) {
-        el.style.display = pendentes > 0 ? 'inline-flex' : 'none';
-        el.textContent = String(pendentes);
-      }
-    });
+    atualizarBadgesDevolucoesSetores();
     if (!listEl) return;
     if (!_sisregDevolucoes || _sisregDevolucoes.length === 0) {
-      listEl.innerHTML = `<div class="sisreg-muted" style="text-align:center;padding:18px;">Nenhuma devolução ${_sisregDevFiltro === 'pendente' ? 'pendente' : 'registrada'}.</div>`;
+      listEl.innerHTML = `<div class="sisreg-muted" style="text-align:center;padding:18px;">Nenhuma devolução encontrada nos filtros atuais.</div>`;
       return;
     }
 
-    listEl.innerHTML = _sisregDevolucoes.map((item, idx) => {
-      const pend = item.status === 'pendente';
+    listEl.innerHTML = _sisregDevolucoes.map(item => {
+      const st = item.status || 'pendente';
+      const setorDestino = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
+      const dataFmt = formatarDataRecifeDev(item.created_at);
+      const solFmt = formatarDataRecifeDev(item.solucao_em);
+      const hasSolucao = Boolean(item.solucao && String(item.solucao).trim());
+
       return `
-        <div class="sisreg-dev-card ${pend ? 'pend' : 'ok'}">
+        <div class="sisreg-dev-card ${st === 'corrigida' ? 'ok' : (st === 'respondida' ? 'resp' : 'pend')}" style="${st === 'respondida' ? 'border-left-color:#2563eb;background:#f8fbff;' : ''}">
           <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;">
-            <div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <strong style="font-size:13.5px;color:#0f172a;">${escSisreg(item.paciente_nome)}</strong>
-              ${item.codigo_solicitacao ? `<code class="sisreg-code-badge" style="margin-left:6px;">${escSisreg(item.codigo_solicitacao)}</code>` : ''}
-              <span class="sisreg-pill-mini ${pend ? 'err' : 'ok'}" style="margin-left:6px;">${pend ? '⏳ Pendente' : '✅ Corrigida'}</span>
+              ${item.codigo_solicitacao ? `<code class="sisreg-code-badge">${escSisreg(item.codigo_solicitacao)}</code>` : ''}
+              ${badgeSetorDevolucaoHtml(setorDestino)}
+              ${badgeStatusDevolucaoHtml(st)}
+              ${dataFmt ? `<span style="font-size:11px;color:#64748b;font-weight:700;">🕒 ${escSisreg(dataFmt)}</span>` : ''}
             </div>
             <div style="display:flex;gap:5px;flex-wrap:wrap;">
-              ${pend
+              ${st !== 'corrigida'
                 ? `<button type="button" class="btn btn-primary btn-sm" style="background:#16a34a;border-color:#15803d;" onclick="alternarStatusDevolucaoSisreg(${item.id},'corrigida')">✅ Corrigida</button>`
                 : `<button type="button" class="btn btn-outline btn-sm" onclick="alternarStatusDevolucaoSisreg(${item.id},'pendente')">↩️ Reabrir</button>`}
-              <button type="button" class="btn btn-outline btn-sm" onclick="avisarMedicoDevolucaoChat(${idx})" title="Enviar aviso rápido no canal Médico do chat interno">💬 Avisar Médico</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="abrirSolucaoInlineRegulacao(${item.id})" title="Registrar/editar solução ou comentário">✏️ Solução</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="avisarProfissionalDevolucaoChat(${item.id})" title="Enviar alerta no canal ${escSisreg(setorDestino)} do chat interno">💬 Avisar ${escSisreg(setorDestino)}</button>
               <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;" onclick="excluirDevolucaoSisreg(${item.id})" title="Excluir registro">🗑️</button>
             </div>
           </div>
@@ -2204,17 +2410,67 @@
             <b>Motivo:</b> ${escSisreg(item.motivo)}
             ${item.procedimento ? ` · <b>Proc.:</b> ${escSisreg(item.procedimento)}` : ''}
             ${item.telefone ? ` · <b>Tel.:</b> ${escSisreg(item.telefone)}` : ''}
-            ${item.profissional_equipe ? ` · <b>Solicitante:</b> ${escSisreg(item.profissional_equipe)}` : ''}
+            ${item.profissional_equipe ? ` · <b>Responsável:</b> ${escSisreg(item.profissional_equipe)}` : ''}
           </div>
-          ${item.observacao ? `<div style="font-size:11.5px;color:#475569;margin-top:4px;background:#f8fafc;padding:5px 8px;border-radius:6px;">${escSisreg(item.observacao)}</div>` : ''}
+          ${item.observacao ? `<div style="font-size:11.5px;color:#475569;margin-top:5px;background:#f8fafc;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;"><b>Pendência / Orientação:</b> ${escSisreg(item.observacao)}</div>` : ''}
+          ${hasSolucao ? `
+            <div style="font-size:12px;color:#065f46;margin-top:5px;background:#ecfdf5;padding:7px 9px;border-radius:6px;border:1px solid #6ee7b7;display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+              <div>
+                <strong>✅ Solução / Comentário${item.solucao_autor ? ` (${escSisreg(item.solucao_autor)})` : ''}${solFmt ? ` · ${escSisreg(solFmt)}` : ''}:</strong>
+                <span>${escSisreg(item.solucao)}</span>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:11px;" onclick="copiarTextoSisreg(decodeURIComponent('${encodeURIComponent(item.solucao)}'), 'Solução copiada')">📋 Copiar Solução</button>
+            </div>
+          ` : ''}
+          <div id="dev-inline-sol-box-${item.id}" style="display:none;margin-top:7px;padding:8px;background:#f1f5f9;border-radius:8px;border:1px solid #cbd5e1;">
+            <textarea id="dev-inline-sol-txt-${item.id}" rows="2" style="width:100%;padding:6px 8px;border:1.5px solid #93c5fd;border-radius:6px;font-size:12px;font-weight:700;" placeholder="Digite a solução / comentário (ex: mudou para Rua..., procedimento correto é...)...">${escSisreg(item.solucao || '')}</textarea>
+            <div style="display:flex;gap:6px;margin-top:5px;justify-content:flex-end;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="abrirSolucaoInlineRegulacao(${item.id})">Cancelar</button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="salvarSolucaoInlineRegulacao(${item.id})">💾 Salvar Solução</button>
+            </div>
+          </div>
         </div>
       `;
     }).join('');
   }
 
+  function abrirSolucaoInlineRegulacao(id) {
+    const box = document.getElementById(`dev-inline-sol-box-${id}`);
+    if (!box) return;
+    const aberto = box.style.display !== 'none';
+    box.style.display = aberto ? 'none' : 'block';
+    if (!aberto) {
+      document.getElementById(`dev-inline-sol-txt-${id}`)?.focus();
+    }
+  }
+
+  async function salvarSolucaoInlineRegulacao(id) {
+    const txt = document.getElementById(`dev-inline-sol-txt-${id}`)?.value.trim() || '';
+    if (!txt) {
+      if (typeof showToast === 'function') showToast('Digite a solução ou comentário antes de salvar.', true);
+      return;
+    }
+    const devNome = localStorage.getItem('usf_device_nome');
+    const autor = (devNome && devNome !== 'Sem nome') ? devNome : '📋 Regulação';
+    try {
+      const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ solucao: txt, solucao_autor: autor, notificar_chat: false })
+      });
+      if (!res.ok) throw new Error();
+      if (typeof showToast === 'function') showToast('✅ Solução salva!');
+      await carregarDevolucoesSisreg();
+    } catch (_) {
+      if (typeof showToast === 'function') showToast('Erro ao salvar solução.', true);
+    }
+  }
+
   async function salvarNovaDevolucaoSisreg() {
     const nome = document.getElementById('dev-pac-nome')?.value.trim() || '';
     const motivo = document.getElementById('dev-motivo')?.value.trim() || '';
+    const setorDestino = document.getElementById('dev-setor-destino')?.value || 'Médico';
+    const enviarChat = document.getElementById('dev-enviar-chat')?.checked !== false;
     if (!nome) {
       if (typeof showToast === 'function') showToast('Informe o nome do paciente devolvido.', true);
       return;
@@ -2224,9 +2480,11 @@
       codigo_solicitacao: document.getElementById('dev-protocolo')?.value.trim() || null,
       procedimento: document.getElementById('dev-procedimento')?.value.trim() || null,
       motivo,
+      setor_destino: setorDestino,
       telefone: document.getElementById('dev-telefone')?.value.trim() || null,
       profissional_equipe: document.getElementById('dev-profissional')?.value.trim() || null,
-      observacao: document.getElementById('dev-obs')?.value.trim() || null
+      observacao: document.getElementById('dev-obs')?.value.trim() || null,
+      enviar_chat: enviarChat
     };
     try {
       const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes`, {
@@ -2235,11 +2493,18 @@
         body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error();
-      ['dev-pac-nome', 'dev-protocolo', 'dev-procedimento', 'dev-telefone', 'dev-profissional', 'dev-obs'].forEach(id => {
+      const created = await res.json();
+      ['dev-pac-nome', 'dev-protocolo', 'dev-procedimento', 'dev-telefone', 'dev-obs'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });
-      if (typeof showToast === 'function') showToast('✅ Devolução registrada!');
+      const profSel = document.getElementById('dev-profissional');
+      if (profSel) profSel.value = '';
+      if (typeof showToast === 'function') {
+        showToast(created.chat_notificado
+          ? `✅ Devolução registrada e alerta enviado no canal ${setorDestino}!`
+          : `✅ Devolução registrada e direcionada para ${setorDestino}!`);
+      }
       await carregarDevolucoesSisreg();
     } catch (_) {
       if (typeof showToast === 'function') showToast('Erro ao registrar devolução.', true);
@@ -2269,25 +2534,339 @@
     } catch (_) {}
   }
 
-  async function avisarMedicoDevolucaoChat(idx) {
-    const item = _sisregDevolucoes[idx];
+  async function avisarProfissionalDevolucaoChat(idOuIdx) {
+    const item = (_sisregDevolucoesTodas || []).find(x => x.id === idOuIdx)
+      || (_sisregDevolucoes || [])[idOuIdx];
     if (!item) return;
-    const texto = `↩️ DEVOLUÇÃO SISREG — Paciente: ${item.paciente_nome}` +
+    const setorDestino = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
+    const canal = (SETOR_DEV_META[setorDestino]?.canal) || 'medico';
+    const texto = `↩️ DEVOLUÇÃO SISREG [Setor: ${setorDestino}${item.profissional_equipe ? ' · ' + item.profissional_equipe : ''}] — Paciente: ${item.paciente_nome}` +
       (item.codigo_solicitacao ? ` (Prot: ${item.codigo_solicitacao})` : '') +
       (item.procedimento ? ` | Proc: ${item.procedimento}` : '') +
       ` | Motivo: ${item.motivo}` +
       (item.observacao ? ` | Detalhe: ${item.observacao}` : '') +
-      (item.profissional_equipe ? ` | Ref: ${item.profissional_equipe}` : '');
+      `\n👉 Responda pelo atalho "↩️ Devoluções SISREG" informando a correção/solução.`;
     try {
-      const res = await fetch(`${getApiUrlBase()}/chat/canais/medico`, {
+      const res = await fetch(`${getApiUrlBase()}/chat/canais/${canal}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ autor: '📋 Regulação', texto, urgente: true })
       });
       if (!res.ok) throw new Error();
-      if (typeof showToast === 'function') showToast('💬 Aviso enviado ao canal Médico no chat interno!');
+      if (typeof showToast === 'function') showToast(`💬 Aviso enviado ao canal ${setorDestino} no chat interno!`);
     } catch (_) {
       if (typeof showToast === 'function') showToast('Não foi possível enviar mensagem no chat.', true);
+    }
+  }
+
+  function avisarMedicoDevolucaoChat(idx) {
+    return avisarProfissionalDevolucaoChat(idx);
+  }
+
+  function exportarDevolucoesSisregPDF(listaCustom = null, tituloExtra = '') {
+    const lista = Array.isArray(listaCustom) ? listaCustom : (_sisregDevolucoes || []);
+    if (!lista.length) {
+      if (typeof showToast === 'function') showToast('Nenhuma devolução na lista atual para gerar PDF.', true);
+      return;
+    }
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      if (typeof showToast === 'function') showToast('Biblioteca PDF ainda carregando...', true);
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l');
+    const dataHoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(new Date());
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('Lista de Devoluções SISREG III — USF Chico Mendes (DS5)', 148, 13, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.text(
+      `Emitido em: ${dataHoje} | Total listado: ${lista.length}${tituloExtra ? ` | ${tituloExtra}` : ''}`,
+      148,
+      20,
+      { align: 'center' }
+    );
+
+    const statusLabel = s => s === 'corrigida' ? 'Corrigida' : (s === 'respondida' ? 'Respondida' : 'Pendente');
+    const bodyRows = lista.map((item, idx) => {
+      const setor = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
+      const direcionado = item.profissional_equipe ? `${setor} (${item.profissional_equipe})` : setor;
+      const solTxt = item.solucao
+        ? `${item.solucao}${item.solucao_autor ? ` [${item.solucao_autor}]` : ''}`
+        : '—';
+      return [
+        idx + 1,
+        formatarDataRecifeDev(item.created_at) || dataHoje,
+        item.paciente_nome || '—',
+        item.codigo_solicitacao || '—',
+        item.procedimento || '—',
+        item.motivo || '—',
+        direcionado,
+        item.observacao || '—',
+        solTxt,
+        statusLabel(item.status)
+      ];
+    });
+
+    doc.autoTable({
+      startY: 25,
+      head: [['Nº', 'Data/Hora', 'Paciente', 'Protocolo', 'Procedimento', 'Motivo', 'Direcionado', 'Pendência', 'Solução / Comentário', 'Status']],
+      body: bodyRows,
+      theme: 'grid',
+      headStyles: { fillColor: [15, 44, 115], fontSize: 7.5 },
+      bodyStyles: { fontSize: 7.2, cellPadding: 2 },
+      alternateRowStyles: { fillColor: [241, 245, 249] },
+      columnStyles: {
+        0: { cellWidth: 9 },
+        1: { cellWidth: 21 },
+        2: { cellWidth: 32 },
+        3: { cellWidth: 20 },
+        7: { cellWidth: 42 },
+        8: { cellWidth: 48 },
+        9: { cellWidth: 20 }
+      }
+    });
+
+    const resumoPorSetor = {};
+    lista.forEach(item => {
+      const s = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
+      if (!resumoPorSetor[s]) resumoPorSetor[s] = { pendente: 0, respondida: 0, corrigida: 0, total: 0 };
+      resumoPorSetor[s].total++;
+      if (item.status === 'corrigida') resumoPorSetor[s].corrigida++;
+      else if (item.status === 'respondida') resumoPorSetor[s].respondida++;
+      else resumoPorSetor[s].pendente++;
+    });
+    const keys = Object.keys(resumoPorSetor).sort();
+    if (keys.length > 0) {
+      const yNext = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 30) + 8;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Resumo por Setor Responsável', 14, yNext);
+      doc.autoTable({
+        startY: yNext + 3,
+        head: [['Setor', 'Pendentes', 'Solução Recebida', 'Corrigidas', 'Total']],
+        body: keys.map(s => [s, resumoPorSetor[s].pendente, resumoPorSetor[s].respondida, resumoPorSetor[s].corrigida, resumoPorSetor[s].total]),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 8.5 },
+        bodyStyles: { fontSize: 8 }
+      });
+    }
+
+    doc.save(`devolucoes_sisreg_${dataHoje.replace(/\//g, '-')}.pdf`);
+    if (typeof showToast === 'function') showToast('✅ Lista de devoluções exportada em PDF!');
+  }
+
+  // ===== MODAL RÁPIDO PARA PROFISSIONAIS / ACS COMENTAREM SOLUÇÕES =====
+  function detectarNomeProfissionalAtualFront(setor = 'Médico') {
+    const keyMap = { 'Médico': 'medico', 'Enfermagem': 'enfermagem', 'Odontologia': 'odontologia' };
+    const k = keyMap[setor];
+    if (k) {
+      const v = document.getElementById(`profissional-${k}`)?.value;
+      if (v) return v;
+    }
+    const devNome = localStorage.getItem('usf_device_nome');
+    if (devNome && devNome !== 'Sem nome') return devNome;
+    return '';
+  }
+
+  function abrirModalDevolucoesProfissional(setor = 'Médico') {
+    _devProfModalState.setor = SETOR_DEV_META[setor] ? setor : 'todos';
+    if (!_devProfModalState.status) _devProfModalState.status = 'abertas';
+    const modal = document.getElementById('modal-devolucoes-profissional');
+    if (!modal) return;
+    renderModalDevolucoesProfissional();
+    modal.classList.add('show');
+    carregarDevolucoesSisreg();
+  }
+
+  function fecharModalDevolucoesProfissional() {
+    document.getElementById('modal-devolucoes-profissional')?.classList.remove('show');
+  }
+
+  function trocarSetorModalDevProf(setor) {
+    _devProfModalState.setor = setor || 'todos';
+    renderModalDevolucoesProfissional();
+  }
+
+  function trocarFiltroModalDevProf(flt) {
+    _devProfModalState.status = flt || 'abertas';
+    renderModalDevolucoesProfissional();
+  }
+
+  function onBuscaModalDevProfInput(val) {
+    _devProfModalState.busca = val || '';
+    renderListaDevolucoesProfissional();
+  }
+
+  function aplicarAtalhoSolucaoDevProf(id, textoModelo) {
+    const ta = document.getElementById(`dev-prof-sol-${id}`);
+    if (!ta) return;
+    ta.value = textoModelo;
+    ta.focus();
+    const len = ta.value.length;
+    ta.setSelectionRange(len, len);
+  }
+
+  function obterListaFiltradaModalProf() {
+    return aplicarFiltrosDevolucoesLista(
+      _sisregDevolucoesTodas,
+      _devProfModalState.status,
+      _devProfModalState.setor,
+      _devProfModalState.busca
+    );
+  }
+
+  function exportarDevolucoesProfissionalPDF() {
+    const lista = obterListaFiltradaModalProf();
+    const labelSetor = _devProfModalState.setor === 'todos' ? 'Todos os Setores' : `Setor: ${_devProfModalState.setor}`;
+    exportarDevolucoesSisregPDF(lista, labelSetor);
+  }
+
+  function renderModalDevolucoesProfissional() {
+    const modal = document.getElementById('modal-devolucoes-profissional');
+    if (!modal) return;
+    const autorPadrao = detectarNomeProfissionalAtualFront(_devProfModalState.setor);
+    const todas = _sisregDevolucoesTodas || [];
+    const contarPendSetor = s => todas.filter(x => {
+      if ((x.status || 'pendente') !== 'pendente') return false;
+      const st = x.setor_destino || inferirSetorPorMotivoEProfFront(x.motivo, x.profissional_equipe);
+      return s === 'todos' || st === s;
+    }).length;
+
+    const setoresBotoes = [
+      { id: 'Médico', label: '🩺 Médico' },
+      { id: 'Enfermagem', label: '👩‍⚕️ Enfermagem' },
+      { id: 'Odontologia', label: '🦷 Odontologia' },
+      { id: 'ACS', label: '🧡 ACS' },
+      { id: 'todos', label: '📋 Todos' }
+    ].map(s => {
+      const cnt = contarPendSetor(s.id);
+      const act = _devProfModalState.setor === s.id ? 'active' : '';
+      return `<button type="button" class="btn-filter ${act}" onclick="trocarSetorModalDevProf('${s.id}')">${s.label}${cnt > 0 ? ` (${cnt})` : ''}</button>`;
+    }).join('');
+
+    const profDatalist = (PROFISSIONAIS_DEVOLUCAO_POR_SETOR[_devProfModalState.setor]
+      || Object.values(PROFISSIONAIS_DEVOLUCAO_POR_SETOR).flat())
+      .map(p => `<option value="${escSisreg(p)}"></option>`).join('');
+
+    modal.innerHTML = `
+      <div class="previa-modal-card wide" style="max-width:1020px;">
+        <div class="previa-modal-head" style="background:linear-gradient(135deg,#9a3412,#c2410c);">
+          <div>
+            <div style="font-weight:900;font-size:15.5px;">↩️ Devoluções SISREG — Comentários e Soluções</div>
+            <div style="font-size:11.5px;opacity:0.9;">Informe a correção (endereço/cadastro c/ ACS ou procedimento/justificativa c/ Médico, Enfermagem ou Dentista) para a Regulação corrigir</div>
+          </div>
+          <button type="button" class="previa-btn-close-red" onclick="fecharModalDevolucoesProfissional()">✕ Fechar</button>
+        </div>
+        <div class="previa-modal-body" style="background:#f8fafc;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">${setoresBotoes}</div>
+            <button type="button" class="btn btn-sm" style="background:#dc2626;color:#fff;border:none;font-weight:800;" onclick="exportarDevolucoesProfissionalPDF()">📄 Imprimir Lista (PDF)</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff;padding:10px;border-radius:10px;border:1.5px solid #cbd5e1;margin-bottom:10px;">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              <button type="button" class="btn-filter ${_devProfModalState.status === 'abertas' ? 'active' : ''}" onclick="trocarFiltroModalDevProf('abertas')">📋 Abertas</button>
+              <button type="button" class="btn-filter ${_devProfModalState.status === 'pendente' ? 'active' : ''}" onclick="trocarFiltroModalDevProf('pendente')">⏳ Pendentes</button>
+              <button type="button" class="btn-filter ${_devProfModalState.status === 'respondida' ? 'active' : ''}" onclick="trocarFiltroModalDevProf('respondida')">💬 Respondidas</button>
+              <button type="button" class="btn-filter ${_devProfModalState.status === 'corrigida' ? 'active' : ''}" onclick="trocarFiltroModalDevProf('corrigida')">✅ Corrigidas</button>
+              <button type="button" class="btn-filter ${_devProfModalState.status === 'todas' ? 'active' : ''}" onclick="trocarFiltroModalDevProf('todas')">🗂️ Todas</button>
+            </div>
+            <input type="text" id="dev-prof-busca-inp" value="${escSisreg(_devProfModalState.busca)}" oninput="onBuscaModalDevProfInput(this.value)" placeholder="🔎 Buscar paciente ou procedimento..." style="flex:1;min-width:170px;padding:6px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12.5px;font-weight:700;">
+            <input type="text" id="dev-prof-autor-nome" list="dev-prof-autor-list" value="${escSisreg(autorPadrao)}" placeholder="Seu nome (Profissional / ACS) *" style="min-width:190px;padding:6px 10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;">
+            <datalist id="dev-prof-autor-list">${profDatalist}</datalist>
+          </div>
+          <div id="dev-prof-modal-lista" class="sisreg-dev-lista" style="max-height:56vh;"></div>
+        </div>
+      </div>
+    `;
+    renderListaDevolucoesProfissional();
+  }
+
+  function renderListaDevolucoesProfissional() {
+    const el = document.getElementById('dev-prof-modal-lista');
+    if (!el) return;
+    const lista = obterListaFiltradaModalProf();
+    if (!lista.length) {
+      el.innerHTML = '<div class="sisreg-muted" style="text-align:center;padding:24px;">Nenhuma devolução encontrada para este setor/filtro.</div>';
+      return;
+    }
+
+    el.innerHTML = lista.map(item => {
+      const setorItem = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
+      const isAcs = setorItem === 'ACS';
+      const placeholder = isAcs
+        ? 'Ex: Verifiquei o cadastro — paciente mudou para a Rua..., nº..., Bairro... / Novo tel: (81)...'
+        : 'Ex: O procedimento correto é..., justificativa clínica..., CID...';
+      const atalhosHtml = isAcs
+        ? `
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${item.id}, 'Paciente mudou para o endereço: Rua , nº , Bairro , CEP .')">🏠 Mudou de endereço</button>
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${item.id}, 'Telefone atualizado do paciente: (81) 9')">📞 Novo telefone</button>
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${item.id}, 'Cadastro e residência confirmados em Recife na microárea.')">📍 Cadastro confirmado</button>
+        `
+        : `
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${item.id}, 'O procedimento correto no SISREG é: ')">🩺 Procedimento correto</button>
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${item.id}, 'Justificativa clínica complementar: ')">📝 Justificativa clínica</button>
+          <button type="button" class="motivo-chip" onclick="aplicarAtalhoSolucaoDevProf(${item.id}, 'CID-10 correto:  | Solicitação readequada.')">🧬 Corrigir CID</button>
+        `;
+      const dataFmt = formatarDataRecifeDev(item.created_at);
+      return `
+        <div class="sisreg-dev-card ${item.status === 'corrigida' ? 'ok' : (item.status === 'respondida' ? 'resp' : 'pend')}">
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <strong style="font-size:14px;color:#0f172a;">${escSisreg(item.paciente_nome)}</strong>
+              ${item.codigo_solicitacao ? `<code class="sisreg-code-badge">${escSisreg(item.codigo_solicitacao)}</code>` : ''}
+              ${badgeSetorDevolucaoHtml(setorItem)}
+              ${badgeStatusDevolucaoHtml(item.status || 'pendente')}
+              ${dataFmt ? `<span style="font-size:11px;color:#64748b;font-weight:700;">🕒 ${escSisreg(dataFmt)}</span>` : ''}
+            </div>
+          </div>
+          <div style="font-size:12px;color:#334155;margin-top:5px;">
+            <b>Motivo:</b> ${escSisreg(item.motivo)}
+            ${item.procedimento ? ` · <b>Proc.:</b> ${escSisreg(item.procedimento)}` : ''}
+            ${item.telefone ? ` · <b>Tel.:</b> ${escSisreg(item.telefone)}` : ''}
+            ${item.profissional_equipe ? ` · <b>Direcionado:</b> ${escSisreg(item.profissional_equipe)}` : ''}
+          </div>
+          ${item.observacao ? `<div style="font-size:12px;color:#7c2d12;margin-top:5px;background:#fff7ed;padding:6px 8px;border-radius:6px;border:1px solid #fed7aa;"><b>Solicitação da Regulação:</b> ${escSisreg(item.observacao)}</div>` : ''}
+          <div style="margin-top:8px;">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px;">
+              <span style="font-size:11px;font-weight:800;color:#475569;">Atalhos de resposta:</span>
+              ${atalhosHtml}
+            </div>
+            <textarea id="dev-prof-sol-${item.id}" rows="2" placeholder="${placeholder}" style="width:100%;padding:7px 9px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;color:#0f172a;">${escSisreg(item.solucao || '')}</textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
+              <span style="font-size:11px;color:#64748b;font-weight:700;">Ao enviar, o comentário aparece na Regulação e gera alerta no canal 📋 Regulação do chat interno.</span>
+              <button type="button" class="btn btn-primary btn-sm" style="background:#0f766e;border-color:#0f766e;font-weight:800;" onclick="salvarSolucaoModalProfissional(${item.id}, this)">💾 Enviar Solução para Regulação</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function salvarSolucaoModalProfissional(id, btn) {
+    const sol = document.getElementById(`dev-prof-sol-${id}`)?.value.trim() || '';
+    if (!sol) {
+      if (typeof showToast === 'function') showToast('Digite a solução ou comentário antes de enviar.', true);
+      return;
+    }
+    const autorInp = document.getElementById('dev-prof-autor-nome')?.value.trim() || '';
+    const autor = autorInp || _devProfModalState.setor || 'Profissional';
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    try {
+      const res = await fetch(`${getApiUrlBase()}/sisreg/devolucoes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ solucao: sol, solucao_autor: autor, notificar_chat: true })
+      });
+      if (!res.ok) throw new Error();
+      if (typeof showToast === 'function') showToast('✅ Solução enviada e Regulação avisada no chat interno!');
+      await carregarDevolucoesSisreg();
+    } catch (_) {
+      if (typeof showToast === 'function') showToast('Erro ao enviar solução.', true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     }
   }
 
@@ -2651,12 +3230,27 @@
   window.abrirPacienteNoCopilotoSisreg = abrirPacienteNoCopilotoSisreg;
   window.salvarFotoCopilotoNoPaciente = salvarFotoCopilotoNoPaciente;
   window.preencherDevolucaoDaFichaAtual = preencherDevolucaoDaFichaAtual;
+  window.onDevMotivoChange = onDevMotivoChange;
+  window.onDevSetorDestinoChange = onDevSetorDestinoChange;
+  window.onDevFiltroListaChange = onDevFiltroListaChange;
   window.filtrarDevolucoesSisreg = filtrarDevolucoesSisreg;
   window.carregarDevolucoesSisreg = carregarDevolucoesSisreg;
   window.salvarNovaDevolucaoSisreg = salvarNovaDevolucaoSisreg;
   window.alternarStatusDevolucaoSisreg = alternarStatusDevolucaoSisreg;
   window.excluirDevolucaoSisreg = excluirDevolucaoSisreg;
+  window.abrirSolucaoInlineRegulacao = abrirSolucaoInlineRegulacao;
+  window.salvarSolucaoInlineRegulacao = salvarSolucaoInlineRegulacao;
+  window.avisarProfissionalDevolucaoChat = avisarProfissionalDevolucaoChat;
   window.avisarMedicoDevolucaoChat = avisarMedicoDevolucaoChat;
+  window.exportarDevolucoesSisregPDF = exportarDevolucoesSisregPDF;
+  window.abrirModalDevolucoesProfissional = abrirModalDevolucoesProfissional;
+  window.fecharModalDevolucoesProfissional = fecharModalDevolucoesProfissional;
+  window.trocarSetorModalDevProf = trocarSetorModalDevProf;
+  window.trocarFiltroModalDevProf = trocarFiltroModalDevProf;
+  window.onBuscaModalDevProfInput = onBuscaModalDevProfInput;
+  window.aplicarAtalhoSolucaoDevProf = aplicarAtalhoSolucaoDevProf;
+  window.exportarDevolucoesProfissionalPDF = exportarDevolucoesProfissionalPDF;
+  window.salvarSolucaoModalProfissional = salvarSolucaoModalProfissional;
   window.abrirModalSisregConsulta = abrirModalSisregConsulta;
   window.abrirModalSisregLeitor = abrirModalSisregLeitor;
   window.fecharModalSisregMedico = fecharModalSisregMedico;

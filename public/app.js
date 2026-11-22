@@ -814,6 +814,9 @@ function initSectorScreens() {
   if (typeof initCopilotoRegulacao === 'function') {
     initCopilotoRegulacao();
   }
+  if (typeof carregarDevolucoesSisreg === 'function') {
+    carregarDevolucoesSisreg();
+  }
 }
 
 function initOverview() {
@@ -3906,6 +3909,7 @@ const CANAIS = [
   { id:'geral', nome:'📢 Geral', desc:'Todos os setores e profissionais' },
   { id:'recepcao', nome:'🏢 Recepção', desc:'Comunicação da Recepção' },
   { id:'acolhimento', nome:'💜 Acolhimento', desc:'1ª e 2ª Escuta / Triagem' },
+  { id:'acs', nome:'🧡 ACS', desc:'Agentes Comunitários de Saúde (Cadastro / Endereço / Devoluções)' },
   { id:'medico', nome:'🩺 Médico', desc:'Comunicação da equipe médica' },
   { id:'enfermagem', nome:'👩‍⚕️ Enfermagem', desc:'Comunicação da equipe de enfermagem' },
   { id:'odontologia', nome:'🦷 Odontologia', desc:'Comunicação da equipe de odontologia' },
@@ -3934,6 +3938,18 @@ function toggleChatExpand(forceState) {
   if (btn) btn.textContent = expanded ? '⤡ Reduzir' : '⤢ Expandir';
   syncChatExpandedBodyClass();
   try { localStorage.setItem('usf_chat_expanded', expanded ? '1' : '0'); } catch (e) {}
+}
+
+function abrirDevolucaoDoChat(canalId) {
+  const map = { medico: 'Médico', enfermagem: 'Enfermagem', odontologia: 'Odontologia', acs: 'ACS', acolhimento: 'ACS' };
+  const setor = map[canalId] || 'Médico';
+  if (chatPanelOpen && typeof toggleChatPanel === 'function') toggleChatPanel();
+  if (typeof abrirModalDevolucoesProfissional === 'function') abrirModalDevolucoesProfissional(setor);
+}
+
+function abrirDevolucaoRegulacaoDoChat() {
+  if (chatPanelOpen && typeof toggleChatPanel === 'function') toggleChatPanel();
+  if (typeof abrirModalPreviaRegulacao === 'function') abrirModalPreviaRegulacao('devolucoes');
 }
 
 function toggleChatSidebarMobile() {
@@ -4001,7 +4017,7 @@ CANAIS.forEach(c => { channelMessages[c.id] = []; channelUnread[c.id] = 0; });
 let _chatDeviceNomeOficial = '';
 let _chatDeviceSetorOficial = '';
 
-const CHAT_SETORES_OFICIAIS = ['Recepção', 'Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem', 'Gerência'];
+const CHAT_SETORES_OFICIAIS = ['Recepção', 'Acolhimento', 'ACS', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem', 'Gerência'];
 
 function resolverSetorChatCompativel(setorDisp) {
   const s = String(setorDisp || '').trim();
@@ -4012,6 +4028,7 @@ function resolverSetorChatCompativel(setorDisp) {
   );
   if (exato) return exato;
   if (norm.includes('coorden') || norm.includes('gerenc') || norm.includes('admin')) return 'Gerência';
+  if (norm === 'acs' || norm.includes('agente')) return 'ACS';
   if (norm.includes('acolh')) return 'Acolhimento';
   if (norm.includes('farm')) return 'Farmácia';
   if (norm.includes('regula')) return 'Regulação';
@@ -4368,8 +4385,15 @@ function renderChannelChat(forceScroll = false) {
       const safePinTxt = (m.texto || m.anexo_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
       const safeAutorJs = (m.autor || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const pinBtn = `<button class="pin-btn" onclick="event.stopPropagation();pinChatMessage('${safePinTxt}','${safeAutorJs}')" title="Fixar mensagem">📌</button>`;
-      const cienteBtn = !isMe
-        ? `<div><button type="button" class="chat-ciente-btn" onclick="enviarRespostaRapidaChat('👍 Ciente (${safeAutorJs})')">👍 Ciente</button></div>`
+      const textoStr = String(m.texto || '');
+      let devActionBtn = '';
+      if (textoStr.includes('↩️ DEVOLUÇÃO SISREG')) {
+        devActionBtn = `<button type="button" class="chat-ciente-btn" style="background:#fff7ed;color:#9a3412;border-color:#fdba74;" onclick="abrirDevolucaoDoChat('${activeCanal}')">💬 Responder Devolução</button>`;
+      } else if (textoStr.includes('✅ SOLUÇÃO DEVOLUÇÃO SISREG')) {
+        devActionBtn = `<button type="button" class="chat-ciente-btn" style="background:#dcfce7;color:#166534;border-color:#86efac;" onclick="abrirDevolucaoRegulacaoDoChat()">📋 Abrir na Regulação</button>`;
+      }
+      const cienteBtn = !isMe || devActionBtn
+        ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">${!isMe ? `<button type="button" class="chat-ciente-btn" onclick="enviarRespostaRapidaChat('👍 Ciente (${safeAutorJs})')">👍 Ciente</button>` : ''}${devActionBtn}</div>`
         : '';
       
       const textHtml = m.texto ? `<div style="white-space:pre-wrap; word-break:break-word;">${escapeText(m.texto)}</div>` : '';
@@ -7258,6 +7282,7 @@ function initAcsEscutaScreen() {
       <span class="pec-forms-title">🖨️ Formulário do ACS:</span>
       <button type="button" class="pec-form-btn" onclick="abrirDeclaracaoResidenciaAcs('', false)">🏠 Declaração de Residência</button>
       <button type="button" class="pec-form-btn branco" onclick="abrirDeclaracaoResidenciaAcs('', true)">📃 Em Branco</button>
+      <button type="button" class="pec-form-btn sisreg" onclick="abrirModalDevolucoesProfissional('ACS')" title="Ver e responder devoluções do SISREG (endereço/cadastro)">↩️ Devoluções SISREG <span class="sisreg-dev-count sisreg-dev-badge-setor" data-setor="ACS" style="display:none;">0</span></button>
     </div>
     <div class="acs-grid" id="acs-grid-container"></div>
   `;
