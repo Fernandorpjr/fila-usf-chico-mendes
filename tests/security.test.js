@@ -89,7 +89,8 @@ test('isValidAdminPass validates ADMIN_PASSWORDS via timing-safe comparison and 
   const prevAdmins = process.env.ADMIN_PASSWORDS;
   try {
     assert.equal(Array.isArray(LEGACY_ADMIN_HASHES), true);
-    assert.equal(LEGACY_ADMIN_HASHES.length, 3);
+    assert.equal(LEGACY_ADMIN_HASHES.length, 2);
+    assert.equal(LEGACY_ADMIN_HASHES.includes(DEFAULT_GATE_HASH), false);
     LEGACY_ADMIN_HASHES.forEach(h => assert.match(h, /^[a-f0-9]{64}$/));
 
     process.env.ADMIN_PASSWORDS = 'admin-alpha,admin-beta';
@@ -221,13 +222,19 @@ test('Static security audit verifies secrets and insecure patterns are removed',
   const serverJs = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   const dispJs = fs.readFileSync(path.join(root, 'lib', 'dispositivos.js'), 'utf8');
   const histJs = fs.readFileSync(path.join(root, 'lib', 'historico.js'), 'utf8');
+  const sumarioMd = fs.readFileSync(path.join(root, 'SUMARIO.md'), 'utf8');
 
   assert.equal(appJs.includes('GATE_HASH'), false);
   assert.equal(appJs.includes(DEFAULT_GATE_HASH), false);
+  assert.equal(appJs.includes('Y2hpY28xMjM='), false);
   assert.equal(serverJs.includes('chico123'), false);
   assert.equal(serverJs.includes('s-maxage=3'), false);
+  assert.equal(serverJs.includes('req.query?.senha'), false);
   assert.equal(dispJs.includes('req.query.senha'), false);
   assert.equal(histJs.includes('req.query.senha'), false);
+  assert.equal(sumarioMd.includes('usf2026'), false);
+  assert.equal(sumarioMd.includes('0177'), false);
+  assert.equal(sumarioMd.includes('7710'), false);
 });
 
 test('Forms do not leak internal 1a/2a Escuta comments', () => {
@@ -561,7 +568,7 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   // Sala de Agendamento: registro manual restrito ao Admin no front e back
   assert.match(indexHtml, /id="btn-novo-ctrl-admin"[^>]*class="btn admin-only"|class="btn admin-only"[^>]*id="btn-novo-ctrl-admin"/);
   assert.match(serverJs, /POST \/api\/ctrl-agendamentos[\s\S]{0,600}isManual\s*&&\s*!isValidAdminPass\(senha\)/);
-  assert.match(serverJs, /DELETE \/api\/ctrl-agendamentos\/:id[\s\S]{0,400}!isValidAdminPass\(senha\)/);
+  assert.match(serverJs, /DELETE \/api\/ctrl-agendamentos\/:id[\s\S]{0,400}(?:!isAdminAuthorized\(req\)|!isValidAdminPass\(senha\))/);
   assert.equal(appJs.includes("btoa(senha) !== 'Y2hpY28xMjM='"), false, 'hardcoded base64 check must be removed from exports');
   assert.equal(appJs.includes("pedirSenhaAdmin('Exportar Controle de Agendamentos (Excel/CSV)'") && appJs.includes("pedirSenhaAdmin('Exportar Controle de Agendamentos (PDF)'"), true);
   assert.equal(appJs.includes('abrirModalNovoCtrlAdmin'), true);
@@ -583,7 +590,7 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.equal(sisregFront.includes("buscarAtalhoSisreg('EXAMES DE LABORATORIO')"), true);
   assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
   assert.equal(indexHtml.includes('formularios-pec.js?v=1.9'), true);
-  assert.equal(indexHtml.includes('app.js?v=8.2'), true);
+  assert.equal(indexHtml.includes('app.js?v=8.3'), true);
 });
 
 test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e PDF estão integrados', () => {
@@ -636,4 +643,33 @@ test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e P
   assert.ok(idxSalvarSol > 0);
   const salvarSlice = sisregFront.slice(idxSalvarSol, idxSalvarSol + 2000);
   assert.equal(salvarSlice.includes('fecharModalDevolucoesProfissional()'), true);
+});
+
+test('Dashboard Privado exige admin no servidor, corrige bugs críticos e integra novos indicadores', () => {
+  const root = path.join(__dirname, '..');
+  const serverJs = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  const dispBack = fs.readFileSync(path.join(root, 'lib', 'dispositivos.js'), 'utf8');
+  const dashHtml = fs.readFileSync(path.join(root, 'public', 'dashboard.html'), 'utf8');
+
+  assert.equal(serverJs.includes("app.get('/api/dashboard/metrics', requireAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/hourly', requireAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/resumo-operacional', requireAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/coletas-semanal', requireAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/coletas-manual', requireAdmin"), true);
+  assert.equal(serverJs.includes("app.post('/api/dashboard/coletas-manual', requireAdmin"), true);
+  assert.equal(serverJs.includes("app.delete('/api/dashboard/coletas-manual/:id', requireAdmin"), true);
+  assert.equal(dispBack.includes('req.session && req.session.role === \'admin\''), true);
+
+  assert.equal(dashHtml.includes('SETORES_DASH'), true);
+  assert.equal(dashHtml.includes('escHtml'), true);
+  assert.equal(dashHtml.includes('checkExistingAdminSession'), true);
+  assert.equal(dashHtml.includes('logoutDashboard'), true);
+  assert.equal(dashHtml.includes('switchDashTab'), true);
+  assert.equal(dashHtml.includes('btnExportColetasPDF'), true);
+  assert.equal(dashHtml.includes('maxlength="64"'), true);
+  assert.equal(dashHtml.includes('tab-prioridades'), true);
+  assert.equal(dashHtml.includes('tab-sisreg'), true);
+  assert.equal(dashHtml.includes('tab-dispositivos'), true);
+  assert.equal(dashHtml.includes('maxlength="10"'), false);
+  assert.equal(dashHtml.includes('textContent = "API"'), false);
 });

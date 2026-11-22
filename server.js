@@ -314,6 +314,19 @@ app.use('/api', async (req, res, next) => {
   next();
 });
 
+function isAdminAuthorized(req) {
+  if (req.session && req.session.role === 'admin') return true;
+  const senha = req.headers['x-admin-password'] || req.headers['x-admin-pass'] || req.body?.senha;
+  return isValidAdminPass(senha);
+}
+
+function requireAdmin(req, res, next) {
+  if (!isAdminAuthorized(req)) {
+    return res.status(403).json({ error: 'Acesso restrito ao administrador.', code: 'ADMIN_REQUIRED' });
+  }
+  next();
+}
+
 
 // Database setup
 const pool = new Pool({
@@ -1857,15 +1870,15 @@ app.post('/api/patients/:id/rechamar', async (req, res) => {
 
 // ====== MELHORIA G: REORDENAÇÃO E TRANSFERÊNCIA (Admin RBAC) ======
 
-// PUT /api/patients/:id/reorder — Reposicionar paciente na fila (requer senha admin)
+// PUT /api/patients/:id/reorder — Reposicionar paciente na fila (sessão autenticada ou senha admin)
 app.put('/api/patients/:id/reorder', async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
     const { setor, newPosition, profissional, senha } = req.body;
 
-    if (!isValidAdminPass(senha)) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    if (!req.session && !isValidAdminPass(senha)) {
+      return res.status(403).json({ error: 'Sessão inválida ou senha administrativa incorreta' });
     }
     if (!setor || !newPosition || isNaN(parseInt(newPosition))) {
       return res.status(400).json({ error: 'Setor e nova posição são obrigatórios' });
@@ -1970,8 +1983,8 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       senha
     } = req.body;
 
-    if (!isValidAdminPass(senha)) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    if (!req.session && !isValidAdminPass(senha)) {
+      return res.status(403).json({ error: 'Sessão inválida ou senha administrativa incorreta' });
     }
     if (!novoSetor || !SETORES.includes(novoSetor)) {
       return res.status(400).json({ error: 'Setor de destino inválido' });
@@ -2405,68 +2418,70 @@ app.get('/api/current-calling', async (req, res) => {
 });
 
 // ====== DASHBOARD METRICS ======
-app.get('/api/dashboard/metrics', async (req, res) => {
+app.get('/api/dashboard/metrics', requireAdmin, async (req, res) => {
   try {
     const { data } = req.query;
-    const filterDate = data ? data : "(NOW() AT TIME ZONE 'America/Sao_Paulo')::date";
-    const dateQuery = data ? `$1` : `${filterDate}`;
-    const params = data ? [data] : [];
-    const todayFilter = `DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}`;
-    
+    const hojeRecife = getDataHojeRecife();
+    const dataEfetiva = (data && String(data).trim()) || hojeRecife;
+    const isToday = dataEfetiva === hojeRecife;
+    const dateQuery = `$1::date`;
+    const params = [dataEfetiva];
+
     // Attended today by sector (sem duplicar rechamada nem transferência)
     const attendedResult = await pool.query(
-      `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY}) as total, setor FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery} AND ${SQL_ONLY_REAL_ATTEND} GROUP BY setor`,
+      `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY}) as total, setor FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Recife') = ${dateQuery} AND ${SQL_ONLY_REAL_ATTEND} GROUP BY setor`,
       params
     );
-    
+
     // Desistencias today
     const desistResult = await pool.query(
-      `SELECT COUNT(*) as total FROM patients WHERE status = 'desistencia' AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}`,
+      `SELECT COUNT(*) as total FROM patients WHERE status = 'desistencia' AND DATE(updated_at AT TIME ZONE 'America/Recife') = ${dateQuery}`,
       params
     );
-    
-    // Currently waiting
-    const waitingResult = await pool.query(
-      `SELECT COUNT(*) as total, setor FROM patients WHERE status = 'aguardando' GROUP BY setor`
-    );
-    
+
+    // Currently waiting & bottleneck (somente para o dia atual)
+    const waitingResult = isToday
+      ? await pool.query(`SELECT COUNT(*) as total, setor FROM patients WHERE status = 'aguardando' GROUP BY setor`)
+      : { rows: [] };
+
     // Average wait time by sector
     const avgWaitResult = await pool.query(
       `SELECT ch.setor,
               AVG(EXTRACT(EPOCH FROM (ch.created_at - p.created_at)) / 60) as avg_minutes
        FROM call_history ch
        JOIN patients p ON ch.patient_id = p.id
-       WHERE DATE(ch.created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+       WHERE DATE(ch.created_at AT TIME ZONE 'America/Recife') = ${dateQuery}
          AND ${SQL_ONLY_REAL_ATTEND_CH}
        GROUP BY ch.setor`,
       params
     );
-    
-    // Bottleneck (waiting > 30 min) – ensure comparisons use same domain
-    const bottleneckResult = await pool.query(
-      `SELECT COUNT(*) as total, setor FROM patients
-       WHERE status = 'aguardando'
-       AND created_at < (CASE WHEN $1::date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date THEN NOW() AT TIME ZONE 'America/Sao_Paulo' ELSE ($1::date + INTERVAL '23 hours 59 minutes') END) - INTERVAL '30 minutes'
-       GROUP BY setor`,
-      [data || getDataHojeRecife()]
-    );
-    
+
+    // Bottleneck (waiting > 30 min) — somente para o dia atual
+    const bottleneckResult = isToday
+      ? await pool.query(
+          `SELECT COUNT(*) as total, setor FROM patients
+           WHERE status = 'aguardando'
+           AND created_at < (NOW() AT TIME ZONE 'America/Recife' - INTERVAL '30 minutes')
+           GROUP BY setor`
+        )
+      : { rows: [] };
+
     // Atendidos por turno (manhã < 12h, tarde >= 12h)
     const turnoManhaResult = await pool.query(
       `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
-       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') < 12
+       WHERE DATE(created_at AT TIME ZONE 'America/Recife') = ${dateQuery}
+       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Recife') < 12
        AND ${SQL_ONLY_REAL_ATTEND}`,
       params
     );
     const turnoTardeResult = await pool.query(
       `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
-       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') >= 12
+       WHERE DATE(created_at AT TIME ZONE 'America/Recife') = ${dateQuery}
+       AND EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Recife') >= 12
        AND ${SQL_ONLY_REAL_ATTEND}`,
       params
     );
-    
+
     // Responsáveis de setores de apoio (Vivi -> Regulação, Leandra -> Farmácia)
     let responsaveisRows = [];
     try {
@@ -2494,11 +2509,10 @@ app.get('/api/dashboard/metrics', async (req, res) => {
         { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
       ];
     }
-    
+
     // Atendimentos por profissional no dia (com mapeamento automático de responsáveis)
     let porProfRows = [];
     try {
-      // Corrigido: sem JOIN em responsaveis_setor para evitar multiplicação de linhas (COUNT duplo)
       const porProfResult = await pool.query(
         `SELECT 
            CASE 
@@ -2512,7 +2526,7 @@ app.get('/api/dashboard/metrics', async (req, res) => {
            c.setor,
            COUNT(DISTINCT ${SQL_PATIENT_KEY_C}) as total
          FROM call_history c
-         WHERE DATE(c.created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+         WHERE DATE(c.created_at AT TIME ZONE 'America/Recife') = ${dateQuery}
            AND ${SQL_ONLY_REAL_ATTEND_C}
          GROUP BY 
            CASE 
@@ -2532,13 +2546,15 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       console.warn('Erro em porProf no metrics:', e.message);
     }
 
-    const totalAttended = attendedResult.rows.reduce((sum, r) => sum + parseInt(r.total), 0);
-    const totalDesist = parseInt(desistResult.rows[0]?.total || 0);
+    const totalAttended = attendedResult.rows.reduce((sum, r) => sum + parseInt(r.total, 10), 0);
+    const totalDesist = parseInt(desistResult.rows[0]?.total || 0, 10);
     const dropoutRate = totalAttended + totalDesist > 0
       ? ((totalDesist / (totalAttended + totalDesist)) * 100).toFixed(1)
       : '0.0';
-    
+
     res.json({
+      data: dataEfetiva,
+      isToday,
       attendedBySetor: attendedResult.rows,
       totalAttended,
       totalDesist,
@@ -2546,8 +2562,8 @@ app.get('/api/dashboard/metrics', async (req, res) => {
       waitingBySetor: waitingResult.rows,
       avgWaitBySetor: avgWaitResult.rows,
       bottleneckBySetor: bottleneckResult.rows,
-      attendedManha: parseInt(turnoManhaResult.rows[0]?.total || 0),
-      attendedTarde: parseInt(turnoTardeResult.rows[0]?.total || 0),
+      attendedManha: parseInt(turnoManhaResult.rows[0]?.total || 0, 10),
+      attendedTarde: parseInt(turnoTardeResult.rows[0]?.total || 0, 10),
       responsaveisSetor: responsaveisRows,
       porProfissional: porProfRows
     });
@@ -2557,40 +2573,158 @@ app.get('/api/dashboard/metrics', async (req, res) => {
 });
 
 // Dashboard hourly data
-app.get('/api/dashboard/hourly', async (req, res) => {
+app.get('/api/dashboard/hourly', requireAdmin, async (req, res) => {
   try {
     const { data } = req.query;
-    const dateQuery = data ? `$1` : `(NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
-    const params = data ? [data] : [];
-    
+    const dataEfetiva = (data && String(data).trim()) || getDataHojeRecife();
+    const dateQuery = `$1::date`;
+    const params = [dataEfetiva];
+
     const entriesResult = await pool.query(
-      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
-       FROM patients WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Recife') as hour, COUNT(*) as total
+       FROM patients WHERE DATE(created_at AT TIME ZONE 'America/Recife') = ${dateQuery}
        GROUP BY hour
        ORDER BY hour`,
       params
     );
-    
+
     const callsResult = await pool.query(
-      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total
-       FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery} AND ${SQL_ONLY_REAL_ATTEND}
+      `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Recife') as hour, COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) as total
+       FROM call_history WHERE DATE(created_at AT TIME ZONE 'America/Recife') = ${dateQuery} AND ${SQL_ONLY_REAL_ATTEND}
        GROUP BY hour
        ORDER BY hour`,
       params
     );
-    
+
     const desistResult = await pool.query(
-      `SELECT EXTRACT(HOUR FROM updated_at AT TIME ZONE 'America/Sao_Paulo') as hour, COUNT(*) as total
-       FROM patients WHERE status = 'desistencia' AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = ${dateQuery}
+      `SELECT EXTRACT(HOUR FROM updated_at AT TIME ZONE 'America/Recife') as hour, COUNT(*) as total
+       FROM patients WHERE status = 'desistencia' AND DATE(updated_at AT TIME ZONE 'America/Recife') = ${dateQuery}
        GROUP BY hour
        ORDER BY hour`,
       params
     );
-    
+
     res.json({
       entries: entriesResult.rows,
       calls: callsResult.rows,
       desistencias: desistResult.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Resumo operacional privado: Devoluções SISREG + Sala de Agendamento + Dispositivos Online
+app.get('/api/dashboard/resumo-operacional', requireAdmin, async (req, res) => {
+  try {
+    const dataFiltro = (req.query.data && String(req.query.data).trim()) || getDataHojeRecife();
+
+    let sisreg = {
+      total: 0,
+      pendentes: 0,
+      respondidas: 0,
+      corrigidas: 0,
+      vencidas: 0,
+      total_anexos: 0,
+      total_bytes: 0,
+      por_setor: []
+    };
+    try {
+      const [sisRes, sisSetorRes] = await Promise.all([
+        pool.query(`
+          SELECT
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE COALESCE(status, 'pendente') = 'pendente')::int AS pendentes,
+            COUNT(*) FILTER (WHERE status = 'respondida')::int AS respondidas,
+            COUNT(*) FILTER (WHERE status = 'corrigida')::int AS corrigidas,
+            COUNT(*) FILTER (WHERE COALESCE(status, 'pendente') IN ('pendente', 'respondida') AND prazo_em IS NOT NULL AND prazo_em < CURRENT_TIMESTAMP)::int AS vencidas,
+            COUNT(*) FILTER (WHERE anexo_base64 IS NOT NULL)::int AS total_anexos,
+            COALESCE(SUM(COALESCE(anexo_bytes, 0)), 0)::bigint AS total_bytes
+          FROM regulacao_devolucoes
+        `),
+        pool.query(`
+          SELECT
+            COALESCE(NULLIF(TRIM(setor_destino), ''), 'Médico') AS setor,
+            COUNT(*) FILTER (WHERE COALESCE(status, 'pendente') = 'pendente')::int AS pendentes,
+            COUNT(*) FILTER (WHERE status = 'respondida')::int AS respondidas,
+            COUNT(*) FILTER (WHERE status = 'corrigida')::int AS corrigidas,
+            COUNT(*) FILTER (WHERE COALESCE(status, 'pendente') IN ('pendente', 'respondida') AND prazo_em IS NOT NULL AND prazo_em < CURRENT_TIMESTAMP)::int AS vencidas
+          FROM regulacao_devolucoes
+          GROUP BY COALESCE(NULLIF(TRIM(setor_destino), ''), 'Médico')
+          ORDER BY (COUNT(*) FILTER (WHERE COALESCE(status, 'pendente') = 'pendente') + COUNT(*) FILTER (WHERE status = 'respondida')) DESC, setor ASC
+        `)
+      ]);
+      if (sisRes.rows[0]) {
+        sisreg = {
+          ...sisreg,
+          ...sisRes.rows[0],
+          total_bytes: Number(sisRes.rows[0].total_bytes || 0),
+          por_setor: sisSetorRes.rows || []
+        };
+      }
+    } catch (_) {}
+
+    let agendamento = { total: 0, agendados: 0, pendentes: 0, consultas: 0, coletas: 0 };
+    try {
+      const agRes = await pool.query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status = 'agendado')::int AS agendados,
+           COUNT(*) FILTER (WHERE COALESCE(status, 'pendente') <> 'agendado')::int AS pendentes,
+           COUNT(*) FILTER (WHERE COALESCE(motivo, '') ILIKE '%consulta%')::int AS consultas,
+           COUNT(*) FILTER (WHERE COALESCE(motivo, '') ILIKE '%coleta%')::int AS coletas
+         FROM ctrl_agendamentos
+         WHERE DATE(criado_em AT TIME ZONE 'America/Recife') = $1::date`,
+        [dataFiltro]
+      );
+      if (agRes.rows[0]) agendamento = agRes.rows[0];
+    } catch (_) {}
+
+    let dispositivos = {
+      total: 0,
+      online: 0,
+      com_nome: 0,
+      sem_nome: 0,
+      bloqueados: 0,
+      bloquear_sem_nome: false,
+      lista: []
+    };
+    try {
+      const [dispSumRes, dispCfgRes, dispListRes] = await Promise.all([
+        pool.query(`
+          SELECT
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes'))::int AS online,
+            COUNT(*) FILTER (WHERE nome IS NOT NULL AND TRIM(nome) <> '' AND LOWER(TRIM(nome)) <> 'sem nome')::int AS com_nome,
+            COUNT(*) FILTER (WHERE nome IS NULL OR TRIM(nome) = '' OR LOWER(TRIM(nome)) = 'sem nome')::int AS sem_nome,
+            COUNT(*) FILTER (WHERE ativo = false)::int AS bloqueados
+          FROM dispositivos
+        `),
+        pool.query(`SELECT valor FROM configuracoes WHERE chave = 'bloquear_dispositivos_sem_nome'`),
+        pool.query(`
+          SELECT
+            id, nome, setor, ultimo_ip, ultimo_acesso, ativo,
+            (ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes')) AS online,
+            (nome IS NULL OR TRIM(nome) = '' OR LOWER(TRIM(nome)) = 'sem nome') AS sem_nome
+          FROM dispositivos
+          ORDER BY (ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes')) DESC NULLS LAST, ultimo_acesso DESC NULLS LAST
+          LIMIT 50
+        `)
+      ]);
+      if (dispSumRes.rows[0]) {
+        dispositivos = {
+          ...dispSumRes.rows[0],
+          bloquear_sem_nome: dispCfgRes.rows[0]?.valor === 'true',
+          lista: dispListRes.rows || []
+        };
+      }
+    } catch (_) {}
+
+    res.json({
+      data: dataFiltro,
+      sisreg,
+      agendamento,
+      dispositivos
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3050,8 +3184,7 @@ app.patch('/api/ctrl-agendamentos/:id/toggle', async (req, res) => {
 app.delete('/api/ctrl-agendamentos/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const senha = (req.body && req.body.senha) || req.headers['x-admin-password'] || req.query?.senha;
-    if (!isValidAdminPass(senha)) {
+    if (!isAdminAuthorized(req)) {
       return res.status(401).json({ error: 'Senha de administrador obrigatória para excluir agendamento!' });
     }
     const result = await pool.query('DELETE FROM ctrl_agendamentos WHERE id = $1 RETURNING *', [id]);
@@ -3112,8 +3245,8 @@ app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
     const { id } = req.params;
     const { motivo, senha, mes_agendamento, ano_agendamento } = req.body;
 
-    if (!isValidAdminPass(senha)) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    if (!req.session && !isValidAdminPass(senha)) {
+      return res.status(403).json({ error: 'Sessão inválida ou senha administrativa incorreta' });
     }
     if (!motivo) {
       return res.status(400).json({ error: 'O motivo do encaminhamento é obrigatório (Consulta ou Coleta de Sangue)' });
@@ -3765,7 +3898,7 @@ app.get('/api/agendamentos/coletas/stats', async (req, res) => {
 });
 
 // GET - Dashboard semanal de Coletas de Sangue (agendado vs realizado)
-app.get('/api/dashboard/coletas-semanal', async (req, res) => {
+app.get('/api/dashboard/coletas-semanal', requireAdmin, async (req, res) => {
   try {
     const { semanas } = req.query;
     const numSemanas = parseInt(semanas) || 4;
@@ -3839,7 +3972,7 @@ app.get('/api/dashboard/coletas-semanal', async (req, res) => {
 });
 
 // GET - Dashboard de Coletas para controle manual (entrada manual de dados)
-app.get('/api/dashboard/coletas-manual', async (req, res) => {
+app.get('/api/dashboard/coletas-manual', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT * FROM coletas_controle ORDER BY data_coleta ASC`
@@ -3852,7 +3985,7 @@ app.get('/api/dashboard/coletas-manual', async (req, res) => {
 });
 
 // POST - Salvar registro manual de coleta
-app.post('/api/dashboard/coletas-manual', async (req, res) => {
+app.post('/api/dashboard/coletas-manual', requireAdmin, async (req, res) => {
   try {
     // Criar tabela se não existir
     await pool.query(`
@@ -3887,7 +4020,7 @@ app.post('/api/dashboard/coletas-manual', async (req, res) => {
 });
 
 // DELETE - Remover registro manual de coleta
-app.delete('/api/dashboard/coletas-manual/:id', async (req, res) => {
+app.delete('/api/dashboard/coletas-manual/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM coletas_controle WHERE id = $1', [id]);

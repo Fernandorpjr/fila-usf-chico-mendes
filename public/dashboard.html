@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard – USF Chico Mendes</title>
+<title>Dashboard Privado – USF Chico Mendes</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -11,56 +11,132 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
-  :root { --blue:#1a4fc4; --blue-dark:#0f3491; --blue-bg:#0a1e5c; --green:#4aab3c; --orange:#f4821e; --red:#e53935; --yellow:#f9c823; --white:#fff; --gray-100:#f0f4ff; --gray-300:#b8c8f0; --gray-600:#5a6a8c; --radius:16px; --purple:#8e24aa; }
+  :root {
+    --blue:#1a4fc4; --blue-dark:#0f3491; --blue-bg:#0a1e5c;
+    --green:#4aab3c; --orange:#f4821e; --red:#e53935;
+    --yellow:#f9c823; --white:#fff; --gray-100:#f0f4ff;
+    --gray-300:#b8c8f0; --gray-600:#5a6a8c; --radius:16px; --purple:#8e24aa;
+  }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Nunito Sans',sans-serif; background:var(--blue-bg); min-height:100vh; color:var(--white); }
-  .header { background:linear-gradient(135deg,var(--blue-dark),var(--blue)); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:64px; border-bottom:3px solid var(--orange); flex-wrap:wrap; }
-  .logo { font-family:'Nunito',sans-serif; font-size:22px; font-weight:900; }
-  .header a { color:var(--gray-300); text-decoration:none; font-weight:700; font-size:14px; }
+
+  .header {
+    background:linear-gradient(135deg,var(--blue-dark),var(--blue));
+    padding:10px 28px; display:flex; align-items:center; justify-content:space-between;
+    min-height:64px; border-bottom:3px solid var(--orange); flex-wrap:wrap; gap:12px;
+  }
+  .logo { font-family:'Nunito',sans-serif; font-size:21px; font-weight:900; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .online-pill {
+    background:rgba(74,171,60,0.2); padding:5px 12px; border-radius:999px;
+    display:inline-flex; align-items:center; gap:7px; font-size:12px;
+    border:1px solid rgba(74,171,60,0.45); cursor:pointer; transition:background 0.2s;
+  }
+  .online-pill:hover { background:rgba(74,171,60,0.34); }
+  .online-dot { display:inline-block; width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 8px var(--green); }
+  .header-controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .header a { color:var(--gray-300); text-decoration:none; font-weight:700; font-size:13.5px; }
   .header a:hover { color:var(--white); }
-  .main { max-width:1300px; margin:0 auto; padding:28px 32px; }
-  .title { font-family:'Nunito',sans-serif; font-size:24px; font-weight:900; margin-bottom:24px; display:flex; align-items:center; gap:12px; }
-  .metrics { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin-bottom:32px; }
-  .metric-card { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:20px; transition:transform 0.2s, box-shadow 0.2s; }
+  .btn-hdr {
+    background:rgba(255,255,255,0.12); color:var(--white); border:1px solid rgba(255,255,255,0.22);
+    border-radius:9px; padding:6px 11px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; cursor:pointer;
+    transition:background 0.15s;
+  }
+  .btn-hdr:hover { background:rgba(255,255,255,0.24); }
+  .btn-lock-out {
+    background:rgba(229,57,53,0.24); color:#fecaca; border:1px solid rgba(229,57,53,0.45);
+    border-radius:9px; padding:6px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; cursor:pointer;
+  }
+  .btn-lock-out:hover { background:rgba(229,57,53,0.42); color:#fff; }
+
+  .main { max-width:1320px; margin:0 auto; padding:22px 28px 40px; }
+  .status-banner {
+    display:none; margin-bottom:16px; padding:11px 16px; border-radius:12px;
+    background:rgba(244,130,30,0.18); border:1px solid rgba(244,130,30,0.5);
+    color:#fed7aa; font-size:13.5px; font-weight:700; align-items:center; justify-content:space-between; gap:10px;
+  }
+
+  /* TABS BAR */
+  .dash-tabs {
+    display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px;
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+    padding:8px; border-radius:14px;
+  }
+  .dash-tab-btn {
+    background:transparent; color:var(--gray-300); border:1px solid transparent;
+    border-radius:10px; padding:9px 14px; font-family:'Nunito',sans-serif;
+    font-size:13.5px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
+    transition:all 0.18s;
+  }
+  .dash-tab-btn:hover { background:rgba(255,255,255,0.08); color:var(--white); }
+  .dash-tab-btn.active {
+    background:linear-gradient(135deg,var(--blue),#2563eb); color:var(--white);
+    border-color:rgba(255,255,255,0.22); box-shadow:0 4px 14px rgba(26,79,196,0.4);
+  }
+  .dash-tab-badge {
+    display:none; padding:1px 7px; border-radius:999px; font-size:11px; font-weight:900;
+    background:var(--orange); color:#fff;
+  }
+  .dash-tab-badge.green { background:var(--green); }
+  .dash-pane { display:none; }
+  .dash-pane.active { display:block; }
+
+  .title { font-family:'Nunito',sans-serif; font-size:22px; font-weight:900; margin-bottom:20px; display:flex; align-items:center; gap:12px; }
+  .metrics { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:15px; margin-bottom:24px; }
+  .metric-card { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:18px; transition:transform 0.2s, box-shadow 0.2s; }
   .metric-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.2); }
   .metric-card.alert { border-color:var(--red); background:rgba(229,57,53,0.1); animation:pulseCard 1.5s infinite; }
   @keyframes pulseCard { 0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.4);} 50%{box-shadow:0 0 0 8px rgba(229,57,53,0);} }
-  .metric-value { font-family:'Nunito',sans-serif; font-size:32px; font-weight:900; line-height:1; }
-  .metric-label { font-size:12px; color:var(--gray-300); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; }
-  .metric-icon { font-size:26px; margin-bottom:6px; }
-  .charts { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:32px; }
-  .chart-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:24px; }
-  .chart-title { font-family:'Nunito',sans-serif; font-size:16px; font-weight:800; margin-bottom:16px; }
+  .metric-value { font-family:'Nunito',sans-serif; font-size:30px; font-weight:900; line-height:1.1; }
+  .metric-label { font-size:11.5px; color:var(--gray-300); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; }
+  .metric-sub { font-size:11.5px; color:var(--gray-300); margin-top:4px; opacity:0.9; }
+  .metric-icon { font-size:24px; margin-bottom:6px; }
+
+  .charts { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px; }
+  .chart-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:20px; }
+  .chart-title { font-family:'Nunito',sans-serif; font-size:15.5px; font-weight:800; margin-bottom:14px; }
   .occupancy-bar-container { width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; margin-top:10px; overflow:hidden; }
   .occupancy-bar { height:100%; width:0%; transition:width 0.5s ease, background-color 0.5s ease; }
   .occupancy-alert { animation: pulseAlert 2s infinite; border: 2px solid var(--red) !important; background: rgba(229,57,53,0.15) !important; }
   @keyframes pulseAlert { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
-  .table-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:24px; margin-bottom:32px; }
+
+  .table-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:22px; margin-bottom:24px; overflow-x:auto; }
   table { width:100%; border-collapse:collapse; }
-  th,td { padding:12px 16px; text-align:left; font-size:14px; border-bottom:1px solid rgba(255,255,255,0.1); }
-  th { font-weight:800; color:var(--orange); text-transform:uppercase; font-size:12px; letter-spacing:0.5px; }
-  .btn-export { background:linear-gradient(135deg,var(--green),#3a8a2e); color:white; border:none; border-radius:12px; padding:12px 24px; font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
+  th,td { padding:11px 14px; text-align:left; font-size:13.5px; border-bottom:1px solid rgba(255,255,255,0.1); }
+  th { font-weight:800; color:var(--orange); text-transform:uppercase; font-size:11.5px; letter-spacing:0.5px; }
+
+  .btn-export { background:linear-gradient(135deg,var(--green),#3a8a2e); color:white; border:none; border-radius:11px; padding:10px 18px; font-family:'Nunito',sans-serif; font-size:14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
   .btn-export:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(74,171,60,0.4); }
-  .btn-pdf { background:linear-gradient(135deg,#e53935,#b71c1c); color:white; border:none; border-radius:12px; padding:12px 24px; font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
+  .btn-pdf { background:linear-gradient(135deg,#e53935,#b71c1c); color:white; border:none; border-radius:11px; padding:10px 18px; font-family:'Nunito',sans-serif; font-size:14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
   .btn-pdf:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(229,57,53,0.4); }
   .btn-quick-date { background:rgba(255,255,255,0.12); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; }
   .btn-quick-date:hover { background:rgba(255,255,255,0.25); }
   .btn-day-shortcut { background:rgba(244,130,30,0.18); color:var(--orange); border:1px solid rgba(244,130,30,0.4); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; transition:all 0.2s; }
   .btn-day-shortcut:hover { background:rgba(244,130,30,0.35); }
-  .lock-overlay { position:fixed; inset:0; background:rgba(5,18,60,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
-  .lock-box { background:var(--white); border-radius:24px; padding:40px 48px; text-align:center; max-width:400px; width:90%; color:var(--blue-dark); }
-  .lock-box input { padding:14px 16px; border:2px solid #dde5f8; border-radius:10px; font-size:18px; width:100%; text-align:center; font-weight:700; font-family:'Nunito',sans-serif; margin:16px 0; outline:none; letter-spacing:4px; }
+
+  .lock-overlay { position:fixed; inset:0; background:rgba(5,18,60,0.96); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
+  .lock-box { background:var(--white); border-radius:24px; padding:38px 42px; text-align:center; max-width:410px; width:92%; color:var(--blue-dark); box-shadow:0 24px 60px rgba(0,0,0,0.45); }
+  .lock-box input { padding:14px 16px; border:2px solid #dde5f8; border-radius:10px; font-size:17px; width:100%; text-align:center; font-weight:700; font-family:'Nunito',sans-serif; margin:14px 0; outline:none; letter-spacing:3px; }
   .lock-box input:focus { border-color:var(--blue); }
-  .lock-box button { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:white; border:none; border-radius:12px; padding:14px; width:100%; font-family:'Nunito',sans-serif; font-size:16px; font-weight:900; cursor:pointer; }
+  .lock-box button { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:white; border:none; border-radius:12px; padding:14px; width:100%; font-family:'Nunito',sans-serif; font-size:15.5px; font-weight:900; cursor:pointer; }
+  .lock-box button:disabled { opacity:0.6; cursor:not-allowed; }
+
+  .filter-bar {
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:20px;
+    background:rgba(255,255,255,0.06); padding:14px 18px; border-radius:14px; border:1px solid rgba(255,255,255,0.1);
+  }
+  .filter-bar label { font-size:12px; font-weight:800; color:var(--gray-300); text-transform:uppercase; }
+  .filter-bar select, .filter-bar input[type="text"] {
+    padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2);
+    background:#0a1e5c; color:white; font-family:'Nunito',sans-serif; font-weight:700; font-size:13px; outline:none;
+  }
 
   /* ====== COLETAS SECTION ====== */
-  .section-divider { border:none; border-top:2px solid rgba(255,255,255,0.1); margin:40px 0 32px; }
-  .coletas-metrics { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
-  .coleta-metric { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:18px 20px; text-align:center; }
-  .coleta-metric .cm-value { font-family:'Nunito',sans-serif; font-size:32px; font-weight:900; line-height:1; }
+  .coletas-metrics { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; margin-bottom:22px; }
+  .coleta-metric { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:16px 18px; text-align:center; }
+  .coleta-metric .cm-value { font-family:'Nunito',sans-serif; font-size:30px; font-weight:900; line-height:1; }
   .coleta-metric .cm-label { font-size:11px; color:var(--gray-300); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-top:5px; }
-  .coleta-metric .cm-icon { font-size:24px; margin-bottom:6px; }
-  .coleta-form { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:24px; margin-bottom:24px; }
+  .coleta-metric .cm-icon { font-size:22px; margin-bottom:6px; }
+  .coleta-form { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:20px; margin-bottom:22px; }
   .coleta-form .form-row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
   .coleta-form .form-group { display:flex; flex-direction:column; gap:4px; }
   .coleta-form label { font-size:12px; font-weight:800; color:var(--gray-300); text-transform:uppercase; }
@@ -78,330 +154,444 @@
   .tag-dia-padrao { background:rgba(26,79,196,0.2); color:#76a0ff; border:1px solid rgba(26,79,196,0.4); padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700; }
   .tag-dia-extra { background:rgba(142,36,170,0.2); color:#d08cff; border:1px solid rgba(142,36,170,0.4); padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700; }
 
-  @media(max-width:800px){ .charts{grid-template-columns:1fr;} .metrics{grid-template-columns:1fr 1fr;} .main{padding:16px;} .coleta-form .form-row{flex-direction:column;} .coletas-metrics{grid-template-columns:1fr 1fr;} }
+  @media(max-width:900px){
+    .charts{grid-template-columns:1fr;}
+    .metrics{grid-template-columns:1fr 1fr;}
+    .main{padding:14px;}
+    .header{padding:10px 14px;}
+    .coleta-form .form-row{flex-direction:column;align-items:stretch;}
+    .coletas-metrics{grid-template-columns:1fr 1fr;}
+  }
 </style>
 </head>
 <body>
 
 <div class="lock-overlay" id="lockOverlay">
   <div class="lock-box">
-    <div style="font-size:48px;margin-bottom:12px;">📊</div>
+    <div style="font-size:46px;margin-bottom:10px;">📊</div>
     <div style="font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;margin-bottom:6px;">Dashboard Privado</div>
-    <div style="font-size:14px;color:var(--gray-600);margin-bottom:8px;">Digite a senha administrativa para acessar</div>
-    <input type="password" id="lockPassword" placeholder="••••" maxlength="10" onkeypress="if(event.key==='Enter')verifyDashboardAccess()">
-    <button onclick="verifyDashboardAccess()">🔓 Acessar Dashboard</button>
-    <div style="margin-top:12px;"><a href="/" style="color:var(--blue);font-size:13px;font-weight:700;">← Voltar ao sistema</a></div>
+    <div style="font-size:13.5px;color:var(--gray-600);margin-bottom:6px;">Digite a senha administrativa para acessar</div>
+    <input type="password" id="lockPassword" placeholder="Digite a senha" maxlength="64" autocomplete="current-password" onkeypress="if(event.key==='Enter')verifyDashboardAccess()">
+    <button id="btnUnlockDash" onclick="verifyDashboardAccess()">🔓 Acessar Dashboard</button>
+    <div id="lockError" style="display:none;margin-top:10px;padding:9px 12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:12.5px;font-weight:700;"></div>
+    <div style="margin-top:14px;"><a href="/" style="color:var(--blue);font-size:13px;font-weight:700;">← Voltar ao sistema</a></div>
   </div>
 </div>
 
 <header class="header">
-  <div class="logo" style="display:flex;align-items:center;gap:16px;">
+  <div class="logo">
     <span>📊 Dashboard – <span style="color:var(--orange);">USF</span> Chico Mendes</span>
-    <div style="background:rgba(74,171,60,0.2);padding:4px 12px;border-radius:12px;display:flex;align-items:center;gap:6px;font-size:12px;border:1px solid rgba(74,171,60,0.4);" title="Usuários com o sistema aberto no momento">
-      <span style="display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);"></span>
-      <span style="color:var(--green);font-weight:800;" id="dashActiveUsers">?</span> <span style="color:var(--gray-300);">Conectados</span>
+    <div class="online-pill" onclick="switchDashTab('tab-dispositivos')" title="Clique para ver os dispositivos online agora">
+      <span class="online-dot"></span>
+      <span style="color:#bbf7d0;font-weight:900;" id="dashActiveUsers">0</span>
+      <span style="color:var(--gray-300);">Online</span>
     </div>
   </div>
-  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
-    <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);padding:6px 12px;border-radius:10px;">
+  <div class="header-controls">
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.1);padding:5px 10px;border-radius:10px;">
       <button class="btn-quick-date" onclick="setQuickDate('hoje')">Hoje</button>
       <button class="btn-quick-date" onclick="setQuickDate('ontem')">Ontem</button>
-      <label for="dashDateFilter" style="font-size:12px;font-weight:800;color:var(--gray-300);text-transform:uppercase;margin-left:4px;">Data:</label>
-      <input type="date" id="dashDateFilter" onchange="loadDashboard()" style="background:transparent;border:none;color:white;font-family:'Nunito',sans-serif;font-weight:700;outline:none;cursor:pointer;">
+      <label for="dashDateFilter" style="font-size:11.5px;font-weight:800;color:var(--gray-300);text-transform:uppercase;margin-left:3px;">Data:</label>
+      <input type="date" id="dashDateFilter" onchange="onDashDateChange()" style="background:transparent;border:none;color:white;font-family:'Nunito',sans-serif;font-weight:700;outline:none;cursor:pointer;">
     </div>
-    <span id="dashClock" style="font-family:'Nunito',sans-serif;font-weight:800;color:var(--yellow);font-size:18px;"></span>
-    <a href="/">← Voltar ao sistema</a>
+    <button class="btn-hdr" onclick="manualRefreshDash()" title="Atualizar todos os dados agora">🔄 Atualizar</button>
+    <button class="btn-hdr" id="btnToggleAuto" onclick="toggleAutoRefresh()">⏸️ Pausar Auto</button>
+    <span id="dashClock" style="font-family:'Nunito',sans-serif;font-weight:800;color:var(--yellow);font-size:16px;"></span>
+    <a href="/">← Sistema</a>
+    <button class="btn-lock-out" onclick="logoutDashboard()" title="Encerrar sessão administrativa e bloquear tela">🔒 Sair</button>
   </div>
 </header>
 
 <div class="main" id="dashContent" style="display:none;">
-  <!-- ====== SEÇÃO DE MÉTRICAS EM TEMPO REAL ====== -->
-  <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:16px;">
-    <span>
-      ⚡ Métricas em Tempo Real
-      <span style="font-size:14px;color:var(--gray-300);font-weight:600;margin-left:12px;" id="dashDate"></span>
-    </span>
-    <div style="display:flex; gap:10px; align-items:center;">
-      <span style="font-size:12px; color:var(--green); font-weight:700; background:rgba(74,171,60,0.15); padding:4px 10px; border-radius:12px; border:1px solid rgba(74,171,60,0.3);" id="lastRefreshTime">
-        🟢 Atualização Automática (10s)
+  <div id="dashStatusBanner" class="status-banner"></div>
+
+  <div class="dash-tabs" role="tablist">
+    <button class="dash-tab-btn active" data-tab="tab-realtime" onclick="switchDashTab('tab-realtime')">⚡ Tempo Real</button>
+    <button class="dash-tab-btn" data-tab="tab-fechamento" onclick="switchDashTab('tab-fechamento')">📋 Fechamento Diário</button>
+    <button class="dash-tab-btn" data-tab="tab-prioridades" onclick="switchDashTab('tab-prioridades')">🎯 Prioridades &amp; alumIA</button>
+    <button class="dash-tab-btn" data-tab="tab-sisreg" onclick="switchDashTab('tab-sisreg')">📋 SISREG &amp; Agendamentos <span id="badgeTabSisreg" class="dash-tab-badge">0</span></button>
+    <button class="dash-tab-btn" data-tab="tab-coletas" onclick="switchDashTab('tab-coletas')">🩸 Coletas de Sangue</button>
+    <button class="dash-tab-btn" data-tab="tab-dispositivos" onclick="switchDashTab('tab-dispositivos')">💻 Dispositivos <span id="badgeTabDevices" class="dash-tab-badge green">0</span></button>
+  </div>
+
+  <!-- ====== ABA 1: TEMPO REAL ====== -->
+  <section class="dash-pane active" id="tab-realtime">
+    <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:14px;">
+      <span>
+        ⚡ Métricas em Tempo Real
+        <span style="font-size:13.5px;color:var(--gray-300);font-weight:600;margin-left:10px;" id="dashDate"></span>
       </span>
-      <button class="btn-pdf" id="btnExportTopPDF" onclick="exportDailyReport()">📄 Exportar Gráficos em PDF</button>
-    </div>
-  </div>
-
-  <!-- Cards de KPIs Expandidos em Tempo Real -->
-  <div class="metrics" id="metricsGrid"></div>
-
-  <!-- Gráficos Principais de Atendimento em Tempo Real -->
-  <div class="charts">
-    <div class="chart-card" style="grid-column: span 2;">
-      <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>🛋️ Ocupação da Recepção (Pacientes no Local em Tempo Real)</span>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span style="font-size:12px; color:#bbf7d0; font-weight:700; background:rgba(74,171,60,0.16); padding:5px 11px; border-radius:12px; border:1px solid rgba(74,171,60,0.35);" id="lastRefreshTime">
+          🟢 Auto 15s
+        </span>
+        <button class="btn-pdf" id="btnExportTopPDF" onclick="exportDailyReport()">📄 Exportar Gráficos em PDF</button>
       </div>
-      <canvas id="chartOccupancy" style="max-height:300px;"></canvas>
     </div>
-    <div class="chart-card"><div class="chart-title">📈 Atendimentos por Hora</div><canvas id="chartHourly"></canvas></div>
-    <div class="chart-card"><div class="chart-title">🔄 Entradas vs Atendimentos</div><canvas id="chartFlow"></canvas></div>
-    <div class="chart-card"><div class="chart-title">📊 Distribuição de Atendimentos por Setor</div><canvas id="chartSetoresDonut"></canvas></div>
-    <div class="chart-card"><div class="chart-title">⏱️ Tempo Médio de Espera Comparativo por Setor (min)</div><canvas id="chartTempoEsperaBar"></canvas></div>
-  </div>
 
-  <!-- Tabela de Setores -->
-  <div class="table-card">
-    <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
-      <span>⏱️ Detalhamento do Tempo Médio de Espera e Gargalos por Setor</span>
-      <button class="btn-export" onclick="exportDailyReport()">📄 Exportar Relatório em PDF</button>
+    <div class="metrics" id="metricsGrid"></div>
+
+    <div class="charts">
+      <div class="chart-card" style="grid-column: span 2;">
+        <div class="chart-title">🛋️ Ocupação da Recepção (Pacientes no Local em Tempo Real)</div>
+        <canvas id="chartOccupancy" style="max-height:300px;"></canvas>
+      </div>
+      <div class="chart-card"><div class="chart-title">📈 Atendimentos por Hora</div><canvas id="chartHourly"></canvas></div>
+      <div class="chart-card"><div class="chart-title">🔄 Entradas vs Atendimentos</div><canvas id="chartFlow"></canvas></div>
+      <div class="chart-card"><div class="chart-title">📊 Distribuição de Atendimentos por Setor</div><canvas id="chartSetoresDonut"></canvas></div>
+      <div class="chart-card"><div class="chart-title">⏱️ Tempo Médio de Espera Comparativo por Setor (min)</div><canvas id="chartTempoEsperaBar"></canvas></div>
     </div>
-    <table><thead><tr><th>Setor</th><th class="col-responsavel">Responsável</th><th>Tempo Médio</th><th>Aguardando</th><th>Atendidos</th><th>Gargalo</th></tr></thead><tbody id="waitTable"></tbody></table>
-  </div>
 
-  <!-- ====== SEÇÃO DE FECHAMENTO DIÁRIO DO EXPEDIENTE ====== -->
-  <hr class="section-divider">
-  
-  <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:16px;" id="secFechamentoDia">
-    <span>
-      📋 Fechamento Diário do Expediente
-      <span style="font-size:14px;color:var(--gray-300);font-weight:600;margin-left:12px;" id="fchDateLabel"></span>
-    </span>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn-export" style="background:#25d366;" onclick="copiarFechamentoWhatsAppDash()">📲 Copiar p/ WhatsApp da Gerência</button>
-      <button class="btn-pdf" id="btnExportFechamentoPDF" onclick="exportarFechamentoPDF()">📄 Baixar PDF do Fechamento</button>
-      <button class="btn-pdf" style="background:linear-gradient(135deg,#1565c0,#0d47a1);" onclick="imprimirFechamentoDash()">🖨️ Imprimir Fechamento Diário</button>
-    </div>
-  </div>
-
-  <!-- Cards de Fechamento -->
-  <div class="metrics" id="fechamentoMetrics">
-    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" id="fchAtendidos" style="color:var(--green);">0</div><div class="metric-label">Total Atendidos</div></div>
-    <div class="metric-card"><div class="metric-icon">☀️</div><div class="metric-value" id="fchManha" style="color:#f9c823;">0</div><div class="metric-label">Manhã (até 12h)</div></div>
-    <div class="metric-card"><div class="metric-icon">🌙</div><div class="metric-value" id="fchTarde" style="color:#7c4dff;">0</div><div class="metric-label">Tarde (após 12h)</div></div>
-    <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" id="fchDesistencias" style="color:var(--red);">0</div><div class="metric-label">Desistências</div></div>
-    <div class="metric-card"><div class="metric-icon">🚨</div><div class="metric-value" id="fchUrgencias" style="color:var(--orange);">0</div><div class="metric-label">Intercorrências / Urgências</div></div>
-    <div class="metric-card"><div class="metric-icon">🗂️</div><div class="metric-value" id="fchAgendamentos" style="color:var(--yellow);">0</div><div class="metric-label">Encaminhados Agendamento</div></div>
-  </div>
-
-  <!-- Tabelas lado a lado de Fechamento -->
-  <div class="charts" style="margin-bottom:24px;">
-    <div class="table-card" style="margin-bottom:0;">
-      <div class="chart-title">📊 Atendimentos por Setor</div>
+    <div class="table-card">
+      <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <span>⏱️ Detalhamento do Tempo Médio de Espera e Gargalos por Setor</span>
+        <button class="btn-export" onclick="exportDailyReport()">📄 Exportar Relatório em PDF</button>
+      </div>
       <table>
-        <thead><tr><th>Setor</th><th>Atendidos</th><th>% do Total</th></tr></thead>
-        <tbody id="fchSetorTbody"></tbody>
+        <thead><tr><th>Setor</th><th class="col-responsavel">Responsável</th><th>Tempo Médio</th><th>Aguardando</th><th>Atendidos</th><th>Gargalo</th></tr></thead>
+        <tbody id="waitTable"></tbody>
       </table>
     </div>
-    <div class="table-card" style="margin-bottom:0;">
-      <div class="chart-title">👨‍⚕️ Atendimentos por Profissional</div>
+  </section>
+
+  <!-- ====== ABA 2: FECHAMENTO DIÁRIO ====== -->
+  <section class="dash-pane" id="tab-fechamento">
+    <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:14px;" id="secFechamentoDia">
+      <span>
+        📋 Fechamento Diário do Expediente
+        <span style="font-size:13.5px;color:var(--gray-300);font-weight:600;margin-left:10px;" id="fchDateLabel"></span>
+      </span>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-export" style="background:#25d366;" onclick="copiarFechamentoWhatsAppDash()">📲 Copiar p/ WhatsApp da Gerência</button>
+        <button class="btn-pdf" id="btnExportFechamentoPDF" onclick="exportarFechamentoPDF()">📄 Baixar PDF do Fechamento</button>
+        <button class="btn-pdf" style="background:linear-gradient(135deg,#1565c0,#0d47a1);" onclick="imprimirFechamentoDash()">🖨️ Imprimir Fechamento Diário</button>
+      </div>
+    </div>
+
+    <div class="metrics" id="fechamentoMetrics">
+      <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" id="fchAtendidos" style="color:var(--green);">0</div><div class="metric-label">Total Atendidos</div></div>
+      <div class="metric-card"><div class="metric-icon">☀️</div><div class="metric-value" id="fchManha" style="color:#f9c823;">0</div><div class="metric-label">Manhã (até 12h)</div></div>
+      <div class="metric-card"><div class="metric-icon">🌙</div><div class="metric-value" id="fchTarde" style="color:#7c4dff;">0</div><div class="metric-label">Tarde (após 12h)</div></div>
+      <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" id="fchDesistencias" style="color:var(--red);">0</div><div class="metric-label">Desistências</div></div>
+      <div class="metric-card"><div class="metric-icon">🚨</div><div class="metric-value" id="fchUrgencias" style="color:var(--orange);">0</div><div class="metric-label">Intercorrências / Urgências</div></div>
+      <div class="metric-card"><div class="metric-icon">🗂️</div><div class="metric-value" id="fchAgendamentos" style="color:var(--yellow);">0</div><div class="metric-label">Encaminhados Agendamento</div></div>
+    </div>
+
+    <div class="charts" style="margin-bottom:24px;">
+      <div class="table-card" style="margin-bottom:0;">
+        <div class="chart-title">📊 Atendimentos por Setor</div>
+        <table>
+          <thead><tr><th>Setor</th><th>Atendidos</th><th>% do Total</th></tr></thead>
+          <tbody id="fchSetorTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-card" style="margin-bottom:0;">
+        <div class="chart-title">👨‍⚕️ Atendimentos por Profissional</div>
+        <table>
+          <thead><tr><th>Profissional</th><th>Setor</th><th>Atendidos</th></tr></thead>
+          <tbody id="fchProfTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== ABA 3: PRIORIDADES & ALUMIA ====== -->
+  <section class="dash-pane" id="tab-prioridades">
+    <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:14px;">
+      <span>🎯 Auditoria de Prioridades &amp; Busca Ativa (alumIA)</span>
+      <button class="btn-hdr" onclick="loadPrioridadesAlumia()">🔄 Atualizar Indicadores</button>
+    </div>
+
+    <div class="filter-bar">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label for="prioPeriodoTipo">📅 Período:</label>
+        <select id="prioPeriodoTipo" onchange="loadPrioridadesAlumia()">
+          <option value="dia">Data Selecionada no Topo</option>
+          <option value="7d">Últimos 7 dias</option>
+          <option value="30d">Últimos 30 dias</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label for="prioTurno">🕒 Turno:</label>
+        <select id="prioTurno" onchange="loadPrioridadesAlumia()">
+          <option value="integral">Integral (Manhã + Tarde)</option>
+          <option value="manha">Manhã (até 12h)</option>
+          <option value="tarde">Tarde (após 12h)</option>
+        </select>
+      </div>
+      <span id="prioPeriodoLabel" style="font-size:12.5px;color:var(--gray-300);font-weight:700;margin-left:auto;"></span>
+    </div>
+
+    <div class="metrics" id="prioNiveisGrid"></div>
+    <div class="metrics" id="prioBuscaGrid"></div>
+
+    <div class="table-card">
+      <div class="chart-title">🔎 Desempenho por Motivo de Busca Ativa (alumIA)</div>
       <table>
-        <thead><tr><th>Profissional</th><th>Setor</th><th>Atendidos</th></tr></thead>
-        <tbody id="fchProfTbody"></tbody>
+        <thead>
+          <tr>
+            <th>Motivo</th>
+            <th>Setor Sugerido</th>
+            <th>Pacientes Identificados</th>
+            <th>Com Oferta Feita</th>
+            <th>% Oferta</th>
+          </tr>
+        </thead>
+        <tbody id="prioMotivosTbody"></tbody>
       </table>
-  </div>
-
-  <!-- ====== SEÇÃO DE COLETAS DE SANGUE ====== -->
-  <hr class="section-divider">
-  
-  <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:16px;">
-    <span>🩸 Controle de Coletas de Sangue</span>
-    <div style="display:flex;gap:10px;">
-      <button class="btn-pdf" onclick="exportColetasPDF()">📄 Exportar Gráficos de Coleta em PDF</button>
     </div>
-  </div>
+  </section>
 
-  <!-- Filtros do Gráfico por Mês e por Semana -->
-  <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:24px; background:rgba(255,255,255,0.06); padding:16px 20px; border-radius:14px; border:1px solid rgba(255,255,255,0.1);">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <label style="font-size:12px; font-weight:800; color:var(--gray-300); text-transform:uppercase;">🗓️ Selecionar Mês:</label>
-      <select id="coletaMesFilter" onchange="renderColetasSection()" style="padding:8px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:#0a1e5c; color:white; font-family:'Nunito',sans-serif; font-weight:700; outline:none; cursor:pointer;"></select>
+  <!-- ====== ABA 4: SISREG & AGENDAMENTOS ====== -->
+  <section class="dash-pane" id="tab-sisreg">
+    <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:14px;">
+      <span>📋 Controle SISREG (Devoluções) &amp; Sala de Agendamento</span>
+      <button class="btn-hdr" onclick="loadResumoOperacional()">🔄 Atualizar Painel</button>
     </div>
-    <div style="display:flex; align-items:center; gap:8px;">
-      <label style="font-size:12px; font-weight:800; color:var(--gray-300); text-transform:uppercase;">📊 Visão dos Gráficos:</label>
-      <select id="coletaVisaoFilter" onchange="renderColetasSection()" style="padding:8px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:#0a1e5c; color:white; font-family:'Nunito',sans-serif; font-weight:700; outline:none; cursor:pointer;">
-        <option value="semanal">📈 Por Semana (Agrupado por Semanas do Mês)</option>
-        <option value="diario">📆 Por Dia (Detalhamento Diário)</option>
-      </select>
+
+    <div class="metrics" id="sisregKpisGrid"></div>
+
+    <div class="table-card">
+      <div class="chart-title">↩️ Devoluções SISREG por Setor Destino</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Setor</th>
+            <th>⏳ Pendentes</th>
+            <th>💬 Respondidas (p/ SISREG)</th>
+            <th>⚠️ Vencidas</th>
+            <th>✅ Corrigidas</th>
+          </tr>
+        </thead>
+        <tbody id="sisregSetorTbody"></tbody>
+      </table>
     </div>
-  </div>
 
-  <!-- KPIs de Coletas -->
-  <div class="coletas-metrics" id="coletasMetrics">
-    <div class="coleta-metric"><div class="cm-icon">🎯</div><div class="cm-value" style="color:var(--orange);">12</div><div class="cm-label">Meta Diária</div></div>
-    <div class="coleta-metric"><div class="cm-icon">📅</div><div class="cm-value" style="color:var(--yellow);" id="kpiMetaMes">36</div><div class="cm-label">Meta Semanal (3 dias)</div></div>
-    <div class="coleta-metric"><div class="cm-icon">✅</div><div class="cm-value" style="color:var(--green);" id="kpiRealizados">0</div><div class="cm-label">Realizados no Mês</div></div>
-    <div class="coleta-metric"><div class="cm-icon">📋</div><div class="cm-value" style="color:var(--blue);" id="kpiAgendados">0</div><div class="cm-label">Agendados no Mês</div></div>
-    <div class="coleta-metric"><div class="cm-icon">❌</div><div class="cm-value" style="color:var(--red);" id="kpiFaltas">0</div><div class="cm-label">Faltas no Mês</div></div>
-    <div class="coleta-metric"><div class="cm-icon">📊</div><div class="cm-value" id="kpiEficacia" style="color:var(--green);">0%</div><div class="cm-label">Eficácia (%)</div></div>
-  </div>
+    <div class="title" style="font-size:18px;margin-top:8px;">🗂️ Resumo Diário — Sala de Agendamento (<span id="agendResumoDataLbl">—</span>)</div>
+    <div class="metrics" id="agendKpisGrid"></div>
+  </section>
 
-  <!-- Formulário de Lançamento Manual com Atalhos dos Dias Padrão (Quarta, Quinta, Sexta) -->
-  <div class="coleta-form">
-    <div class="chart-title" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-      <span>📝 Lançar Registro de Coleta de Sangue</span>
-      <div style="display:flex; gap:6px; align-items:center;">
-        <span style="font-size:12px; color:var(--gray-300); font-weight:700;">Atalhos Dias de Coleta:</span>
-        <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('quarta')">🟢 Quarta-feira</button>
-        <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('quinta')">🟢 Quinta-feira</button>
-        <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('sexta')">🟢 Sexta-feira</button>
+  <!-- ====== ABA 5: COLETAS DE SANGUE ====== -->
+  <section class="dash-pane" id="tab-coletas">
+    <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:16px;">
+      <span>🩸 Controle de Coletas de Sangue</span>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-pdf" id="btnExportColetasPDF" onclick="exportColetasPDF()">📄 Exportar Gráficos de Coleta em PDF</button>
       </div>
     </div>
-    
-    <div class="form-row">
-      <div class="form-group">
-        <label>Data da Coleta</label>
-        <input type="date" id="coleta-data" style="width:160px;">
-      </div>
-      <div class="form-group">
-        <label>Agendados</label>
-        <input type="number" id="coleta-agendados" min="0" max="30" value="12" placeholder="12" oninput="calcFaltasAuto()">
-      </div>
-      <div class="form-group">
-        <label>Realizados</label>
-        <input type="number" id="coleta-realizados" min="0" max="30" value="12" placeholder="12" oninput="calcFaltasAuto()">
-      </div>
-      <div class="form-group">
-        <label>Faltas (Auto)</label>
-        <input type="number" id="coleta-faltas" min="0" max="30" value="0" placeholder="0">
-      </div>
-      <div class="form-group">
-        <label>Observações</label>
-        <input type="text" id="coleta-obs" placeholder="Ex: Faltou insumo..." style="width:200px;">
-      </div>
-      <button class="btn-add-coleta" onclick="salvarColeta()">💾 Salvar Registro</button>
-    </div>
-  </div>
 
-  <!-- Gráficos de Coletas -->
-  <div class="charts" id="coletasChartsArea">
-    <div class="chart-card" style="grid-column: span 2;" id="chartColetasPrincipalCard">
-      <div class="chart-title" id="chartPrincipalTitle">📊 Desempenho por Semana no Mês Selecionado (Meta: 36 coletas/semana)</div>
-      <canvas id="chartColetasPrincipal" style="max-height:350px;"></canvas>
+    <div class="filter-bar">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label for="coletaMesFilter">🗓️ Selecionar Mês:</label>
+        <select id="coletaMesFilter" onchange="renderColetasSection()"></select>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label for="coletaVisaoFilter">📊 Visão dos Gráficos:</label>
+        <select id="coletaVisaoFilter" onchange="renderColetasSection()">
+          <option value="semanal">📈 Por Semana (Agrupado por Semanas do Mês)</option>
+          <option value="diario">📆 Por Dia (Detalhamento Diário)</option>
+        </select>
+      </div>
     </div>
-    <div class="chart-card" id="chartColetasComparativoCard">
-      <div class="chart-title" id="chartComparativoTitle">📈 Realizados vs Faltas por Semana</div>
-      <canvas id="chartColetasComparativo"></canvas>
-    </div>
-    <div class="chart-card" id="chartColetasEficaciaCard">
-      <div class="chart-title">🎯 Taxa de Eficácia e Absenteísmo no Mês</div>
-      <canvas id="chartColetasEficacia"></canvas>
-    </div>
-  </div>
 
-  <!-- Tabela de Registros -->
-  <div class="table-card">
-    <div class="chart-title" style="margin-bottom:16px;">📋 Registros de Coletas Lançados no Mês (Dias Padrão & Extras)</div>
-    <table>
-      <thead>
-        <tr>
-          <th>Data (DD/MM/AAAA)</th>
-          <th>Dia da Semana</th>
-          <th>Tipo</th>
-          <th>Agendados</th>
-          <th>Realizados</th>
-          <th>Faltas</th>
-          <th>Meta</th>
-          <th>Status</th>
-          <th>Obs</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="coletasTable"></tbody>
-    </table>
-  </div>
+    <div class="coletas-metrics" id="coletasMetrics">
+      <div class="coleta-metric"><div class="cm-icon">🎯</div><div class="cm-value" style="color:var(--orange);">12</div><div class="cm-label">Meta Diária</div></div>
+      <div class="coleta-metric"><div class="cm-icon">📅</div><div class="cm-value" style="color:var(--yellow);" id="kpiMetaMes">36</div><div class="cm-label">Meta Semanal (3 dias)</div></div>
+      <div class="coleta-metric"><div class="cm-icon">✅</div><div class="cm-value" style="color:var(--green);" id="kpiRealizados">0</div><div class="cm-label">Realizados no Mês</div></div>
+      <div class="coleta-metric"><div class="cm-icon">📋</div><div class="cm-value" style="color:var(--blue);" id="kpiAgendados">0</div><div class="cm-label">Agendados no Mês</div></div>
+      <div class="coleta-metric"><div class="cm-icon">❌</div><div class="cm-value" style="color:var(--red);" id="kpiFaltas">0</div><div class="cm-label">Faltas no Mês</div></div>
+      <div class="coleta-metric"><div class="cm-icon">📊</div><div class="cm-value" id="kpiEficacia" style="color:var(--green);">0%</div><div class="cm-label">Eficácia (%)</div></div>
+    </div>
+
+    <div class="coleta-form">
+      <div class="chart-title" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <span>📝 Lançar Registro de Coleta de Sangue</span>
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <span style="font-size:12px; color:var(--gray-300); font-weight:700;">Atalhos Dias de Coleta:</span>
+          <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('quarta')">🟢 Quarta-feira</button>
+          <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('quinta')">🟢 Quinta-feira</button>
+          <button class="btn-day-shortcut" onclick="setColetaDiaShortcut('sexta')">🟢 Sexta-feira</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data da Coleta</label>
+          <input type="date" id="coleta-data" style="width:160px;">
+        </div>
+        <div class="form-group">
+          <label>Agendados</label>
+          <input type="number" id="coleta-agendados" min="0" max="30" value="12" placeholder="12" oninput="calcFaltasAuto()">
+        </div>
+        <div class="form-group">
+          <label>Realizados</label>
+          <input type="number" id="coleta-realizados" min="0" max="30" value="12" placeholder="12" oninput="calcFaltasAuto()">
+        </div>
+        <div class="form-group">
+          <label>Faltas (Auto)</label>
+          <input type="number" id="coleta-faltas" min="0" max="30" value="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Observações</label>
+          <input type="text" id="coleta-obs" placeholder="Ex: Faltou insumo..." style="width:200px;">
+        </div>
+        <button class="btn-add-coleta" onclick="salvarColeta()">💾 Salvar Registro</button>
+      </div>
+    </div>
+
+    <div class="charts" id="coletasChartsArea">
+      <div class="chart-card" style="grid-column: span 2;" id="chartColetasPrincipalCard">
+        <div class="chart-title" id="chartPrincipalTitle">📊 Desempenho por Semana no Mês Selecionado (Meta: 36 coletas/semana)</div>
+        <canvas id="chartColetasPrincipal" style="max-height:350px;"></canvas>
+      </div>
+      <div class="chart-card" id="chartColetasComparativoCard">
+        <div class="chart-title" id="chartComparativoTitle">📈 Realizados vs Faltas por Semana</div>
+        <canvas id="chartColetasComparativo"></canvas>
+      </div>
+      <div class="chart-card" id="chartColetasEficaciaCard">
+        <div class="chart-title">🎯 Taxa de Eficácia e Absenteísmo no Mês</div>
+        <canvas id="chartColetasEficacia"></canvas>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="chart-title" style="margin-bottom:16px;">📋 Registros de Coletas Lançados no Mês (Dias Padrão &amp; Extras)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Data (DD/MM/AAAA)</th>
+            <th>Dia da Semana</th>
+            <th>Tipo</th>
+            <th>Agendados</th>
+            <th>Realizados</th>
+            <th>Faltas</th>
+            <th>Meta</th>
+            <th>Status</th>
+            <th>Obs</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="coletasTable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ====== ABA 6: DISPOSITIVOS ====== -->
+  <section class="dash-pane" id="tab-dispositivos">
+    <div class="title" style="justify-content:space-between; flex-wrap:wrap; gap:14px;">
+      <span>💻 Estações &amp; Dispositivos Conectados</span>
+      <button class="btn-hdr" onclick="loadResumoOperacional()">🔄 Atualizar Dispositivos</button>
+    </div>
+
+    <div class="metrics" id="dispKpisGrid"></div>
+
+    <div class="filter-bar">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px;">
+        <label for="dispSearchInput">🔎 Buscar:</label>
+        <input type="text" id="dispSearchInput" oninput="renderDispositivosPanel()" placeholder="Nome do dispositivo, setor ou IP..." style="flex:1;min-width:180px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label for="dispStatusFilter">Filtro:</label>
+        <select id="dispStatusFilter" onchange="renderDispositivosPanel()">
+          <option value="todos">Todos</option>
+          <option value="online">🟢 Apenas Online</option>
+          <option value="sem_nome">⚠️ Sem Nome</option>
+          <option value="bloqueado">🚫 Bloqueados</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="chart-title">📡 Monitoramento de Estações (Heartbeat em Tempo Real)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Nome / Estação</th>
+            <th>Setor</th>
+            <th>Último IP</th>
+            <th>Último Acesso</th>
+          </tr>
+        </thead>
+        <tbody id="dispositivosTbody"></tbody>
+      </table>
+    </div>
+  </section>
 </div>
 
 <script>
 // @ts-nocheck
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-let hourlyChart = null, flowChart = null, occupancyChart = null, setoresDonutChart = null, tempoEsperaBarChart = null;
-let metricsData = null, hourlyData = null;
-let coletasPrincipalChart = null, coletasComparativoChart = null, coletasEficaciaChart = null;
-let coletasData = [];
-
+const SETORES_DASH = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
 const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const META_DIARIA = 12;
 const META_SEMANAL = 36;
 
-// ====== PLUGIN CUSTOMIZADO CHART.JS: VALORES E NÚMEROS NOS GRÁFICOS ======
-const customDataLabelsPlugin = {
-  id: 'customDataLabels',
-  afterDatasetsDraw(chart) {
-    const { ctx } = chart;
-    chart.data.datasets.forEach((dataset, datasetIndex) => {
-      const meta = chart.getDatasetMeta(datasetIndex);
-      if (!meta || meta.hidden) return;
+let hourlyChart = null, flowChart = null, occupancyChart = null, setoresDonutChart = null, tempoEsperaBarChart = null;
+let coletasPrincipalChart = null, coletasComparativoChart = null, coletasEficaciaChart = null;
+let metricsData = null, hourlyData = null, fechamentoData = null, prioridadesData = null, resumoOperacionalData = null;
+let coletasData = [];
+let activeTabId = 'tab-realtime';
+let dashRefreshTimer = null;
+let autoRefreshPaused = false;
+let dashboardUnlocked = false;
 
-      const isMetaLine = dataset.label && (dataset.label.includes('Meta') || dataset.label.includes('Capacidade') || dataset.label.includes('Lotação'));
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
-      meta.data.forEach((element, index) => {
-        const val = dataset.data[index];
-        if (val === undefined || val === null) return;
-        
-        // Esconder 0 em gráficos de barra para não poluir
-        if (typeof val === 'number' && val === 0 && chart.config.type !== 'doughnut') return;
+// ====== FUSO HORÁRIO RECIFE (SEM DESVIO UTC APÓS 21H) ======
+function getTodayDateRecife() {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Recife',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date());
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const d = parts.find(p => p.type === 'day')?.value;
+    if (y && m && d) return `${y}-${m}-${d}`;
+  } catch (e) {}
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
-        ctx.save();
-        ctx.font = 'bold 11px "Nunito Sans", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
+function getOffsetDateRecife(daysOffset = 0) {
+  const base = parseDateParts(getTodayDateRecife()) || new Date();
+  base.setDate(base.getDate() + Number(daysOffset || 0));
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
+}
 
-        const pos = element.tooltipPosition();
-        let yPos = pos.y - 4;
-        let xPos = pos.x;
+function getCurrentMonthRecife() {
+  return getTodayDateRecife().substring(0, 7);
+}
 
-        if (dataset.type === 'line' || chart.config.type === 'line') {
-          if (isMetaLine) {
-            // Desenhar valor da meta no final ou início da linha
-            if (index !== meta.data.length - 1 && index !== 0) {
-              ctx.restore();
-              return;
-            }
-            ctx.fillStyle = dataset.borderColor || '#f4821e';
-            ctx.textAlign = 'left';
-            xPos = pos.x + 4;
-            yPos = pos.y + 4;
-          } else {
-            ctx.fillStyle = dataset.borderColor || '#f9c823';
-            yPos = pos.y - 6;
-          }
-        } else if (chart.config.type === 'doughnut') {
-          ctx.fillStyle = '#ffffff';
-          yPos = pos.y + 4;
-        } else if (chart.config.options?.indexAxis === 'y') {
-          // Barra Horizontal
-          ctx.fillStyle = '#ffffff';
-          ctx.textAlign = 'left';
-          xPos = pos.x + 6;
-          yPos = pos.y + 4;
-        } else {
-          // Barra Vertical
-          ctx.fillStyle = '#ffffff';
-          yPos = pos.y - 3;
-        }
-
-        const text = typeof val === 'number' && val % 1 !== 0 ? val.toFixed(0) : val;
-
-        // Sombreamento para leitura perfeita
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 1;
-
-        ctx.fillText(text, xPos, yPos);
-        ctx.restore();
-      });
-    });
+function getRecifeHourNow() {
+  try {
+    return parseInt(new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Recife', hour: '2-digit', hour12: false
+    }).format(new Date()), 10);
+  } catch (e) {
+    return new Date().getHours();
   }
-};
-Chart.register(customDataLabelsPlugin);
+}
 
 function parseDateParts(dateStr) {
   if (!dateStr) return null;
-  const cleanStr = dateStr.split('T')[0];
+  const cleanStr = String(dateStr).split('T')[0];
   const parts = cleanStr.split('-');
   if (parts.length === 3) {
-    const year = parseInt(parts[0]);
-    const month = parseInt(parts[1]) - 1;
-    const day = parseInt(parts[2]);
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
     return new Date(year, month, day, 12, 0, 0);
   }
   return new Date(dateStr);
@@ -422,147 +612,379 @@ function getDayOfWeekNumFromDateString(dateStr) {
 
 function formatDateBR(dateStr) {
   if (!dateStr) return '';
-  if (dateStr.includes('/')) return dateStr;
-  const parts = dateStr.split('T')[0].split('-');
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  }
+  if (String(dateStr).includes('/')) return dateStr;
+  const parts = String(dateStr).split('T')[0].split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
   return dateStr;
 }
 
-function calcFaltasAuto() {
-  const agendados = parseInt(document.getElementById('coleta-agendados').value) || 0;
-  const realizados = parseInt(document.getElementById('coleta-realizados').value) || 0;
-  document.getElementById('coleta-faltas').value = Math.max(0, agendados - realizados);
+function formatDateTimeRecife(ts) {
+  if (!ts) return '—';
+  const dt = new Date(ts);
+  if (Number.isNaN(dt.getTime())) return '—';
+  return dt.toLocaleString('pt-BR', {
+    timeZone: 'America/Recife',
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+  });
 }
 
-function setColetaDiaShortcut(dia) {
-  const targetMap = { 'quarta': 3, 'quinta': 4, 'sexta': 5 };
-  const targetDay = targetMap[dia];
-  if (targetDay === undefined) return;
-
-  const now = new Date();
-  const currentDay = now.getDay();
-  let diff = targetDay - currentDay;
-  
-  const targetDate = new Date(now);
-  targetDate.setDate(now.getDate() + diff);
-
-  document.getElementById('coleta-data').value = targetDate.toISOString().split('T')[0];
+function isViewingToday() {
+  const sel = (document.getElementById('dashDateFilter')?.value || '').trim();
+  return !sel || sel === getTodayDateRecife();
 }
 
+// ====== PLUGIN CHART.JS: VALORES NOS GRÁFICOS ======
+const customDataLabelsPlugin = {
+  id: 'customDataLabels',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (!meta || meta.hidden) return;
+      const isMetaLine = dataset.label && (dataset.label.includes('Meta') || dataset.label.includes('Capacidade') || dataset.label.includes('Lotação'));
+
+      meta.data.forEach((element, index) => {
+        const val = dataset.data[index];
+        if (val === undefined || val === null) return;
+        if (typeof val === 'number' && val === 0 && chart.config.type !== 'doughnut') return;
+
+        ctx.save();
+        ctx.font = 'bold 11px "Nunito Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+
+        const pos = element.tooltipPosition();
+        let yPos = pos.y - 4;
+        let xPos = pos.x;
+
+        if (dataset.type === 'line' || chart.config.type === 'line') {
+          if (isMetaLine) {
+            if (index !== meta.data.length - 1 && index !== 0) {
+              ctx.restore();
+              return;
+            }
+            ctx.fillStyle = dataset.borderColor || '#f4821e';
+            ctx.textAlign = 'left';
+            xPos = pos.x + 4;
+            yPos = pos.y + 4;
+          } else {
+            ctx.fillStyle = dataset.borderColor || '#f9c823';
+            yPos = pos.y - 6;
+          }
+        } else if (chart.config.type === 'doughnut') {
+          ctx.fillStyle = '#ffffff';
+          yPos = pos.y + 4;
+        } else if (chart.config.options?.indexAxis === 'y') {
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'left';
+          xPos = pos.x + 6;
+          yPos = pos.y + 4;
+        } else {
+          ctx.fillStyle = '#ffffff';
+          yPos = pos.y - 3;
+        }
+
+        const text = typeof val === 'number' && val % 1 !== 0 ? val.toFixed(0) : val;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1;
+        ctx.fillText(text, xPos, yPos);
+        ctx.restore();
+      });
+    });
+  }
+};
+Chart.register(customDataLabelsPlugin);
+
+// ====== SEGURANÇA, SESSÃO & FETCH CENTRALIZADO ======
+function showLockScreen(msg = '') {
+  dashboardUnlocked = false;
+  if (dashRefreshTimer) {
+    clearInterval(dashRefreshTimer);
+    dashRefreshTimer = null;
+  }
+  document.getElementById('dashContent').style.display = 'none';
+  document.getElementById('lockOverlay').style.display = 'flex';
+  const errEl = document.getElementById('lockError');
+  if (errEl) {
+    if (msg) {
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+    } else {
+      errEl.style.display = 'none';
+      errEl.textContent = '';
+    }
+  }
+  setTimeout(() => document.getElementById('lockPassword')?.focus(), 50);
+}
+
+function setDashStatusBanner(msg = '') {
+  const el = document.getElementById('dashStatusBanner');
+  if (!el) return;
+  if (msg) {
+    el.innerHTML = `<span>${escHtml(msg)}</span><button class="btn-hdr" onclick="setDashStatusBanner('')">✕</button>`;
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }
+}
+
+async function apiDashFetch(url, options = {}) {
+  const opts = { ...options, credentials: 'same-origin' };
+  const r = await fetch(url, opts);
+  if (r.status === 401 || r.status === 403) {
+    showLockScreen('🔒 Sessão administrativa expirada ou sem permissão. Faça login novamente.');
+    return null;
+  }
+  if (r.status === 503) {
+    const errData = await r.clone().json().catch(() => ({}));
+    setDashStatusBanner(errData.error || '⏸️ Sistema fora do horário de funcionamento (06h às 20h, Seg–Sex).');
+    return null;
+  }
+  setDashStatusBanner('');
+  return r;
+}
+
+function enterDashboard() {
+  dashboardUnlocked = true;
+  document.getElementById('lockOverlay').style.display = 'none';
+  document.getElementById('dashContent').style.display = 'block';
+  const errEl = document.getElementById('lockError');
+  if (errEl) errEl.style.display = 'none';
+
+  loadDashboard();
+  loadColetasManual();
+  loadResumoOperacional();
+  loadPrioridadesAlumia();
+
+  if (dashRefreshTimer) clearInterval(dashRefreshTimer);
+  dashRefreshTimer = setInterval(() => {
+    if (!dashboardUnlocked || autoRefreshPaused || document.hidden) return;
+    if (isViewingToday()) {
+      loadDashboard();
+      loadResumoOperacional();
+    }
+  }, 15000);
+  updateRefreshBadge();
+}
+
+async function checkExistingAdminSession() {
+  try {
+    const r = await fetch(`${API_URL}/auth/session`, { credentials: 'same-origin' });
+    if (r.ok) {
+      const data = await r.json().catch(() => ({}));
+      if (data && data.authenticated && data.role === 'admin') {
+        enterDashboard();
+        return;
+      }
+    }
+  } catch (e) {}
+  showLockScreen('');
+}
+
+async function verifyDashboardAccess() {
+  const pwdInput = document.getElementById('lockPassword');
+  const btn = document.getElementById('btnUnlockDash');
+  const errEl = document.getElementById('lockError');
+  const pwd = (pwdInput?.value || '').trim();
+  if (!pwd) {
+    if (errEl) { errEl.textContent = '❌ Digite a senha administrativa.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Verificando...'; }
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API_URL}/verify-admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ senha: pwd })
+    });
+    if (r.ok) {
+      if (pwdInput) pwdInput.value = '';
+      enterDashboard();
+      return;
+    }
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 429) {
+      if (errEl) { errEl.textContent = data.error || '⏳ Muitas tentativas incorretas. Aguarde alguns minutos.'; errEl.style.display = 'block'; }
+    } else if (r.status === 503) {
+      if (errEl) { errEl.textContent = data.error || '⏸️ Sistema fora do horário de funcionamento.'; errEl.style.display = 'block'; }
+    } else {
+      if (errEl) { errEl.textContent = '❌ Senha administrativa incorreta.'; errEl.style.display = 'block'; }
+    }
+  } catch (e) {
+    if (errEl) { errEl.textContent = '❌ Erro de conexão ao validar senha.'; errEl.style.display = 'block'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔓 Acessar Dashboard'; }
+  }
+}
+
+async function logoutDashboard() {
+  try {
+    await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'same-origin' });
+  } catch (e) {}
+  metricsData = null;
+  hourlyData = null;
+  fechamentoData = null;
+  prioridadesData = null;
+  resumoOperacionalData = null;
+  document.getElementById('dashActiveUsers').textContent = '0';
+  if (document.getElementById('lockPassword')) document.getElementById('lockPassword').value = '';
+  showLockScreen('🔒 Sessão encerrada. Digite a senha para entrar novamente.');
+}
+
+// ====== NAVEGAÇÃO POR ABAS E AUTO-REFRESH INTELIGENTE ======
+function switchDashTab(tabId) {
+  activeTabId = tabId;
+  document.querySelectorAll('.dash-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.dash-pane').forEach(pane => {
+    pane.classList.toggle('active', pane.id === tabId);
+  });
+
+  if (tabId === 'tab-realtime') {
+    setTimeout(() => {
+      [occupancyChart, hourlyChart, flowChart, setoresDonutChart, tempoEsperaBarChart].forEach(c => {
+        if (c && typeof c.resize === 'function') c.resize();
+      });
+    }, 30);
+  } else if (tabId === 'tab-fechamento') {
+    loadFechamentoDiario();
+  } else if (tabId === 'tab-prioridades') {
+    loadPrioridadesAlumia();
+  } else if (tabId === 'tab-sisreg' || tabId === 'tab-dispositivos') {
+    loadResumoOperacional();
+  } else if (tabId === 'tab-coletas') {
+    renderColetasSection();
+    setTimeout(() => {
+      [coletasPrincipalChart, coletasComparativoChart, coletasEficaciaChart].forEach(c => {
+        if (c && typeof c.resize === 'function') c.resize();
+      });
+    }, 30);
+  }
+}
+
+function updateRefreshBadge(timeStr = '') {
+  const el = document.getElementById('lastRefreshTime');
+  const btn = document.getElementById('btnToggleAuto');
+  if (btn) btn.textContent = autoRefreshPaused ? '▶️ Retomar Auto' : '⏸️ Pausar Auto';
+  if (!el) return;
+  if (autoRefreshPaused) {
+    el.textContent = '⏸️ Auto pausado';
+    el.style.color = '#fde68a';
+  } else if (!isViewingToday()) {
+    el.textContent = timeStr ? `📅 Histórico (${timeStr})` : '📅 Modo Histórico';
+    el.style.color = '#93c5fd';
+  } else {
+    el.textContent = timeStr ? `🟢 Atualizado às ${timeStr} (Auto 15s)` : '🟢 Auto 15s';
+    el.style.color = '#bbf7d0';
+  }
+}
+
+function toggleAutoRefresh() {
+  autoRefreshPaused = !autoRefreshPaused;
+  updateRefreshBadge();
+  if (!autoRefreshPaused && isViewingToday()) manualRefreshDash();
+}
+
+function manualRefreshDash() {
+  loadDashboard();
+  loadResumoOperacional();
+  if (activeTabId === 'tab-prioridades') loadPrioridadesAlumia();
+  if (activeTabId === 'tab-coletas') loadColetasManual();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && dashboardUnlocked && !autoRefreshPaused && isViewingToday()) {
+    loadDashboard();
+    loadResumoOperacional();
+  }
+});
+
+// ====== CONTROLE DE DATA & RELÓGIO ======
 function setQuickDate(tipo) {
   const input = document.getElementById('dashDateFilter');
-  const now = new Date();
-  if (tipo === 'hoje') {
-    input.value = now.toISOString().split('T')[0];
-  } else if (tipo === 'ontem') {
-    const ontem = new Date(now);
-    ontem.setDate(now.getDate() - 1);
-    input.value = ontem.toISOString().split('T')[0];
-  }
-  loadDashboard();
+  if (!input) return;
+  input.value = tipo === 'ontem' ? getOffsetDateRecife(-1) : getTodayDateRecife();
+  onDashDateChange();
 }
 
-function verifyDashboardAccess() {
-  const pwd = document.getElementById('lockPassword').value;
-  fetch(`${API_URL}/verify-admin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({ senha: pwd })
-  })
-    .then(r => { 
-        if (r.ok) { 
-            document.getElementById('lockOverlay').style.display = 'none'; 
-            document.getElementById('dashContent').style.display = 'block'; 
-            loadDashboard(); 
-            loadColetasManual();
-            setInterval(loadDashboard, 10000);
-            
-            document.getElementById('dashActiveUsers').textContent = "API";
-        } else { 
-            alert('Senha incorreta!'); 
-        } 
-    })
-    .catch(() => alert('Erro de conexão'));
+function onDashDateChange() {
+  loadDashboard();
+  loadResumoOperacional();
+  if (document.getElementById('prioPeriodoTipo')?.value === 'dia') {
+    loadPrioridadesAlumia();
+  }
+  updateRefreshBadge();
 }
 
 function updateDashClock() {
   const now = new Date();
-  document.getElementById('dashClock').textContent = now.toLocaleTimeString('pt-BR');
-  if (!document.getElementById('dashDateFilter').value) {
-    const dataBR = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-    document.getElementById('dashDate').textContent = dataBR;
-  }
+  const clockEl = document.getElementById('dashClock');
+  if (clockEl) clockEl.textContent = now.toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' });
 }
-setInterval(updateDashClock, 1000); updateDashClock();
+setInterval(updateDashClock, 1000);
+updateDashClock();
 
-function getTodayDateBRT() {
-  try {
-    const parts = new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).formatToParts(new Date());
-    const y = parts.find(p => p.type === 'year')?.value;
-    const m = parts.find(p => p.type === 'month')?.value;
-    const d = parts.find(p => p.type === 'day')?.value;
-    if (y && m && d) return `${y}-${m}-${d}`;
-  } catch (e) {}
-  return new Date().toISOString().split('T')[0];
-}
+const todayRecifeInit = getTodayDateRecife();
+document.getElementById('dashDateFilter').value = todayRecifeInit;
+document.getElementById('coleta-data').value = todayRecifeInit;
 
-// Initialize date filter to today
-const todayBRT = getTodayDateBRT();
-document.getElementById('dashDateFilter').value = todayBRT;
-document.getElementById('coleta-data').value = todayBRT;
-
+// ====== CARREGAMENTO PRINCIPAL (TEMPO REAL + FECHAMENTO) ======
 async function loadDashboard() {
+  if (!dashboardUnlocked) return;
   try {
-    const data = document.getElementById('dashDateFilter').value || getTodayDateBRT();
+    const data = document.getElementById('dashDateFilter').value || getTodayDateRecife();
     if (data) {
-        const dt = parseDateParts(data);
-        const diaSemanaStr = dt ? DIAS_SEMANA[dt.getDay()] : '';
-        const dataBR = dt ? dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : data;
-        document.getElementById('dashDate').textContent = `(${formatDateBR(data)} — ${diaSemanaStr}, ${dataBR})`;
+      const dt = parseDateParts(data);
+      const diaSemanaStr = dt ? DIAS_SEMANA[dt.getDay()] : '';
+      const dataBR = dt ? dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : data;
+      document.getElementById('dashDate').textContent = `(${formatDateBR(data)} — ${diaSemanaStr}, ${dataBR})`;
     }
+
     const [mRes, hRes, fRes] = await Promise.all([
-        fetch(`${API_URL}/dashboard/metrics?data=${data}`, { credentials: 'same-origin' }),
-        fetch(`${API_URL}/dashboard/hourly?data=${data}`, { credentials: 'same-origin' }),
-        fetch(`${API_URL}/relatorio-diario?data=${data}`, { credentials: 'same-origin' }).catch(err => {
-          console.warn('Erro ao buscar relatorio-diario:', err);
-          return null;
-        })
+      apiDashFetch(`${API_URL}/dashboard/metrics?data=${encodeURIComponent(data)}`),
+      apiDashFetch(`${API_URL}/dashboard/hourly?data=${encodeURIComponent(data)}`),
+      apiDashFetch(`${API_URL}/relatorio-diario?data=${encodeURIComponent(data)}`).catch(() => null)
     ]);
 
-    if ((mRes && mRes.status === 401) || (hRes && hRes.status === 401)) {
-      document.getElementById('dashContent').style.display = 'none';
-      document.getElementById('lockOverlay').style.display = 'flex';
-      return;
-    }
-
+    if (!dashboardUnlocked) return;
     if (mRes && mRes.ok) metricsData = await mRes.json();
     if (hRes && hRes.ok) hourlyData = await hRes.json();
     if (fRes && fRes.ok) fechamentoData = await fRes.json();
 
-    try { renderMetrics(); } catch(e) { console.error('Erro em renderMetrics:', e); }
-    try { renderCharts(); } catch(e) { console.error('Erro em renderCharts:', e); }
-    try { renderWaitTable(); } catch(e) { console.error('Erro em renderWaitTable:', e); }
-    try { renderFechamentoDiario(); } catch(e) { console.error('Erro em renderFechamentoDiario:', e); }
+    if (metricsData && hourlyData) {
+      try { renderMetrics(); } catch (e) { console.error('Erro em renderMetrics:', e); }
+      try { renderCharts(); } catch (e) { console.error('Erro em renderCharts:', e); }
+      try { renderWaitTable(); } catch (e) { console.error('Erro em renderWaitTable:', e); }
+    }
+    try { renderFechamentoDiario(); } catch (e) { console.error('Erro em renderFechamentoDiario:', e); }
 
-    const lastRef = document.getElementById('lastRefreshTime');
-    if (lastRef) lastRef.textContent = `🟢 Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
-  } catch (e) { console.error('Dashboard error:', e); }
+    updateRefreshBadge(new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' }));
+  } catch (e) {
+    console.error('Dashboard error:', e);
+  }
 }
 
 function renderMetrics() {
-  const d = metricsData;
-  const totalWaiting = d.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
-  const totalEntries = hourlyData.entries ? hourlyData.entries.reduce((s, r) => s + parseInt(r.total), 0) : 0;
-  const hasBottleneck = d.bottleneckBySetor.length > 0;
-  const avgWaitAll = d.avgWaitBySetor.length ? (d.avgWaitBySetor.reduce((s, r) => s + parseFloat(r.avg_minutes || 0), 0) / d.avgWaitBySetor.length).toFixed(0) : '0';
+  const d = metricsData || {};
+  const waitingBySetor = Array.isArray(d.waitingBySetor) ? d.waitingBySetor : [];
+  const bottleneckBySetor = Array.isArray(d.bottleneckBySetor) ? d.bottleneckBySetor : [];
+  const avgWaitBySetor = Array.isArray(d.avgWaitBySetor) ? d.avgWaitBySetor : [];
+  const attendedBySetor = Array.isArray(d.attendedBySetor) ? d.attendedBySetor : [];
+
+  const isToday = d.isToday !== false && isViewingToday();
+  const totalWaiting = waitingBySetor.reduce((s, r) => s + parseInt(r.total || 0, 10), 0);
+  const totalEntries = hourlyData?.entries ? hourlyData.entries.reduce((s, r) => s + parseInt(r.total || 0, 10), 0) : 0;
+  const hasBottleneck = isToday && bottleneckBySetor.length > 0;
+  const avgWaitAll = avgWaitBySetor.length
+    ? (avgWaitBySetor.reduce((s, r) => s + parseFloat(r.avg_minutes || 0), 0) / avgWaitBySetor.length).toFixed(0)
+    : '0';
 
   const occupancyPercent = Math.min((totalWaiting / 40) * 100, 100);
   let occupancyColor = 'var(--green)';
@@ -570,78 +992,76 @@ function renderMetrics() {
   else if (totalWaiting >= 30) occupancyColor = 'var(--orange)';
 
   let peakHourStr = '—';
-  if (hourlyData.calls && hourlyData.calls.length > 0) {
-    const sorted = [...hourlyData.calls].sort((a, b) => parseInt(b.total) - parseInt(a.total));
-    if (sorted[0]) peakHourStr = `${sorted[0].hour}:00 (${sorted[0].total})`;
+  if (hourlyData?.calls && hourlyData.calls.length > 0) {
+    const sorted = [...hourlyData.calls].sort((a, b) => parseInt(b.total, 10) - parseInt(a.total, 10));
+    if (sorted[0]) peakHourStr = `${String(sorted[0].hour).padStart(2, '0')}:00 (${sorted[0].total})`;
   }
 
   let topSetorStr = '—';
-  if (d.attendedBySetor && d.attendedBySetor.length > 0) {
-    const sortedSetor = [...d.attendedBySetor].sort((a, b) => parseInt(b.total) - parseInt(a.total));
+  if (attendedBySetor.length > 0) {
+    const sortedSetor = [...attendedBySetor].sort((a, b) => parseInt(b.total, 10) - parseInt(a.total, 10));
     if (sortedSetor[0]) topSetorStr = `${sortedSetor[0].setor} (${sortedSetor[0].total})`;
   }
 
   document.getElementById('metricsGrid').innerHTML = `
-    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${d.totalAttended}</div><div class="metric-label">Atendidos (Total)</div></div>
-    <div class="metric-card"><div class="metric-icon">☀️</div><div class="metric-value" style="color:#f9c823;">${d.attendedManha || 0}</div><div class="metric-label">Manhã (até 12h)</div></div>
-    <div class="metric-card"><div class="metric-icon">🌙</div><div class="metric-value" style="color:#7c4dff;">${d.attendedTarde || 0}</div><div class="metric-label">Tarde (após 12h)</div></div>
+    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${Number(d.totalAttended || 0)}</div><div class="metric-label">Atendidos (Total)</div></div>
+    <div class="metric-card"><div class="metric-icon">☀️</div><div class="metric-value" style="color:#f9c823;">${Number(d.attendedManha || 0)}</div><div class="metric-label">Manhã (até 12h)</div></div>
+    <div class="metric-card"><div class="metric-icon">🌙</div><div class="metric-value" style="color:#7c4dff;">${Number(d.attendedTarde || 0)}</div><div class="metric-label">Tarde (após 12h)</div></div>
     <div class="metric-card"><div class="metric-icon">📥</div><div class="metric-value" style="color:var(--blue);">${totalEntries}</div><div class="metric-label">Entradas Registradas</div></div>
-    <div class="metric-card ${totalWaiting >= 40 ? 'occupancy-alert' : ''}">
+    <div class="metric-card ${isToday && totalWaiting >= 40 ? 'occupancy-alert' : ''}">
       <div class="metric-icon">🛋️</div>
-      <div class="metric-value" style="color:${occupancyColor};">${totalWaiting} / 40</div>
+      <div class="metric-value" style="color:${isToday ? occupancyColor : 'var(--gray-300)'};${isToday ? '' : 'font-size:20px;margin-top:4px;'}">${isToday ? `${totalWaiting} / 40` : 'Histórico'}</div>
       <div class="metric-label">Ocupação Recepção</div>
-      <div class="occupancy-bar-container"><div class="occupancy-bar" style="width:${occupancyPercent}%; background-color:${occupancyColor};"></div></div>
+      ${isToday ? `<div class="occupancy-bar-container"><div class="occupancy-bar" style="width:${occupancyPercent}%; background-color:${occupancyColor};"></div></div>` : '<div class="metric-sub">Exibido apenas no dia atual</div>'}
     </div>
     <div class="metric-card"><div class="metric-icon">⏱️</div><div class="metric-value" style="color:var(--yellow);">${avgWaitAll} min</div><div class="metric-label">Tempo Médio Espera</div></div>
-    <div class="metric-card"><div class="metric-icon">⚡</div><div class="metric-value" style="color:var(--orange); font-size:22px; margin-top:4px;">${peakHourStr}</div><div class="metric-label">Horário de Pico</div></div>
-    <div class="metric-card"><div class="metric-icon">🏆</div><div class="metric-value" style="color:var(--purple); font-size:20px; margin-top:4px;">${topSetorStr}</div><div class="metric-label">Setor Maior Demanda</div></div>
-    <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" style="color:var(--red);">${d.dropoutRate}%</div><div class="metric-label">Taxa Desistência</div></div>
-    <div class="metric-card ${hasBottleneck ? 'alert' : ''}"><div class="metric-icon">${hasBottleneck ? '🔴' : '🟢'}</div><div class="metric-value" style="color:${hasBottleneck ? 'var(--red)' : 'var(--green)'};">${hasBottleneck ? 'ALERTA' : 'OK'}</div><div class="metric-label">Gargalo (>30min)</div></div>
+    <div class="metric-card"><div class="metric-icon">⚡</div><div class="metric-value" style="color:var(--orange); font-size:22px; margin-top:4px;">${escHtml(peakHourStr)}</div><div class="metric-label">Horário de Pico</div></div>
+    <div class="metric-card"><div class="metric-icon">🏆</div><div class="metric-value" style="color:var(--purple); font-size:20px; margin-top:4px;">${escHtml(topSetorStr)}</div><div class="metric-label">Setor Maior Demanda</div></div>
+    <div class="metric-card"><div class="metric-icon">🚶</div><div class="metric-value" style="color:var(--red);">${escHtml(d.dropoutRate ?? '0.0')}%</div><div class="metric-label">Taxa Desistência</div></div>
+    <div class="metric-card ${hasBottleneck ? 'alert' : ''}"><div class="metric-icon">${isToday ? (hasBottleneck ? '🔴' : '🟢') : '📅'}</div><div class="metric-value" style="color:${isToday ? (hasBottleneck ? 'var(--red)' : 'var(--green)') : 'var(--gray-300)'};${isToday ? '' : 'font-size:20px;margin-top:4px;'}">${isToday ? (hasBottleneck ? 'ALERTA' : 'OK') : 'Fechado'}</div><div class="metric-label">Gargalo (&gt;30min)</div></div>
   `;
 }
 
 function renderCharts() {
-  const hours = Array.from({length:14}, (_, i) => i + 6);
+  if (!metricsData || !hourlyData) return;
+  const hours = Array.from({ length: 14 }, (_, i) => i + 6);
   const labels = hours.map(h => h + ':00');
 
-  const callsByHour = hours.map(h => { const r = hourlyData.calls.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
-  const entriesByHour = hours.map(h => { const r = hourlyData.entries.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
-  const desistByHour = hours.map(h => { const r = hourlyData.desistencias.find(c => parseInt(c.hour) === h); return r ? parseInt(r.total) : 0; });
+  const callsByHour = hours.map(h => { const r = (hourlyData.calls || []).find(c => parseInt(c.hour, 10) === h); return r ? parseInt(r.total, 10) : 0; });
+  const entriesByHour = hours.map(h => { const r = (hourlyData.entries || []).find(c => parseInt(c.hour, 10) === h); return r ? parseInt(r.total, 10) : 0; });
+  const desistByHour = hours.map(h => { const r = (hourlyData.desistencias || []).find(c => parseInt(c.hour, 10) === h); return r ? parseInt(r.total, 10) : 0; });
 
   if (hourlyChart) hourlyChart.destroy();
   hourlyChart = new Chart(document.getElementById('chartHourly'), {
-    type: 'bar', data: { labels, datasets: [{ label: 'Atendimentos', data: callsByHour, backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 6 }] },
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Atendimentos', data: callsByHour, backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 6 }] },
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
   if (flowChart) flowChart.destroy();
   flowChart = new Chart(document.getElementById('chartFlow'), {
-    type: 'line', data: { labels, datasets: [
-      { label: 'Entradas', data: entriesByHour, borderColor: '#f4821e', backgroundColor: 'rgba(244,130,30,0.1)', fill: true, tension: 0.3 },
-      { label: 'Atendimentos', data: callsByHour, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3 },
-      { label: 'Desistências', data: desistByHour, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,0.1)', fill: true, tension: 0.3 }
-    ] },
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Entradas', data: entriesByHour, borderColor: '#f4821e', backgroundColor: 'rgba(244,130,30,0.1)', fill: true, tension: 0.3 },
+        { label: 'Atendimentos', data: callsByHour, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3 },
+        { label: 'Desistências', data: desistByHour, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,0.1)', fill: true, tension: 0.3 }
+      ]
+    },
     options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0' } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
-  // Gráfico de ocupação corrigido: usar totalWaiting real como âncora
-  const realWaiting = metricsData.waitingBySetor.reduce((s, r) => s + parseInt(r.total), 0);
-  const now = new Date();
-  const currentHourBRT = parseInt(new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false }).format(now));
-  const isToday = document.getElementById('dashDateFilter').value === now.toISOString().split('T')[0];
+  const realWaiting = (metricsData.waitingBySetor || []).reduce((s, r) => s + parseInt(r.total || 0, 10), 0);
+  const currentHourBRT = getRecifeHourNow();
+  const isToday = isViewingToday();
 
-  // Calcular ocupação acumulada para cada hora
   let currentWaiting = 0;
-  const waitingOverTime = hours.map(h => {
-    const idx = hours.indexOf(h);
-    const entries = entriesByHour[idx] || 0;
-    const calls = callsByHour[idx] || 0;
-    const desist = desistByHour[idx] || 0;
-    currentWaiting += (entries - (calls + desist));
+  const waitingOverTime = hours.map((h, idx) => {
+    currentWaiting += ((entriesByHour[idx] || 0) - ((callsByHour[idx] || 0) + (desistByHour[idx] || 0)));
     return Math.max(0, currentWaiting);
   });
 
-  // Correção: ancorar o gráfico no valor real de aguardando para o horário atual
   if (isToday && currentHourBRT >= 6 && currentHourBRT <= 19) {
     const anchorIdx = hours.indexOf(currentHourBRT);
     if (anchorIdx >= 0) {
@@ -656,55 +1076,51 @@ function renderCharts() {
 
   if (occupancyChart) occupancyChart.destroy();
   occupancyChart = new Chart(document.getElementById('chartOccupancy'), {
-    type: 'line', data: { labels, datasets: [
-      { label: 'Ocupação (Total Aguardando)', data: waitingOverTime, borderColor: '#f9c823', backgroundColor: 'rgba(249,200,35,0.1)', fill: true, tension: 0.4 },
-      { label: 'Capacidade Sentada (30)', data: Array(14).fill(30), borderColor: 'rgba(244,130,30,0.5)', borderDash: [5, 5], pointRadius: 0, fill: false },
-      { label: 'Lotação Máxima (40)', data: Array(14).fill(40), borderColor: 'rgba(229,57,53,0.8)', borderDash: [2, 2], pointRadius: 0, fill: false }
-    ] },
-    options: { 
-      responsive: true, 
-      plugins: { legend: { labels: { color: '#b8c8f0' } } }, 
-      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } } 
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Ocupação (Total Aguardando)', data: waitingOverTime, borderColor: '#f9c823', backgroundColor: 'rgba(249,200,35,0.1)', fill: true, tension: 0.4 },
+        { label: 'Capacidade Sentada (30)', data: Array(14).fill(30), borderColor: 'rgba(244,130,30,0.5)', borderDash: [5, 5], pointRadius: 0, fill: false },
+        { label: 'Lotação Máxima (40)', data: Array(14).fill(40), borderColor: 'rgba(229,57,53,0.8)', borderDash: [2, 2], pointRadius: 0, fill: false }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#b8c8f0' } } },
+      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } }
     }
   });
 
-  const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
   const setoresColors = ['#8e24aa','#4aab3c','#1a4fc4','#f4821e','#009688','#e91e63','#00bcd4'];
-  const dataSetores = setores.map(s => {
-    const r = metricsData.attendedBySetor.find(a => a.setor === s);
-    return r ? parseInt(r.total) : 0;
+  const dataSetores = SETORES_DASH.map(s => {
+    const r = (metricsData.attendedBySetor || []).find(a => a.setor === s);
+    return r ? parseInt(r.total, 10) : 0;
   });
 
   if (setoresDonutChart) setoresDonutChart.destroy();
   setoresDonutChart = new Chart(document.getElementById('chartSetoresDonut'), {
     type: 'doughnut',
     data: {
-      labels: setores,
-      datasets: [{
-        data: dataSetores,
-        backgroundColor: setoresColors,
-        borderWidth: 2,
-        borderColor: '#0a1e5c'
-      }]
+      labels: SETORES_DASH,
+      datasets: [{ data: dataSetores, backgroundColor: setoresColors, borderWidth: 2, borderColor: '#0a1e5c' }]
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: { position: 'right', labels: { color: '#b8c8f0', font: { weight: 700, size: 11 } } }
-      }
+      plugins: { legend: { position: 'right', labels: { color: '#b8c8f0', font: { weight: 700, size: 11 } } } }
     }
   });
 
-  const dataTempos = setores.map(s => {
-    const r = metricsData.avgWaitBySetor.find(w => w.setor === s);
-    return r ? parseFloat(r.avg_minutes).toFixed(0) : 0;
+  const dataTempos = SETORES_DASH.map(s => {
+    const r = (metricsData.avgWaitBySetor || []).find(w => w.setor === s);
+    return r ? Number(parseFloat(r.avg_minutes).toFixed(0)) : 0;
   });
 
   if (tempoEsperaBarChart) tempoEsperaBarChart.destroy();
   tempoEsperaBarChart = new Chart(document.getElementById('chartTempoEsperaBar'), {
     type: 'bar',
     data: {
-      labels: setores,
+      labels: SETORES_DASH,
       datasets: [{
         label: 'Minutos de Espera',
         data: dataTempos,
@@ -722,52 +1138,50 @@ function renderCharts() {
 }
 
 function renderWaitTable() {
-  const d = metricsData;
+  const d = metricsData || {};
   const defaultResp = [
     { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
     { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
   ];
   const responsaveis = (d.responsaveisSetor && d.responsaveisSetor.length > 0) ? d.responsaveisSetor : defaultResp;
-  // Atualizar cabeçalho com a nova coluna
-  const thead = document.querySelector('#waitTable')?.closest('table')?.querySelector('thead tr');
-  if (thead && !thead.querySelector('.col-responsavel')) {
-    const th = document.createElement('th');
-    th.className = 'col-responsavel';
-    th.textContent = 'Responsável';
-    thead.insertBefore(th, thead.children[1]);
-  }
   const tbody = document.getElementById('waitTable');
-  tbody.innerHTML = setores.map(s => {
-    const wait = d.avgWaitBySetor.find(r => r.setor === s);
-    const waiting = d.waitingBySetor.find(r => r.setor === s);
-    const attended = d.attendedBySetor.find(r => r.setor === s);
-    const bottleneck = d.bottleneckBySetor.find(r => r.setor === s);
+  if (!tbody) return;
+  const isToday = d.isToday !== false && isViewingToday();
+
+  tbody.innerHTML = SETORES_DASH.map(s => {
+    const wait = (d.avgWaitBySetor || []).find(r => r.setor === s);
+    const waiting = (d.waitingBySetor || []).find(r => r.setor === s);
+    const attended = (d.attendedBySetor || []).find(r => r.setor === s);
+    const bottleneck = (d.bottleneckBySetor || []).find(r => r.setor === s);
     const resp = responsaveis.filter(r => r.setor === s).map(r => r.nome).join(', ') || '—';
-    const avgMin = wait ? parseFloat(wait.avg_minutes).toFixed(0) : '-';
-    const isBottleneck = bottleneck && parseInt(bottleneck.total) > 0;
+    const avgMin = wait && !Number.isNaN(parseFloat(wait.avg_minutes)) ? parseFloat(wait.avg_minutes).toFixed(0) : '-';
+    const isBottleneck = isToday && bottleneck && parseInt(bottleneck.total, 10) > 0;
     return `<tr style="${isBottleneck ? 'color:var(--red);font-weight:800;' : ''}">
-      <td style="font-weight:700;">${s}</td><td style="color:var(--yellow);font-weight:700;">${resp}</td><td>${avgMin === '-' ? '-' : avgMin + ' min'}</td><td>${waiting ? waiting.total : 0}</td><td>${attended ? attended.total : 0}</td>
-      <td>${isBottleneck ? '🔴 ' + bottleneck.total + ' pacientes' : '🟢 Normal'}</td></tr>`;
+      <td style="font-weight:700;">${escHtml(s)}</td>
+      <td style="color:var(--yellow);font-weight:700;">${escHtml(resp)}</td>
+      <td>${avgMin === '-' ? '-' : escHtml(avgMin) + ' min'}</td>
+      <td>${isToday ? (waiting ? Number(waiting.total) : 0) : '—'}</td>
+      <td>${attended ? Number(attended.total) : 0}</td>
+      <td>${isToday ? (isBottleneck ? '🔴 ' + Number(bottleneck.total) + ' pacientes' : '🟢 Normal') : '📅 Histórico'}</td>
+    </tr>`;
   }).join('');
 }
 
-// ====== FECHAMENTO DIÁRIO DO EXPEDIENTE (DASHBOARD) ======
-let fechamentoData = null;
-
+// ====== FECHAMENTO DIÁRIO DO EXPEDIENTE ======
 function getFechamentoDataSafe() {
   const dateInput = document.getElementById('dashDateFilter');
-  const data = (dateInput?.value || '').trim() || getTodayDateBRT();
-  
-  if (fechamentoData && (!data || !fechamentoData.data || fechamentoData.data === data || fechamentoData.data.startsWith(data))) {
+  const data = (dateInput?.value || '').trim() || getTodayDateRecife();
+
+  if (fechamentoData && (!data || !fechamentoData.data || fechamentoData.data === data || String(fechamentoData.data).startsWith(data))) {
     return fechamentoData;
   }
   if (fechamentoData && fechamentoData.totalAtendidos !== undefined) {
     return fechamentoData;
   }
-  
+
   const d = metricsData || {};
   return {
-    data: data,
+    data,
     totalAtendidos: fechamentoData?.totalAtendidos ?? d.totalAttended ?? 0,
     atendidosManha: fechamentoData?.atendidosManha ?? d.attendedManha ?? 0,
     atendidosTarde: fechamentoData?.atendidosTarde ?? d.attendedTarde ?? 0,
@@ -775,27 +1189,17 @@ function getFechamentoDataSafe() {
     porTipo: fechamentoData?.porTipo || d.porTipo || [],
     porSetor: fechamentoData?.porSetor || (d.attendedBySetor || []).map(s => ({ setor: s.setor, total: s.total })),
     porProfissional: fechamentoData?.porProfissional || d.porProfissional || [],
-    agendamentos: fechamentoData?.agendamentos || d.agendamentos || [],
-    responsaveisSetor: (fechamentoData?.responsaveisSetor && fechamentoData.responsaveisSetor.length > 0)
-      ? fechamentoData.responsaveisSetor
-      : (d.responsaveisSetor && d.responsaveisSetor.length > 0)
-        ? d.responsaveisSetor
-        : [
-            { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
-            { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
-          ]
+    agendamentos: fechamentoData?.agendamentos || d.agendamentos || []
   };
 }
 
 async function loadFechamentoDiario() {
-  const dateInput = document.getElementById('dashDateFilter');
-  const data = (dateInput?.value || '').trim() || getTodayDateBRT();
+  if (!dashboardUnlocked) return;
+  const data = (document.getElementById('dashDateFilter')?.value || '').trim() || getTodayDateRecife();
   try {
-    const res = await fetch(`${API_URL}/relatorio-diario?data=${data}`);
-    if (res.ok) {
-      fechamentoData = await res.json();
-    }
-  } catch(e) {
+    const res = await apiDashFetch(`${API_URL}/relatorio-diario?data=${encodeURIComponent(data)}`);
+    if (res && res.ok) fechamentoData = await res.json();
+  } catch (e) {
     console.warn('Aviso ao carregar fechamento diário:', e);
   } finally {
     renderFechamentoDiario();
@@ -823,60 +1227,47 @@ function renderFechamentoDiario() {
     const diaSemanaStr = dt ? DIAS_SEMANA[dt.getDay()] : '';
     dateLbl.textContent = `(${formatDateBR(d.data)}${diaSemanaStr ? ' — ' + diaSemanaStr : ''})`;
   }
-  
-  const elAtend = document.getElementById('fchAtendidos');
-  const elDesist = document.getElementById('fchDesistencias');
-  const elUrg = document.getElementById('fchUrgencias');
-  const elAgend = document.getElementById('fchAgendamentos');
 
-  if (elAtend) elAtend.textContent = d.totalAtendidos || 0;
-  if (elDesist) elDesist.textContent = d.desistencias || 0;
+  document.getElementById('fchAtendidos').textContent = d.totalAtendidos || 0;
+  document.getElementById('fchDesistencias').textContent = d.desistencias || 0;
+  document.getElementById('fchManha').textContent = d.atendidosManha || 0;
+  document.getElementById('fchTarde').textContent = d.atendidosTarde || 0;
 
-  // Turnos
-  const elManha = document.getElementById('fchManha');
-  const elTarde = document.getElementById('fchTarde');
-  if (elManha) elManha.textContent = d.atendidosManha || 0;
-  if (elTarde) elTarde.textContent = d.atendidosTarde || 0;
-
-  // Total urgências / intercorrências
   const urgenciasCount = (d.porTipo || [])
     .filter(t => t.tipo_atendimento && (t.tipo_atendimento.includes('Intercorrência') || t.tipo_atendimento.includes('Urgência')))
     .reduce((acc, t) => acc + parseInt(t.total, 10), 0);
-  if (elUrg) elUrg.textContent = urgenciasCount;
+  document.getElementById('fchUrgencias').textContent = urgenciasCount;
 
-  // Agendamentos total
   const agendTotal = (d.agendamentos || []).reduce((acc, a) => acc + parseInt(a.total, 10), 0);
-  if (elAgend) elAgend.textContent = agendTotal;
+  document.getElementById('fchAgendamentos').textContent = agendTotal;
 
-  // Tabela por setor
   const setorTbody = document.getElementById('fchSetorTbody');
   if (setorTbody) {
     if (!d.porSetor || d.porSetor.length === 0) {
-      setorTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum atendimento registrado no dia selecionado (${formatDateBR(d.data)}).</td></tr>`;
+      setorTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum atendimento registrado no dia selecionado (${escHtml(formatDateBR(d.data))}).</td></tr>`;
     } else {
       setorTbody.innerHTML = d.porSetor.map(s => {
         const pct = d.totalAtendidos > 0 ? ((parseInt(s.total, 10) / d.totalAtendidos) * 100).toFixed(1) : 0;
         return `<tr>
-          <td style="font-weight:700;color:var(--white);">🏥 ${s.setor}</td>
-          <td style="font-weight:800;color:var(--green);">${s.total}</td>
-          <td style="color:var(--gray-300);">${pct}%</td>
+          <td style="font-weight:700;color:var(--white);">🏥 ${escHtml(s.setor)}</td>
+          <td style="font-weight:800;color:var(--green);">${Number(s.total)}</td>
+          <td style="color:var(--gray-300);">${escHtml(pct)}%</td>
         </tr>`;
       }).join('');
     }
   }
 
-  // Tabela por profissional
   const profTbody = document.getElementById('fchProfTbody');
   if (profTbody) {
     if (!d.porProfissional || d.porProfissional.length === 0) {
-      profTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum profissional com chamadas em ${formatDateBR(d.data)}.</td></tr>`;
+      profTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--gray-300);padding:16px;">Nenhum profissional com chamadas em ${escHtml(formatDateBR(d.data))}.</td></tr>`;
     } else {
       profTbody.innerHTML = d.porProfissional.map(p => {
         const nomeProf = formatProfissionalNome(p.profissional, p.setor);
         return `<tr>
-          <td style="font-weight:700;color:var(--white);">👨‍⚕️ ${nomeProf}</td>
-          <td><span style="display:inline-block;padding:2px 8px;border-radius:6px;background:rgba(26,79,196,0.25);color:var(--gray-100);font-size:12px;font-weight:700;">${p.setor}</span></td>
-          <td style="font-weight:800;color:var(--green);">${p.total}</td>
+          <td style="font-weight:700;color:var(--white);">👨‍⚕️ ${escHtml(nomeProf)}</td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:6px;background:rgba(26,79,196,0.25);color:var(--gray-100);font-size:12px;font-weight:700;">${escHtml(p.setor)}</span></td>
+          <td style="font-weight:800;color:var(--green);">${Number(p.total)}</td>
         </tr>`;
       }).join('');
     }
@@ -884,71 +1275,60 @@ function renderFechamentoDiario() {
 }
 
 async function copiarFechamentoWhatsAppDash() {
-  if (!fechamentoData) {
-    await loadFechamentoDiario();
-  }
+  if (!fechamentoData) await loadFechamentoDiario();
   const rep = getFechamentoDataSafe();
-  const dataFmt = typeof formatDateBR === 'function' ? formatDateBR(rep.data) : rep.data;
-  
+  const dataFmt = formatDateBR(rep.data);
+
   let txt = `📋 *FECHAMENTO DIÁRIO DO EXPEDIENTE*\n🏥 *USF Chico Mendes*\n📅 Data: *${dataFmt}*\n\n`;
   txt += `✅ *Total de Atendidos:* ${rep.totalAtendidos}\n`;
   txt += `☀️ *Turno Manhã (até 12h):* ${rep.atendidosManha || 0}\n`;
   txt += `🌙 *Turno Tarde (após 12h):* ${rep.atendidosTarde || 0}\n`;
   txt += `🚶 *Desistências:* ${rep.desistencias}\n`;
-  
+
   const urgCount = (rep.porTipo || [])
     .filter(t => t.tipo_atendimento && (t.tipo_atendimento.includes('Intercorrência') || t.tipo_atendimento.includes('Urgência')))
     .reduce((acc, t) => acc + parseInt(t.total, 10), 0);
-  if (urgCount > 0) {
-    txt += `🚨 *Intercorrências / Urgências:* ${urgCount}\n`;
-  }
-  
+  if (urgCount > 0) txt += `🚨 *Intercorrências / Urgências:* ${urgCount}\n`;
+
   const agendTotal = (rep.agendamentos || []).reduce((acc, a) => acc + parseInt(a.total, 10), 0);
-  if (agendTotal > 0) {
-    txt += `🗂️ *Encaminhados Agendamento:* ${agendTotal}\n`;
-  }
-  
+  if (agendTotal > 0) txt += `🗂️ *Encaminhados Agendamento:* ${agendTotal}\n`;
+
   txt += `\n📊 *ATENDIMENTOS POR SETOR:*\n`;
   (rep.porSetor || []).forEach(s => {
     const pct = rep.totalAtendidos > 0 ? ((parseInt(s.total, 10) / rep.totalAtendidos) * 100).toFixed(0) : 0;
     txt += `• ${s.setor}: *${s.total}* (${pct}%)\n`;
   });
-  
+
   if (rep.porProfissional && rep.porProfissional.length > 0) {
     txt += `\n👨‍⚕️ *ATENDIMENTOS POR PROFISSIONAL:*\n`;
     rep.porProfissional.forEach(p => {
-      const nomeProf = formatProfissionalNome(p.profissional, p.setor);
-      txt += `• ${nomeProf} (${p.setor}): *${p.total}*\n`;
+      txt += `• ${formatProfissionalNome(p.profissional, p.setor)} (${p.setor}): *${p.total}*\n`;
     });
   }
-
   txt += `\n— *Sistema de Gestão USF Chico Mendes* 💙`;
 
   navigator.clipboard.writeText(txt).then(() => {
-    alert('📋 Relatório copiado para o WhatsApp com sucesso!');
-  }).catch(() => {
-    prompt('Copie o texto para enviar no WhatsApp:', txt);
-  });
+    setDashStatusBanner('📋 Relatório de fechamento copiado para a área de transferência!');
+    setTimeout(() => setDashStatusBanner(''), 3500);
+  }).catch(() => prompt('Copie o texto para enviar no WhatsApp:', txt));
 }
 
 async function imprimirFechamentoDash() {
-  if (!fechamentoData) {
-    await loadFechamentoDiario();
-  }
+  if (!fechamentoData) await loadFechamentoDiario();
   const rep = getFechamentoDataSafe();
-  const dataFmt = typeof formatDateBR === 'function' ? formatDateBR(rep.data) : rep.data;
+  const dataFmt = formatDateBR(rep.data);
   const win = window.open('', '_blank');
   if (!win) {
-    alert('O navegador bloqueou a janela pop-up de impressão. Por favor, permita pop-ups ou utilize o botão "📄 Baixar PDF do Fechamento".');
+    setDashStatusBanner('Permita pop-ups para imprimir ou use "Baixar PDF do Fechamento".');
     return;
   }
 
-  let html = `
-    <!DOCTYPE html>
+  const horaAgora = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' });
+  const html = `<!DOCTYPE html>
     <html lang="pt-BR">
     <head>
       <meta charset="UTF-8">
-      <title>Relatório de Fechamento - ${dataFmt}</title>
+      <title>Relatório de Fechamento - ${escHtml(dataFmt)}</title>
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #1e293b; background: #fff; line-height: 1.5; }
         .header { text-align: center; border-bottom: 2px solid #0f3491; padding-bottom: 12px; margin-bottom: 20px; }
@@ -964,28 +1344,21 @@ async function imprimirFechamentoDash() {
         th { background: #f1f5f9; color: #0f3491; font-weight: 700; }
         .actions-bar { margin-bottom: 16px; display: flex; gap: 8px; }
         .btn { background: #0f3491; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        @media print {
-          .actions-bar { display: none !important; }
-          body { padding: 0; }
-        }
+        @media print { .actions-bar { display: none !important; } body { padding: 0; } }
       </style>
     </head>
     <body>
-      <div class="actions-bar">
-        <button class="btn" onclick="window.print()">🖨️ Imprimir Agora</button>
-      </div>
+      <div class="actions-bar"><button class="btn" onclick="window.print()">🖨️ Imprimir Agora</button></div>
       <div class="header">
         <h2>📋 Relatório de Fechamento do Expediente</h2>
-        <div class="sub">USF Chico Mendes — Data: <b>${dataFmt}</b> (Emitido em ${new Date().toLocaleTimeString('pt-BR')})</div>
+        <div class="sub">USF Chico Mendes — Data: <b>${escHtml(dataFmt)}</b> (Emitido em ${escHtml(horaAgora)})</div>
       </div>
-      
       <div class="kpi-row">
-        <div class="kpi-box"><div class="kpi-lbl">Total Atendidos</div><div class="kpi-val" style="color:#2e7d32;">${rep.totalAtendidos}</div></div>
-        <div class="kpi-box"><div class="kpi-lbl">Manhã (até 12h)</div><div class="kpi-val" style="color:#f59e0b;">${rep.atendidosManha || 0}</div></div>
-        <div class="kpi-box"><div class="kpi-lbl">Tarde (após 12h)</div><div class="kpi-val" style="color:#7c3aed;">${rep.atendidosTarde || 0}</div></div>
-        <div class="kpi-box"><div class="kpi-lbl">Desistências</div><div class="kpi-val" style="color:#dc2626;">${rep.desistencias}</div></div>
+        <div class="kpi-box"><div class="kpi-lbl">Total Atendidos</div><div class="kpi-val" style="color:#2e7d32;">${Number(rep.totalAtendidos || 0)}</div></div>
+        <div class="kpi-box"><div class="kpi-lbl">Manhã (até 12h)</div><div class="kpi-val" style="color:#f59e0b;">${Number(rep.atendidosManha || 0)}</div></div>
+        <div class="kpi-box"><div class="kpi-lbl">Tarde (após 12h)</div><div class="kpi-val" style="color:#7c3aed;">${Number(rep.atendidosTarde || 0)}</div></div>
+        <div class="kpi-box"><div class="kpi-lbl">Desistências</div><div class="kpi-val" style="color:#dc2626;">${Number(rep.desistencias || 0)}</div></div>
       </div>
-
       <h3>🏥 Atendimentos por Setor</h3>
       <table>
         <thead><tr><th>Setor</th><th>Total</th><th>% do Total</th></tr></thead>
@@ -993,75 +1366,54 @@ async function imprimirFechamentoDash() {
           ${(rep.porSetor && rep.porSetor.length > 0)
             ? rep.porSetor.map(s => {
                 const pct = rep.totalAtendidos > 0 ? ((parseInt(s.total, 10) / rep.totalAtendidos) * 100).toFixed(1) + '%' : '0%';
-                return `<tr><td>${s.setor}</td><td><b>${s.total}</b></td><td>${pct}</td></tr>`;
+                return `<tr><td>${escHtml(s.setor)}</td><td><b>${Number(s.total)}</b></td><td>${escHtml(pct)}</td></tr>`;
               }).join('')
             : '<tr><td colspan="3" style="text-align:center;color:#64748b;">Nenhum atendimento registrado.</td></tr>'}
         </tbody>
       </table>
-
       <h3>👨‍⚕️ Atendimentos por Profissional</h3>
       <table>
         <thead><tr><th>Profissional</th><th>Setor</th><th>Total</th></tr></thead>
         <tbody>
           ${(rep.porProfissional && rep.porProfissional.length > 0)
-            ? rep.porProfissional.map(p => {
-                const nomeProf = formatProfissionalNome(p.profissional, p.setor);
-                return `<tr><td><b>${nomeProf}</b></td><td>${p.setor}</td><td><b>${p.total}</b></td></tr>`;
-              }).join('')
+            ? rep.porProfissional.map(p => `<tr><td><b>${escHtml(formatProfissionalNome(p.profissional, p.setor))}</b></td><td>${escHtml(p.setor)}</td><td><b>${Number(p.total)}</b></td></tr>`).join('')
             : '<tr><td colspan="3" style="text-align:center;color:#64748b;">Nenhum profissional com chamadas.</td></tr>'}
         </tbody>
       </table>
     </body>
-    </html>
-  `;
+    </html>`;
   win.document.write(html);
   win.document.close();
   win.focus();
-  setTimeout(() => {
-    try { win.print(); } catch(e) {}
-  }, 350);
+  setTimeout(() => { try { win.print(); } catch (e) {} }, 350);
 }
 
-// ====== EXPORTAR FECHAMENTO DIÁRIO EM PDF ======
 async function exportarFechamentoPDF() {
-  if (!window.jspdf) {
-    alert('Aguarde o carregamento das bibliotecas do sistema...');
-    return;
-  }
-  
+  if (!window.jspdf) { setDashStatusBanner('Aguarde o carregamento das bibliotecas de PDF.'); return; }
   const btn = document.getElementById('btnExportFechamentoPDF');
   const origText = btn ? btn.textContent : '';
-  if (btn) {
-    btn.textContent = '⏳ Gerando PDF...';
-    btn.disabled = true;
-  }
+  if (btn) { btn.textContent = '⏳ Gerando PDF...'; btn.disabled = true; }
 
   try {
-    if (!fechamentoData) {
-      await loadFechamentoDiario();
-    }
+    if (!fechamentoData) await loadFechamentoDiario();
     const rep = getFechamentoDataSafe();
-    const dataFmt = typeof formatDateBR === 'function' ? formatDateBR(rep.data) : rep.data;
+    const dataFmt = formatDateBR(rep.data);
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('portrait', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Top Header Banner
     doc.setFillColor(15, 52, 145);
     doc.rect(0, 0, pageWidth, 28, 'F');
-
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.text('Relatório de Fechamento Diário do Expediente', pageWidth / 2, 12, { align: 'center' });
-
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.text(`USF Chico Mendes — Data de Referência: ${dataFmt}`, pageWidth / 2, 18, { align: 'center' });
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 24, { align: 'center' });
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Recife' })} às ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' })}`, pageWidth / 2, 24, { align: 'center' });
 
-    // 1. Indicadores Gerais
     let startY = 36;
     doc.setTextColor(30, 41, 59);
     doc.setFont('helvetica', 'bold');
@@ -1073,20 +1425,18 @@ async function exportarFechamentoPDF() {
       .reduce((acc, t) => acc + parseInt(t.total, 10), 0);
     const agendTotal = (rep.agendamentos || []).reduce((acc, a) => acc + parseInt(a.total, 10), 0);
 
-    const kpiRows = [
-      ['Total de Pacientes Atendidos', (rep.totalAtendidos || 0).toString()],
-      ['Turno Manhã (até 12h)', (rep.atendidosManha || 0).toString()],
-      ['Turno Tarde (após 12h)', (rep.atendidosTarde || 0).toString()],
-      ['Desistências Registradas', (rep.desistencias || 0).toString()],
-      ['Intercorrências / Urgências', urgCount.toString()],
-      ['Encaminhados para Agendamento', agendTotal.toString()]
-    ];
-
     if (typeof doc.autoTable === 'function') {
       doc.autoTable({
         startY: startY + 4,
         head: [['Indicador', 'Quantidade']],
-        body: kpiRows,
+        body: [
+          ['Total de Pacientes Atendidos', String(rep.totalAtendidos || 0)],
+          ['Turno Manhã (até 12h)', String(rep.atendidosManha || 0)],
+          ['Turno Tarde (após 12h)', String(rep.atendidosTarde || 0)],
+          ['Desistências Registradas', String(rep.desistencias || 0)],
+          ['Intercorrências / Urgências', String(urgCount)],
+          ['Encaminhados para Agendamento', String(agendTotal)]
+        ],
         theme: 'striped',
         headStyles: { fillColor: [26, 79, 196], textColor: 255, fontStyle: 'bold' },
         styles: { fontSize: 9.5, cellPadding: 3 },
@@ -1095,16 +1445,12 @@ async function exportarFechamentoPDF() {
       startY = doc.lastAutoTable.finalY + 10;
     }
 
-    // 2. Atendimentos por Setor
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.text('2. Atendimentos por Setor', 14, startY);
 
     const setorRows = (rep.porSetor && rep.porSetor.length > 0)
-      ? rep.porSetor.map(s => {
-          const pct = rep.totalAtendidos > 0 ? ((parseInt(s.total, 10) / rep.totalAtendidos) * 100).toFixed(1) + '%' : '0%';
-          return [s.setor, s.total.toString(), pct];
-        })
+      ? rep.porSetor.map(s => [s.setor, String(s.total), rep.totalAtendidos > 0 ? ((parseInt(s.total, 10) / rep.totalAtendidos) * 100).toFixed(1) + '%' : '0%'])
       : [['Nenhum atendimento no dia', '0', '0%']];
 
     if (typeof doc.autoTable === 'function') {
@@ -1120,18 +1466,13 @@ async function exportarFechamentoPDF() {
       startY = doc.lastAutoTable.finalY + 10;
     }
 
-    // 3. Atendimentos por Profissional
-    if (startY > 225) {
-      doc.addPage();
-      startY = 20;
-    }
-
+    if (startY > 225) { doc.addPage(); startY = 20; }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.text('3. Atendimentos por Profissional', 14, startY);
 
     const profRows = (rep.porProfissional && rep.porProfissional.length > 0)
-      ? rep.porProfissional.map(p => [formatProfissionalNome(p.profissional, p.setor), p.setor, p.total.toString()])
+      ? rep.porProfissional.map(p => [formatProfissionalNome(p.profissional, p.setor), p.setor, String(p.total)])
       : [['Nenhum profissional com chamadas registradas', '-', '0']];
 
     if (typeof doc.autoTable === 'function') {
@@ -1146,30 +1487,252 @@ async function exportarFechamentoPDF() {
       });
     }
 
-    const dataSanitized = (rep.data || 'usf').replace(/\//g, '-');
-    doc.save(`fechamento_diario_${dataSanitized}.pdf`);
+    doc.save(`fechamento_diario_${String(rep.data || 'usf').replace(/\//g, '-')}.pdf`);
   } catch (err) {
-    console.error('Erro ao exportar PDF do fechamento:', err);
-    alert('Erro ao gerar PDF do fechamento: ' + err.message);
+    setDashStatusBanner('Erro ao gerar PDF do fechamento: ' + (err.message || err));
   } finally {
-    if (btn) {
-      btn.textContent = origText;
-      btn.disabled = false;
-    }
+    if (btn) { btn.textContent = origText; btn.disabled = false; }
   }
 }
 
-// ====== COLETAS DE SANGUE (COM DIA PADRÃO E LIVRE SELEÇÃO) ======
+// ====== PRIORIDADES & ALUMIA ======
+async function loadPrioridadesAlumia() {
+  if (!dashboardUnlocked) return;
+  try {
+    const tipoPeriodo = document.getElementById('prioPeriodoTipo')?.value || 'dia';
+    const turno = document.getElementById('prioTurno')?.value || 'integral';
+    const dataSel = document.getElementById('dashDateFilter')?.value || getTodayDateRecife();
+
+    let dataInicio = dataSel;
+    let dataFim = dataSel;
+    if (tipoPeriodo === '7d') {
+      dataFim = getTodayDateRecife();
+      dataInicio = getOffsetDateRecife(-6);
+    } else if (tipoPeriodo === '30d') {
+      dataFim = getTodayDateRecife();
+      dataInicio = getOffsetDateRecife(-29);
+    }
+
+    const r = await apiDashFetch(`${API_URL}/admin/relatorio-prioridade-busca?data_inicio=${encodeURIComponent(dataInicio)}&data_fim=${encodeURIComponent(dataFim)}&periodo=${encodeURIComponent(turno)}`);
+    if (!r || !r.ok) return;
+    prioridadesData = await r.json();
+    renderPrioridadesAlumia();
+  } catch (e) {
+    console.warn('Erro ao carregar Prioridades & alumIA:', e);
+  }
+}
+
+function renderPrioridadesAlumia() {
+  const d = prioridadesData;
+  if (!d) return;
+  const f = d.filtro || {};
+  const lbl = document.getElementById('prioPeriodoLabel');
+  if (lbl) lbl.textContent = `Período: ${formatDateBR(f.data_inicio)} até ${formatDateBR(f.data_fim)} (${f.periodo || 'integral'})`;
+
+  const niveis = (d.parteA && Array.isArray(d.parteA.por_nivel)) ? d.parteA.por_nivel : [];
+  const regraA = d.parteA?.regra_a_acionada || 0;
+  const nivelCores = { 1: '#e53935', 2: '#f9c823', 3: '#4aab3c' };
+
+  document.getElementById('prioNiveisGrid').innerHTML = niveis.map(n => `
+    <div class="metric-card">
+      <div class="metric-icon">${n.nivel === 1 ? '🏅' : (n.nivel === 2 ? '🟡' : '🟢')}</div>
+      <div class="metric-value" style="color:${nivelCores[n.nivel] || 'var(--white)'};">${Number(n.media_espera_min || 0)} min</div>
+      <div class="metric-label">${escHtml(n.descricao)}</div>
+      <div class="metric-sub">${Number(n.total_chamados || 0)} chamados · Máx: ${Number(n.max_espera_min || 0)} min</div>
+    </div>
+  `).join('') + `
+    <div class="metric-card">
+      <div class="metric-icon">⚖️</div>
+      <div class="metric-value" style="color:var(--orange);">${Number(regraA)}</div>
+      <div class="metric-label">Regra (a) Acionada</div>
+      <div class="metric-sub">80+ anos priorizado</div>
+    </div>
+  `;
+
+  const pB = d.parteB || {};
+  document.getElementById('prioBuscaGrid').innerHTML = `
+    <div class="metric-card"><div class="metric-icon">🔍</div><div class="metric-value" style="color:#60a5fa;">${Number(pB.total_pacientes_busca_ativa || 0)}</div><div class="metric-label">Pacientes Busca Ativa (alumIA)</div></div>
+    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${Number(pB.total_pacientes_com_oferta || 0)}</div><div class="metric-label">Com Oferta Feita</div></div>
+    <div class="metric-card"><div class="metric-icon">📈</div><div class="metric-value" style="color:var(--yellow);">${Number(pB.percentual_geral_oferta || 0)}%</div><div class="metric-label">% Cobertura de Oferta</div></div>
+  `;
+
+  const tbody = document.getElementById('prioMotivosTbody');
+  const motivos = Array.isArray(pB.por_motivo) ? pB.por_motivo : [];
+  if (!motivos.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-300);padding:18px;">Nenhum registro de busca ativa no período selecionado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = motivos.map(m => `
+    <tr>
+      <td style="font-weight:700;">${escHtml(m.descricao)} ${m.ativo === false ? '<span class="tag-meta tag-danger">Inativo</span>' : ''}</td>
+      <td>${escHtml(m.setor_sugerido || '—')}</td>
+      <td style="font-weight:800;">${Number(m.total_pacientes || 0)}</td>
+      <td style="font-weight:800;color:var(--green);">${Number(m.total_ofertados || 0)}</td>
+      <td><span class="tag-meta ${Number(m.percentual_ofertado) >= 75 ? 'tag-ok' : (Number(m.percentual_ofertado) >= 40 ? 'tag-warning' : 'tag-danger')}">${Number(m.percentual_ofertado || 0)}%</span></td>
+    </tr>
+  `).join('');
+}
+
+// ====== RESUMO OPERACIONAL (SISREG + AGENDAMENTOS + DISPOSITIVOS) ======
+async function loadResumoOperacional() {
+  if (!dashboardUnlocked) return;
+  try {
+    const data = document.getElementById('dashDateFilter')?.value || getTodayDateRecife();
+    const r = await apiDashFetch(`${API_URL}/dashboard/resumo-operacional?data=${encodeURIComponent(data)}`);
+    if (!r || !r.ok) return;
+    resumoOperacionalData = await r.json();
+    renderSisregEAgendamentos();
+    renderDispositivosPanel();
+  } catch (e) {
+    console.warn('Erro ao carregar resumo operacional:', e);
+  }
+}
+
+function renderSisregEAgendamentos() {
+  const d = resumoOperacionalData;
+  if (!d) return;
+  const s = d.sisreg || {};
+  const ag = d.agendamento || {};
+
+  const abertasSisreg = Number(s.pendentes || 0) + Number(s.respondidas || 0);
+  const badgeSisreg = document.getElementById('badgeTabSisreg');
+  if (badgeSisreg) {
+    badgeSisreg.textContent = String(abertasSisreg);
+    badgeSisreg.style.display = abertasSisreg > 0 ? 'inline-block' : 'none';
+  }
+
+  const kbAnexos = Math.round((Number(s.total_bytes || 0)) / 1024);
+  document.getElementById('sisregKpisGrid').innerHTML = `
+    <div class="metric-card"><div class="metric-icon">⏳</div><div class="metric-value" style="color:var(--yellow);">${Number(s.pendentes || 0)}</div><div class="metric-label">Pendentes (Aguard. Setor)</div></div>
+    <div class="metric-card"><div class="metric-icon">💬</div><div class="metric-value" style="color:var(--green);">${Number(s.respondidas || 0)}</div><div class="metric-label">Respondidas (Prontas SISREG)</div></div>
+    <div class="metric-card ${Number(s.vencidas || 0) > 0 ? 'alert' : ''}"><div class="metric-icon">⚠️</div><div class="metric-value" style="color:var(--red);">${Number(s.vencidas || 0)}</div><div class="metric-label">Prazo Vencido</div></div>
+    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:#60a5fa;">${Number(s.corrigidas || 0)}</div><div class="metric-label">Corrigidas no SISREG</div></div>
+    <div class="metric-card"><div class="metric-icon">📎</div><div class="metric-value" style="color:var(--orange);font-size:24px;">${Number(s.total_anexos || 0)} (${kbAnexos} KB)</div><div class="metric-label">Anexos em Banco</div></div>
+  `;
+
+  const setoresRows = Array.isArray(s.por_setor) ? s.por_setor : [];
+  const sisregTbody = document.getElementById('sisregSetorTbody');
+  if (!setoresRows.length) {
+    sisregTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-300);padding:18px;">Nenhuma devolução SISREG registrada.</td></tr>';
+  } else {
+    sisregTbody.innerHTML = setoresRows.map(row => `
+      <tr>
+        <td style="font-weight:800;">${escHtml(row.setor)}</td>
+        <td style="color:var(--yellow);font-weight:800;">${Number(row.pendentes || 0)}</td>
+        <td style="color:var(--green);font-weight:800;">${Number(row.respondidas || 0)}</td>
+        <td style="color:${Number(row.vencidas || 0) > 0 ? 'var(--red)' : 'var(--gray-300)'};font-weight:800;">${Number(row.vencidas || 0)}</td>
+        <td style="color:#93c5fd;font-weight:800;">${Number(row.corrigidas || 0)}</td>
+      </tr>
+    `).join('');
+  }
+
+  document.getElementById('agendResumoDataLbl').textContent = formatDateBR(d.data || getTodayDateRecife());
+  document.getElementById('agendKpisGrid').innerHTML = `
+    <div class="metric-card"><div class="metric-icon">🗂️</div><div class="metric-value" style="color:#60a5fa;">${Number(ag.total || 0)}</div><div class="metric-label">Total Encaminhados Dia</div></div>
+    <div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value" style="color:var(--green);">${Number(ag.agendados || 0)}</div><div class="metric-label">Agendados</div></div>
+    <div class="metric-card"><div class="metric-icon">⏳</div><div class="metric-value" style="color:var(--orange);">${Number(ag.pendentes || 0)}</div><div class="metric-label">Aguardando Agendar</div></div>
+    <div class="metric-card"><div class="metric-icon">🩺</div><div class="metric-value" style="color:var(--yellow);">${Number(ag.consultas || 0)}</div><div class="metric-label">Consultas</div></div>
+    <div class="metric-card"><div class="metric-icon">🩸</div><div class="metric-value" style="color:#f472b6;">${Number(ag.coletas || 0)}</div><div class="metric-label">Coletas de Sangue</div></div>
+  `;
+}
+
+function renderDispositivosPanel() {
+  const disp = resumoOperacionalData?.dispositivos || {};
+  const onlineCount = Number(disp.online || 0);
+
+  document.getElementById('dashActiveUsers').textContent = String(onlineCount);
+  const badgeDev = document.getElementById('badgeTabDevices');
+  if (badgeDev) {
+    badgeDev.textContent = String(onlineCount);
+    badgeDev.style.display = onlineCount > 0 ? 'inline-block' : 'none';
+  }
+
+  const grid = document.getElementById('dispKpisGrid');
+  if (grid) {
+    grid.innerHTML = `
+      <div class="metric-card"><div class="metric-icon">🟢</div><div class="metric-value" style="color:var(--green);">${onlineCount}</div><div class="metric-label">Online Agora (&lt;2 min)</div></div>
+      <div class="metric-card"><div class="metric-icon">💻</div><div class="metric-value" style="color:#60a5fa;">${Number(disp.total || 0)}</div><div class="metric-label">Total Estações</div></div>
+      <div class="metric-card"><div class="metric-icon">🏷️</div><div class="metric-value" style="color:var(--green);">${Number(disp.com_nome || 0)}</div><div class="metric-label">Com Nome Cadastrado</div></div>
+      <div class="metric-card ${Number(disp.sem_nome || 0) > 0 ? 'alert' : ''}"><div class="metric-icon">⚠️</div><div class="metric-value" style="color:var(--orange);">${Number(disp.sem_nome || 0)}</div><div class="metric-label">Sem Nome</div></div>
+      <div class="metric-card"><div class="metric-icon">🚫</div><div class="metric-value" style="color:var(--red);">${Number(disp.bloqueados || 0)}</div><div class="metric-label">Bloqueados</div></div>
+      <div class="metric-card"><div class="metric-icon">🛡️</div><div class="metric-value" style="color:${disp.bloquear_sem_nome ? 'var(--green)' : 'var(--yellow)'};font-size:20px;margin-top:4px;">${disp.bloquear_sem_nome ? 'ATIVO' : 'INATIVO'}</div><div class="metric-label">Bloqueio Sem Nome</div></div>
+    `;
+  }
+
+  const tbody = document.getElementById('dispositivosTbody');
+  if (!tbody) return;
+  const search = (document.getElementById('dispSearchInput')?.value || '').trim().toLowerCase();
+  const statusFlt = document.getElementById('dispStatusFilter')?.value || 'todos';
+  const lista = Array.isArray(disp.lista) ? disp.lista : [];
+
+  const filtered = lista.filter(item => {
+    if (statusFlt === 'online' && !item.online) return false;
+    if (statusFlt === 'sem_nome' && !item.sem_nome) return false;
+    if (statusFlt === 'bloqueado' && item.ativo !== false) return false;
+    if (search) {
+      const hay = `${item.nome || ''} ${item.setor || ''} ${item.ultimo_ip || ''} ${item.id || ''}`.toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-300);padding:18px;">Nenhum dispositivo encontrado para este filtro.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(item => {
+    const statusTag = item.ativo === false
+      ? '<span class="tag-meta tag-danger">🚫 Bloqueado</span>'
+      : (item.online
+        ? '<span class="tag-meta tag-ok">🟢 Online</span>'
+        : '<span class="tag-meta" style="background:rgba(148,163,184,0.2);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);">⚫ Offline</span>');
+    const nomeBadge = item.sem_nome
+      ? `<span style="color:var(--orange);font-weight:800;">⚠️ Sem nome</span>`
+      : `<strong>${escHtml(item.nome)}</strong>`;
+    return `
+      <tr>
+        <td>${statusTag}</td>
+        <td>${nomeBadge}</td>
+        <td>${escHtml(item.setor || '—')}</td>
+        <td style="font-family:monospace;font-size:12.5px;color:#cbd5e1;">${escHtml(item.ultimo_ip || '—')}</td>
+        <td style="color:var(--gray-300);">${escHtml(formatDateTimeRecife(item.ultimo_acesso))}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ====== COLETAS DE SANGUE (RECIFE TIMEZONE + ESCAPEHTML) ======
+function calcFaltasAuto() {
+  const agendados = parseInt(document.getElementById('coleta-agendados').value, 10) || 0;
+  const realizados = parseInt(document.getElementById('coleta-realizados').value, 10) || 0;
+  document.getElementById('coleta-faltas').value = Math.max(0, agendados - realizados);
+}
+
+function setColetaDiaShortcut(dia) {
+  const targetMap = { quarta: 3, quinta: 4, sexta: 5 };
+  const targetDay = targetMap[dia];
+  if (targetDay === undefined) return;
+  const baseDate = parseDateParts(getTodayDateRecife()) || new Date();
+  const diff = targetDay - baseDate.getDay();
+  baseDate.setDate(baseDate.getDate() + diff);
+  const dateStr = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
+  document.getElementById('coleta-data').value = dateStr;
+}
 
 async function loadColetasManual() {
+  if (!dashboardUnlocked) return;
   try {
-    const r = await fetch(`${API_URL}/dashboard/coletas-manual`);
-    coletasData = await r.json();
-    populateMesFilter();
-    renderColetasSection();
-  } catch(e) {
+    const r = await apiDashFetch(`${API_URL}/dashboard/coletas-manual`);
+    if (r && r.ok) {
+      coletasData = await r.json();
+    } else {
+      coletasData = [];
+    }
+  } catch (e) {
     console.error('Erro ao carregar coletas:', e);
     coletasData = [];
+  } finally {
     populateMesFilter();
     renderColetasSection();
   }
@@ -1178,17 +1741,12 @@ async function loadColetasManual() {
 function populateMesFilter() {
   const select = document.getElementById('coletaMesFilter');
   if (!select) return;
-
   const monthsSet = new Set();
-  const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const currentMonthKey = getCurrentMonthRecife();
   monthsSet.add(currentMonthKey);
 
-  coletasData.forEach(c => {
-    if (c.data_coleta) {
-      const monthKey = c.data_coleta.substring(0, 7);
-      monthsSet.add(monthKey);
-    }
+  (coletasData || []).forEach(c => {
+    if (c.data_coleta) monthsSet.add(String(c.data_coleta).substring(0, 7));
   });
 
   const sortedMonths = Array.from(monthsSet).sort().reverse();
@@ -1196,40 +1754,35 @@ function populateMesFilter() {
 
   select.innerHTML = sortedMonths.map(mKey => {
     const [year, month] = mKey.split('-');
-    const label = `${MESES_NOME[parseInt(month) - 1]} / ${year}`;
-    return `<option value="${mKey}">${label}</option>`;
+    const label = `${MESES_NOME[parseInt(month, 10) - 1] || month} / ${year}`;
+    return `<option value="${escHtml(mKey)}">${escHtml(label)}</option>`;
   }).join('');
 
   select.value = sortedMonths.includes(prevVal) ? prevVal : sortedMonths[0];
 }
 
 function renderColetasSection() {
-  const monthKey = document.getElementById('coletaMesFilter')?.value || new Date().toISOString().substring(0, 7);
+  const monthKey = document.getElementById('coletaMesFilter')?.value || getCurrentMonthRecife();
   const visao = document.getElementById('coletaVisaoFilter')?.value || 'semanal';
-
-  const monthData = coletasData.filter(c => c.data_coleta && c.data_coleta.startsWith(monthKey));
+  const monthData = (coletasData || []).filter(c => c.data_coleta && String(c.data_coleta).startsWith(monthKey));
 
   renderColetasKPIs(monthData);
   renderColetasTable(monthData);
 
-  if (visao === 'semanal') {
-    renderColetasGraficoSemanal(monthKey, monthData);
-  } else {
-    renderColetasGraficoDiario(monthData);
-  }
+  if (visao === 'semanal') renderColetasGraficoSemanal(monthKey, monthData);
+  else renderColetasGraficoDiario(monthData);
 }
 
 function renderColetasKPIs(monthData) {
   const totalAgendados = monthData.reduce((s, c) => s + (c.agendados || 0), 0);
   const totalRealizados = monthData.reduce((s, c) => s + (c.realizados || 0), 0);
   const totalFaltas = monthData.reduce((s, c) => s + (c.faltas || 0), 0);
-  
   const eficacia = totalAgendados > 0 ? Math.round((totalRealizados / totalAgendados) * 100) : 0;
 
   document.getElementById('kpiAgendados').textContent = totalAgendados;
   document.getElementById('kpiRealizados').textContent = totalRealizados;
   document.getElementById('kpiFaltas').textContent = totalFaltas;
-  
+
   const kpiEfEl = document.getElementById('kpiEficacia');
   kpiEfEl.textContent = eficacia + '%';
   kpiEfEl.style.color = eficacia >= 100 ? 'var(--green)' : eficacia >= 80 ? 'var(--yellow)' : 'var(--red)';
@@ -1237,66 +1790,62 @@ function renderColetasKPIs(monthData) {
 
 function renderColetasTable(monthData) {
   const tbody = document.getElementById('coletasTable');
+  if (!tbody) return;
   if (!monthData.length) {
     tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray-300);padding:24px;">Nenhum registro para este mês. Lance os dados no formulário ☝️</td></tr>';
     return;
   }
 
-  const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
-  
+  const sorted = [...monthData].sort((a, b) => String(b.data_coleta).localeCompare(String(a.data_coleta)));
   tbody.innerHTML = sorted.map(c => {
     const dayOfWeekNum = getDayOfWeekNumFromDateString(c.data_coleta);
     const diaSemana = getDayOfWeekFromDateString(c.data_coleta);
     const dataBR = formatDateBR(c.data_coleta);
     const atingiuMeta = c.realizados >= META_DIARIA;
     const pctMeta = Math.round((c.realizados / META_DIARIA) * 100);
-    
     const isDiaPadrao = [3, 4, 5].includes(dayOfWeekNum);
-    const tipoTag = isDiaPadrao 
-      ? '<span class="tag-dia-padrao">🟢 Dia Padrão</span>' 
-      : '<span class="tag-dia-extra">🟣 Dia Livre/Extra</span>';
+    const tipoTag = isDiaPadrao ? '<span class="tag-dia-padrao">🟢 Dia Padrão</span>' : '<span class="tag-dia-extra">🟣 Dia Livre/Extra</span>';
 
     let statusTag;
     if (pctMeta >= 100) statusTag = '<span class="tag-meta tag-ok">✅ Meta Atingida</span>';
-    else if (pctMeta >= 80) statusTag = '<span class="tag-meta tag-warning">⚠️ ' + pctMeta + '%</span>';
-    else statusTag = '<span class="tag-meta tag-danger">❌ ' + pctMeta + '%</span>';
-    
+    else if (pctMeta >= 80) statusTag = `<span class="tag-meta tag-warning">⚠️ ${pctMeta}%</span>`;
+    else statusTag = `<span class="tag-meta tag-danger">❌ ${pctMeta}%</span>`;
+
     return `<tr>
-      <td style="font-weight:700;">${dataBR}</td>
-      <td style="font-weight:700; color:var(--yellow);">${diaSemana}</td>
+      <td style="font-weight:700;">${escHtml(dataBR)}</td>
+      <td style="font-weight:700; color:var(--yellow);">${escHtml(diaSemana)}</td>
       <td>${tipoTag}</td>
-      <td style="font-weight:800;color:var(--blue);">${c.agendados}</td>
-      <td style="font-weight:800;color:${atingiuMeta ? 'var(--green)' : 'var(--orange)'};">${c.realizados}</td>
-      <td style="font-weight:800;color:${c.faltas > 0 ? 'var(--red)' : 'var(--gray-300)'};">${c.faltas}</td>
+      <td style="font-weight:800;color:var(--blue);">${Number(c.agendados || 0)}</td>
+      <td style="font-weight:800;color:${atingiuMeta ? 'var(--green)' : 'var(--orange)'};">${Number(c.realizados || 0)}</td>
+      <td style="font-weight:800;color:${c.faltas > 0 ? 'var(--red)' : 'var(--gray-300)'};">${Number(c.faltas || 0)}</td>
       <td>${META_DIARIA}</td>
       <td>${statusTag}</td>
-      <td style="font-size:12px;color:var(--gray-300);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.observacoes||''}">${c.observacoes || '—'}</td>
-      <td><button class="btn-delete" onclick="deletarColeta(${c.id})">🗑️</button></td>
+      <td style="font-size:12px;color:var(--gray-300);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(c.observacoes || '')}">${escHtml(c.observacoes || '—')}</td>
+      <td><button class="btn-delete" onclick="deletarColeta(${Number(c.id)})">🗑️</button></td>
     </tr>`;
   }).join('');
 }
 
 function renderColetasGraficoSemanal(monthKey, monthData) {
   const [yearStr, monthStr] = monthKey.split('-');
-  const year = parseInt(yearStr);
-  const month = parseInt(monthStr);
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
 
   const semanasMap = [
-    { nome: 'Semana 1 (01-07)', start: 1, end: 7, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
-    { nome: 'Semana 2 (08-14)', start: 8, end: 14, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
-    { nome: 'Semana 3 (15-21)', start: 15, end: 21, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
-    { nome: 'Semana 4 (22-28)', start: 22, end: 28, agendados: 0, realizados: 0, faltas: 0, dias: 0 },
-    { nome: 'Semana 5 (29-31)', start: 29, end: 31, agendados: 0, realizados: 0, faltas: 0, dias: 0 }
+    { nome: 'Semana 1 (01-07)', start: 1, end: 7, agendados: 0, realizados: 0, faltas: 0 },
+    { nome: 'Semana 2 (08-14)', start: 8, end: 14, agendados: 0, realizados: 0, faltas: 0 },
+    { nome: 'Semana 3 (15-21)', start: 15, end: 21, agendados: 0, realizados: 0, faltas: 0 },
+    { nome: 'Semana 4 (22-28)', start: 22, end: 28, agendados: 0, realizados: 0, faltas: 0 },
+    { nome: 'Semana 5 (29-31)', start: 29, end: 31, agendados: 0, realizados: 0, faltas: 0 }
   ];
 
   monthData.forEach(c => {
-    const day = parseInt(c.data_coleta.split('-')[2]);
+    const day = parseInt(String(c.data_coleta).split('T')[0].split('-')[2], 10);
     const sem = semanasMap.find(s => day >= s.start && day <= s.end);
     if (sem) {
       sem.agendados += c.agendados || 0;
       sem.realizados += c.realizados || 0;
       sem.faltas += c.faltas || 0;
-      sem.dias += 1;
     }
   });
 
@@ -1305,8 +1854,8 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
   const realizadosData = semanasMap.map(s => s.realizados);
   const faltasData = semanasMap.map(s => s.faltas);
 
-  document.getElementById('chartPrincipalTitle').textContent = `📊 Desempenho por Semana em ${MESES_NOME[month-1]}/${year} (Dias Padrão: Quarta, Quinta e Sexta - Meta: 36 coletas/semana)`;
-  document.getElementById('chartComparativoTitle').textContent = `📈 Realizados vs Faltas por Semana em ${MESES_NOME[month-1]}/${year}`;
+  document.getElementById('chartPrincipalTitle').textContent = `📊 Desempenho por Semana em ${MESES_NOME[month - 1] || month}/${year} (Dias Padrão: Quarta, Quinta e Sexta - Meta: 36 coletas/semana)`;
+  document.getElementById('chartComparativoTitle').textContent = `📈 Realizados vs Faltas por Semana em ${MESES_NOME[month - 1] || month}/${year}`;
 
   if (coletasPrincipalChart) coletasPrincipalChart.destroy();
   coletasPrincipalChart = new Chart(document.getElementById('chartColetasPrincipal'), {
@@ -1319,11 +1868,7 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
         { label: 'Meta Semanal (36)', data: Array(5).fill(META_SEMANAL), type: 'line', borderColor: '#f4821e', borderDash: [6, 3], pointRadius: 0, borderWidth: 2, fill: false }
       ]
     },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } } }
   });
 
   if (coletasComparativoChart) coletasComparativoChart.destroy();
@@ -1334,14 +1879,10 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
       datasets: [
         { label: 'Realizados', data: realizadosData, backgroundColor: 'rgba(74,171,60,0.7)', borderRadius: 6 },
         { label: 'Faltas', data: faltasData, backgroundColor: 'rgba(229,57,53,0.6)', borderRadius: 6 },
-        { label: 'Meta Semanal (36)', type: 'line', data: Array(5).fill(META_SEMANAL), borderColor: '#f4821e', borderDash: [6,3], pointRadius: 0, borderWidth: 2, fill: false }
+        { label: 'Meta Semanal (36)', type: 'line', data: Array(5).fill(META_SEMANAL), borderColor: '#f4821e', borderDash: [6, 3], pointRadius: 0, borderWidth: 2, fill: false }
       ]
     },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { x: { stacked: true, ticks: { color: '#b8c8f0' } }, y: { stacked: true, ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } }, scales: { x: { stacked: true, ticks: { color: '#b8c8f0' } }, y: { stacked: true, ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 45 } } }
   });
 
   const efData = semanasMap.map(s => s.agendados > 0 ? Math.round((s.realizados / s.agendados) * 100) : 0);
@@ -1355,24 +1896,16 @@ function renderColetasGraficoSemanal(monthKey, monthData) {
       datasets: [
         { label: 'Eficácia (%)', data: efData, borderColor: '#4aab3c', backgroundColor: 'rgba(74,171,60,0.1)', fill: true, tension: 0.3, pointRadius: 4 },
         { label: 'Absenteísmo (%)', data: absData, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,0.1)', fill: true, tension: 0.3, pointRadius: 4 },
-        { label: 'Meta 100%', data: Array(5).fill(100), borderColor: 'rgba(249,200,35,0.5)', borderDash: [4,4], pointRadius: 0, fill: false }
+        { label: 'Meta 100%', data: Array(5).fill(100), borderColor: 'rgba(249,200,35,0.5)', borderDash: [4, 4], pointRadius: 0, fill: false }
       ]
     },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true, suggestedMax: 110 } }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true, suggestedMax: 110 } } }
   });
 }
 
 function renderColetasGraficoDiario(monthData) {
-  const sorted = [...monthData].sort((a, b) => new Date(a.data_coleta) - new Date(b.data_coleta));
-  const labels = sorted.map(c => {
-    const dataBR = formatDateBR(c.data_coleta).substring(0, 5);
-    const diaSemana = getDayOfWeekFromDateString(c.data_coleta);
-    return `${dataBR} (${diaSemana.substring(0, 3)})`;
-  });
+  const sorted = [...monthData].sort((a, b) => String(a.data_coleta).localeCompare(String(b.data_coleta)));
+  const labels = sorted.map(c => `${formatDateBR(c.data_coleta).substring(0, 5)} (${getDayOfWeekFromDateString(c.data_coleta).substring(0, 3)})`);
 
   document.getElementById('chartPrincipalTitle').textContent = `📊 Coletas por Dia (Detalhamento Diário)`;
   document.getElementById('chartComparativoTitle').textContent = `📈 Realizados vs Faltas por Dia`;
@@ -1388,11 +1921,7 @@ function renderColetasGraficoDiario(monthData) {
         { label: 'Meta Diária (12)', data: sorted.map(() => META_DIARIA), type: 'line', borderColor: '#f4821e', borderDash: [6, 3], pointRadius: 0, borderWidth: 2, fill: false }
       ]
     },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 18 } }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true, suggestedMax: 18 } } }
   });
 
   if (coletasComparativoChart) coletasComparativoChart.destroy();
@@ -1405,11 +1934,7 @@ function renderColetasGraficoDiario(monthData) {
         { label: 'Faltas', data: sorted.map(c => c.faltas), backgroundColor: 'rgba(229,57,53,0.6)', borderRadius: 4 }
       ]
     },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } }, scales: { x: { ticks: { color: '#b8c8f0' } }, y: { ticks: { color: '#b8c8f0' }, beginAtZero: true } } }
   });
 
   const efData = sorted.map(c => c.agendados > 0 ? Math.round((c.realizados / c.agendados) * 100) : 0);
@@ -1425,49 +1950,44 @@ function renderColetasGraficoDiario(monthData) {
         { label: 'Absenteísmo (%)', data: absData, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,0.1)', fill: true, tension: 0.3 }
       ]
     },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } },
-      scales: { x: { ticks: { color: '#b8c8f0' }, beginAtZero: true }, y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true } }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#b8c8f0', font: { weight: 700 } } } }, scales: { x: { ticks: { color: '#b8c8f0' }, beginAtZero: true }, y: { ticks: { color: '#b8c8f0', callback: v => v + '%' }, beginAtZero: true } } }
   });
 }
 
 async function salvarColeta() {
   const data_coleta = document.getElementById('coleta-data').value;
-  const agendados = parseInt(document.getElementById('coleta-agendados').value) || 0;
-  const realizados = parseInt(document.getElementById('coleta-realizados').value) || 0;
-  const faltas = parseInt(document.getElementById('coleta-faltas').value) || 0;
+  const agendados = parseInt(document.getElementById('coleta-agendados').value, 10) || 0;
+  const realizados = parseInt(document.getElementById('coleta-realizados').value, 10) || 0;
+  const faltas = parseInt(document.getElementById('coleta-faltas').value, 10) || 0;
   const observacoes = document.getElementById('coleta-obs').value.trim();
 
-  if (!data_coleta) { alert('Selecione a data da coleta!'); return; }
+  if (!data_coleta) { setDashStatusBanner('Selecione a data da coleta antes de salvar.'); return; }
 
   try {
-    const r = await fetch(`${API_URL}/dashboard/coletas-manual`, {
+    const r = await apiDashFetch(`${API_URL}/dashboard/coletas-manual`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data_coleta, agendados, realizados, faltas, observacoes })
     });
-    if (!r.ok) throw new Error('Erro ao salvar');
-    
+    if (!r || !r.ok) throw new Error('Erro ao salvar registro de coleta');
     document.getElementById('coleta-obs').value = '';
     await loadColetasManual();
-  } catch(e) {
-    alert('Erro ao salvar coleta: ' + e.message);
+  } catch (e) {
+    setDashStatusBanner('Erro ao salvar coleta: ' + e.message);
   }
 }
 
 async function deletarColeta(id) {
   if (!confirm('Remover este registro de coleta?')) return;
   try {
-    await fetch(`${API_URL}/dashboard/coletas-manual/${id}`, { method: 'DELETE' });
-    await loadColetasManual();
-  } catch(e) {
-    alert('Erro ao remover');
+    const r = await apiDashFetch(`${API_URL}/dashboard/coletas-manual/${id}`, { method: 'DELETE' });
+    if (r && r.ok) await loadColetasManual();
+  } catch (e) {
+    setDashStatusBanner('Erro ao remover registro de coleta.');
   }
 }
 
-// Helper seguro para converter qualquer <canvas> de gráfico em imagem PNG com fundo sólido
+// ====== HELPERS DE EXPORTAÇÃO EM PDF ======
 function getChartDataUrl(canvasId, bgColor = '#0a1e5c') {
   const canvas = typeof canvasId === 'string' ? document.getElementById(canvasId) : canvasId;
   if (!canvas) return null;
@@ -1486,25 +2006,15 @@ function getChartDataUrl(canvasId, bgColor = '#0a1e5c') {
     ctx.drawImage(canvas, 0, 0);
     return tempCanvas.toDataURL('image/png');
   } catch (e) {
-    try {
-      return canvas.toDataURL('image/png');
-    } catch (e2) {
-      console.warn('Erro ao obter dataURL do gráfico:', canvasId, e2);
-      return null;
-    }
+    try { return canvas.toDataURL('image/png'); } catch (e2) { return null; }
   }
 }
 
-// ====== EXPORTAR GRÁFICOS DE COLETAS EM PDF ======
 async function exportColetasPDF() {
-  if (!window.jspdf) { alert('Aguarde o carregamento dos scripts de PDF...'); return; }
-  
-  const btn = document.querySelector('.btn-pdf');
+  if (!window.jspdf) { setDashStatusBanner('Aguarde o carregamento dos scripts de PDF...'); return; }
+  const btn = document.getElementById('btnExportColetasPDF');
   const origText = btn ? btn.textContent : '';
-  if (btn) {
-    btn.textContent = '⏳ Gerando PDF...';
-    btn.disabled = true;
-  }
+  if (btn) { btn.textContent = '⏳ Gerando PDF...'; btn.disabled = true; }
 
   try {
     const { jsPDF } = window.jspdf;
@@ -1512,9 +2022,9 @@ async function exportColetasPDF() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    const monthKey = document.getElementById('coletaMesFilter')?.value || new Date().toISOString().substring(0, 7);
+    const monthKey = document.getElementById('coletaMesFilter')?.value || getCurrentMonthRecife();
     const [y, m] = monthKey.split('-');
-    const nomeMesAno = `${MESES_NOME[parseInt(m)-1]} / ${y}`;
+    const nomeMesAno = `${MESES_NOME[parseInt(m, 10) - 1] || m} / ${y}`;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
@@ -1523,7 +2033,7 @@ async function exportColetasPDF() {
     doc.setFont('helvetica', 'normal');
     doc.text(`USF Chico Mendes — Mês de Referência: ${nomeMesAno} (Dias Padrão: Quarta, Quinta, Sexta)`, pageWidth / 2, 22, { align: 'center' });
     doc.setFontSize(10);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 28, { align: 'center' });
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Recife' })} às ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' })}`, pageWidth / 2, 28, { align: 'center' });
 
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
@@ -1541,9 +2051,7 @@ async function exportColetasPDF() {
     kpiTexts.forEach((t, i) => doc.text(t, 14 + (i % 3) * 90, 44 + Math.floor(i / 3) * 6));
 
     const imgPrincipal = getChartDataUrl('chartColetasPrincipal');
-    if (imgPrincipal) {
-      doc.addImage(imgPrincipal, 'PNG', 14, 55, pageWidth - 28, 120);
-    }
+    if (imgPrincipal) doc.addImage(imgPrincipal, 'PNG', 14, 55, pageWidth - 28, 120);
 
     doc.addPage();
     doc.setFont('helvetica', 'bold');
@@ -1551,37 +2059,25 @@ async function exportColetasPDF() {
     doc.text(`Desempenho Semanal e Taxa de Eficácia — ${nomeMesAno}`, pageWidth / 2, 15, { align: 'center' });
 
     const imgComparativo = getChartDataUrl('chartColetasComparativo');
-    if (imgComparativo) {
-      doc.addImage(imgComparativo, 'PNG', 14, 22, (pageWidth - 35) / 2, 80);
-    }
+    if (imgComparativo) doc.addImage(imgComparativo, 'PNG', 14, 22, (pageWidth - 35) / 2, 80);
 
     const imgEficacia = getChartDataUrl('chartColetasEficacia');
-    if (imgEficacia) {
-      doc.addImage(imgEficacia, 'PNG', (pageWidth + 7) / 2, 22, (pageWidth - 35) / 2, 80);
-    }
+    if (imgEficacia) doc.addImage(imgEficacia, 'PNG', (pageWidth + 7) / 2, 22, (pageWidth - 35) / 2, 80);
 
-    const monthData = (coletasData || []).filter(c => c.data_coleta && c.data_coleta.startsWith(monthKey));
-    const sorted = [...monthData].sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta));
+    const monthData = (coletasData || []).filter(c => c.data_coleta && String(c.data_coleta).startsWith(monthKey));
+    const sorted = [...monthData].sort((a, b) => String(b.data_coleta).localeCompare(String(a.data_coleta)));
     if (sorted.length > 0 && typeof doc.autoTable === 'function') {
       const rows = sorted.map(c => {
-        const dayOfWeekNum = getDayOfWeekNumFromDateString(c.data_coleta);
-        const diaSemana = getDayOfWeekFromDateString(c.data_coleta);
-        const isDiaPadrao = [3, 4, 5].includes(dayOfWeekNum);
-        const dataBR = formatDateBR(c.data_coleta);
+        const isDiaPadrao = [3, 4, 5].includes(getDayOfWeekNumFromDateString(c.data_coleta));
         const pct = Math.round((c.realizados / META_DIARIA) * 100);
         return [
-          dataBR,
-          diaSemana,
+          formatDateBR(c.data_coleta),
+          getDayOfWeekFromDateString(c.data_coleta),
           isDiaPadrao ? 'Dia Padrão' : 'Dia Extra',
-          c.agendados.toString(),
-          c.realizados.toString(),
-          c.faltas.toString(),
-          META_DIARIA.toString(),
-          pct + '%',
-          c.observacoes || '—'
+          String(c.agendados), String(c.realizados), String(c.faltas),
+          String(META_DIARIA), pct + '%', c.observacoes || '—'
         ];
       });
-
       doc.autoTable({
         startY: 110,
         head: [['Data (DD/MM/AAAA)', 'Dia', 'Tipo', 'Agend.', 'Realiz.', 'Faltas', 'Meta', 'Eficácia', 'Obs']],
@@ -1589,14 +2085,7 @@ async function exportColetasPDF() {
         theme: 'grid',
         headStyles: { fillColor: [26, 79, 196], fontSize: 9 },
         bodyStyles: { fontSize: 8 },
-        columnStyles: {
-          0: { halign: 'center', fontStyle: 'bold' },
-          3: { halign: 'center' },
-          4: { halign: 'center' },
-          5: { halign: 'center' },
-          6: { halign: 'center' },
-          7: { halign: 'center' }
-        }
+        columnStyles: { 0: { halign: 'center', fontStyle: 'bold' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' } }
       });
     }
 
@@ -1607,49 +2096,36 @@ async function exportColetasPDF() {
       doc.setFont('helvetica', 'italic');
       doc.text(`USF Chico Mendes — Controle de Coletas de Sangue | Página ${i}/${totalPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
     }
-
     doc.save(`coletas_sangue_${monthKey}.pdf`);
-  } catch(e) {
-    console.error('Erro ao gerar PDF de Coletas:', e);
-    alert('Erro ao gerar PDF de Coletas: ' + (e.message || e));
+  } catch (e) {
+    setDashStatusBanner('Erro ao gerar PDF de Coletas: ' + (e.message || e));
   } finally {
-    if (btn) {
-      btn.textContent = origText;
-      btn.disabled = false;
-    }
+    if (btn) { btn.textContent = origText; btn.disabled = false; }
   }
 }
 
-// ====== EXPORTAR RELATÓRIO DO DIA COM GRÁFICOS EM PDF ======
 async function exportDailyReport() {
-  if (!window.jspdf) { alert('Aguarde o carregamento dos scripts de PDF...'); return; }
-  
-  const btn = document.getElementById('btnExportTopPDF') || document.querySelector('.btn-export');
+  if (!window.jspdf) { setDashStatusBanner('Aguarde o carregamento dos scripts de PDF...'); return; }
+  const btn = document.getElementById('btnExportTopPDF');
   const originalText = btn ? btn.textContent : '';
-  if (btn) {
-    btn.textContent = '⏳ Gerando PDF...';
-    btn.disabled = true;
-  }
+  if (btn) { btn.textContent = '⏳ Gerando PDF...'; btn.disabled = true; }
 
   try {
-    if (!metricsData) {
-      await loadDashboard();
-    }
-
+    if (!metricsData) await loadDashboard();
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('portrait', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    const dataFiltroRaw = document.getElementById('dashDateFilter')?.value || new Date().toISOString().split('T')[0];
-    const dataFiltroFormatada = typeof formatDateBR === 'function' ? formatDateBR(dataFiltroRaw) : dataFiltroRaw;
+    const dataFiltroRaw = document.getElementById('dashDateFilter')?.value || getTodayDateRecife();
+    const dataFiltroFormatada = formatDateBR(dataFiltroRaw);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.text('Dashboard Diário – USF Chico Mendes', pageWidth / 2, 15, { align: 'center' });
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Data: ${dataFiltroFormatada} | Gerado em: ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 22, { align: 'center' });
+    doc.text(`Data: ${dataFiltroFormatada} | Gerado em: ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' })}`, pageWidth / 2, 22, { align: 'center' });
 
     const d = metricsData || {};
     const waitingBySetor = Array.isArray(d.waitingBySetor) ? d.waitingBySetor : [];
@@ -1658,65 +2134,46 @@ async function exportDailyReport() {
     const bottleneckBySetor = Array.isArray(d.bottleneckBySetor) ? d.bottleneckBySetor : [];
 
     const totalWaiting = waitingBySetor.reduce((s, r) => s + parseInt(r.total || 0, 10), 0);
-    const totalAttended = d.totalAttended || 0;
-    const attendedManha = d.attendedManha || 0;
-    const attendedTarde = d.attendedTarde || 0;
-    const totalDesist = d.totalDesist || 0;
-    const dropoutRate = d.dropoutRate || 0;
-
     doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('Resumo do Atendimento', 14, 32);
     doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-    doc.text(`Atendidos: ${totalAttended} (Manhã: ${attendedManha} | Tarde: ${attendedTarde})   |   Aguardando: ${totalWaiting}   |   Desistências: ${totalDesist} (${dropoutRate}%)`, 14, 38);
+    doc.text(`Atendidos: ${d.totalAttended || 0} (Manhã: ${d.attendedManha || 0} | Tarde: ${d.attendedTarde || 0})   |   Aguardando: ${totalWaiting}   |   Desistências: ${d.totalDesist || 0} (${d.dropoutRate || 0}%)`, 14, 38);
 
-    // Capturar Gráficos com fundo escuro sólido nativo (instantâneo e sem falhas)
     const imgOcc = getChartDataUrl('chartOccupancy');
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
     doc.text('1. Ocupação da Recepção (Pacientes no Local):', 14, 46);
-    if (imgOcc) {
-      doc.addImage(imgOcc, 'PNG', 14, 50, pageWidth - 28, 65);
-    }
+    if (imgOcc) doc.addImage(imgOcc, 'PNG', 14, 50, pageWidth - 28, 65);
 
     const imgHourly = getChartDataUrl('chartHourly');
     const imgFlow = getChartDataUrl('chartFlow');
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
     doc.text('2. Atendimentos por Hora e Fluxo de Entradas:', 14, 122);
-    if (imgHourly) {
-      doc.addImage(imgHourly, 'PNG', 14, 126, (pageWidth - 34) / 2, 55);
-    }
-    if (imgFlow) {
-      doc.addImage(imgFlow, 'PNG', (pageWidth + 6) / 2, 126, (pageWidth - 34) / 2, 55);
-    }
+    if (imgHourly) doc.addImage(imgHourly, 'PNG', 14, 126, (pageWidth - 34) / 2, 55);
+    if (imgFlow) doc.addImage(imgFlow, 'PNG', (pageWidth + 6) / 2, 126, (pageWidth - 34) / 2, 55);
 
     doc.addPage();
     const imgDonut = getChartDataUrl('chartSetoresDonut');
     const imgTempoBar = getChartDataUrl('chartTempoEsperaBar');
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
     doc.text('3. Distribuição por Setor e Tempo de Espera Médio:', 14, 15);
-    if (imgDonut) {
-      doc.addImage(imgDonut, 'PNG', 14, 20, (pageWidth - 34) / 2, 60);
-    }
-    if (imgTempoBar) {
-      doc.addImage(imgTempoBar, 'PNG', (pageWidth + 6) / 2, 20, (pageWidth - 34) / 2, 60);
-    }
+    if (imgDonut) doc.addImage(imgDonut, 'PNG', 14, 20, (pageWidth - 34) / 2, 60);
+    if (imgTempoBar) doc.addImage(imgTempoBar, 'PNG', (pageWidth + 6) / 2, 20, (pageWidth - 34) / 2, 60);
 
     doc.setFontSize(12); doc.setFont('helvetica', 'bold');
     doc.text(`Detalhamento por Setor (${dataFiltroFormatada})`, 14, 88);
 
-    const setores = ['Acolhimento','Farmácia','Regulação','Médico','Enfermagem','Odontologia','Téc. Enfermagem'];
     const defaultRespPDF = [
       { nome: 'Vivi', setor: 'Regulação', cargo: 'Responsável pela Regulação' },
       { nome: 'Leandra', setor: 'Farmácia', cargo: 'Responsável pela Farmácia' }
     ];
     const responsaveisPDF = (d.responsaveisSetor && d.responsaveisSetor.length > 0) ? d.responsaveisSetor : defaultRespPDF;
-    const rows = setores.map(s => {
+    const rows = SETORES_DASH.map(s => {
       const w = avgWaitBySetor.find(r => r.setor === s);
       const wt = waitingBySetor.find(r => r.setor === s);
       const at = attendedBySetor.find(r => r.setor === s);
       const bn = bottleneckBySetor.find(r => r.setor === s);
       const resp = responsaveisPDF.filter(r => r.setor === s).map(r => r.nome).join(', ') || '—';
       return [
-        s,
-        resp,
+        s, resp,
         w ? parseFloat(w.avg_minutes).toFixed(0) + ' min' : '-',
         wt ? String(wt.total) : '0',
         at ? String(at.total) : '0',
@@ -1742,18 +2199,15 @@ async function exportDailyReport() {
       doc.setFont('helvetica', 'italic');
       doc.text(`USF Chico Mendes — Dashboard de Recepção | Página ${i}/${totalPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
     }
-
-    doc.save(`dashboard_recepcao_${dataFiltroFormatada.replace(/\//g,'-')}.pdf`);
-  } catch(e) {
-    console.error('Erro ao gerar PDF do Dashboard:', e);
-    alert('Erro ao gerar PDF do Dashboard: ' + (e.message || e));
+    doc.save(`dashboard_recepcao_${dataFiltroFormatada.replace(/\//g, '-')}.pdf`);
+  } catch (e) {
+    setDashStatusBanner('Erro ao gerar PDF do Dashboard: ' + (e.message || e));
   } finally {
-    if (btn) {
-      btn.textContent = originalText;
-      btn.disabled = false;
-    }
+    if (btn) { btn.textContent = originalText; btn.disabled = false; }
   }
 }
+
+checkExistingAdminSession();
 </script>
 </body>
 </html>

@@ -990,7 +990,7 @@ function obterListaVisivelSetor(setor) {
 
 // --- API helper de reordenação ---
 async function apiReorder(patientId, setor, newPosition) {
-  const senha = adminPassword || atob('Y2hpY28xMjM=');
+  const senha = adminPassword || '';
   const profissional = obterFiltroProfissionalSetor(setor);
   const r = await fetch(`${API_URL}/patients/${patientId}/reorder`, {
     method: 'PUT',
@@ -1303,7 +1303,7 @@ async function confirmTransfer() {
   };
 
   if (isPublicTransfer) {
-    executeTransfer(atob('Y2hpY28xMjM='));
+    executeTransfer('');
   } else {
     AdminGuard.require(async () => {
       executeTransfer(adminPassword);

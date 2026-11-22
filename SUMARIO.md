@@ -21,12 +21,12 @@
 ## 🎯 FUNCIONALIDADES IMPLEMENTADAS
 
 ### 🔐 Segurança — Portão de Entrada (Gate Screen)
-✅ **Tela de login bloqueante**: Senha `usf2026` verificada via SHA-256 (hash nunca exposto em texto puro).
-✅ **Sessão de 10 horas**: `sessionStorage` com expiração automática.
-✅ **Bloqueio anti-brute-force**: 5 tentativas → bloqueio de 2 minutos com contagem regressiva.
-✅ **Exceção Painel TV**: URL com `?modo=tv` pula o portão automaticamente.
+✅ **Tela de login bloqueante**: Senha configurada via variáveis de ambiente (`GATE_PASSWORD` / `GATE_HASH`) e verificada no servidor com sessão `HttpOnly` assinada.
+✅ **Sessão de 10 horas**: Cookie `HttpOnly` assinado via HMAC com expiração automática.
+✅ **Bloqueio anti-brute-force**: Rate limit por IP com bloqueio temporário após tentativas incorretas.
+✅ **Exceção Painel TV**: URL com `?modo=tv` exibe apenas a chamada sanitizada da TV.
 ✅ **Botão Logout**: "🚪 Encerrar sessão" no header para voltar ao portão.
-✅ **Senhas existentes preservadas**: Admin (0177), Relatório (7710), Agendamentos (1234), etc.
+✅ **Controle Administrativo (RBAC)**: Ações críticas e Dashboard Privado validados exclusivamente via perfil `admin` (`ADMIN_PASSWORDS`).
 
 ### 📊 Sistema de Filas & Chamadas
 ✅ **Múltiplos Setores**: Médico, Enfermagem, Odontologia, Acolhimento, Farmácia, Regulação.
@@ -36,7 +36,7 @@
 ✅ **Badges Dinâmicos**: Contadores em tempo real nas abas laterais, pulsantes quando > 0, ocultos quando zero.
 
 ### 🛠️ Ferramentas Administrativas
-✅ **Painel de Controle**: Gestão total das filas com senha (0177).
+✅ **Painel de Controle**: Gestão total das filas protegido por senha administrativa.
 ✅ **Agendamentos**: Módulo para marcar consultas futuras com lembrete WhatsApp.
 ✅ **Métricas Avançadas**: Dashboard com fluxo de pacientes, ocupação e taxa de desistência.
 ✅ **Gestão de Histórico**: Possibilidade de excluir registros e visualizar dados passados.
