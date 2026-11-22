@@ -1362,9 +1362,9 @@
     }
     .acol-modal-grid-2 {
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
+      grid-template-columns: 1.15fr 0.85fr;
       gap: 14px;
-      align-items: start;
+      align-items: stretch;
     }
     .acol-modal-grid-2-escuta2 {
       display: grid;
@@ -1417,29 +1417,52 @@
       padding: 10px 18px;
       background: #f8fafc;
       border-top: 1px solid #e2e8f0;
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 8px;
-      flex-wrap: wrap;
       align-items: center;
       flex-shrink: 0;
     }
+    .acol-modal-footer.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .acol-modal-footer.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .acol-modal-footer.cols-2 { grid-template-columns: repeat(2, 1fr); }
     .acol-modal-footer .btn {
-      padding: 9px 14px;
+      width: 100%;
+      height: 42px;
+      min-height: 42px;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
       font-size: 13px;
-      border-radius: 12px;
-      flex: 1;
-      min-width: 120px;
+      font-weight: 800;
+      border-radius: 10px;
+      white-space: nowrap;
+      margin: 0;
     }
-    .acol-modal-footer .btn-cancel-compact {
-      flex: 0 0 auto;
-      min-width: auto;
-      padding: 9px 14px;
+    .acol-modal-btn-primary-full {
+      width: 100%;
+      height: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13.5px;
+      font-weight: 900;
+      border-radius: 10px;
+      border: none;
+      color: #fff;
+      cursor: pointer;
     }
     @media (max-width: 860px) {
       .acol-modal-grid-2,
       .acol-modal-grid-2-escuta2,
       .acol-grav-row { grid-template-columns: 1fr; }
       .acol-cond-grid-2x2 { grid-template-columns: 1fr; }
+      .acol-modal-footer.cols-4 { grid-template-columns: repeat(2, 1fr); }
+      .acol-modal-footer.cols-3 { grid-template-columns: 1fr; }
     }
     body.modo-tv .historico-escuta-card,
     body.modo-tv .badge-intercorrencia-acol,
@@ -2924,8 +2947,8 @@
       <div class="acol-modal-body">
         <input type="hidden" id="acol-modal-id">
         <div class="acol-modal-grid-2">
-          <div>
-            <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:10px;margin-bottom:10px;">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:10px;">
               <div class="form-group" style="margin-bottom:0;">
                 <label style="color:var(--gray-600);font-size:12px;">CPF (6 dígitos)</label>
                 <input type="text" id="acol-modal-cpf" maxlength="6" oninput="this.value=this.value.replace(/\D/g,'')" placeholder="Apenas 6 números" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;">
@@ -2935,7 +2958,7 @@
                 <input type="text" id="acol-modal-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;">
               </div>
             </div>
-            <div class="form-group" style="margin-bottom:10px;">
+            <div class="form-group" style="margin-bottom:0;">
               <label style="color:var(--gray-600);font-size:12px;">🏥 Equipe do Paciente</label>
               <select id="acol-modal-equipe" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:700;color:var(--gray-700);">
                 <option value="">— Selecione a Equipe —</option>
@@ -2947,43 +2970,10 @@
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label style="color:var(--gray-600);font-size:12px;">💬 Motivo / Queixa Principal (1ª Escuta) <span style="color:var(--red);">*</span></label>
-              <textarea id="acol-modal-queixa" rows="4" style="width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Descreva a queixa do paciente na 1ª escuta..."></textarea>
+              <textarea id="acol-modal-queixa" rows="3" style="width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Descreva a queixa do paciente na 1ª escuta..."></textarea>
             </div>
-          </div>
-
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <!-- Classificação de Risco removida da 1ª Escuta (exclusivo da 2ª Escuta / Médico) -->
-            <div style="display:none;" id="acol-risco-chooser-container">
-              <div class="form-group" style="margin-bottom:8px;">
-                <label style="color:var(--gray-600);">Classificação de Risco</label>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-risco-chooser">
-                  <button type="button" class="acol-risco-btn acol-risco-verde active" data-risco="verde" onclick="selectRisco('verde')">🟢 Verde (Baixo)</button>
-                  <button type="button" class="acol-risco-btn acol-risco-amarelo" data-risco="amarelo" onclick="selectRisco('amarelo')">🟡 Amarelo (Moderado)</button>
-                  <button type="button" class="acol-risco-btn acol-risco-vermelho" data-risco="vermelho" onclick="selectRisco('vermelho')">🔴 Vermelho (Alto)</button>
-                  <button type="button" class="acol-risco-btn acol-risco-azul" data-risco="azul" onclick="selectRisco('azul')">🟦 Azul (Sem Risco / Exames)</button>
-                </div>
-              </div>
-            </div>
-            <div class="acol-panel-card" style="background:#eff6ff;border-color:#bfdbfe;">
-              <div class="acol-panel-card-title">🎯 Direcionamento para 2ª Escuta</div>
-              <div class="form-group" style="margin-bottom:8px;">
-                <label style="color:var(--gray-600);font-size:12px;">Tipo Profissional Destino</label>
-                <select id="acol-modal-tipo-prof" style="width:100%;padding:9px 10px;border:2px solid #cbd5e1;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;color:var(--gray-700);background:#fff;" onchange="updateAcolProfDest()">
-                  <option value="">— Opcional —</option>
-                  <option value="medico">🩺 Médico</option>
-                  <option value="enfermagem">👩‍⚕️ Enfermagem</option>
-                  <option value="odontologia">🦷 Odontologia</option>
-                </select>
-              </div>
-              <div class="form-group" style="margin-bottom:0;">
-                <label style="color:var(--gray-600);font-size:12px;">Profissional Destino</label>
-                <select id="acol-modal-prof-dest" style="width:100%;padding:9px 10px;border:2px solid #cbd5e1;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;color:var(--gray-700);background:#fff;">
-                  <option value="">— Opcional —</option>
-                </select>
-              </div>
-            </div>
-            <div class="acol-panel-card">
-              <div class="acol-panel-card-title" style="color:#475569;">🩺 Condições Especiais</div>
+            <div class="acol-panel-card" style="padding:10px 12px;">
+              <div class="acol-panel-card-title" style="color:#475569;margin-bottom:6px;">🩺 Condições Especiais</div>
               <div class="acol-cond-grid-2x2" id="condicoes-especiais-escuta1">
                 <label class="acol-cond-chip" style="background:rgba(33,150,243,0.08);border:1.5px solid rgba(33,150,243,0.22);">
                   <input type="checkbox" value="hipertenso" style="transform:scale(1.1);cursor:pointer;"> 💙 Hipertenso
@@ -3000,14 +2990,54 @@
               </div>
             </div>
           </div>
+
+          <div style="display:flex;flex-direction:column;">
+            <!-- Classificação de Risco removida da 1ª Escuta (exclusivo da 2ª Escuta / Médico) -->
+            <div style="display:none;" id="acol-risco-chooser-container">
+              <div class="form-group" style="margin-bottom:8px;">
+                <label style="color:var(--gray-600);">Classificação de Risco</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-risco-chooser">
+                  <button type="button" class="acol-risco-btn acol-risco-verde active" data-risco="verde" onclick="selectRisco('verde')">🟢 Verde (Baixo)</button>
+                  <button type="button" class="acol-risco-btn acol-risco-amarelo" data-risco="amarelo" onclick="selectRisco('amarelo')">🟡 Amarelo (Moderado)</button>
+                  <button type="button" class="acol-risco-btn acol-risco-vermelho" data-risco="vermelho" onclick="selectRisco('vermelho')">🔴 Vermelho (Alto)</button>
+                  <button type="button" class="acol-risco-btn acol-risco-azul" data-risco="azul" onclick="selectRisco('azul')">🟦 Azul (Sem Risco / Exames)</button>
+                </div>
+              </div>
+            </div>
+            <div class="acol-panel-card" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;height:100%;display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+              <div>
+                <div class="acol-panel-card-title" style="color:#1e3a8a;margin-bottom:6px;">🎯 Direcionamento para 2ª Escuta</div>
+                <p style="font-size:11.5px;color:#334155;margin:0 0 10px 0;line-height:1.35;">
+                  Opcional: escolha o profissional desejado ou deixe em branco para a fila geral da 2ª Escuta.
+                </p>
+                <div class="form-group" style="margin-bottom:10px;">
+                  <label style="color:var(--gray-600);font-size:12px;">Tipo Profissional Destino</label>
+                  <select id="acol-modal-tipo-prof" style="width:100%;padding:9px 10px;border:2px solid #cbd5e1;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;color:var(--gray-700);background:#fff;" onchange="updateAcolProfDest()">
+                    <option value="">— Opcional —</option>
+                    <option value="medico">🩺 Médico</option>
+                    <option value="enfermagem">👩‍⚕️ Enfermagem</option>
+                    <option value="odontologia">🦷 Odontologia</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label style="color:var(--gray-600);font-size:12px;">Profissional Destino</label>
+                  <select id="acol-modal-prof-dest" style="width:100%;padding:9px 10px;border:2px solid #cbd5e1;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;color:var(--gray-700);background:#fff;">
+                    <option value="">— Opcional —</option>
+                  </select>
+                </div>
+              </div>
+              <button type="button" class="btn btn-orange acol-modal-btn-primary-full" style="box-shadow:0 4px 12px rgba(244,130,30,0.32);" onclick="confirmarEncaminhamento()">
+                📤 Encaminhar p/ 2ª Escuta
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="acol-modal-footer">
-        <button class="btn btn-3d" style="background:var(--blue);color:white;border:none;font-weight:800;" onclick="chamarNoPainel('escuta1', this)">🔊 Chamar no Painel</button>
-        <button class="btn btn-orange" style="font-weight:800;" onclick="confirmarEncaminhamento()">📤 Encaminhar p/ 2ª Escuta</button>
-        <button class="btn" style="background:var(--green);color:white;border:none;font-weight:800;" onclick="finalizarEscuta1()">✅ Finalizar Direto</button>
-        <button class="btn" style="background:#1976d2;color:white;border:none;font-weight:800;" onclick="agendarEscuta1()">📅 Finalizar e Agendar</button>
-        <button class="btn btn-ghost btn-cancel-compact" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="fecharEscutaModal()">Cancelar</button>
+      <div class="acol-modal-footer cols-4">
+        <button type="button" class="btn btn-3d" style="background:var(--blue);color:white;border:none;" onclick="chamarNoPainel('escuta1', this)">🔊 Chamar no Painel</button>
+        <button type="button" class="btn" style="background:var(--green);color:white;border:none;" onclick="finalizarEscuta1()">✅ Finalizar Direto</button>
+        <button type="button" class="btn" style="background:#1976d2;color:white;border:none;" onclick="agendarEscuta1()">📅 Finalizar e Agendar</button>
+        <button type="button" class="btn btn-ghost" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="fecharEscutaModal()">✕ Cancelar</button>
       </div>
     </div>
   </div>
@@ -3138,10 +3168,10 @@
         </div>
       </div>
 
-      <div class="acol-modal-footer">
-        <button class="btn btn-3d" style="background:var(--blue);color:white;border:none;font-weight:800;" onclick="chamarNoPainel('escuta2', this)">🔊 Chamar no Painel</button>
-        <button class="btn" style="background:var(--green);color:white;border:none;font-weight:800;" onclick="confirmarFinalizacaoEscuta2()">✅ Finalizar na 2ª Escuta</button>
-        <button class="btn btn-ghost btn-cancel-compact" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')">Cancelar</button>
+      <div class="acol-modal-footer cols-3">
+        <button type="button" class="btn btn-3d" style="background:var(--blue);color:white;border:none;" onclick="chamarNoPainel('escuta2', this)">🔊 Chamar no Painel</button>
+        <button type="button" class="btn" style="background:var(--green);color:white;border:none;" onclick="confirmarFinalizacaoEscuta2()">✅ Finalizar na 2ª Escuta</button>
+        <button type="button" class="btn btn-ghost" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')">✕ Cancelar</button>
       </div>
     </div>
   </div>
@@ -3184,9 +3214,9 @@
           </select>
         </div>
       </div>
-      <div class="acol-modal-footer">
-        <button class="btn btn-orange" style="font-weight:800;" onclick="confirmarIniciarEscuta()">🟡 Iniciar Escuta</button>
-        <button class="btn btn-ghost btn-cancel-compact" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-acs-modal').classList.remove('show')">Cancelar</button>
+      <div class="acol-modal-footer cols-2">
+        <button type="button" class="btn btn-orange" onclick="confirmarIniciarEscuta()">🟡 Iniciar Escuta</button>
+        <button type="button" class="btn btn-ghost" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-acs-modal').classList.remove('show')">✕ Cancelar</button>
       </div>
     </div>
   </div>

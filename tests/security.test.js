@@ -393,6 +393,19 @@ test('SISREG preview bolds [CONFERIR] tags and Escuta modals keep compact wide l
   // Layout amplo sem rolagem excessiva mantendo todos os IDs usados pelo app.js
   assert.equal(indexHtml.includes('acol-modal-wide'), true);
   assert.equal(indexHtml.includes('acol-modal-wide-lg'), true);
+  assert.equal(indexHtml.includes('acol-modal-footer cols-4'), true);
+  assert.equal(indexHtml.includes('acol-modal-footer cols-3'), true);
+  assert.equal(indexHtml.includes('acol-modal-footer cols-2'), true);
+
+  // Condicoes especiais logo abaixo do motivo/queixa e botao encaminhar dentro do card de direcionamento
+  const idxQueixa = indexHtml.indexOf('id="acol-modal-queixa"');
+  const idxCond1 = indexHtml.indexOf('id="condicoes-especiais-escuta1"');
+  const idxDirTitle = indexHtml.indexOf('🎯 Direcionamento para 2ª Escuta');
+  const idxBtnEnc = indexHtml.indexOf('onclick="confirmarEncaminhamento()"');
+  const idxFooterCols4 = indexHtml.indexOf('acol-modal-footer cols-4');
+  assert.ok(idxQueixa > 0 && idxCond1 > idxQueixa && idxDirTitle > idxCond1);
+  assert.ok(idxBtnEnc > idxDirTitle && idxFooterCols4 > idxBtnEnc);
+
   const requiredEscutaIds = [
     'acol-escuta-modal',
     'acol-modal-patient-info',
