@@ -777,6 +777,7 @@
                       <button type="button" class="btn btn-primary btn-sm" onclick="copiarObservacaoSisreg(false)">📋 Copiar Obs.</button>
                     </div>
                   </div>
+                  <div id="sr-obs-conferir-box" class="sisreg-conferir-box" style="display:none;"></div>
                   <textarea id="sr-observacoes" rows="4" placeholder="Condições Clínicas / Justificativa extraídas para colar no SISREG..." oninput="onCampoSisregAlterado('observacoes_revisada', this.value)"></textarea>
                   <div class="sisreg-obs-footer">
                     <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#1e3a8a;cursor:pointer;">
@@ -1478,6 +1479,7 @@
     const base = _copilotoState.dados.observacoes_revisada || _copilotoState.dados.observacoes_original || '';
     const el = document.getElementById('sr-observacoes');
     if (el) el.value = formatarObservacaoFront(base, _copilotoState.semAcentoMaiusculo);
+    atualizarDestaqueConferirObsSisreg();
   }
 
   function alternarTextoOriginalObsSisreg() {
@@ -1491,6 +1493,133 @@
         : formatarObservacaoFront(d.observacoes_revisada || d.observacoes_original || '', _copilotoState.semAcentoMaiusculo);
     }
     if (btn) btn.textContent = _copilotoState.verOriginal ? 'Ver revisada' : 'Ver original';
+    atualizarDestaqueConferirObsSisreg();
+  }
+
+  const REGEX_CONFERIR_SISREG = /\[CONFERIR[^\]]*\]/gi;
+
+  function extrairTrechosConferirSisreg(texto) {
+    const s = String(texto || '');
+    const m = s.match(REGEX_CONFERIR_SISREG);
+    return m ? m.slice() : [];
+  }
+
+  function renderizarTextoComConferirNegrito(texto) {
+    const s = String(texto || '');
+    let out = '';
+    let last = 0;
+    const re = new RegExp(REGEX_CONFERIR_SISREG.source, 'gi');
+    let m;
+    while ((m = re.exec(s)) !== null) {
+      if (m.index > last) {
+        out += escSisreg(s.slice(last, m.index));
+      }
+      out += `<mark class="sisreg-conferir-mark"><strong>${escSisreg(m[0])}</strong></mark>`;
+      last = m.index + m[0].length;
+    }
+    if (last < s.length) {
+      out += escSisreg(s.slice(last));
+    }
+    return out.replace(/\n/g, '<br>');
+  }
+
+  function focarTrechoConferirSisreg(textareaId, indice) {
+    const ta = document.getElementById(textareaId);
+    if (!ta) return;
+    const txt = String(ta.value || '');
+    const re = new RegExp(REGEX_CONFERIR_SISREG.source, 'gi');
+    let m;
+    let cur = 0;
+    const targetIdx = Number(indice) || 0;
+    while ((m = re.exec(txt)) !== null) {
+      if (cur === targetIdx) {
+        ta.focus();
+        ta.setSelectionRange(m.index, m.index + m[0].length);
+        return;
+      }
+      cur++;
+    }
+    ta.focus();
+  }
+
+  function removerMarcacoesConferirSisreg(textareaId, isMedico) {
+    const ta = document.getElementById(textareaId);
+    if (!ta) return;
+    const trechos = extrairTrechosConferirSisreg(ta.value);
+    if (!trechos.length) return;
+    if (!confirm(`Remover ${trechos.length} marcação(ões) [CONFERIR: ...] do texto?\n\nFaça isso somente após conferir a informação correta para o paciente.`)) {
+      return;
+    }
+    const limpo = String(ta.value || '')
+      .replace(REGEX_CONFERIR_SISREG, ' ')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\s+([.,;:])/g, '$1')
+      .replace(/^\s+|\s+$/gm, '')
+      .trim();
+    ta.value = limpo;
+    if (isMedico) {
+      _modalMedState.dados.observacoes_revisada = limpo;
+      atualizarDestaqueConferirModalMedico();
+    } else {
+      onCampoSisregAlterado('observacoes_revisada', limpo);
+    }
+    if (typeof showToast === 'function') {
+      showToast('🧹 Marcações [CONFERIR] removidas. Revise o texto final antes de copiar!');
+    }
+  }
+
+  function atualizarPainelConferirTextarea(textareaId, boxId, isMedico) {
+    const ta = document.getElementById(textareaId);
+    const box = document.getElementById(boxId);
+    if (!ta || !box) return;
+    const texto = String(ta.value || '');
+    const trechos = extrairTrechosConferirSisreg(texto);
+
+    if (!trechos.length) {
+      ta.classList.remove('sisreg-textarea-alerta-conferir');
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+
+    ta.classList.add('sisreg-textarea-alerta-conferir');
+    const chipsHtml = trechos.map((t, idx) =>
+      `<button type="button" class="sisreg-conferir-chip" onclick="focarTrechoConferirSisreg('${textareaId}', ${idx})" title="Clique para selecionar este trecho no campo abaixo">✏️ <strong>${escSisreg(t)}</strong></button>`
+    ).join('');
+
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div class="sisreg-conferir-head">
+        <span>⚠️ ${trechos.length} trecho(s) em <strong>NEGRITO</strong> para conferir (NÃO copiar assim p/ o SISREG)</span>
+        <button type="button" class="sisreg-mini-link" style="border-color:#fca5a5;color:#991b1b;" onclick="removerMarcacoesConferirSisreg('${textareaId}', ${Boolean(isMedico)})">🧹 Limpar [CONFERIR]</button>
+      </div>
+      <div class="sisreg-conferir-preview">${renderizarTextoComConferirNegrito(texto)}</div>
+      <div class="sisreg-conferir-chips">${chipsHtml}</div>
+    `;
+  }
+
+  function atualizarDestaqueConferirObsSisreg() {
+    atualizarPainelConferirTextarea('sr-observacoes', 'sr-obs-conferir-box', false);
+  }
+
+  function atualizarDestaqueConferirModalMedico() {
+    atualizarPainelConferirTextarea('sm-pac-obs', 'sm-obs-conferir-box', true);
+  }
+
+  function confirmarCopiaComConferir(texto, textareaId) {
+    const trechos = extrairTrechosConferirSisreg(texto);
+    if (!trechos.length) return true;
+    const resumo = trechos.slice(0, 3).map(t => `• ${t}`).join('\n');
+    const ok = confirm(
+      `⚠️ ATENÇÃO — TRECHO NÃO CONFERIDO NO TEXTO!\n\n` +
+      `Ainda existe(m) ${trechos.length} marcação(ões) [CONFERIR] nas observações:\n${resumo}\n\n` +
+      `Clique em "Cancelar" para revisar/corrigir antes de colar no SISREG, ou "OK" se quiser copiar mesmo assim.`
+    );
+    if (!ok) {
+      focarTrechoConferirSisreg(textareaId, 0);
+      return false;
+    }
+    return true;
   }
 
   function copiarTelefoneSoDigitos() {
@@ -1505,6 +1634,7 @@
 
   function copiarObservacaoSisreg(blocoCompleto) {
     const obsTxt = document.getElementById('sr-observacoes')?.value?.trim() || '';
+    if (!confirmarCopiaComConferir(obsTxt, 'sr-observacoes')) return;
     if (!blocoCompleto) {
       copiarTextoSisreg(obsTxt, 'Observações Clínicas');
       return;
@@ -1522,7 +1652,14 @@
     copiarTextoSisreg(finalTxt, 'Bloco Clínico Completo');
   }
 
+  function copiarObsModalMedicoSisreg() {
+    const obsTxt = document.getElementById('sm-pac-obs')?.value?.trim() || '';
+    if (!confirmarCopiaComConferir(obsTxt, 'sm-pac-obs')) return;
+    copiarTextoSisreg(obsTxt, 'Observações Clínicas');
+  }
+
   function atualizarValidacoesAoVivoCopiloto() {
+    atualizarDestaqueConferirObsSisreg();
     const d = _copilotoState.dados;
     const cnsInfo = validarCnsFront(d.paciente_cns);
     const telInfo = validarTelefoneFront(d.paciente_telefone);
@@ -2292,6 +2429,7 @@
     set('sm-pac-cid', d.cid10);
     set('sm-pac-hip', d.hipotese_diagnostica);
     set('sm-pac-obs', d.observacoes_revisada || d.observacoes_original);
+    atualizarDestaqueConferirModalMedico();
     const alertEl = document.getElementById('sm-alertas-box');
     if (alertEl) {
       const endInfo = verificarEnderecoRecifeFront({
@@ -2420,6 +2558,13 @@
   window.copiarTelefoneSoDigitos = copiarTelefoneSoDigitos;
   window.copiarCampoSisreg = copiarCampoSisreg;
   window.copiarObservacaoSisreg = copiarObservacaoSisreg;
+  window.copiarObsModalMedicoSisreg = copiarObsModalMedicoSisreg;
+  window.focarTrechoConferirSisreg = focarTrechoConferirSisreg;
+  window.removerMarcacoesConferirSisreg = removerMarcacoesConferirSisreg;
+  window.atualizarDestaqueConferirObsSisreg = atualizarDestaqueConferirObsSisreg;
+  window.atualizarDestaqueConferirModalMedico = atualizarDestaqueConferirModalMedico;
+  window.REGEX_CONFERIR_SISREG = REGEX_CONFERIR_SISREG;
+  window.confirmarCopiaComConferir = confirmarCopiaComConferir;
   window.abrirDeclResidenciaDoCopiloto = abrirDeclResidenciaDoCopiloto;
   window.rebuscarProcedimentosCopiloto = rebuscarProcedimentosCopiloto;
   window.copiarProcedimentoByInfo = copiarProcedimentoByInfo;

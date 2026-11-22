@@ -344,20 +344,22 @@ test('Previa UI displays Liberado para teste label cleanly', () => {
   assert.equal(regJs.includes('Liberado para teste'), true);
 });
 
-test('Device identification integrates automatically into internal chat and hides manual selector when identified', () => {
+test('Device identification integrates automatically into internal chat without sector dropdown', () => {
   const root = path.join(__dirname, '..');
   const indexHtml = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
   const appJs = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
   const dispFrontJs = fs.readFileSync(path.join(root, 'public', 'dispositivos.js'), 'utf8');
   const dispBackJs = fs.readFileSync(path.join(root, 'lib', 'dispositivos.js'), 'utf8');
 
+  // Removidos seletores manuais do chat (agora usa apenas cartão automático do dispositivo)
+  assert.equal(indexHtml.includes('id="chat-remetente"'), false);
+  assert.equal(indexHtml.includes('id="chat-remetente-nome"'), false);
   assert.equal(indexHtml.includes('id="chat-device-id-card"'), true);
-  assert.equal(indexHtml.includes('id="chat-manual-id-fields"'), true);
   assert.equal(indexHtml.includes('id="disp-bloqueio-sem-nome-card"'), true);
 
+  assert.equal(appJs.includes('CHAT_SETORES_OFICIAIS'), true);
   assert.equal(appJs.includes('sincronizarIdentidadeDispositivoNoChat'), true);
   assert.equal(appJs.includes('obterIdentificacaoRemetenteChat'), true);
-  assert.equal(appJs.includes("manualFieldsEl.style.display = 'none'"), true);
   assert.equal(appJs.includes('x-device-id'), true);
   assert.equal(appJs.includes('res.status === 423'), true);
 
@@ -372,6 +374,60 @@ test('Device identification integrates automatically into internal chat and hide
   assert.equal(dispBackJs.includes("status === 'sem_nome'"), true);
   assert.equal(dispBackJs.includes('/api/admin/dispositivos/config-bloqueio-sem-nome'), true);
   assert.equal(dispBackJs.includes('ADMIN_DEVICE_UNNAMED'), true);
+});
+
+test('SISREG preview bolds [CONFERIR] tags and Escuta modals keep compact wide layout + required IDs', () => {
+  const root = path.join(__dirname, '..');
+  const indexHtml = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+  const regJs = fs.readFileSync(path.join(root, 'public', 'regulacao-sisreg.js'), 'utf8');
+
+  // Destaque em negrito e trava de cópia para [CONFERIR] na Regulação e Modal Médico
+  assert.equal(indexHtml.includes('id="sm-obs-conferir-box"'), true);
+  assert.equal(regJs.includes('id="sr-obs-conferir-box"'), true);
+  assert.equal(regJs.includes('REGEX_CONFERIR_SISREG'), true);
+  assert.equal(regJs.includes('<mark class="sisreg-conferir-mark"><strong>'), true);
+  assert.equal(regJs.includes('confirmarCopiaComConferir'), true);
+  assert.equal(regJs.includes('removerMarcacoesConferirSisreg'), true);
+  assert.equal(regJs.includes('focarTrechoConferirSisreg'), true);
+
+  // Layout amplo sem rolagem excessiva mantendo todos os IDs usados pelo app.js
+  assert.equal(indexHtml.includes('acol-modal-wide'), true);
+  assert.equal(indexHtml.includes('acol-modal-wide-lg'), true);
+  const requiredEscutaIds = [
+    'acol-escuta-modal',
+    'acol-modal-patient-info',
+    'acol-modal-id',
+    'acol-modal-cpf',
+    'acol-modal-sus',
+    'acol-modal-equipe',
+    'acol-modal-queixa',
+    'acol-risco-chooser-container',
+    'acol-modal-tipo-prof',
+    'acol-modal-prof-dest',
+    'condicoes-especiais-escuta1',
+    'acol-escuta2-modal',
+    'acol-escuta2-patient-info',
+    'acol-escuta2-id',
+    'acol-escuta2-contexto-leitura',
+    'acol-escuta2-view-equipe',
+    'acol-escuta2-view-motivo1',
+    'acol-escuta2-setor-destino',
+    'acol-escuta2-prof-destino-grupo',
+    'acol-escuta2-prof-destino',
+    'acol-escuta2-obs-segunda',
+    'acol-escuta2-cpf',
+    'acol-escuta2-sus',
+    'acol-escuta2-queixa',
+    'acol-gravidade-chooser',
+    'condicoes-especiais-escuta2',
+    'acol-acs-modal',
+    'acol-acs-patient-info',
+    'acol-acs-patient-id',
+    'acol-acs-select'
+  ];
+  for (const id of requiredEscutaIds) {
+    assert.equal(indexHtml.includes(`id="${id}"`), true, `Missing required Escuta element id="${id}"`);
+  }
 });
 
 test('Global unnamed-device blocking logic enforces 5 safety guards accurately', () => {

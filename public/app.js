@@ -3816,17 +3816,16 @@ CANAIS.forEach(c => { channelMessages[c.id] = []; channelUnread[c.id] = 0; });
 let _chatDeviceNomeOficial = '';
 let _chatDeviceSetorOficial = '';
 
+const CHAT_SETORES_OFICIAIS = ['Recepção', 'Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem', 'Gerência'];
+
 function resolverSetorChatCompativel(setorDisp) {
   const s = String(setorDisp || '').trim();
   if (!s) return '';
   const norm = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const sel = document.getElementById('chat-remetente');
-  if (sel) {
-    const optExata = Array.from(sel.options).find(o =>
-      o.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === norm
-    );
-    if (optExata) return optExata.value;
-  }
+  const exato = CHAT_SETORES_OFICIAIS.find(item =>
+    item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === norm
+  );
+  if (exato) return exato;
   if (norm.includes('coorden') || norm.includes('gerenc') || norm.includes('admin')) return 'Gerência';
   if (norm.includes('acolh')) return 'Acolhimento';
   if (norm.includes('farm')) return 'Farmácia';
@@ -3840,113 +3839,79 @@ function resolverSetorChatCompativel(setorDisp) {
 }
 
 function obterIdentificacaoRemetenteChat() {
-  const sel = document.getElementById('chat-remetente');
-  const inpNome = document.getElementById('chat-remetente-nome');
-  const setor = _chatDeviceSetorOficial || (sel && sel.value) || 'Recepção';
-  const nome = _chatDeviceNomeOficial || (inpNome ? inpNome.value.trim() : '');
-  if (!nome) return { setor, nome: '', autor: setor };
+  const setor = _chatDeviceSetorOficial || 'Recepção';
+  const nome = _chatDeviceNomeOficial || '';
+  if (!nome) {
+    return {
+      setor,
+      nome: '',
+      autor: _chatDeviceSetorOficial || 'Dispositivo sem nome'
+    };
+  }
+  if (!_chatDeviceSetorOficial) {
+    return { setor, nome, autor: nome };
+  }
   const nNorm = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const sNorm = setor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const autor = nNorm === sNorm ? nome : `${nome} (${setor})`;
+  const sNorm = _chatDeviceSetorOficial.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const autor = nNorm === sNorm ? nome : `${nome} (${_chatDeviceSetorOficial})`;
   return { setor, nome, autor };
 }
 
 window.sincronizarIdentidadeDispositivoNoChat = function(nomeDisp, setorDisp) {
   const limpo = String(nomeDisp || '').trim();
   const ehValido = Boolean(limpo) && limpo.toLowerCase() !== 'sem nome';
-  const inpNome = document.getElementById('chat-remetente-nome');
-  const selSetor = document.getElementById('chat-remetente');
   const statusEl = document.getElementById('chat-device-id-status');
   const cardEl = document.getElementById('chat-device-id-card');
   const cardNomeEl = document.getElementById('chat-device-id-nome');
   const cardSetorEl = document.getElementById('chat-device-id-setor');
-  const manualFieldsEl = document.getElementById('chat-manual-id-fields');
+  const cardModoEl = document.getElementById('chat-device-id-modo');
 
   if (ehValido) {
     _chatDeviceNomeOficial = limpo;
     _chatDeviceSetorOficial = resolverSetorChatCompativel(setorDisp);
-    if (inpNome) {
-      inpNome.value = limpo;
-      inpNome.readOnly = true;
-      inpNome.style.background = 'rgba(34,197,94,0.22)';
-      inpNome.style.borderColor = 'rgba(134,239,172,0.75)';
-      inpNome.title = 'Identificação automática pelo nome deste dispositivo cadastrado';
-    }
-    if (selSetor && _chatDeviceSetorOficial) {
-      const existe = Array.from(selSetor.options).some(o => o.value === _chatDeviceSetorOficial);
-      if (existe) {
-        selSetor.value = _chatDeviceSetorOficial;
-      }
+    if (_chatDeviceSetorOficial) {
       try { localStorage.setItem('chatSetor', _chatDeviceSetorOficial); } catch (e) {}
     }
 
-    if (_chatDeviceSetorOficial) {
-      // Dispositivo completo (Nome + Setor): ocultar campos manuais e mostrar cartão oficial
-      if (manualFieldsEl) manualFieldsEl.style.display = 'none';
-      if (inpNome) inpNome.style.display = '';
-      if (cardEl) cardEl.style.display = '';
-      if (cardNomeEl) cardNomeEl.textContent = `💻 ${limpo}`;
-      if (cardSetorEl) cardSetorEl.textContent = _chatDeviceSetorOficial;
-      if (statusEl) statusEl.textContent = '';
-    } else {
-      // Dispositivo com Nome mas ainda sem Setor: mostra cartão com nome e mantém seletor como contingência
-      if (cardEl) cardEl.style.display = '';
-      if (cardNomeEl) cardNomeEl.textContent = `💻 ${limpo}`;
-      if (cardSetorEl) cardSetorEl.textContent = 'Setor não definido';
-      if (manualFieldsEl) manualFieldsEl.style.display = 'flex';
-      if (inpNome) inpNome.style.display = 'none';
-      if (statusEl) {
-        statusEl.textContent = '⚠️ Defina o setor deste aparelho em Dispositivos para ocultar o seletor';
-      }
+    if (cardEl) {
+      cardEl.style.background = _chatDeviceSetorOficial ? 'rgba(34,197,94,0.18)' : 'rgba(14,165,233,0.18)';
+      cardEl.style.borderColor = _chatDeviceSetorOficial ? 'rgba(134,239,172,0.55)' : 'rgba(125,211,252,0.55)';
+    }
+    if (cardNomeEl) cardNomeEl.textContent = `💻 ${limpo}`;
+    if (cardSetorEl) cardSetorEl.textContent = _chatDeviceSetorOficial || 'USF Chico Mendes';
+    if (cardModoEl) cardModoEl.textContent = _chatDeviceSetorOficial ? 'Automático' : 'Identificado';
+    if (statusEl) {
+      statusEl.textContent = _chatDeviceSetorOficial
+        ? ''
+        : 'Defina o setor deste aparelho em Dispositivos para vincular o canal.';
     }
   } else {
     _chatDeviceNomeOficial = '';
     _chatDeviceSetorOficial = '';
-    if (cardEl) cardEl.style.display = 'none';
-    if (manualFieldsEl) manualFieldsEl.style.display = 'flex';
-    if (inpNome) {
-      inpNome.style.display = '';
-      if (inpNome.readOnly) {
-        inpNome.value = localStorage.getItem('chatNome') || '';
-      }
-      inpNome.readOnly = false;
-      inpNome.style.background = '';
-      inpNome.style.borderColor = '';
-      inpNome.title = '';
+    if (cardEl) {
+      cardEl.style.background = 'rgba(245,158,11,0.16)';
+      cardEl.style.borderColor = 'rgba(252,211,77,0.5)';
     }
-    if (statusEl) {
-      statusEl.textContent = '⚠️ Dispositivo sem nome (modo livre)';
-    }
+    if (cardNomeEl) cardNomeEl.textContent = '⚠️ Dispositivo sem nome';
+    if (cardSetorEl) cardSetorEl.textContent = 'Não identificado';
+    if (cardModoEl) cardModoEl.textContent = 'Pendente';
+    if (statusEl) statusEl.textContent = 'Cadastre nome e setor deste aparelho na aba Dispositivos.';
   }
 
   if (typeof renderCanalList === 'function') renderCanalList();
   if (typeof renderChannelChat === 'function') renderChannelChat();
 };
 
-// Restore saved setor e nome
-const savedSetor = localStorage.getItem('chatSetor');
-if (savedSetor) { setTimeout(() => { const sel = document.getElementById('chat-remetente'); if (sel && !_chatDeviceSetorOficial) sel.value = savedSetor; }, 100); }
-const savedChatNome = localStorage.getItem('chatNome');
-if (savedChatNome) { setTimeout(() => { const inpNome = document.getElementById('chat-remetente-nome'); if (inpNome && !_chatDeviceNomeOficial) inpNome.value = savedChatNome; }, 100); }
 setTimeout(() => {
   const dispNomeSalvo = localStorage.getItem('usf_device_nome');
   const dispSetorSalvo = localStorage.getItem('usf_device_setor');
-  if (dispNomeSalvo && typeof window.sincronizarIdentidadeDispositivoNoChat === 'function') {
-    window.sincronizarIdentidadeDispositivoNoChat(dispNomeSalvo, dispSetorSalvo || '');
+  if (typeof window.sincronizarIdentidadeDispositivoNoChat === 'function') {
+    window.sincronizarIdentidadeDispositivoNoChat(dispNomeSalvo || 'Sem nome', dispSetorSalvo || '');
   }
 }, 120);
 
-function onChatNomeChange() {
-  if (_chatDeviceNomeOficial) return;
-  const inpNome = document.getElementById('chat-remetente-nome');
-  if (inpNome) localStorage.setItem('chatNome', inpNome.value.trim());
-}
-
-function onChatSetorChange() {
-  const v = document.getElementById('chat-remetente').value;
-  localStorage.setItem('chatSetor', v);
-  renderCanalList();
-}
+function onChatNomeChange() {}
+function onChatSetorChange() {}
 
 function getVisibleCanais() {
   // Todos os 4 canais são visíveis para todos os setores

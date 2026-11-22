@@ -20,7 +20,9 @@ const {
   normalizarHorarioMarcado,
   calcularOrdemPrioridadeOdonto,
   sortQueueRows,
-  isRegistroRechamadaOuEncaminhamento
+  isRegistroRechamadaOuEncaminhamento,
+  agruparEtapaAcolhimento,
+  resolverEstadoTransferenciaAcolhimento
 } = require('./lib/prioridade');
 const {
   setupReceitas,
@@ -1991,17 +1993,25 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     const novoHorario = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
     });
-    const veioDoAcolhimento = patientAntes.setor === 'Acolhimento' || Boolean(is_intercorrencia_acolhimento);
-    const isIntercFinal = veioDoAcolhimento ? true : Boolean(patientAntes.is_intercorrencia_acolhimento);
-    const tipo = novoTipoAtendimento || (veioDoAcolhimento ? 'Intercorrência (Acolhimento)' : null);
-    const prof = inferirProfissionalPorEquipe(novoSetor, patientAntes.equipe_paciente, novoProfissional);
+    const estadoAcol = resolverEstadoTransferenciaAcolhimento(
+      patientAntes,
+      novoSetor,
+      is_intercorrencia_acolhimento
+    );
+    const isIntercFinal = estadoAcol.isIntercFinal;
+    const tipo = estadoAcol.indoParaAcolhimento
+      ? (novoTipoAtendimento || null)
+      : (novoTipoAtendimento || (estadoAcol.veioDoAcolhimento ? 'Intercorrência (Acolhimento)' : null));
+    const prof = estadoAcol.indoParaAcolhimento
+      ? null
+      : inferirProfissionalPorEquipe(novoSetor, patientAntes.equipe_paciente, novoProfissional);
     const motivo1Preservado = (patientAntes.motivo_primeira_escuta && String(patientAntes.motivo_primeira_escuta).trim())
       || (patientAntes.queixa && String(patientAntes.queixa).trim())
       || null;
     const obs2Preservada = (observacao_segunda_escuta && String(observacao_segunda_escuta).trim())
       ? String(observacao_segunda_escuta).trim()
       : (patientAntes.observacao_segunda_escuta || null);
-    const novaEtapaFluxo = veioDoAcolhimento ? 'encaminhado_intercorrencia' : (patientAntes.etapa_fluxo || 'recepcao');
+    const novaEtapaFluxo = estadoAcol.novaEtapaFluxo;
     const origemTransf = patientAntes.setor === 'Acolhimento' && patientAntes.etapa_fluxo === 'segunda_escuta'
       ? '2ª Escuta (Acolhimento)'
       : patientAntes.setor;
@@ -2045,6 +2055,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
            tipo_prioridade = COALESCE($17::text, tipo_prioridade),
            horario_marcado = $18,
            ordem_prioridade_odonto = $19,
+           acs_responsavel = CASE WHEN $20 THEN NULL ELSE acs_responsavel END,
+           inicio_etapa = CASE WHEN $20 THEN NULL ELSE inicio_etapa END,
+           tipo_profissional_destino = CASE WHEN $20 THEN NULL ELSE tipo_profissional_destino END,
            status = 'aguardando',
            created_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
@@ -2069,7 +2082,8 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
         prioInfo.nivel_prioridade,
         prioInfo.tipo_prioridade,
         horarioMarcadoTransfer,
-        ordemOdontoTransfer
+        ordemOdontoTransfer,
+        estadoAcol.limparCamposAcolhimento
       ]
     );
     const patient = result.rows[0];
@@ -4328,8 +4342,8 @@ app.get('/api/acolhimento/fluxo', async (req, res) => {
     await anexarResumoPrevias(result.rows, pool);
     const grouped = { recepcao: [], primeira_escuta: [], segunda_escuta: [] };
     result.rows.forEach(p => {
-      const etapa = p.etapa_fluxo || 'recepcao';
-      if (grouped[etapa]) grouped[etapa].push(p);
+      const etapa = agruparEtapaAcolhimento(p.etapa_fluxo);
+      grouped[etapa].push(p);
     });
     res.json(grouped);
   } catch (error) {
@@ -4411,7 +4425,7 @@ app.put('/api/acolhimento/:id/iniciar-escuta', async (req, res) => {
     }
     const result = await pool.query(
       `UPDATE patients SET etapa_fluxo = 'primeira_escuta', acs_responsavel = $2, inicio_etapa = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'recepcao' RETURNING *`,
+       WHERE id = $1 AND setor = 'Acolhimento' AND (etapa_fluxo IS NULL OR etapa_fluxo NOT IN ('primeira_escuta', 'segunda_escuta')) RETURNING *`,
       [id, acs_responsavel]
     );
     if (result.rows.length === 0) {

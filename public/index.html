@@ -459,18 +459,15 @@
    .chat-sidebar{background:linear-gradient(180deg,#0b1f56 0%,#0f2c73 100%);display:flex;flex-direction:column;min-height:0;border-right:1px solid rgba(255,255,255,0.1);}
    .chat-sidebar-header{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;}
    .chat-sidebar-header h3{font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:#fff;margin:0;letter-spacing:0.3px;}
-   .chat-canal-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;}
-   .chat-canal-btn{width:100%;text-align:left;background:transparent;border:1px solid transparent;color:#dbeafe;padding:10px 12px;border-radius:11px;font-family:'Nunito Sans',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:stretch;gap:3px;transition:all .18s;position:relative;}
+   .chat-canal-list{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin;}
+   .chat-canal-btn{width:100%;text-align:left;background:transparent;border:1px solid transparent;color:#dbeafe;padding:7px 10px;border-radius:10px;font-family:'Nunito Sans',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:stretch;gap:2px;transition:all .18s;position:relative;}
    .chat-canal-btn:hover{background:rgba(255,255,255,0.09);color:#fff;}
    .chat-canal-btn.active{background:rgba(59,130,246,0.35);border-color:rgba(147,197,253,0.45);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.18);}
    .chat-canal-btn.has-unread:not(.active){background:rgba(249,115,22,0.16);border-color:rgba(251,146,60,0.45);color:#fff;}
-   .chat-canal-row-top{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;width:100%;}
+   .chat-canal-row-top{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;width:100%;}
    .chat-canal-badge{background:var(--red);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;min-width:18px;text-align:center;margin-left:auto;}
-   .chat-setor-select{padding:12px;border-top:1px solid rgba(255,255,255,0.12);background:rgba(7,17,46,0.35);display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
-   .chat-setor-select label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:rgba(219,234,254,0.75);}
-   .chat-setor-select input,.chat-setor-select select{width:100%;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.22);background:rgba(255,255,255,0.1);color:#fff;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:700;outline:none;}
-   .chat-setor-select input::placeholder{color:rgba(255,255,255,0.5);}
-   .chat-setor-select select option{background:#0f2c73;color:#fff;}
+   .chat-setor-select{padding:9px 10px;border-top:1px solid rgba(255,255,255,0.12);background:rgba(7,17,46,0.35);display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+   .chat-setor-select label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:rgba(219,234,254,0.75);}
    .chat-main{display:flex;flex-direction:column;background:#edf2f9;min-height:0;overflow:hidden;}
    .chat-main-header{background:#ffffff;padding:10px 16px;color:#0f172a;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e2e8f0;flex-shrink:0;flex-wrap:wrap;}
    .chat-main-header .ch-title{font-weight:900;font-size:15px;color:#0f172a;}
@@ -1303,16 +1300,146 @@
     .escuta2-context-banner {
       background: linear-gradient(135deg, #f8fafc, #eff6ff);
       border: 1.5px solid #bfdbfe;
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-bottom: 14px;
+      border-radius: 10px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
     }
     .escuta2-intercorrencia-box {
       background: linear-gradient(135deg, #fff7ed, #ffedd5);
-      border: 2px solid #fb923c;
-      border-radius: 14px;
-      padding: 14px 16px;
-      margin-bottom: 16px;
+      border: 1.5px solid #fb923c;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 0;
+    }
+    /* Modais modernos e compactos da 1ª e 2ª Escuta (sem rolagem no desktop) */
+    .acol-modal.acol-modal-wide {
+      max-width: 840px;
+      width: 95%;
+      max-height: 95vh;
+      padding: 0 !important;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border-radius: 18px;
+    }
+    .acol-modal.acol-modal-wide.acol-modal-wide-lg {
+      max-width: 1000px;
+      width: 96%;
+    }
+    .acol-modal-head {
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .acol-modal-head.escuta1 { background: linear-gradient(135deg, #ea580c, #d97706); }
+    .acol-modal-head.escuta2 { background: linear-gradient(135deg, #0f2c73, #b91c1c); }
+    .acol-modal-head.acs { background: linear-gradient(135deg, #0f2c73, #f59e0b); }
+    .acol-modal-head h3 {
+      margin: 0 !important;
+      color: #fff !important;
+      font-size: 16px !important;
+    }
+    .acol-modal-patient-pill {
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      padding: 5px 11px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .acol-modal-body {
+      padding: 14px 18px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      scrollbar-width: thin;
+    }
+    .acol-modal-grid-2 {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .acol-modal-grid-2-escuta2 {
+      display: grid;
+      grid-template-columns: 0.95fr 1.15fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+    .acol-panel-card {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .acol-panel-card-title {
+      font-size: 11.5px;
+      font-weight: 900;
+      color: #1e3a8a;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 8px;
+    }
+    .acol-cond-grid-2x2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .acol-cond-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 9px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--gray-700);
+    }
+    .acol-grav-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .acol-grav-row .acol-risco-btn {
+      padding: 6px 8px;
+      font-size: 11.5px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .acol-modal-footer {
+      padding: 10px 18px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .acol-modal-footer .btn {
+      padding: 9px 14px;
+      font-size: 13px;
+      border-radius: 12px;
+      flex: 1;
+      min-width: 120px;
+    }
+    .acol-modal-footer .btn-cancel-compact {
+      flex: 0 0 auto;
+      min-width: auto;
+      padding: 9px 14px;
+    }
+    @media (max-width: 860px) {
+      .acol-modal-grid-2,
+      .acol-modal-grid-2-escuta2,
+      .acol-grav-row { grid-template-columns: 1fr; }
+      .acol-cond-grid-2x2 { grid-template-columns: 1fr; }
     }
     body.modo-tv .historico-escuta-card,
     body.modo-tv .badge-intercorrencia-acol,
@@ -1861,6 +1988,15 @@
         padding: 18px 14px !important;
         border-radius: 14px !important;
       }
+      .acol-modal.acol-modal-wide {
+        padding: 0 !important;
+      }
+      .acol-modal-wide .acol-modal-body {
+        padding: 12px 14px !important;
+      }
+      .acol-modal-wide .acol-modal-footer .btn {
+        min-width: calc(50% - 6px);
+      }
       .fila-paciente-nome {
         font-size: 15px !important;
       }
@@ -2161,6 +2297,15 @@
     .sisreg-tel-row input { flex: 1; min-width: 150px; padding: 8px 10px; border: 2px solid #93c5fd; border-radius: 8px; font-size: 15px; font-weight: 900; color: #0f172a; font-family: monospace; }
     .sisreg-check-line { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: #0f766e; margin-top: 7px; cursor: pointer; }
     .sisreg-box-obs textarea { width: 100%; border: 1.5px solid #93c5fd; border-radius: 8px; padding: 8px 10px; font-family: 'Nunito Sans', sans-serif; font-size: 13px; font-weight: 700; color: #0f172a; resize: vertical; background: #fff; }
+    .sisreg-box-obs textarea.sisreg-textarea-alerta-conferir,
+    textarea.sisreg-textarea-alerta-conferir { border: 2px solid #dc2626 !important; background: #fffbeb !important; }
+    .sisreg-conferir-box { background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 9px; padding: 8px 10px; margin-bottom: 7px; }
+    .sisreg-conferir-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #9a3412; font-weight: 800; margin-bottom: 5px; }
+    .sisreg-conferir-preview { background: #fff; border: 1px solid #fde68a; border-radius: 7px; padding: 7px 9px; font-size: 12.5px; line-height: 1.48; color: #1e293b; max-height: 130px; overflow-y: auto; word-break: break-word; }
+    .sisreg-conferir-mark { background: #fef08a; color: #991b1b; font-weight: 900; padding: 1px 5px; border-radius: 4px; border: 1px solid #f87171; }
+    .sisreg-conferir-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+    .sisreg-conferir-chip { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; border-radius: 6px; padding: 2px 7px; font-size: 11px; cursor: pointer; font-family: inherit; }
+    .sisreg-conferir-chip:hover { background: #fecaca; border-color: #ef4444; }
     .sisreg-obs-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
     .sisreg-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .sisreg-grid-cep { display: grid; grid-template-columns: 1.4fr 0.55fr 1.05fr; gap: 6px; }
@@ -2768,259 +2913,280 @@
 
   <!-- Modal: 1ª Escuta (Encaminhar) -->
   <div class="acol-modal-overlay" id="acol-escuta-modal">
-    <div class="acol-modal">
-      <h3>🟡 1ª Escuta – Encaminhar Paciente</h3>
-      <div id="acol-modal-patient-info" style="margin-bottom:16px;padding:12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:15px;color:var(--gray-700);"></div>
-      <input type="hidden" id="acol-modal-id">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-        <div class="form-group">
-          <label style="color:var(--gray-600);">CPF (Opcional, 6 dígitos)</label>
-          <input type="text" id="acol-modal-cpf" maxlength="6" oninput="this.value=this.value.replace(/\\D/g,'')" placeholder="Apenas 6 números" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;">
+    <div class="acol-modal acol-modal-wide">
+      <div class="acol-modal-head escuta1">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;flex:1;">
+          <h3>🟡 1ª Escuta – Encaminhar Paciente</h3>
+          <div id="acol-modal-patient-info" class="acol-modal-patient-pill">—</div>
         </div>
-        <div class="form-group">
-          <label style="color:var(--gray-600);">Cartão SUS (Opcional)</label>
-          <input type="text" id="acol-modal-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;">
-        </div>
+        <button type="button" class="previa-btn-close-red" onclick="fecharEscutaModal()" title="Fechar janela">✕ Fechar</button>
       </div>
-      <div class="form-group" style="margin-bottom:14px;">
-        <label style="color:var(--gray-600);">🏥 Equipe do Paciente</label>
-        <select id="acol-modal-equipe" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:700;color:var(--gray-700);">
-          <option value="">— Selecione a Equipe —</option>
-          <option value="Eq 1 Chico Mendes">🏥 Equipe 1 · Chico Mendes</option>
-          <option value="Eq 2 Ximboré">🏡 Equipe 2 · Ximboré</option>
-          <option value="Eq 3 Aurora">🌅 Equipe 3 · Aurora</option>
-          <option value="Fora de Área / Sem Equipe">📍 Fora de Área / Sem Equipe</option>
-        </select>
-      </div>
-      <div class="form-group" style="margin-bottom:14px;">
-        <label style="color:var(--gray-600);">💬 Motivo / Queixa Principal (1ª Escuta) <span style="color:var(--red);">*</span></label>
-        <textarea id="acol-modal-queixa" rows="3" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Descreva a queixa do paciente na 1ª escuta..."></textarea>
-      </div>
-      <!-- Classificação de Risco removida da 1ª Escuta (exclusivo da 2ª Escuta / Médico) -->
-      <div style="display:none;" id="acol-risco-chooser-container">
-        <div class="form-group" style="margin-bottom:14px;">
-          <label style="color:var(--gray-600);">Classificação de Risco</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-risco-chooser">
-            <button type="button" class="acol-risco-btn acol-risco-verde active" data-risco="verde" onclick="selectRisco('verde')">🟢 Verde (Baixo)</button>
-            <button type="button" class="acol-risco-btn acol-risco-amarelo" data-risco="amarelo" onclick="selectRisco('amarelo')">🟡 Amarelo (Moderado)</button>
-            <button type="button" class="acol-risco-btn acol-risco-vermelho" data-risco="vermelho" onclick="selectRisco('vermelho')">🔴 Vermelho (Alto)</button>
-            <button type="button" class="acol-risco-btn acol-risco-azul" data-risco="azul" onclick="selectRisco('azul')">🟦 Azul (Sem Risco / Exames)</button>
+      <div class="acol-modal-body">
+        <input type="hidden" id="acol-modal-id">
+        <div class="acol-modal-grid-2">
+          <div>
+            <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:10px;margin-bottom:10px;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label style="color:var(--gray-600);font-size:12px;">CPF (6 dígitos)</label>
+                <input type="text" id="acol-modal-cpf" maxlength="6" oninput="this.value=this.value.replace(/\D/g,'')" placeholder="Apenas 6 números" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label style="color:var(--gray-600);font-size:12px;">Cartão SUS (Opcional)</label>
+                <input type="text" id="acol-modal-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="color:var(--gray-600);font-size:12px;">🏥 Equipe do Paciente</label>
+              <select id="acol-modal-equipe" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:700;color:var(--gray-700);">
+                <option value="">— Selecione a Equipe —</option>
+                <option value="Eq 1 Chico Mendes">🏥 Equipe 1 · Chico Mendes</option>
+                <option value="Eq 2 Ximboré">🏡 Equipe 2 · Ximboré</option>
+                <option value="Eq 3 Aurora">🌅 Equipe 3 · Aurora</option>
+                <option value="Fora de Área / Sem Equipe">📍 Fora de Área / Sem Equipe</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label style="color:var(--gray-600);font-size:12px;">💬 Motivo / Queixa Principal (1ª Escuta) <span style="color:var(--red);">*</span></label>
+              <textarea id="acol-modal-queixa" rows="4" style="width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Descreva a queixa do paciente na 1ª escuta..."></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <!-- Classificação de Risco removida da 1ª Escuta (exclusivo da 2ª Escuta / Médico) -->
+            <div style="display:none;" id="acol-risco-chooser-container">
+              <div class="form-group" style="margin-bottom:8px;">
+                <label style="color:var(--gray-600);">Classificação de Risco</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-risco-chooser">
+                  <button type="button" class="acol-risco-btn acol-risco-verde active" data-risco="verde" onclick="selectRisco('verde')">🟢 Verde (Baixo)</button>
+                  <button type="button" class="acol-risco-btn acol-risco-amarelo" data-risco="amarelo" onclick="selectRisco('amarelo')">🟡 Amarelo (Moderado)</button>
+                  <button type="button" class="acol-risco-btn acol-risco-vermelho" data-risco="vermelho" onclick="selectRisco('vermelho')">🔴 Vermelho (Alto)</button>
+                  <button type="button" class="acol-risco-btn acol-risco-azul" data-risco="azul" onclick="selectRisco('azul')">🟦 Azul (Sem Risco / Exames)</button>
+                </div>
+              </div>
+            </div>
+            <div class="acol-panel-card" style="background:#eff6ff;border-color:#bfdbfe;">
+              <div class="acol-panel-card-title">🎯 Direcionamento para 2ª Escuta</div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <label style="color:var(--gray-600);font-size:12px;">Tipo Profissional Destino</label>
+                <select id="acol-modal-tipo-prof" style="width:100%;padding:9px 10px;border:2px solid #cbd5e1;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;color:var(--gray-700);background:#fff;" onchange="updateAcolProfDest()">
+                  <option value="">— Opcional —</option>
+                  <option value="medico">🩺 Médico</option>
+                  <option value="enfermagem">👩‍⚕️ Enfermagem</option>
+                  <option value="odontologia">🦷 Odontologia</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label style="color:var(--gray-600);font-size:12px;">Profissional Destino</label>
+                <select id="acol-modal-prof-dest" style="width:100%;padding:9px 10px;border:2px solid #cbd5e1;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;color:var(--gray-700);background:#fff;">
+                  <option value="">— Opcional —</option>
+                </select>
+              </div>
+            </div>
+            <div class="acol-panel-card">
+              <div class="acol-panel-card-title" style="color:#475569;">🩺 Condições Especiais</div>
+              <div class="acol-cond-grid-2x2" id="condicoes-especiais-escuta1">
+                <label class="acol-cond-chip" style="background:rgba(33,150,243,0.08);border:1.5px solid rgba(33,150,243,0.22);">
+                  <input type="checkbox" value="hipertenso" style="transform:scale(1.1);cursor:pointer;"> 💙 Hipertenso
+                </label>
+                <label class="acol-cond-chip" style="background:rgba(244,130,30,0.08);border:1.5px solid rgba(244,130,30,0.22);">
+                  <input type="checkbox" value="diabetico" style="transform:scale(1.1);cursor:pointer;"> 🧡 Diabético
+                </label>
+                <label class="acol-cond-chip" style="background:rgba(142,36,170,0.08);border:1.5px solid rgba(142,36,170,0.22);">
+                  <input type="checkbox" value="gestante" style="transform:scale(1.1);cursor:pointer;"> 💜 Gestante
+                </label>
+                <label class="acol-cond-chip" style="background:rgba(225,29,72,0.08);border:1.5px solid rgba(225,29,72,0.25);">
+                  <input type="checkbox" value="crianca_colo" style="transform:scale(1.1);cursor:pointer;"> 👶 Criança de Colo
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-        <div class="form-group">
-          <label style="color:var(--gray-600);">Tipo Profissional Destino</label>
-          <select id="acol-modal-tipo-prof" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);" onchange="updateAcolProfDest()">
-            <option value="">— Opcional —</option>
-            <option value="medico">🩺 Médico</option>
-            <option value="enfermagem">👩‍⚕️ Enfermagem</option>
-            <option value="odontologia">🦷 Odontologia</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label style="color:var(--gray-600);">Profissional Destino</label>
-          <select id="acol-modal-prof-dest" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);">
-            <option value="">— Opcional —</option>
-          </select>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
-        <div style="margin-bottom:8px;">
-          <label style="color:var(--gray-600);margin-bottom:8px;display:block;">Condições Especiais</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="condicoes-especiais-escuta1">
-            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(33,150,243,0.08);border:2px solid rgba(33,150,243,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
-              <input type="checkbox" value="hipertenso" style="transform:scale(1.1);cursor:pointer;"> 💙 Hipertenso
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(244,130,30,0.08);border:2px solid rgba(244,130,30,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
-              <input type="checkbox" value="diabetico" style="transform:scale(1.1);cursor:pointer;"> 🧡 Diabético
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(142,36,170,0.08);border:2px solid rgba(142,36,170,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
-              <input type="checkbox" value="gestante" style="transform:scale(1.1);cursor:pointer;"> 💜 Gestante
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(225,29,72,0.08);border:2px solid rgba(225,29,72,0.25);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
-              <input type="checkbox" value="crianca_colo" style="transform:scale(1.1);cursor:pointer;"> 👶 Criança de Colo (meses)
-            </label>
-          </div>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
-        <button class="btn btn-3d" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;" onclick="chamarNoPainel('escuta1', this)">🔊 Chamar no Painel</button>
-        <button class="btn btn-orange" style="width:100%;padding:12px;" onclick="confirmarEncaminhamento()">📤 Encaminhar para 2ª Escuta</button>
-        <button class="btn" style="width:100%;padding:12px;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;" onclick="finalizarEscuta1()">✅ Finalizar Atendimento Direto</button>
-        <button class="btn" style="width:100%;padding:12px;background:#1976d2;color:white;border:none;border-radius:24px;font-weight:700;" onclick="agendarEscuta1()">📅 Finalizar e Agendar</button>
-        <button class="btn btn-ghost" style="width:100%;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="fecharEscutaModal()">Cancelar</button>
+      <div class="acol-modal-footer">
+        <button class="btn btn-3d" style="background:var(--blue);color:white;border:none;font-weight:800;" onclick="chamarNoPainel('escuta1', this)">🔊 Chamar no Painel</button>
+        <button class="btn btn-orange" style="font-weight:800;" onclick="confirmarEncaminhamento()">📤 Encaminhar p/ 2ª Escuta</button>
+        <button class="btn" style="background:var(--green);color:white;border:none;font-weight:800;" onclick="finalizarEscuta1()">✅ Finalizar Direto</button>
+        <button class="btn" style="background:#1976d2;color:white;border:none;font-weight:800;" onclick="agendarEscuta1()">📅 Finalizar e Agendar</button>
+        <button class="btn btn-ghost btn-cancel-compact" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="fecharEscutaModal()">Cancelar</button>
       </div>
     </div>
   </div>
 
   <!-- Modal: 2ª Escuta (Atendimento, Reencaminhamento como Intercorrência ou Encerramento) -->
   <div class="acol-modal-overlay" id="acol-escuta2-modal">
-    <div class="acol-modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
-      <h3>🔴 2ª Escuta – Avaliação &amp; Conduta Clínica</h3>
-      <div id="acol-escuta2-patient-info" style="margin-bottom:12px;padding:12px;background:var(--gray-100);border-radius:10px;font-weight:800;font-size:15px;color:var(--gray-700);"></div>
-      <input type="hidden" id="acol-escuta2-id">
-
-      <!-- BLOCO DE LEITURA EM DESTAQUE: EQUIPE + MOTIVO ORIGINAL DA 1ª ESCUTA -->
-      <div class="escuta2-context-banner" id="acol-escuta2-contexto-leitura">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-          <span style="font-size:11px;font-weight:900;color:#1e40af;text-transform:uppercase;letter-spacing:0.5px;">📋 Registro Original da 1ª Escuta</span>
-          <span id="acol-escuta2-view-equipe" class="badge-equipe-paciente">🏥 Equipe não informada</span>
+    <div class="acol-modal acol-modal-wide acol-modal-wide-lg">
+      <div class="acol-modal-head escuta2">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;flex:1;">
+          <h3>🔴 2ª Escuta – Avaliação &amp; Conduta Clínica</h3>
+          <div id="acol-escuta2-patient-info" class="acol-modal-patient-pill">—</div>
         </div>
-        <div style="font-size:13px;font-weight:700;color:#0f172a;background:#fff;padding:10px 12px;border-radius:8px;border:1px solid #cbd5e1;" id="acol-escuta2-view-motivo1">
-          —
+        <button type="button" class="previa-btn-close-red" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')" title="Fechar janela">✕ Fechar</button>
+      </div>
+      <div class="acol-modal-body">
+        <input type="hidden" id="acol-escuta2-id">
+
+        <!-- BLOCO DE LEITURA COMPACTO: EQUIPE + MOTIVO ORIGINAL DA 1ª ESCUTA -->
+        <div class="escuta2-context-banner" id="acol-escuta2-contexto-leitura">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px;">
+              <span style="font-size:11px;font-weight:900;color:#1e40af;text-transform:uppercase;white-space:nowrap;">📋 1ª Escuta:</span>
+              <span style="font-size:13px;font-weight:700;color:#0f172a;" id="acol-escuta2-view-motivo1">—</span>
+            </div>
+            <span id="acol-escuta2-view-equipe" class="badge-equipe-paciente">🏥 Equipe não informada</span>
+          </div>
+        </div>
+
+        <div class="acol-modal-grid-2-escuta2">
+          <!-- COLUNA ESQUERDA: REENCAMINHAMENTO (INTERCORRÊNCIA DO ACOLHIMENTO) -->
+          <div class="escuta2-intercorrencia-box" style="display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+                <div style="font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:900;color:#9a3412;">
+                  🚨 Reencaminhar (Intercorrência)
+                </div>
+                <span style="font-size:10px;font-weight:800;background:#fed7aa;color:#9a3412;padding:2px 8px;border-radius:12px;">Mantém 1ª Escuta</span>
+              </div>
+              <div style="font-size:11.5px;color:#7c2d12;margin-bottom:8px;line-height:1.3;">
+                Selecione o setor/profissional para encaminhar com selo de <strong>Intercorrência do Acolhimento</strong>.
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label style="color:#7c2d12;font-size:11.5px;">Destino</label>
+                  <select id="acol-escuta2-setor-destino" onchange="atualizarProfissionaisDestinoEscuta2()" style="width:100%;padding:8px 9px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:700;background:#fff;color:#1e293b;">
+                    <option value="">— Selecione o Destino —</option>
+                    <option value="Médico">🩺 Médico</option>
+                    <option value="Enfermagem">👩‍⚕️ Enfermeiro(a)</option>
+                    <option value="Odontologia">🦷 Dentista (Odontologia)</option>
+                    <option value="Téc. Enfermagem">🩹 Téc. Enfermagem / Procedimentos</option>
+                    <option value="Vacina">💉 Sala de Vacina</option>
+                    <option value="Farmácia">💊 Farmácia</option>
+                    <option value="Regulação">📋 Regulação</option>
+                    <option value="Sala de Agendamento">🗂️ Sala de Agendamento</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;" id="acol-escuta2-prof-destino-grupo">
+                  <label style="color:#7c2d12;font-size:11.5px;">Profissional</label>
+                  <select id="acol-escuta2-prof-destino" style="width:100%;padding:8px 9px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:700;background:#fff;color:#1e293b;">
+                    <option value="">— Qualquer disponível —</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label style="color:#7c2d12;font-size:11.5px;">Observações da 2ª Escuta / Triagem</label>
+                <textarea id="acol-escuta2-obs-segunda" rows="3" placeholder="Ex: PA 150x90 mmHg, encaminhado para avaliação médica..." style="width:100%;padding:8px 10px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:600;background:#fff;color:#1e293b;resize:vertical;"></textarea>
+              </div>
+            </div>
+            <button type="button" class="btn" style="width:100%;background:linear-gradient(135deg,#ea580c,#dc2626);color:#fff;border:none;border-radius:10px;padding:11px;font-size:13.5px;font-weight:900;box-shadow:0 4px 12px rgba(220,38,38,0.28);" onclick="confirmarEncaminhamentoIntercorrenciaEscuta2(this)">
+              🚨 Encaminhar como Intercorrência
+            </button>
+          </div>
+
+          <!-- COLUNA DIREITA: DADOS PARA CONCLUIR NA PRÓPRIA 2ª ESCUTA -->
+          <div class="acol-panel-card" style="display:flex;flex-direction:column;gap:8px;">
+            <div class="acol-panel-card-title" style="color:#15803d;margin-bottom:0;">✅ Ou Concluir na Própria 2ª Escuta</div>
+            <div style="display:grid;grid-template-columns:0.8fr 1.2fr;gap:8px;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label style="color:var(--gray-600);font-size:11.5px;">CPF (6 dígitos)</label>
+                <input type="text" id="acol-escuta2-cpf" maxlength="6" oninput="this.value=this.value.replace(/\D/g,'')" placeholder="6 números" style="width:100%;padding:8px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;background:#fff;">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label style="color:var(--gray-600);font-size:11.5px;">Cartão SUS</label>
+                <input type="text" id="acol-escuta2-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:8px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;background:#fff;">
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label style="color:var(--gray-600);font-size:11.5px;">Queixa / Registro Final</label>
+              <textarea id="acol-escuta2-queixa" rows="2" style="width:100%;padding:8px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:600;color:var(--gray-700);resize:vertical;background:#fff;" placeholder="Revise a queixa..."></textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label style="color:var(--gray-600);font-size:11.5px;margin-bottom:4px;">Gravidade Final</label>
+              <div class="acol-grav-row" id="acol-gravidade-chooser">
+                <button type="button" class="acol-risco-btn acol-risco-verde" data-gravidade="verde" onclick="selectGravidade('verde')">🟢 Baixa</button>
+                <button type="button" class="acol-risco-btn acol-risco-amarelo" data-gravidade="amarelo" onclick="selectGravidade('amarelo')">🟡 Moderada</button>
+                <button type="button" class="acol-risco-btn acol-risco-vermelho" data-gravidade="vermelho" onclick="selectGravidade('vermelho')">🔴 Alta</button>
+                <button type="button" class="acol-risco-btn acol-risco-azul" data-gravidade="azul" onclick="selectGravidade('azul')">🟦 Sem Risco</button>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1.5px solid #e2e8f0;padding:7px 11px;border-radius:9px;">
+              <span style="font-size:11.5px;font-weight:800;color:var(--gray-600);">Agendamento Realizado?</span>
+              <div style="display:flex;gap:14px;">
+                <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;cursor:pointer;"><input type="radio" name="acol-escuta2-agend" value="true" style="transform:scale(1.15);"> Sim</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;cursor:pointer;"><input type="radio" name="acol-escuta2-agend" value="false" checked style="transform:scale(1.15);"> Não</label>
+              </div>
+            </div>
+
+            <div>
+              <div class="acol-cond-grid-2x2" id="condicoes-especiais-escuta2">
+                <label class="acol-cond-chip" style="background:rgba(33,150,243,0.08);border:1.5px solid rgba(33,150,243,0.22);">
+                  <input type="checkbox" value="hipertenso" style="transform:scale(1.1);cursor:pointer;"> 💙 Hipertenso
+                </label>
+                <label class="acol-cond-chip" style="background:rgba(244,130,30,0.08);border:1.5px solid rgba(244,130,30,0.22);">
+                  <input type="checkbox" value="diabetico" style="transform:scale(1.1);cursor:pointer;"> 🧡 Diabético
+                </label>
+                <label class="acol-cond-chip" style="background:rgba(142,36,170,0.08);border:1.5px solid rgba(142,36,170,0.22);">
+                  <input type="checkbox" value="gestante" style="transform:scale(1.1);cursor:pointer;"> 💜 Gestante
+                </label>
+                <label class="acol-cond-chip" style="background:rgba(225,29,72,0.08);border:1.5px solid rgba(225,29,72,0.25);">
+                  <input type="checkbox" value="crianca_colo" style="transform:scale(1.1);cursor:pointer;"> 👶 Criança de Colo
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- BLOCO DE REENCAMINHAMENTO (INTERCORRÊNCIA DO ACOLHIMENTO) -->
-      <div class="escuta2-intercorrencia-box">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-          <div style="font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:900;color:#9a3412;">
-            🚨 Reencaminhar Paciente (Intercorrência do Acolhimento)
-          </div>
-          <span style="font-size:10px;font-weight:800;background:#fed7aa;color:#9a3412;padding:2px 8px;border-radius:12px;">Mantém 1ª Escuta Intacta</span>
-        </div>
-        <div style="font-size:11.5px;color:#7c2d12;margin-bottom:10px;line-height:1.35;">
-          Caso a demanda exija avaliação de outro profissional/setor, selecione o destino abaixo para enviar o paciente com o selo de <strong>Intercorrência do Acolhimento</strong>.
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-          <div class="form-group" style="margin-bottom:0;">
-            <label style="color:#7c2d12;font-size:11.5px;">Destino do Encaminhamento</label>
-            <select id="acol-escuta2-setor-destino" onchange="atualizarProfissionaisDestinoEscuta2()" style="width:100%;padding:10px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;background:#fff;color:#1e293b;">
-              <option value="">— Selecione o Destino —</option>
-              <option value="Médico">🩺 Médico</option>
-              <option value="Enfermagem">👩‍⚕️ Enfermeiro(a)</option>
-              <option value="Odontologia">🦷 Dentista (Odontologia)</option>
-              <option value="Téc. Enfermagem">🩹 Téc. Enfermagem / Procedimentos</option>
-              <option value="Vacina">💉 Sala de Vacina</option>
-              <option value="Farmácia">💊 Farmácia</option>
-              <option value="Regulação">📋 Regulação</option>
-              <option value="Sala de Agendamento">🗂️ Sala de Agendamento</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin-bottom:0;" id="acol-escuta2-prof-destino-grupo">
-            <label style="color:#7c2d12;font-size:11.5px;">Profissional de Destino</label>
-            <select id="acol-escuta2-prof-destino" style="width:100%;padding:10px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;background:#fff;color:#1e293b;">
-              <option value="">— Qualquer disponível —</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group" style="margin-bottom:10px;">
-          <label style="color:#7c2d12;font-size:11.5px;">Observações da 2ª Escuta / Triagem (Opcional – soma ao motivo da 1ª escuta)</label>
-          <textarea id="acol-escuta2-obs-segunda" rows="2" placeholder="Ex: PA 150x90 mmHg, encaminhado para avaliação médica de intercorrência..." style="width:100%;padding:10px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:600;background:#fff;color:#1e293b;resize:vertical;"></textarea>
-        </div>
-
-        <button type="button" class="btn" style="width:100%;background:linear-gradient(135deg,#ea580c,#dc2626);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:900;box-shadow:0 4px 12px rgba(220,38,38,0.3);" onclick="confirmarEncaminhamentoIntercorrenciaEscuta2(this)">
-          🚨 Encaminhar como Intercorrência
-        </button>
-      </div>
-
-      <!-- DADOS COMPLEMENTARES PARA ENCERRAMENTO NA PRÓPRIA 2ª ESCUTA -->
-      <div style="border-top:1.5px dashed var(--gray-200);padding-top:12px;margin-bottom:12px;">
-        <div style="font-size:12px;font-weight:900;color:var(--gray-600);text-transform:uppercase;margin-bottom:10px;">
-          Ou Concluir Atendimento na Própria 2ª Escuta
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-          <div class="form-group">
-            <label style="color:var(--gray-600);">CPF (Opcional, 6 dígitos)</label>
-            <input type="text" id="acol-escuta2-cpf" maxlength="6" oninput="this.value=this.value.replace(/\\D/g,'')" placeholder="Apenas 6 números" style="width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;">
-          </div>
-          <div class="form-group">
-            <label style="color:var(--gray-600);">Cartão SUS</label>
-            <input type="text" id="acol-escuta2-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;">
-          </div>
-        </div>
-
-        <div class="form-group" style="margin-bottom:12px;">
-          <label style="color:var(--gray-600);">Queixa / Registro Final</label>
-          <textarea id="acol-escuta2-queixa" rows="2" style="width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Revise a queixa..."></textarea>
-        </div>
-        
-        <div class="form-group" style="margin-bottom:14px;">
-          <label style="color:var(--gray-600);margin-bottom:6px;">Classificação de Gravidade Final</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="acol-gravidade-chooser">
-            <button type="button" class="acol-risco-btn acol-risco-verde" data-gravidade="verde" onclick="selectGravidade('verde')">🟢 Verde (Baixa)</button>
-            <button type="button" class="acol-risco-btn acol-risco-amarelo" data-gravidade="amarelo" onclick="selectGravidade('amarelo')">🟡 Amarelo (Moderada)</button>
-            <button type="button" class="acol-risco-btn acol-risco-vermelho" data-gravidade="vermelho" onclick="selectGravidade('vermelho')">🔴 Vermelho (Alta)</button>
-            <button type="button" class="acol-risco-btn acol-risco-azul" data-gravidade="azul" onclick="selectGravidade('azul')">🟦 Azul (Sem Risco)</button>
-          </div>
-        </div>
-        
-        <div class="form-group" style="margin-bottom:14px;">
-          <label style="color:var(--gray-600);margin-bottom:6px;">Status de Agendamento Realizado?</label>
-          <div style="display:flex;gap:16px;background:var(--gray-100);padding:10px 14px;border-radius:10px;">
-            <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;"><input type="radio" name="acol-escuta2-agend" value="true" style="transform:scale(1.2);"> Sim</label>
-            <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;"><input type="radio" name="acol-escuta2-agend" value="false" checked style="transform:scale(1.2);"> Não</label>
-          </div>
-        </div>
-        
-        <div style="margin-bottom:14px;">
-          <label style="color:var(--gray-600);margin-bottom:6px;display:block;">Condições Especiais</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="condicoes-especiais-escuta2">
-            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(33,150,243,0.08);border:2px solid rgba(33,150,243,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
-              <input type="checkbox" value="hipertenso" style="transform:scale(1.1);cursor:pointer;"> 💙 Hipertenso
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(244,130,30,0.08);border:2px solid rgba(244,130,30,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
-              <input type="checkbox" value="diabetico" style="transform:scale(1.1);cursor:pointer;"> 🧡 Diabético
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(142,36,170,0.08);border:2px solid rgba(142,36,170,0.2);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
-              <input type="checkbox" value="gestante" style="transform:scale(1.1);cursor:pointer;"> 💜 Gestante
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(225,29,72,0.08);border:2px solid rgba(225,29,72,0.25);border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;color:var(--gray-700);">
-              <input type="checkbox" value="crianca_colo" style="transform:scale(1.1);cursor:pointer;"> 👶 Criança de Colo (meses)
-            </label>
-          </div>
-        </div>
-      </div>
-      
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn btn-3d" style="flex:1;background:var(--blue);color:white;border:none;border-radius:24px;font-weight:700;padding:12px;font-size:14px;" onclick="chamarNoPainel('escuta2', this)">🔊 Chamar no Painel</button>
-        <button class="btn" style="flex:1;background:var(--green);color:white;border:none;border-radius:24px;font-weight:700;padding:12px;font-size:14px;" onclick="confirmarFinalizacaoEscuta2()">✅ Finalizar na 2ª Escuta</button>
-        <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')">Cancelar</button>
+      <div class="acol-modal-footer">
+        <button class="btn btn-3d" style="background:var(--blue);color:white;border:none;font-weight:800;" onclick="chamarNoPainel('escuta2', this)">🔊 Chamar no Painel</button>
+        <button class="btn" style="background:var(--green);color:white;border:none;font-weight:800;" onclick="confirmarFinalizacaoEscuta2()">✅ Finalizar na 2ª Escuta</button>
+        <button class="btn btn-ghost btn-cancel-compact" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')">Cancelar</button>
       </div>
     </div>
   </div>
 
   <!-- Modal: Seleção de ACS (Acolhimento) -->
   <div class="acol-modal-overlay" id="acol-acs-modal">
-    <div class="acol-modal">
-      <h3>🟡 Iniciar 1ª Escuta</h3>
-      <div id="acol-acs-patient-info" style="margin-bottom:16px;padding:12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:15px;color:var(--gray-700);"></div>
-      <input type="hidden" id="acol-acs-patient-id">
-      
-      <div class="form-group" style="margin-bottom:14px;">
-        <label style="color:var(--gray-600);">ACS Responsável</label>
-        <select id="acol-acs-select" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);">
-          <option value="">— Selecione o Agente de Saúde —</option>
-          <optgroup label="Equipe 1 Chico Mendes">
-            <option value="Ana Paula">Ana Paula</option>
-            <option value="Ana Lúcia">Ana Lúcia</option>
-            <option value="Lenilda">Lenilda</option>
-            <option value="Conceição">Conceição</option>
-            <option value="Joselita">Joselita</option>
-            <option value="Alda">Alda</option>
-          </optgroup>
-          <optgroup label="Equipe 2 Ximbore">
-            <option value="Simone">Simone</option>
-            <option value="Patrícia">Patrícia</option>
-            <option value="Telma">Telma</option>
-            <option value="Jeane">Jeane</option>
-          </optgroup>
-          <optgroup label="Equipe 3 Aurora Caçote">
-            <option value="Josélia">Josélia</option>
-            <option value="Arlinda">Arlinda</option>
-            <option value="Nena">Nena</option>
-            <option value="Rosilene">Rosilene</option>
-            <option value="Fátima">Fátima</option>
-          </optgroup>
-        </select>
+    <div class="acol-modal acol-modal-wide" style="max-width:500px;">
+      <div class="acol-modal-head acs">
+        <h3>🟡 Iniciar 1ª Escuta</h3>
+        <button type="button" class="previa-btn-close-red" onclick="document.getElementById('acol-acs-modal').classList.remove('show')" title="Fechar janela">✕ Fechar</button>
       </div>
-      
-      <div style="display:flex;gap:12px;margin-top:20px;">
-        <button class="btn btn-orange" style="flex:1;" onclick="confirmarIniciarEscuta()">Iniciar Escuta</button>
-        <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-acs-modal').classList.remove('show')">Cancelar</button>
+      <div class="acol-modal-body">
+        <div id="acol-acs-patient-info" style="margin-bottom:12px;padding:10px 12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:14.5px;color:var(--gray-700);"></div>
+        <input type="hidden" id="acol-acs-patient-id">
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="color:var(--gray-600);">ACS Responsável</label>
+          <select id="acol-acs-select" style="width:100%;padding:11px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);">
+            <option value="">— Selecione o Agente de Saúde —</option>
+            <optgroup label="Equipe 1 Chico Mendes">
+              <option value="Ana Paula">Ana Paula</option>
+              <option value="Ana Lúcia">Ana Lúcia</option>
+              <option value="Lenilda">Lenilda</option>
+              <option value="Conceição">Conceição</option>
+              <option value="Joselita">Joselita</option>
+              <option value="Alda">Alda</option>
+            </optgroup>
+            <optgroup label="Equipe 2 Ximbore">
+              <option value="Simone">Simone</option>
+              <option value="Patrícia">Patrícia</option>
+              <option value="Telma">Telma</option>
+              <option value="Jeane">Jeane</option>
+            </optgroup>
+            <optgroup label="Equipe 3 Aurora Caçote">
+              <option value="Josélia">Josélia</option>
+              <option value="Arlinda">Arlinda</option>
+              <option value="Nena">Nena</option>
+              <option value="Rosilene">Rosilene</option>
+              <option value="Fátima">Fátima</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+      <div class="acol-modal-footer">
+        <button class="btn btn-orange" style="font-weight:800;" onclick="confirmarIniciarEscuta()">🟡 Iniciar Escuta</button>
+        <button class="btn btn-ghost btn-cancel-compact" style="border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-acs-modal').classList.remove('show')">Cancelar</button>
       </div>
     </div>
   </div>
@@ -3159,29 +3325,15 @@
         </div>
         <div class="chat-canal-list" id="chat-canal-list"></div>
         <div class="chat-setor-select">
-          <label>👤 Sua Identificação</label>
-          <div id="chat-device-id-card" style="display:none;background:rgba(34,197,94,0.16);border:1px solid rgba(134,239,172,0.5);border-radius:10px;padding:8px 10px;">
-            <div id="chat-device-id-nome" style="font-size:12.5px;font-weight:800;color:#f0fdf4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+          <label>👤 Identificação do Aparelho</label>
+          <div id="chat-device-id-card" style="background:rgba(34,197,94,0.18);border:1px solid rgba(134,239,172,0.5);border-radius:10px;padding:8px 10px;">
+            <div id="chat-device-id-nome" style="font-size:12.5px;font-weight:800;color:#f0fdf4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">💻 Identificando...</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:4px;">
-              <span id="chat-device-id-setor" style="display:inline-block;background:rgba(255,255,255,0.16);color:#dcfce7;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;"></span>
-              <span style="font-size:10px;color:rgba(220,252,231,0.82);font-weight:700;">Automático</span>
+              <span id="chat-device-id-setor" style="display:inline-block;background:rgba(255,255,255,0.16);color:#dcfce7;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;">—</span>
+              <span id="chat-device-id-modo" style="font-size:10px;color:rgba(220,252,231,0.82);font-weight:700;">Automático</span>
             </div>
           </div>
-          <div id="chat-manual-id-fields" style="display:flex;flex-direction:column;gap:6px;">
-            <input type="text" id="chat-remetente-nome" placeholder="Seu nome" oninput="onChatNomeChange()">
-            <select id="chat-remetente" title="Selecione seu setor" onchange="onChatSetorChange()">
-              <option value="Recepção">🏢 Recepção</option>
-              <option value="Acolhimento">💜 Acolhimento</option>
-              <option value="Farmácia">💊 Farmácia</option>
-              <option value="Regulação">📋 Regulação</option>
-              <option value="Médico">🩺 Médico</option>
-              <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
-              <option value="Odontologia">🦷 Odontologia</option>
-              <option value="Téc. Enfermagem">🩹 Téc. Enfermagem</option>
-              <option value="Gerência">🏛️ Gerência</option>
-            </select>
-          </div>
-          <div id="chat-device-id-status" style="font-size:10.5px;line-height:1.35;color:rgba(219,234,254,0.88);margin-top:2px;"></div>
+          <div id="chat-device-id-status" style="font-size:10px;line-height:1.3;color:rgba(219,234,254,0.85);"></div>
         </div>
       </aside>
       <div class="chat-main">
@@ -4803,9 +4955,10 @@
               <div class="sisreg-field" style="margin-top:8px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
                   <label style="margin:0;">Observações / Justificativa Clínica</label>
-                  <button type="button" class="btn btn-outline btn-sm" onclick="copiarTextoSisreg(document.getElementById('sm-pac-obs')?.value,'Observações')">📋 Copiar</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="copiarObsModalMedicoSisreg()">📋 Copiar</button>
                 </div>
-                <textarea id="sm-pac-obs" rows="4" style="width:100%;padding:7px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12.5px;font-weight:700;"></textarea>
+                <div id="sm-obs-conferir-box" class="sisreg-conferir-box" style="display:none;"></div>
+                <textarea id="sm-pac-obs" rows="4" oninput="atualizarDestaqueConferirModalMedico()" style="width:100%;padding:7px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12.5px;font-weight:700;"></textarea>
               </div>
             </div>
             <div class="sisreg-box sisreg-box-proc">
@@ -4847,7 +5000,7 @@
 <script src="dispositivos.js?v=5.1"></script>
 <script src="receitas-previa.js?v=1.9"></script>
 <script src="formularios-pec.js?v=1.8"></script>
-<script src="regulacao-sisreg.js?v=1.4"></script>
-<script src="app.js?v=7.8"></script>
+<script src="regulacao-sisreg.js?v=1.5"></script>
+<script src="app.js?v=7.9"></script>
 </body>
 </html>

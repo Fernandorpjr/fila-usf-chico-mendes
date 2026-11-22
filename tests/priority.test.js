@@ -6,7 +6,9 @@ const {
   calcularOrdemPrioridadeOdonto,
   sortQueueRows,
   deduplicarAtendimentosPorSetor,
-  isPacienteIntercorrenciaClinica
+  isPacienteIntercorrenciaClinica,
+  agruparEtapaAcolhimento,
+  resolverEstadoTransferenciaAcolhimento
 } = require('../lib/prioridade');
 
 test('normalizarHorarioMarcado formats HH:MM cleanly', () => {
@@ -72,4 +74,40 @@ test('isPacienteIntercorrenciaClinica counts only explicit intercorrencia/acolhi
   assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: '09:00', is_intercorrencia_acolhimento: true }), true);
   assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Intercorrência' }), true);
   assert.equal(isPacienteIntercorrenciaClinica({ horario_marcado: null, tipo_atendimento: 'Intercorrência (Acolhimento)' }), true);
+});
+
+test('Transferencia para Acolhimento reseta etapa_fluxo para recepcao e recupera etapas orfas', () => {
+  // Caso real: paciente veio do Acolhimento -> Enfermagem ('encaminhado_intercorrencia') -> volta ao Acolhimento
+  const estadoRetornoAcol = resolverEstadoTransferenciaAcolhimento(
+    { setor: 'Enfermagem', etapa_fluxo: 'encaminhado_intercorrencia', is_intercorrencia_acolhimento: true },
+    'Acolhimento',
+    false
+  );
+  assert.deepEqual(estadoRetornoAcol, {
+    indoParaAcolhimento: true,
+    veioDoAcolhimento: false,
+    isIntercFinal: false,
+    novaEtapaFluxo: 'recepcao',
+    limparCamposAcolhimento: true
+  });
+
+  // Fluxo normal de Acolhimento -> Médico preserva marcação de intercorrência
+  const estadoSaidaAcol = resolverEstadoTransferenciaAcolhimento(
+    { setor: 'Acolhimento', etapa_fluxo: 'primeira_escuta', is_intercorrencia_acolhimento: false },
+    'Médico',
+    false
+  );
+  assert.equal(estadoSaidaAcol.indoParaAcolhimento, false);
+  assert.equal(estadoSaidaAcol.veioDoAcolhimento, true);
+  assert.equal(estadoSaidaAcol.isIntercFinal, true);
+  assert.equal(estadoSaidaAcol.novaEtapaFluxo, 'encaminhado_intercorrencia');
+  assert.equal(estadoSaidaAcol.limparCamposAcolhimento, false);
+
+  // Agrupamento defensivo do fluxo do Acolhimento nunca deixa paciente ativo sumir
+  assert.equal(agruparEtapaAcolhimento('recepcao'), 'recepcao');
+  assert.equal(agruparEtapaAcolhimento('primeira_escuta'), 'primeira_escuta');
+  assert.equal(agruparEtapaAcolhimento('segunda_escuta'), 'segunda_escuta');
+  assert.equal(agruparEtapaAcolhimento('encaminhado_intercorrencia'), 'recepcao');
+  assert.equal(agruparEtapaAcolhimento('finalizado'), 'recepcao');
+  assert.equal(agruparEtapaAcolhimento(null), 'recepcao');
 });
