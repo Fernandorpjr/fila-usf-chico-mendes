@@ -26,7 +26,18 @@ let _vpPdfBlobUrl = null;
 let _previaCapturaTargetPatient = null;
 let _previaAnalisesAtivas = 0;
 
-async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 32000) {
+function formatarSeloIaPrevia(data) {
+  const modelRaw = String(data?.model || '').trim();
+  const isGroq = data?.provider === 'groq' || /^groq\//i.test(modelRaw);
+  const shortModel = modelRaw.replace(/^groq\//i, '').split('/').pop();
+  const suffix = data?.cached ? ' · cache' : '';
+  if (isGroq) {
+    return `⚡ IA: Groq (${shortModel || 'qwen3.8-27b'})${suffix}`;
+  }
+  return `🤖 IA: Gemini (${shortModel || 'flash'})${suffix}`;
+}
+
+async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 42000) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
@@ -42,7 +53,7 @@ async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 32000) {
     return { res, data };
   } catch (err) {
     if (err && err.name === 'AbortError') {
-      throw new Error('Tempo limite excedido ao analisar imagem (32s). Foto mantida na prévia — tente novamente em alguns segundos.');
+      throw new Error('Tempo limite excedido ao analisar imagem (42s). Foto mantida na prévia — tente novamente em alguns segundos.');
     }
     throw err;
   } finally {
@@ -563,6 +574,7 @@ async function executarOcrEmListaPrevia(novosAnexos) {
   if (!Array.isArray(novosAnexos) || novosAnexos.length === 0) return;
   const statusEl = document.getElementById('pr-ocr-status');
   let ultimaClf = null;
+  let ultimaIaSelo = '';
   let falhasOcr = 0;
   let ultimaMsgErro = '';
   _previaAnalisesAtivas++;
@@ -584,9 +596,10 @@ async function executarOcrEmListaPrevia(novosAnexos) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ arquivo_base64: b64 })
-        }, 32000);
+        }, 42000);
 
         if (data.ok && data.ocr) {
+          ultimaIaSelo = formatarSeloIaPrevia(data);
           const o = data.ocr;
           const ehSisreg = data.classificacao?.categoria_destino === 'sisreg' || o.destino_ia === 'sisreg';
           const cat = ehSisreg
@@ -644,7 +657,7 @@ async function executarOcrEmListaPrevia(novosAnexos) {
         ? '📋 Documento do SISREG / Regulação identificado!'
         : `💊 Receita identificada (destino sugerido: ${ultimaClf?.fila_destino || 'Médico'})!`;
       statusEl.className = 'pr-status-box ok';
-      statusEl.textContent = `✅ Leitura concluída (${_previaAnexosCaptura.length} arquivo${_previaAnexosCaptura.length > 1 ? 's' : ''} na prévia) · ${destLabel}`;
+      statusEl.textContent = `✅ Leitura concluída (${_previaAnexosCaptura.length} arquivo${_previaAnexosCaptura.length > 1 ? 's' : ''} na prévia) · ${destLabel}${ultimaIaSelo ? ' · ' + ultimaIaSelo : ''}`;
     } else {
       const prefix = falhasOcr < novosAnexos.length
         ? `⚠️ Arquivos anexados, mas ${falhasOcr} não pôde ser lido automaticamente (${ultimaMsgErro}).`

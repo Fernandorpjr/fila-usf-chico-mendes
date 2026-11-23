@@ -80,7 +80,18 @@
     panY: 0
   };
 
-  async function fetchJsonSisregComTimeout(url, options = {}, timeoutMs = 32000) {
+  function formatarSeloIaSisreg(data) {
+    const modelRaw = String(data?.model || '').trim();
+    const isGroq = data?.provider === 'groq' || /^groq\//i.test(modelRaw);
+    const shortModel = modelRaw.replace(/^groq\//i, '').split('/').pop();
+    const suffix = data?.cached ? ' · cache' : '';
+    if (isGroq) {
+      return `⚡ IA: Groq (${shortModel || 'qwen3.8-27b'})${suffix}`;
+    }
+    return `🤖 IA: Gemini (${shortModel || 'flash'})${suffix}`;
+  }
+
+  async function fetchJsonSisregComTimeout(url, options = {}, timeoutMs = 42000) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
     try {
@@ -96,7 +107,7 @@
       return { res, data };
     } catch (err) {
       if (err && err.name === 'AbortError') {
-        throw new Error('Tempo limite excedido ao analisar imagem (32s). Foto mantida — tente novamente em alguns segundos.');
+        throw new Error('Tempo limite excedido ao analisar imagem (42s). Foto mantida — tente novamente em alguns segundos.');
       }
       throw err;
     } finally {
@@ -1578,7 +1589,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ arquivo_base64: base64Str })
-      }, 32000);
+      }, 42000);
       if (data.ok && data.dados) {
         _copilotoState.dados = mesclarDadosSisreg(_copilotoState.dados, data.dados, acumular);
         if (!acumular) _copilotoState.telefoneConferido = false;
@@ -1587,7 +1598,7 @@
         if (statusEl) {
           statusEl.style.display = 'block';
           statusEl.className = 'pr-status-box ok';
-          statusEl.textContent = '✅ Leitura concluída! Confira os alertas, o telefone e copie as observações para o SISREG.';
+          statusEl.textContent = `✅ Leitura concluída! Confira os alertas, o telefone e copie as observações para o SISREG. · ${formatarSeloIaSisreg(data)}`;
         }
         renderEstadoFormularioCopiloto();
         rebuscarProcedimentosCopiloto();
@@ -4080,14 +4091,14 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ arquivo_base64: b64 })
-      }, 32000);
+      }, 42000);
       if (data.ok && data.dados) {
         _modalMedState.dados = mesclarDadosSisreg(_modalMedState.dados, data.dados, acumular);
         _modalMedState.sugestoes = Array.isArray(data.sugestoes_procedimentos) ? data.sugestoes_procedimentos : _modalMedState.sugestoes;
         incrementarContadorLidasHoje();
         if (statusEl) {
           statusEl.className = 'pr-status-box ok';
-          statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial.`;
+          statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial. · ${formatarSeloIaSisreg(data)}`;
         }
         preencherCamposModalMedico();
         renderSugestoesModalMedico();
