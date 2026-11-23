@@ -26,7 +26,7 @@ let _vpPdfBlobUrl = null;
 let _previaCapturaTargetPatient = null;
 let _previaAnalisesAtivas = 0;
 
-async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 28000) {
+async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 32000) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
@@ -42,7 +42,7 @@ async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 28000) {
     return { res, data };
   } catch (err) {
     if (err && err.name === 'AbortError') {
-      throw new Error('Tempo limite excedido ao analisar imagem (28s). Imagem mantida na prévia.');
+      throw new Error('Tempo limite excedido ao analisar imagem (32s). Foto mantida na prévia — tente novamente em alguns segundos.');
     }
     throw err;
   } finally {
@@ -543,6 +543,25 @@ async function processarListaImagensReceita(fileList) {
     return;
   }
 
+  await executarOcrEmListaPrevia(novosAnexos);
+}
+
+async function reanalisarAnexosPendentesReceita() {
+  if (_previaAnexosCaptura.length === 0) return;
+  const pendentes = _previaAnexosCaptura
+    .filter(a => a && a.imagem_base64 && !a.ocr)
+    .map(anexo => ({ anexo, b64: anexo.imagem_base64, ehPdf: isPreviaAnexoPdf(anexo) }));
+  const alvos = pendentes.length > 0
+    ? pendentes
+    : _previaAnexosCaptura
+      .filter(a => a && a.imagem_base64)
+      .map(anexo => ({ anexo, b64: anexo.imagem_base64, ehPdf: isPreviaAnexoPdf(anexo) }));
+  await executarOcrEmListaPrevia(alvos);
+}
+
+async function executarOcrEmListaPrevia(novosAnexos) {
+  if (!Array.isArray(novosAnexos) || novosAnexos.length === 0) return;
+  const statusEl = document.getElementById('pr-ocr-status');
   let ultimaClf = null;
   let falhasOcr = 0;
   let ultimaMsgErro = '';
@@ -565,7 +584,7 @@ async function processarListaImagensReceita(fileList) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ arquivo_base64: b64 })
-        }, 28000);
+        }, 32000);
 
         if (data.ok && data.ocr) {
           const o = data.ocr;
@@ -626,12 +645,15 @@ async function processarListaImagensReceita(fileList) {
         : `💊 Receita identificada (destino sugerido: ${ultimaClf?.fila_destino || 'Médico'})!`;
       statusEl.className = 'pr-status-box ok';
       statusEl.textContent = `✅ Leitura concluída (${_previaAnexosCaptura.length} arquivo${_previaAnexosCaptura.length > 1 ? 's' : ''} na prévia) · ${destLabel}`;
-    } else if (falhasOcr < novosAnexos.length) {
-      statusEl.className = 'pr-status-box warn';
-      statusEl.textContent = `⚠️ Arquivos anexados, mas ${falhasOcr} não pôde ser lido automaticamente (${ultimaMsgErro}).`;
     } else {
+      const prefix = falhasOcr < novosAnexos.length
+        ? `⚠️ Arquivos anexados, mas ${falhasOcr} não pôde ser lido automaticamente (${ultimaMsgErro}).`
+        : `⚠️ ${ultimaMsgErro}`;
       statusEl.className = 'pr-status-box warn';
-      statusEl.textContent = `⚠️ ${ultimaMsgErro} Arquivo mantido na prévia.`;
+      statusEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>${escSafe(prefix)}</span>
+        <button type="button" class="btn btn-outline btn-sm" style="background:#fff;border-color:#d97706;color:#92400e;font-weight:800;" onclick="reanalisarAnexosPendentesReceita()">🔄 Tentar ler novamente</button>
+      </div>`;
     }
   }
 }

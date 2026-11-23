@@ -80,7 +80,7 @@
     panY: 0
   };
 
-  async function fetchJsonSisregComTimeout(url, options = {}, timeoutMs = 28000) {
+  async function fetchJsonSisregComTimeout(url, options = {}, timeoutMs = 32000) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
     try {
@@ -96,12 +96,22 @@
       return { res, data };
     } catch (err) {
       if (err && err.name === 'AbortError') {
-        throw new Error('Tempo limite excedido ao analisar imagem (28s). Foto mantida na tela.');
+        throw new Error('Tempo limite excedido ao analisar imagem (32s). Foto mantida — tente novamente em alguns segundos.');
       }
       throw err;
     } finally {
       if (timer) clearTimeout(timer);
     }
+  }
+
+  function exibirStatusErroOcrComRetry(statusEl, msg, retryFnName) {
+    if (!statusEl) return;
+    statusEl.style.display = 'block';
+    statusEl.className = 'pr-status-box warn';
+    statusEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+      <span>⚠️ ${escSisreg(msg)}</span>
+      <button type="button" class="btn btn-outline btn-sm" style="background:#fff;border-color:#d97706;color:#92400e;font-weight:800;" onclick="${retryFnName}()">🔄 Tentar ler novamente</button>
+    </div>`;
   }
 
   const SINONIMOS_FRONT = {
@@ -1568,7 +1578,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ arquivo_base64: base64Str })
-      }, 28000);
+      }, 32000);
       if (data.ok && data.dados) {
         _copilotoState.dados = mesclarDadosSisreg(_copilotoState.dados, data.dados, acumular);
         if (!acumular) _copilotoState.telefoneConferido = false;
@@ -1582,18 +1592,18 @@
         renderEstadoFormularioCopiloto();
         rebuscarProcedimentosCopiloto();
       } else {
-        if (statusEl) {
-          statusEl.style.display = 'block';
-          statusEl.className = 'pr-status-box warn';
-          statusEl.textContent = `⚠️ ${data.error || 'Leitura automática indisponível — imagem mantida para leitura manual.'}`;
-        }
+        exibirStatusErroOcrComRetry(
+          statusEl,
+          data.error || 'Leitura automática indisponível — imagem mantida para leitura manual.',
+          'reanalisarAnexoAtivoCopiloto'
+        );
       }
     } catch (err) {
-      if (statusEl) {
-        statusEl.style.display = 'block';
-        statusEl.className = 'pr-status-box warn';
-        statusEl.textContent = `⚠️ ${err?.message || 'Falha de conexão na leitura automática.'} A foto permanece visível ao lado.`;
-      }
+      exibirStatusErroOcrComRetry(
+        statusEl,
+        `${err?.message || 'Falha de conexão na leitura automática.'} A foto permanece visível ao lado.`,
+        'reanalisarAnexoAtivoCopiloto'
+      );
     } finally {
       _copilotoState.analisando = false;
     }
@@ -4052,41 +4062,59 @@
 
     for (let i = 0; i < novosItens.length; i++) {
       const it = novosItens[i];
-      try {
-        if (statusEl) {
-          statusEl.style.display = 'block';
-          statusEl.className = 'pr-status-box loading';
-          statusEl.textContent = novosItens.length > 1
-            ? `⏳ Extraindo texto (${i + 1} de ${novosItens.length}) e conferindo no SISREG...`
-            : '⏳ Extraindo texto da ficha e conferindo no SISREG...';
-        }
-        const { data } = await fetchJsonSisregComTimeout(`${getApiUrlBase()}/sisreg/analisar-ficha`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ arquivo_base64: it.b64 })
-        }, 28000);
-        if (data.ok && data.dados) {
-          _modalMedState.dados = mesclarDadosSisreg(_modalMedState.dados, data.dados, it.acumular);
-          _modalMedState.sugestoes = Array.isArray(data.sugestoes_procedimentos) ? data.sugestoes_procedimentos : _modalMedState.sugestoes;
-          incrementarContadorLidasHoje();
-          if (statusEl) {
-            statusEl.className = 'pr-status-box ok';
-            statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial.`;
-          }
-          preencherCamposModalMedico();
-          renderSugestoesModalMedico();
-        } else if (statusEl) {
-          statusEl.className = 'pr-status-box warn';
-          statusEl.textContent = `⚠️ ${data.error || 'Não foi possível ler automaticamente.'}`;
-        }
-      } catch (err) {
-        if (statusEl) {
-          statusEl.style.display = 'block';
-          statusEl.className = 'pr-status-box warn';
-          statusEl.textContent = `⚠️ ${err?.message || 'Falha na leitura.'}`;
-        }
-      }
+      await analisarItemModalSisregMedico(it.b64, it.acumular, i, novosItens.length);
     }
+  }
+
+  async function analisarItemModalSisregMedico(b64, acumular = false, idx = 0, total = 1) {
+    const statusEl = document.getElementById('sm-ocr-status');
+    try {
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.className = 'pr-status-box loading';
+        statusEl.textContent = total > 1
+          ? `⏳ Extraindo texto (${idx + 1} de ${total}) e conferindo no SISREG...`
+          : '⏳ Extraindo texto da ficha e conferindo no SISREG...';
+      }
+      const { data } = await fetchJsonSisregComTimeout(`${getApiUrlBase()}/sisreg/analisar-ficha`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arquivo_base64: b64 })
+      }, 32000);
+      if (data.ok && data.dados) {
+        _modalMedState.dados = mesclarDadosSisreg(_modalMedState.dados, data.dados, acumular);
+        _modalMedState.sugestoes = Array.isArray(data.sugestoes_procedimentos) ? data.sugestoes_procedimentos : _modalMedState.sugestoes;
+        incrementarContadorLidasHoje();
+        if (statusEl) {
+          statusEl.className = 'pr-status-box ok';
+          statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial.`;
+        }
+        preencherCamposModalMedico();
+        renderSugestoesModalMedico();
+      } else {
+        exibirStatusErroOcrComRetry(
+          statusEl,
+          data.error || 'Não foi possível ler automaticamente.',
+          'reanalisarAnexoAtivoModalMed'
+        );
+      }
+    } catch (err) {
+      exibirStatusErroOcrComRetry(
+        statusEl,
+        err?.message || 'Falha na leitura.',
+        'reanalisarAnexoAtivoModalMed'
+      );
+    }
+  }
+
+  async function reanalisarAnexoAtivoModalMed() {
+    const ativo = (_modalMedState.anexos || [])[_modalMedState.anexoIdx];
+    const b64 = ativo?.imagem_base64 || _modalMedState.imgBase64;
+    if (!b64) {
+      if (typeof showToast === 'function') showToast('Anexe uma foto ou PDF primeiro.', true);
+      return;
+    }
+    await analisarItemModalSisregMedico(b64, _modalMedState.anexoIdx > 0, 0, 1);
   }
 
   function preencherCamposModalMedico() {
@@ -4292,6 +4320,7 @@
   window.girarModalMedImg = girarModalMedImg;
   window.resetModalMedImgView = resetModalMedImgView;
   window.processarArquivoModalSisregMedico = processarArquivoModalSisregMedico;
+  window.reanalisarAnexoAtivoModalMed = reanalisarAnexoAtivoModalMed;
   window.navegarFotoModalMed = navegarFotoModalMed;
   window.selecionarFotoModalMed = selecionarFotoModalMed;
   window.limparAnexosModalSisregMedico = limparAnexosModalSisregMedico;

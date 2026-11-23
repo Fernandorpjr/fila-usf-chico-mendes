@@ -705,7 +705,7 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
   assert.equal(indexHtml.includes('formularios-pec.js?v=1.9'), true);
   assert.equal(indexHtml.includes('dispositivos.js?v=5.3'), true);
-  assert.equal(indexHtml.includes('receitas-previa.js?v=2.0'), true);
+  assert.equal(indexHtml.includes('receitas-previa.js?v=2.1'), true);
   assert.equal(indexHtml.includes('app.js?v=8.5'), true);
   const dispFront = fs.readFileSync(path.join(__dirname, '..', 'public', 'dispositivos.js'), 'utf8');
   assert.equal(dispFront.includes('bloqueio_total_emergencia'), true);
@@ -736,7 +736,7 @@ test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e P
   assert.equal(sisregFront.includes('id="dev-setor-destino"'), true);
   assert.equal(sisregFront.includes('id="dev-profissional"'), true);
   assert.equal(sisregFront.includes('Mudou de endereço'), true);
-  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=2.1'), true);
+  assert.equal(indexHtml.includes('regulacao-sisreg.js?v=2.2'), true);
   assert.equal(indexHtml.includes('.sisreg-med-modal-backdrop { z-index: 10080; }'), true);
 
   // Conferência de anexo (lazy-load), apagamento imediato ao corrigir, prazo 3d (+3d adiar) e atalho de busca

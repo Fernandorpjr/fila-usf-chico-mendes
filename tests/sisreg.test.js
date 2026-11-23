@@ -25,6 +25,15 @@ const {
   calcularStatusPrazoDevolucao,
   limparAnexosDevolucoesExpirados
 } = require('../lib/sisreg');
+const {
+  DEFAULT_GEMINI_MODELS,
+  buildGenerationConfig,
+  ordenarModelosPorSaude,
+  marcarModeloEmCooldown,
+  resetarEstadoOcrTeste,
+  formatarErroOcrAmigavel,
+  executarOcrGeminiJson
+} = require('../lib/ocr-ai');
 
 test('repararMojibake cleans Latin-1/UTF-8 artifacts and HTML typos', () => {
   assert.equal(repararMojibake('CONSULTA EM PEDIATRIA- SÃ FILIS CONGENITA'), 'CONSULTA EM PEDIATRIA- SÍFILIS CONGENITA');
@@ -317,17 +326,18 @@ test('Devoluções SISREG direcionam corretamente ACS/Médico/Enfermagem/Odonto,
   assert.equal(pertenceAoProfissionalDevolucao(devAnaPaula, 'ACS', 'Ana Paula'), true);
   assert.equal(pertenceAoProfissionalDevolucao(devAnaPaula, 'ACS', 'Lenilda'), false);
 
-  // Estabilidade OCR (Gemini 2.5 Flash sem thinking travando + ObjectURL + AbortController + câmera multi-foto)
+  // Estabilidade OCR (motor centralizado lib/ocr-ai.js + ObjectURL + AbortController + câmera multi-foto + retry)
   const root = path.join(__dirname, '..');
+  const ocrAiBack = fs.readFileSync(path.join(root, 'lib', 'ocr-ai.js'), 'utf8');
   const receitasBack = fs.readFileSync(path.join(root, 'lib', 'receitas.js'), 'utf8');
   const sisregBack = fs.readFileSync(path.join(root, 'lib', 'sisreg.js'), 'utf8');
   const receitasFront = fs.readFileSync(path.join(root, 'public', 'receitas-previa.js'), 'utf8');
   const sisregFront = fs.readFileSync(path.join(root, 'public', 'regulacao-sisreg.js'), 'utf8');
 
-  assert.ok(receitasBack.includes('gemini-2.5-flash-lite') && receitasBack.includes('thinkingBudget: 0'));
-  assert.ok(sisregBack.includes('gemini-2.5-flash-lite') && sisregBack.includes('thinkingBudget: 0'));
-  assert.ok(receitasFront.includes('URL.createObjectURL') && receitasFront.includes('AbortController'));
-  assert.ok(sisregFront.includes('URL.createObjectURL') && sisregFront.includes('AbortController'));
+  assert.ok(ocrAiBack.includes('gemini-3.5-flash-lite') && ocrAiBack.includes('thinkingBudget: 0') && ocrAiBack.includes("thinkingLevel: 'MINIMAL'"));
+  assert.ok(receitasBack.includes('executarOcrGeminiJson') && sisregBack.includes('executarOcrGeminiJson'));
+  assert.ok(receitasFront.includes('URL.createObjectURL') && receitasFront.includes('AbortController') && receitasFront.includes('reanalisarAnexosPendentesReceita'));
+  assert.ok(sisregFront.includes('URL.createObjectURL') && sisregFront.includes('AbortController') && sisregFront.includes('reanalisarAnexoAtivoModalMed'));
   assert.ok(sisregFront.includes('navegarFotoModalMed') && sisregFront.includes('dev-prof-filtro-prof'));
 
   const msgSol = formatarMensagemChatDevolucao({
@@ -340,6 +350,76 @@ test('Devoluções SISREG direcionam corretamente ACS/Médico/Enfermagem/Odonto,
   assert.ok(msgSol.includes('SOLUÇÃO DEVOLUÇÃO SISREG'));
   assert.ok(msgSol.includes('Ana Paula (ACS)'));
   assert.ok(msgSol.includes('Mudou para Rua da Aurora, 100'));
+});
+
+test('Motor OCR resiliente (lib/ocr-ai.js) faz fallback de 503, circuit breaker, tradução PT-BR e cache SHA-256', async () => {
+  resetarEstadoOcrTeste();
+  assert.equal(DEFAULT_GEMINI_MODELS[0], 'gemini-3.5-flash-lite');
+  assert.ok(DEFAULT_GEMINI_MODELS.includes('gemini-3.1-flash-lite'));
+  assert.ok(DEFAULT_GEMINI_MODELS.includes('gemini-2.5-flash-lite'));
+
+  assert.deepEqual(buildGenerationConfig('gemini-3.5-flash-lite', 1800).thinkingConfig, { thinkingLevel: 'MINIMAL' });
+  assert.deepEqual(buildGenerationConfig('gemini-2.5-flash-lite', 1800).thinkingConfig, { thinkingBudget: 0 });
+  assert.equal(buildGenerationConfig('gemini-3.5-flash-lite', 1800, false).thinkingConfig, undefined);
+
+  // Circuit breaker move modelo congestionado para o fim da fila
+  marcarModeloEmCooldown('gemini-3.5-flash-lite', 503, 1000);
+  const ordenados = ordenarModelosPorSaude(['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'], 5000);
+  assert.deepEqual(ordenados, ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite']);
+
+  // Fallback real com mock fetchImpl (1o retorna 503 -> cai automatico para o 2o que retorna 200 -> 2a chamada vem do cache)
+  resetarEstadoOcrTeste();
+  const chamados = [];
+  const fakeFetch = async (url) => {
+    chamados.push(url);
+    if (url.includes('gemini-3.5-flash-lite')) {
+      return {
+        ok: false,
+        status: 503,
+        json: async () => ({ error: { message: 'This model is currently experiencing high demand.' } })
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: JSON.stringify({ paciente_nome: 'MARIA SILVA', confianca: 92 }) }] } }]
+      })
+    };
+  };
+
+  const res1 = await executarOcrGeminiJson({
+    apiKey: 'fake-key',
+    prompt: 'extract',
+    mimeType: 'image/jpeg',
+    base64Data: 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=',
+    cacheNamespace: 'teste',
+    fetchImpl: fakeFetch,
+    backoffBaseMs: 0,
+    jitterMaxMs: 0
+  });
+  assert.equal(res1.ok, true);
+  assert.equal(res1.model, 'gemini-3.1-flash-lite');
+  assert.equal(res1.parsed.paciente_nome, 'MARIA SILVA');
+  assert.equal(res1.fromCache, false);
+  assert.equal(chamados.length, 2);
+
+  // Mesma imagem retorna imediatamente do cache sem chamar fetchImpl
+  const resCache = await executarOcrGeminiJson({
+    apiKey: 'fake-key',
+    prompt: 'extract',
+    mimeType: 'image/jpeg',
+    base64Data: 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=',
+    cacheNamespace: 'teste',
+    fetchImpl: fakeFetch
+  });
+  assert.equal(resCache.ok, true);
+  assert.equal(resCache.fromCache, true);
+  assert.equal(chamados.length, 2);
+
+  // Traducao amigavel quando todos falham com 503
+  assert.ok(formatarErroOcrAmigavel('This model is currently experiencing high demand', 503).includes('congestionado'));
+  assert.ok(formatarErroOcrAmigavel('Quota exceeded', 429).includes('gratuita'));
 });
 
 test('Devoluções SISREG validam anexos, detalhes, prazo de 3 dias e limpeza automática de vencidos', async () => {
