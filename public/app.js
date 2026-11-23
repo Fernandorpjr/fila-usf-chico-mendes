@@ -68,11 +68,85 @@ window.fetch = function(resource, config) {
 // Socket removido para economia Vercel Pro
 const socket = null;
 
-/* === MELHORIA A: PORTÃO DE ENTRADA (Sessão Server-Side HttpOnly) === */
+/* === MELHORIA A: PORTÃO DE ENTRADA (Sessão Server-Side HttpOnly + Bloqueio Persistente) === */
 const GATE_EXPIRY_MS = 10 * 60 * 60 * 1000; // 10 horas
+const GATE_LOCK_STORAGE_KEY = 'usf_gate_lock_until';
 let gateAttempts = 0;
 let gateLocked = false;
+let gateDeviceBlocked = false;
 let gateLockTimer = null;
+
+function limparBloqueioTemporarioPortal() {
+  gateLocked = false;
+  if (gateLockTimer) {
+    clearInterval(gateLockTimer);
+    gateLockTimer = null;
+  }
+  try { localStorage.removeItem(GATE_LOCK_STORAGE_KEY); } catch (e) {}
+  const btn = document.getElementById('gate-btn');
+  const inp = document.getElementById('gate-password');
+  const lockEl = document.getElementById('gate-lockout');
+  if (btn && !gateDeviceBlocked) btn.disabled = false;
+  if (inp && !gateDeviceBlocked) inp.disabled = false;
+  if (lockEl && !gateDeviceBlocked) lockEl.textContent = '';
+}
+
+function aplicarBloqueioTemporarioPortal(lockedUntilIso, msgCustom = '') {
+  const untilMs = lockedUntilIso ? new Date(lockedUntilIso).getTime() : (Date.now() + 5 * 60 * 1000);
+  if (!Number.isFinite(untilMs) || untilMs <= Date.now()) {
+    limparBloqueioTemporarioPortal();
+    return;
+  }
+  gateLocked = true;
+  try { localStorage.setItem(GATE_LOCK_STORAGE_KEY, String(untilMs)); } catch (e) {}
+  if (gateLockTimer) clearInterval(gateLockTimer);
+
+  const btn = document.getElementById('gate-btn');
+  const inp = document.getElementById('gate-password');
+  const errEl = document.getElementById('gate-error');
+  const lockEl = document.getElementById('gate-lockout');
+  if (btn) btn.disabled = true;
+  if (inp) { inp.value = ''; inp.disabled = true; }
+  if (errEl && msgCustom) errEl.textContent = msgCustom;
+
+  const tick = () => {
+    const remSec = Math.max(0, Math.ceil((untilMs - Date.now()) / 1000));
+    if (remSec <= 0) {
+      limparBloqueioTemporarioPortal();
+      const err = document.getElementById('gate-error');
+      if (err) err.textContent = '⚠️ Prazo encerrado. Atenção: mais 1 erro bloqueará este aparelho definitivamente!';
+      return;
+    }
+    const mins = Math.floor(remSec / 60);
+    const secs = String(remSec % 60).padStart(2, '0');
+    if (lockEl) lockEl.textContent = `⏳ Bloqueado temporariamente. Aguarde ${mins}:${secs} (não atualize a página)`;
+  };
+  tick();
+  gateLockTimer = setInterval(tick, 1000);
+}
+
+// Bloqueia atalhos F5 / Ctrl+R quando o portal estiver em bloqueio ativo
+document.addEventListener('keydown', (e) => {
+  const gate = document.getElementById('gate-overlay');
+  const gateVisivel = gate && !gate.classList.contains('hidden');
+  if (gateVisivel && (gateLocked || gateDeviceBlocked)) {
+    const k = String(e.key || '').toLowerCase();
+    if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && k === 'r')) {
+      e.preventDefault();
+      e.stopPropagation();
+      const errEl = document.getElementById('gate-error');
+      if (errEl) errEl.textContent = '🔒 Não é possível atualizar durante o bloqueio de segurança do aparelho.';
+    }
+  }
+});
+window.addEventListener('beforeunload', (e) => {
+  const gate = document.getElementById('gate-overlay');
+  const gateVisivel = gate && !gate.classList.contains('hidden');
+  if (gateVisivel && (gateLocked || gateDeviceBlocked)) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 function handleSessaoExpirada() {
   isGateAuthenticated = false;
@@ -138,12 +212,52 @@ async function checkGateSession() {
     return;
   }
 
+  // Restaurar imediatamente bloqueio temporário salvo localmente enquanto valida no servidor
+  try {
+    const savedUntil = parseInt(localStorage.getItem(GATE_LOCK_STORAGE_KEY) || '0', 10);
+    if (savedUntil > Date.now()) {
+      aplicarBloqueioTemporarioPortal(new Date(savedUntil).toISOString(), '⏳ Aparelho em bloqueio temporário de segurança.');
+    }
+  } catch (e) {}
+
   try {
     const r = await fetch(`${API_URL}/auth/session`, { credentials: 'same-origin' });
     if (r.ok) {
       const data = await r.json();
+      if (data && data.deviceId) {
+        try { localStorage.setItem('usf_device_id', data.deviceId); } catch (e) {}
+      }
+      if (data && data.deviceBlocked) {
+        gateDeviceBlocked = true;
+        limparBloqueioTemporarioPortal();
+        showGate();
+        if (typeof window.mostrarAlertaDispositivoBloqueado === 'function') {
+          window.mostrarAlertaDispositivoBloqueado({
+            id: data.deviceId,
+            motivo: data.motivoBloqueio || 'excesso_tentativas',
+            code: 'DEVICE_BLOCKED'
+          });
+        }
+        return;
+      }
+      if (data && data.tempLockedUntil) {
+        showGate();
+        aplicarBloqueioTemporarioPortal(
+          data.tempLockedUntil,
+          '⏳ Muitas tentativas incorretas. Aguarde 5 minutos (não atualize a página).'
+        );
+        return;
+      }
       if (data && data.authenticated) {
         isGateAuthenticated = true;
+        gateDeviceBlocked = false;
+        limparBloqueioTemporarioPortal();
+        if (data.role === 'admin' || data.role === 'gerente') {
+          userRole = data.role;
+          isAdmin = data.role === 'admin';
+          isGerente = data.role === 'gerente';
+          if (typeof updateAdminUI === 'function') updateAdminUI();
+        }
         try {
           sessionStorage.setItem('usf_gate_auth', 'true');
           sessionStorage.setItem('usf_gate_time', Date.now().toString());
@@ -182,7 +296,7 @@ function hideGate() {
 }
 
 async function tentarEntrar() {
-  if (gateLocked) return;
+  if (gateLocked || gateDeviceBlocked) return;
   const inp = document.getElementById('gate-password');
   const errEl = document.getElementById('gate-error');
   const btn = document.getElementById('gate-btn');
@@ -202,13 +316,18 @@ async function tentarEntrar() {
     data = await res.json().catch(() => ({}));
   } catch (e) {
     errEl.textContent = '🔴 Erro de conexão com o servidor. Tente novamente.';
-    if (btn && !gateLocked) btn.disabled = false;
+    if (btn && !gateLocked && !gateDeviceBlocked) btn.disabled = false;
     return;
   }
-  if (btn && !gateLocked) btn.disabled = false;
+
+  if (data && data.id) {
+    try { localStorage.setItem('usf_device_id', data.id); } catch (e) {}
+  }
 
   if (res && res.ok && data.ok) {
     isGateAuthenticated = true;
+    gateDeviceBlocked = false;
+    limparBloqueioTemporarioPortal();
     try {
       sessionStorage.setItem('usf_gate_auth', 'true');
       sessionStorage.setItem('usf_gate_time', Date.now().toString());
@@ -217,7 +336,6 @@ async function tentarEntrar() {
     inp.value = '';
     gateAttempts = 0;
     hideGate();
-    // O clique em "Entrar" já é um gesto do usuário: desbloqueia o áudio imediatamente!
     if (typeof unlockAudio === 'function') {
       unlockAudio(true);
     }
@@ -225,35 +343,31 @@ async function tentarEntrar() {
       registrarAcessoDispositivo('gate_login');
     }
     iniciarCarregamentoAutenticado();
-  } else if (res && res.status === 429) {
-    errEl.textContent = `⏳ ${data.error || 'Muitas tentativas. Aguarde alguns minutos.'}`;
+  } else if (res && res.status === 423) {
+    gateDeviceBlocked = true;
+    limparBloqueioTemporarioPortal();
     inp.value = '';
+    inp.disabled = true;
+    if (btn) btn.disabled = true;
+    errEl.textContent = `🚫 ${data.error || 'Aparelho bloqueado. Apenas o Administrador pode desbloquear.'}`;
+    if (typeof window.mostrarAlertaDispositivoBloqueado === 'function') {
+      window.mostrarAlertaDispositivoBloqueado({
+        id: data.id,
+        motivo: data.motivo || 'excesso_tentativas',
+        code: data.code || 'DEVICE_BLOCKED'
+      });
+    }
+  } else if (res && res.status === 429) {
+    aplicarBloqueioTemporarioPortal(
+      data.lockedUntil,
+      `⏳ ${data.error || 'Muitas tentativas incorretas. Aguarde 5 minutos.'}`
+    );
   } else {
-    gateAttempts++;
-    errEl.textContent = '❌ Senha incorreta. Tente novamente.';
+    if (btn && !gateLocked && !gateDeviceBlocked) btn.disabled = false;
+    gateAttempts = Number(data.tentativas || (gateAttempts + 1));
+    errEl.textContent = `❌ ${data.error || 'Senha incorreta. Tente novamente.'}`;
     inp.value = '';
     inp.focus();
-    if (gateAttempts >= 5) {
-      gateLocked = true;
-      const lockEl = document.getElementById('gate-lockout');
-      if (btn) btn.disabled = true;
-      inp.disabled = true;
-      let remaining = 120;
-      lockEl.textContent = `⏳ Bloqueado. Tente novamente em ${remaining}s`;
-      gateLockTimer = setInterval(() => {
-        remaining--;
-        lockEl.textContent = `⏳ Bloqueado. Tente novamente em ${remaining}s`;
-        if (remaining <= 0) {
-          clearInterval(gateLockTimer);
-          gateLocked = false;
-          gateAttempts = 0;
-          if (btn) btn.disabled = false;
-          inp.disabled = false;
-          lockEl.textContent = '';
-          errEl.textContent = '';
-        }
-      }, 1000);
-    }
   }
 }
 
@@ -673,34 +787,71 @@ let queues = {}; SETORES.forEach(s => queues[s] = []);
 let currentCalling = {}; SETORES.forEach(s => currentCalling[s] = null);
 let callHistory = [], attendedPatients = [], totalAtendidos = 0, totalDesistencias = 0;
 let lastSpokenCallId = null, chatMessages = [], unreadChatCount = 0;
-let isAdmin = false, adminPassword = null, alertedPatients = new Set();
+let isAdmin = false, isGerente = false, userRole = 'staff', adminPassword = null, alertedPatients = new Set();
+function isManagerOrAdmin() {
+  return Boolean(isAdmin || isGerente);
+}
 function isValidAdminPass(pwd) {
   return Boolean(pwd && String(pwd).trim().length > 0);
 }
-async function verifyAdminPasswordServer(pwd) {
+async function verifyAdminPasswordServer(pwd, opts = {}) {
   const s = String(pwd || '').trim();
-  if (!s) return false;
+  if (!s) return { ok: false, role: null, status: 400, data: {} };
   try {
     const r = await fetch(`${API_URL}/verify-admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senha: s })
+      credentials: 'same-origin',
+      body: JSON.stringify({ senha: s, ...opts })
     });
-    return r.ok;
+    const data = await r.json().catch(() => ({}));
+    return {
+      ok: r.ok && Boolean(data.valid),
+      role: data.role || null,
+      status: r.status,
+      data
+    };
   } catch {
-    return false;
+    return { ok: false, role: null, status: 500, data: {} };
   }
+}
+function handlePrivilegedAuthFailure(res, defaultMsg = '❌ Senha incorreta!') {
+  const data = res?.data || {};
+  if (res?.status === 423 || data.bloqueado_definitivo) {
+    if (typeof window.mostrarAlertaDispositivoBloqueado === 'function') {
+      window.mostrarAlertaDispositivoBloqueado({
+        motivo: 'excesso_tentativas',
+        code: 'DEVICE_BLOCKED'
+      });
+    } else {
+      showToast(data.error || '⛔ Dispositivo bloqueado por excesso de tentativas.', true);
+    }
+    return;
+  }
+  if (res?.status === 429) {
+    const mins = data.segundos_restantes ? Math.max(1, Math.ceil(data.segundos_restantes / 60)) : 5;
+    showToast(data.error || `⏳ Dispositivo bloqueado por ${mins} min após tentativas incorretas.`, true);
+    return;
+  }
+  showToast(data.error || defaultMsg, true);
 }
 try {
   const _savedAdmin = sessionStorage.getItem('usf_admin_pwd');
+  const _savedRole = sessionStorage.getItem('usf_user_role');
   if (_savedAdmin) {
-    verifyAdminPasswordServer(_savedAdmin).then(ok => {
-      if (ok) {
-        isAdmin = true;
+    verifyAdminPasswordServer(_savedAdmin).then(res => {
+      if (res.ok && (res.role === 'admin' || res.role === 'gerente')) {
+        userRole = res.role;
+        isAdmin = res.role === 'admin';
+        isGerente = res.role === 'gerente';
         adminPassword = _savedAdmin;
+        try { sessionStorage.setItem('usf_user_role', res.role); } catch (e) {}
         if (typeof updateAdminUI === 'function') updateAdminUI();
       } else {
-        try { sessionStorage.removeItem('usf_admin_pwd'); } catch (e) {}
+        try {
+          sessionStorage.removeItem('usf_admin_pwd');
+          if (_savedRole) sessionStorage.removeItem('usf_user_role');
+        } catch (e) {}
       }
     });
   }
@@ -863,29 +1014,40 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
-// ====== ADMIN ======
+// ====== ADMIN / GERENTE ======
 function toggleAdmin() {
-  if (isAdmin) {
+  if (isAdmin || isGerente) {
     isAdmin = false;
+    isGerente = false;
+    userRole = 'staff';
     adminPassword = null;
-    try { sessionStorage.removeItem('usf_admin_pwd'); } catch (e) {}
+    try {
+      sessionStorage.removeItem('usf_admin_pwd');
+      sessionStorage.removeItem('usf_user_role');
+    } catch (e) {}
+    fetch(`${API_URL}/auth/downgrade-staff`, { method: 'POST', credentials: 'same-origin' }).catch(() => {});
     updateAdminUI();
     showToast('🔒 Modo público ativado');
     return;
   }
-  const senha = prompt('🔒 Digite a senha administrativa:');
+  const senha = prompt('🔒 Digite a senha de Gerente ou Administrador:');
   if (!senha) return;
   const s = senha.trim();
 
-  verifyAdminPasswordServer(s).then(ok => {
-    if (ok) {
-      isAdmin = true;
+  verifyAdminPasswordServer(s).then(res => {
+    if (res.ok && (res.role === 'admin' || res.role === 'gerente')) {
+      userRole = res.role;
+      isAdmin = res.role === 'admin';
+      isGerente = res.role === 'gerente';
       adminPassword = s;
-      try { sessionStorage.setItem('usf_admin_pwd', s); } catch (e) {}
-      showToast('🔓 Modo administrador ativado!');
+      try {
+        sessionStorage.setItem('usf_admin_pwd', s);
+        sessionStorage.setItem('usf_user_role', res.role);
+      } catch (e) {}
+      showToast(isAdmin ? '🔓 Modo administrador ativado!' : '👔 Modo gerente ativado!');
       updateAdminUI();
     } else {
-      showToast('❌ Senha incorreta!', true);
+      handlePrivilegedAuthFailure(res, '❌ Senha incorreta!');
     }
   });
 }
@@ -893,16 +1055,27 @@ function toggleAdmin() {
 function updateAdminUI() {
   const btn = document.getElementById('btn-admin');
   if (btn) {
-    if (isAdmin) { btn.textContent = '🔓 Admin'; btn.classList.add('unlocked'); }
-    else { btn.textContent = '🔒 Modo Público'; btn.classList.remove('unlocked'); }
+    if (isAdmin) {
+      btn.textContent = '🔓 Admin';
+      btn.classList.add('unlocked');
+      btn.classList.remove('manager');
+    } else if (isGerente) {
+      btn.textContent = '👔 Gerente';
+      btn.classList.add('unlocked', 'manager');
+    } else {
+      btn.textContent = '🔒 Modo Público';
+      btn.classList.remove('unlocked', 'manager');
+    }
   }
-  if (isAdmin) { document.body.classList.add('admin-active'); }
-  else { document.body.classList.remove('admin-active'); }
-  // Exibir/ocultar abas restritas a administradores (ex: Dispositivos)
+  document.body.classList.toggle('admin-active', isAdmin);
+  document.body.classList.toggle('manager-active', isGerente);
+
   document.querySelectorAll('.admin-only-tab').forEach(t => {
     t.style.display = isAdmin ? 'inline-flex' : 'none';
   });
-  // Re-render filas para mostrar/ocultar controles admin
+  document.querySelectorAll('.manager-or-admin-tab').forEach(t => {
+    t.style.display = isManagerOrAdmin() ? 'inline-flex' : 'none';
+  });
   if (typeof updateAll === 'function') updateAll();
 }
 
@@ -914,7 +1087,7 @@ let _ctxPatientNome = null;
 let _ctxPatientSetor = null;
 let _sortableInstances = {}; // Guarda instâncias SortableJS por containerId
 
-// --- AdminGuard: helper de permissão ---
+// --- Guards de permissão (Admin e Gerente) ---
 const AdminGuard = {
   check() { return isAdmin; },
   require(action) {
@@ -923,17 +1096,41 @@ const AdminGuard = {
   }
 };
 
-// Helper centralizado para ações que exigem senha administrativa
+const ManagerGuard = {
+  check() { return isManagerOrAdmin(); },
+  require(action) {
+    if (!isManagerOrAdmin()) { showToast('🔒 Ação restrita à Gerência ou Administração!', true); return; }
+    action();
+  }
+};
+
+// Helper centralizado para ações exclusivas de Administrador
 async function pedirSenhaAdmin(acaoNome, callback) {
   if (isAdmin && adminPassword) {
     return callback(adminPassword);
   }
-  const senha = prompt(`🔒 Confirmação requerida para ${acaoNome}:\n\nDigite a senha de administrador:`);
+  const senha = prompt(`🔒 Ação exclusiva do ADMINISTRADOR para ${acaoNome}:\n\nDigite a senha de Administrador:`);
   if (!senha) return;
   const s = senha.trim();
-  const ok = await verifyAdminPasswordServer(s);
-  if (!ok) {
-    showToast('❌ Senha incorreta! Ação cancelada.', true);
+  const res = await verifyAdminPasswordServer(s, { apenas_admin: true });
+  if (!res.ok || res.role !== 'admin') {
+    handlePrivilegedAuthFailure(res, '❌ Senha de Administrador inválida! Ação cancelada.');
+    return;
+  }
+  callback(s);
+}
+
+// Helper centralizado para ações liberadas para Gerente ou Administrador
+async function pedirSenhaGerenteOuAdmin(acaoNome, callback) {
+  if (isManagerOrAdmin() && adminPassword) {
+    return callback(adminPassword);
+  }
+  const senha = prompt(`🔒 Confirmação requerida para ${acaoNome}:\n\nDigite a senha de Gerente ou Administrador:`);
+  if (!senha) return;
+  const s = senha.trim();
+  const res = await verifyAdminPasswordServer(s);
+  if (!res.ok || (res.role !== 'admin' && res.role !== 'gerente')) {
+    handlePrivilegedAuthFailure(res, '❌ Senha incorreta! Ação cancelada.');
     return;
   }
   callback(s);
@@ -1305,7 +1502,7 @@ async function confirmTransfer() {
   if (isPublicTransfer) {
     executeTransfer('');
   } else {
-    AdminGuard.require(async () => {
+    ManagerGuard.require(async () => {
       executeTransfer(adminPassword);
     });
   }
@@ -1313,7 +1510,7 @@ async function confirmTransfer() {
 
 // --- SortableJS: Drag & Drop com animação e ESC ---
 function initSortable(containerId, setor) {
-  if (!window.Sortable || !isAdmin) return;
+  if (!window.Sortable || !isManagerOrAdmin()) return;
   const el = document.getElementById(containerId);
   if (!el) return;
   const sortContainer = el.querySelector('tbody.sortable-tbody') || el;
@@ -1354,7 +1551,7 @@ function initSortable(containerId, setor) {
       const movedEl = evt.item;
       const patientId = parseInt(movedEl.dataset.id);
       if (!patientId || !setor) { loadQueues(); return; }
-      AdminGuard.require(async () => {
+      ManagerGuard.require(async () => {
         try {
           await apiReorder(patientId, setor, newPos);
           showToast(`✅ Posição atualizada (${evt.newIndex + 1}º)`);
@@ -2972,7 +3169,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       }
     }
 
-    const dragHandle = isAdmin
+    const dragHandle = isManagerOrAdmin()
       ? `<span class="drag-handle" title="Arraste para reordenar" style="margin-right:4px;">☰</span>`
       : '';
 
@@ -2982,13 +3179,13 @@ function renderQueueItems(containerId, setor, filterProfissional) {
 
     const statusBadge = `<span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>`;
 
-    const actionButtons = isAdmin ? `
+    const actionButtons = isManagerOrAdmin() ? `
       <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
       <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
       <button class="btn-reorder-pos btn-icon-compact" title="Ir para posição específica" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">🔢</button>
       <button class="btn-transfer-sector" title="Encaminhar para outro setor" onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">↗️ Encaminhar</button>
       <button class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência">🚶</button>
-      <button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>
+      ${isAdmin ? `<button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>` : ''}
     ` : `
       <button class="btn-reorder-arrow" title="Subir uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
       <button class="btn-reorder-arrow" title="Descer uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
@@ -3003,7 +3200,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       isInterc ? 'row-intercorrencia' : ''
     ].filter(Boolean).join(' ');
 
-    return `<tr class="${rowCls}" data-id="${p.id}" data-draggable="${isAdmin && p.status === 'aguardando'}">
+    return `<tr class="${rowCls}" data-id="${p.id}" data-draggable="${isManagerOrAdmin() && p.status === 'aguardando'}">
       <td class="fila-pos-cell">
         <div style="display:flex;align-items:center;gap:4px;">
           ${p.status === 'aguardando' ? dragHandle : ''}
@@ -3070,8 +3267,8 @@ function renderQueueItems(containerId, setor, filterProfissional) {
 
   const changed = setQueueHtmlPreservingScroll(el, html);
 
-  // Inicializa D&D se for fila de setor e admin ativo
-  if (isSectorQueue && isAdmin) {
+  // Inicializa D&D se for fila de setor e gerente/admin ativo
+  if (isSectorQueue && isManagerOrAdmin()) {
     if (changed || !_sortableInstances[containerId]) initSortable(containerId, setor);
   } else if (_sortableInstances[containerId]) {
     _sortableInstances[containerId].destroy();
@@ -3135,9 +3332,9 @@ function updateMiniQueues() {
         ? `<div class="fila-motivo-box">${tagInterc}${txtMotivo1}${txtObs2}${alumiaBloco}</div>`
         : '';
 
-      const removeBtn = isAdmin ? `
+      const removeBtn = isManagerOrAdmin() ? `
         <button class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Marcar como Desistência">🚶</button>
-        <button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Excluir Permanentemente">🔥</button>
+        ${isAdmin ? `<button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Excluir Permanentemente">🔥</button>` : ''}
       ` : '';
 
       let presencaHtml = '';
@@ -3588,7 +3785,7 @@ function atualizarAlertaIntercorrenciaRecepcao() {
   const box = document.getElementById('recepcao-interc-alerta');
   if (!box) return;
   const setor = document.getElementById('input-setor')?.value || '';
-  if (!isAdmin || !SETORES_HORARIO_MARCADO.includes(setor)) {
+  if (!isManagerOrAdmin() || !SETORES_HORARIO_MARCADO.includes(setor)) {
     box.className = '';
     box.innerHTML = '';
     return;
@@ -6486,9 +6683,9 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
         <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')">↗️ Outro Setor</button>
       `;
     }
-    const adminBtns = isAdmin ? `
+    const adminBtns = isManagerOrAdmin() ? `
       <button class="btn-danger" style="font-size:11px;padding:4px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
-      <button class="btn-danger" style="font-size:11px;padding:4px 8px;background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${nomeSafe}')" title="Excluir">🔥</button>
+      ${isAdmin ? `<button class="btn-danger" style="font-size:11px;padding:4px 8px;background:rgba(0,0,0,0.1);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${nomeSafe}')" title="Excluir">🔥</button>` : ''}
     ` : '';
     const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:#475569;background:#f1f5f9;padding:2px 6px;border-radius:4px;border:1px solid #cbd5e1;font-weight:700;">🔙 de: ${escapeText(p.origem_transferencia)}</span>` : '';
     const cardCls = ['acol-patient-card', posReal === 1 ? 'is-next' : '', p.status === 'chamado' ? 'is-calling' : ''].filter(Boolean).join(' ');
@@ -6563,7 +6760,7 @@ async function confirmarIniciarEscuta() {
 
 // ====== EDITAR NOME DO PACIENTE (Acolhimento) ======
 async function editarNomeAcolhimento(id, nomeAtual) {
-  if (!isAdmin) { showToast('🔒 Apenas administradores podem editar nomes!', true); return; }
+  if (!isManagerOrAdmin()) { showToast('🔒 Apenas gerentes ou administradores podem editar nomes!', true); return; }
   const novoNome = prompt(`✏️ Editar Nome do Paciente\n\nNome atual: "${nomeAtual}"\n\nDigite o novo nome:`, nomeAtual);
   if (!novoNome || novoNome.trim() === nomeAtual) return;
   try {
@@ -6581,7 +6778,7 @@ async function editarNomeAcolhimento(id, nomeAtual) {
 
 // ====== DIRECIONAR PARA RECEPÇÃO FÍSICA (Indicador de Agendado) ======
 async function direcionarParaRecepcaoFisica(id, nome) {
-  if (!isAdmin) { showToast('🔒 Apenas administradores podem realizar esta ação!', true); return; }
+  if (!isManagerOrAdmin()) { showToast('🔒 Apenas gerentes ou administradores podem realizar esta ação!', true); return; }
   if (!confirm(`📋 Marcar "${nome}" como AGENDADO (Recepção)?\n\nO paciente será direcionado para a recepção para agendamento manual.`)) return;
   try {
     // Atualiza o tipo_atendimento para indicar que está aguardando agendamento na recepção
@@ -7348,7 +7545,7 @@ function renderAcsEscutaScreen() {
                 const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, 'ACS - 1ª Escuta') : '';
                 const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'ACS - 1ª Escuta');
                 const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
-                const adminBtns = isAdmin ? `
+                const adminBtns = isManagerOrAdmin() ? `
                   <button class="btn-danger" style="font-size:11px;padding:4px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
                 ` : '';
 
@@ -7571,7 +7768,7 @@ function renderSegundaEscutaScreen() {
       const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, `2ª Escuta - ${prof}`);
       const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
       const obs2 = (p.observacao_segunda_escuta || '').trim();
-      const adminBtns = isAdmin ? `
+      const adminBtns = isManagerOrAdmin() ? `
         <button class="btn-danger" style="font-size:11px;padding:4px 8px;" onclick="event.stopPropagation();removePatient(${p.id},'${nomeSafe}')" title="Desistência">🚶</button>
       ` : '';
 
@@ -8035,7 +8232,7 @@ function salvarEditarCtrlAgendamento() {
     return;
   }
 
-  pedirSenhaAdmin('Editar Registro na Sala de Agendamento', async (senhaUsada) => {
+  pedirSenhaGerenteOuAdmin('Editar Registro na Sala de Agendamento', async (senhaUsada) => {
     try {
       const r = await fetch(`${API_URL}/ctrl-agendamentos/${id}`, {
         method: 'PUT',
@@ -8135,7 +8332,7 @@ function formatarDataHoraRecifeCtrl(criadoEm) {
 }
 
 function exportarAgendamentosExcel() {
-  pedirSenhaAdmin('Exportar Controle de Agendamentos (Excel/CSV)', () => {
+  pedirSenhaGerenteOuAdmin('Exportar Controle de Agendamentos (Excel/CSV)', () => {
     const lista = typeof obterCtrlAgendamentosFiltrados === 'function'
       ? obterCtrlAgendamentosFiltrados()
       : (ctrlAgendamentos || []);
@@ -8171,7 +8368,7 @@ function exportarAgendamentosExcel() {
 }
 
 function exportarAgendamentosPDF() {
-  pedirSenhaAdmin('Exportar Controle de Agendamentos (PDF)', () => {
+  pedirSenhaGerenteOuAdmin('Exportar Controle de Agendamentos (PDF)', () => {
     const lista = typeof obterCtrlAgendamentosFiltrados === 'function'
       ? obterCtrlAgendamentosFiltrados()
       : (ctrlAgendamentos || []);
@@ -8733,10 +8930,14 @@ function renderVagasMedicos(data) {
 }
 
 async function excluirVagaMedico(id, medico) {
-  pedirSenhaAdmin(`Excluir Vagas de ${medico}`, async (senhaUsada) => {
+  pedirSenhaGerenteOuAdmin(`Excluir Vagas de ${medico}`, async (senhaUsada) => {
     if (!confirm(`Deseja excluir o registro de vagas de ${medico}? Isso permite refazer o cadastro de vagas.`)) return;
     try {
-      const r = await fetch(`${API_URL}/vagas-medicos/${id}`, { method: 'DELETE' });
+      const r = await fetch(`${API_URL}/vagas-medicos/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': senhaUsada },
+        body: JSON.stringify({ senha: senhaUsada })
+      });
       if (r.ok) {
         showToast(`🗑️ Vagas de ${medico} excluídas!`);
         loadVagasMedicos();
@@ -8766,12 +8967,12 @@ async function salvarVagasMedico(medico) {
     return;
   }
 
-  pedirSenhaAdmin(`Salvar Vagas de ${medico}`, async (senhaUsada) => {
+  pedirSenhaGerenteOuAdmin(`Salvar Vagas de ${medico}`, async (senhaUsada) => {
     try {
       const r = await fetch(`${API_URL}/vagas-medicos`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ medico, mes: parseInt(mes), ano: parseInt(ano), vagas })
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': senhaUsada },
+        body: JSON.stringify({ medico, mes: parseInt(mes), ano: parseInt(ano), vagas, senha: senhaUsada })
       });
       if (r.ok) {
         showToast(`Vagas de ${medico} atualizadas!`);
@@ -9562,7 +9763,7 @@ function adicionarMotivoBuscaAtivaAdmin() {
     return;
   }
 
-  pedirSenhaAdmin('Adicionar Motivo de Busca Ativa', async (senhaUsada) => {
+  pedirSenhaGerenteOuAdmin('Adicionar Motivo de Busca Ativa', async (senhaUsada) => {
     try {
       const r = await fetch(`${API_URL}/admin/motivos-busca-ativa`, {
         method: 'POST',
@@ -9601,7 +9802,7 @@ function renomearMotivoBuscaAtivaAdmin(motivo) {
     return;
   }
 
-  pedirSenhaAdmin('Editar Motivo de Busca Ativa', async (senhaUsada) => {
+  pedirSenhaGerenteOuAdmin('Editar Motivo de Busca Ativa', async (senhaUsada) => {
     try {
       const r = await fetch(`${API_URL}/admin/motivos-busca-ativa/${motivo.id}`, {
         method: 'PUT',
@@ -9624,7 +9825,7 @@ function renomearMotivoBuscaAtivaAdmin(motivo) {
 
 function alternarAtivoMotivoBuscaAtivaAdmin(motivo) {
   const novoAtivo = !motivo.ativo;
-  pedirSenhaAdmin(`${novoAtivo ? 'Reativar' : 'Desativar'} Motivo de Busca Ativa`, async (senhaUsada) => {
+  pedirSenhaGerenteOuAdmin(`${novoAtivo ? 'Reativar' : 'Desativar'} Motivo de Busca Ativa`, async (senhaUsada) => {
     try {
       // Soft delete / toggle ativo (nunca DELETE físico para preservar FK de busca_ativa_itens)
       const r = await fetch(`${API_URL}/admin/motivos-busca-ativa/${motivo.id}`, {

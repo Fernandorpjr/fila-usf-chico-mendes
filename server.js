@@ -13,7 +13,14 @@ const server = http.createServer(app);
 // Socket.io removido completamente para economizar Invocations/GB-h no Vercel
 const io = { emit: () => {} };
 
-const { setupDispositivos, getDeviceId } = require('./lib/dispositivos');
+const {
+  setupDispositivos,
+  getDeviceId,
+  MAX_TENTATIVAS_ANTES_BLOQUEIO,
+  consultarEstadoBloqueioDispositivo,
+  registrarFalhaAuthDispositivo,
+  resetarTentativasAuthDispositivo
+} = require('./lib/dispositivos');
 const { setupHistorico } = require('./lib/historico');
 const {
   SETORES_HORARIO_MARCADO,
@@ -35,6 +42,8 @@ const {
   SESSION_TTL_MS,
   isValidGatePass,
   isValidAdminPass,
+  isValidManagerPass,
+  resolvePrivilegedRole,
   isPublicApiRoute,
   getSessionFromRequest,
   setSessionCookie,
@@ -284,14 +293,14 @@ app.use('/api', async (req, res, next) => {
   if (!isPublicApiRoute(req.method, req.path)) {
     const sess = getSessionFromRequest(req);
     const adminHdr = req.headers['x-admin-password'] || req.headers['x-admin-pass'];
-    const hasValidAdminHeader = isValidAdminPass(adminHdr);
-    if (!sess && !hasValidAdminHeader) {
+    const headerRole = resolvePrivilegedRole(adminHdr);
+    if (!sess && !headerRole) {
       return res.status(401).json({
         error: 'Sessão não autenticada ou expirada. Faça login novamente.',
         code: 'AUTH_REQUIRED'
       });
     }
-    req.session = sess || { role: 'admin', via: 'header' };
+    req.session = sess || { role: headerRole, via: 'header' };
   } else {
     req.session = getSessionFromRequest(req);
   }
@@ -300,6 +309,7 @@ app.use('/api', async (req, res, next) => {
     req.path === '/health' ||
     req.path === '/auth/login' ||
     req.path === '/auth/logout' ||
+    req.path === '/auth/downgrade-staff' ||
     req.path === '/auth/session' ||
     req.path === '/verify-admin' ||
     req.path === '/cron/limpeza' ||
@@ -323,6 +333,19 @@ function isAdminAuthorized(req) {
 function requireAdmin(req, res, next) {
   if (!isAdminAuthorized(req)) {
     return res.status(403).json({ error: 'Acesso restrito ao administrador.', code: 'ADMIN_REQUIRED' });
+  }
+  next();
+}
+
+function isManagerOrAdminAuthorized(req) {
+  if (req.session && (req.session.role === 'admin' || req.session.role === 'gerente')) return true;
+  const senha = req.headers['x-admin-password'] || req.headers['x-admin-pass'] || req.body?.senha;
+  return Boolean(resolvePrivilegedRole(senha));
+}
+
+function requireManagerOrAdmin(req, res, next) {
+  if (!isManagerOrAdminAuthorized(req)) {
+    return res.status(403).json({ error: 'Acesso restrito à gerência ou administração.', code: 'MANAGER_REQUIRED' });
   }
   next();
 }
@@ -895,29 +918,71 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, ts: Date.now() });
 });
 
-// Autenticação do Portão de Entrada (sessão em cookie HttpOnly assinado)
-app.post('/api/auth/login', (req, res) => {
-  const ip = getClientIp(req);
-  const rl = isRateLimited('gate_login_fail', ip, 15, 15 * 60 * 1000);
-  if (rl.blocked) {
-    return res.status(429).json({
+// Autenticação do Portão de Entrada (sessão em cookie HttpOnly assinado + trava progressiva por dispositivo)
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const estado = await consultarEstadoBloqueioDispositivo(req, pool);
+    if (estado.bloqueadoDefinitivo) {
+      return res.status(423).json({
+        ok: false,
+        bloqueado_definitivo: true,
+        motivo: estado.motivoBloqueio || 'excesso_tentativas',
+        error: 'Este aparelho foi bloqueado por excesso de tentativas incorretas. Apenas o Administrador pode desbloqueá-lo.'
+      });
+    }
+    if (estado.bloqueioTemporario) {
+      return res.status(429).json({
+        ok: false,
+        bloqueado_temporario: true,
+        desbloqueio_em: estado.lockedUntil ? new Date(estado.lockedUntil).getTime() : null,
+        segundos_restantes: estado.retryAfterSec,
+        error: `Muitas tentativas incorretas. Aguarde ${Math.max(1, Math.ceil(estado.retryAfterSec / 60))} minuto(s) para tentar novamente.`
+      });
+    }
+
+    const { senha } = req.body || {};
+    if (isValidGatePass(senha)) {
+      await resetarTentativasAuthDispositivo(pool, estado.deviceId);
+      setSessionCookie(res, 'staff');
+      return res.json({
+        ok: true,
+        authenticated: true,
+        role: 'staff',
+        expiresInMs: SESSION_TTL_MS
+      });
+    }
+
+    const falha = await registrarFalhaAuthDispositivo(req, res, pool);
+    if (falha.ativo === false) {
+      return res.status(423).json({
+        ok: false,
+        bloqueado_definitivo: true,
+        tentativas_falhas: falha.tentativas_falhas,
+        error: 'Aparelho bloqueado em definitivo por nova senha incorreta após o bloqueio temporário. Apenas um Administrador pode desbloquear.'
+      });
+    }
+    if (falha.bloqueado_temporario_ate) {
+      const unlockMs = new Date(falha.bloqueado_temporario_ate).getTime();
+      return res.status(429).json({
+        ok: false,
+        bloqueado_temporario: true,
+        tentativas_falhas: falha.tentativas_falhas,
+        desbloqueio_em: unlockMs,
+        segundos_restantes: Math.max(1, Math.ceil((unlockMs - Date.now()) / 1000)),
+        error: 'Você errou a senha 5 vezes. Este aparelho foi bloqueado por 5 minutos.'
+      });
+    }
+    const rest = Math.max(0, MAX_TENTATIVAS_ANTES_BLOQUEIO - Number(falha.tentativas_falhas || 0));
+    return res.status(401).json({
       ok: false,
-      error: `Muitas tentativas incorretas. Aguarde ${Math.max(1, Math.ceil(rl.retryAfterSec / 60))} minuto(s).`
+      tentativas_falhas: falha.tentativas_falhas,
+      tentativas_restantes: rest,
+      error: `Senha incorreta. Restam ${rest} tentativa(s).`
     });
+  } catch (error) {
+    console.error('Erro em /api/auth/login:', error.message);
+    return res.status(500).json({ ok: false, error: 'Erro interno ao validar acesso.' });
   }
-  const { senha } = req.body || {};
-  if (isValidGatePass(senha)) {
-    resetRateLimit('gate_login_fail', ip);
-    setSessionCookie(res, 'staff');
-    return res.json({
-      ok: true,
-      authenticated: true,
-      role: 'staff',
-      expiresInMs: SESSION_TTL_MS
-    });
-  }
-  recordRateLimitHit('gate_login_fail', ip, 15 * 60 * 1000);
-  return res.status(401).json({ ok: false, error: 'Senha incorreta. Tente novamente.' });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -925,33 +990,142 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/auth/session', (req, res) => {
+app.post('/api/auth/downgrade-staff', (req, res) => {
   const sess = getSessionFromRequest(req);
+  if (!sess) {
+    return res.status(401).json({ ok: false, error: 'Sessão não encontrada' });
+  }
+  setSessionCookie(res, 'staff');
+  return res.json({ ok: true, role: 'staff' });
+});
+
+app.get('/api/auth/session', async (req, res) => {
+  const sess = getSessionFromRequest(req);
+  let estado = { deviceId: null, bloqueadoDefinitivo: false, bloqueioTemporario: false, lockedUntil: null, motivoBloqueio: null };
+  try {
+    estado = await consultarEstadoBloqueioDispositivo(req, pool);
+  } catch (_) {}
+
+  const blockedNonAdmin = Boolean(estado.bloqueadoDefinitivo && (!sess || sess.role !== 'admin'));
   res.json({
-    authenticated: Boolean(sess),
-    role: sess ? sess.role : null,
-    exp: sess ? sess.exp : null
+    authenticated: Boolean(sess && !blockedNonAdmin),
+    role: sess && !blockedNonAdmin ? sess.role : null,
+    exp: sess && !blockedNonAdmin ? sess.exp : null,
+    deviceId: estado.deviceId || null,
+    deviceBlocked: Boolean(estado.bloqueadoDefinitivo),
+    motivoBloqueio: estado.motivoBloqueio || null,
+    tempLockedUntil: (estado.bloqueioTemporario && estado.lockedUntil)
+      ? new Date(estado.lockedUntil).getTime()
+      : null
   });
 });
 
-// Verify admin password (also issues admin session cookie for seamless dashboard/admin access)
-app.post('/api/verify-admin', (req, res) => {
-  const ip = getClientIp(req);
-  const rl = isRateLimited('admin_login_fail', ip, 10, 15 * 60 * 1000);
-  if (rl.blocked) {
-    return res.status(429).json({
+// Verify admin or gerente password (issues session cookie + per-device progressive lockout)
+app.post('/api/verify-admin', async (req, res) => {
+  try {
+    const { senha, modo_emergencia, apenas_admin } = req.body || {};
+    const estado = await consultarEstadoBloqueioDispositivo(req, pool);
+    const ip = getClientIp(req);
+
+    if (modo_emergencia === true) {
+      const rlEmerg = isRateLimited('admin_emergency_fail', ip, 10, 15 * 60 * 1000);
+      if (rlEmerg.blocked) {
+        return res.status(429).json({
+          valid: false,
+          bloqueado_definitivo: true,
+          error: 'Muitas tentativas no desbloqueio emergencial. Aguarde alguns minutos.'
+        });
+      }
+      if (isValidAdminPass(senha)) {
+        resetRateLimit('admin_emergency_fail', ip);
+        if (estado.deviceId) {
+          await pool.query(
+            `UPDATE dispositivos
+             SET ativo = true,
+                 tentativas_falhas = 0,
+                 bloqueio_etapa = 0,
+                 bloqueio_temporario_ate = NULL,
+                 motivo_bloqueio = NULL,
+                 ultimo_acesso = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [estado.deviceId]
+          ).catch(() => {});
+        }
+        setSessionCookie(res, 'admin');
+        return res.json({ valid: true, role: 'admin', unlockedDevice: true });
+      }
+      recordRateLimitHit('admin_emergency_fail', ip, 15 * 60 * 1000);
+      return res.status(403).json({
+        valid: false,
+        bloqueado_definitivo: Boolean(estado.bloqueadoDefinitivo),
+        error: 'Senha exclusiva de Administrador incorreta.'
+      });
+    }
+
+    if (estado.bloqueadoDefinitivo) {
+      return res.status(423).json({
+        valid: false,
+        bloqueado_definitivo: true,
+        motivo: estado.motivoBloqueio || 'excesso_tentativas',
+        error: 'Este aparelho foi bloqueado por excesso de tentativas incorretas. Apenas o Administrador pode desbloqueá-lo.'
+      });
+    }
+    if (estado.bloqueioTemporario) {
+      return res.status(429).json({
+        valid: false,
+        bloqueado_temporario: true,
+        desbloqueio_em: estado.lockedUntil ? new Date(estado.lockedUntil).getTime() : null,
+        segundos_restantes: estado.retryAfterSec,
+        error: `Muitas tentativas incorretas. Aguarde ${Math.max(1, Math.ceil(estado.retryAfterSec / 60))} minuto(s).`
+      });
+    }
+
+    const role = resolvePrivilegedRole(senha);
+    if (apenas_admin && role === 'gerente') {
+      return res.status(403).json({
+        valid: false,
+        role: 'gerente',
+        error: 'Ação restrita ao Administrador. A senha de gerente não libera este recurso.'
+      });
+    }
+
+    if (role) {
+      await resetarTentativasAuthDispositivo(pool, estado.deviceId);
+      setSessionCookie(res, role);
+      return res.json({ valid: true, role });
+    }
+
+    const falha = await registrarFalhaAuthDispositivo(req, res, pool);
+    if (falha.ativo === false) {
+      return res.status(423).json({
+        valid: false,
+        bloqueado_definitivo: true,
+        tentativas_falhas: falha.tentativas_falhas,
+        error: 'Aparelho bloqueado em definitivo por nova senha incorreta após o bloqueio temporário. Apenas o Administrador pode desbloquear.'
+      });
+    }
+    if (falha.bloqueado_temporario_ate) {
+      const unlockMs = new Date(falha.bloqueado_temporario_ate).getTime();
+      return res.status(429).json({
+        valid: false,
+        bloqueado_temporario: true,
+        tentativas_falhas: falha.tentativas_falhas,
+        desbloqueio_em: unlockMs,
+        segundos_restantes: Math.max(1, Math.ceil((unlockMs - Date.now()) / 1000)),
+        error: 'Você errou a senha 5 vezes. Este aparelho foi bloqueado por 5 minutos.'
+      });
+    }
+    const rest = Math.max(0, MAX_TENTATIVAS_ANTES_BLOQUEIO - Number(falha.tentativas_falhas || 0));
+    return res.status(403).json({
       valid: false,
-      error: 'Muitas tentativas. Aguarde alguns minutos.'
+      tentativas_falhas: falha.tentativas_falhas,
+      tentativas_restantes: rest,
+      error: `Senha incorreta. Restam ${rest} tentativa(s).`
     });
+  } catch (error) {
+    console.error('Erro em /api/verify-admin:', error.message);
+    return res.status(500).json({ valid: false, error: 'Erro interno ao verificar credenciais.' });
   }
-  const { senha } = req.body || {};
-  if (isValidAdminPass(senha)) {
-    resetRateLimit('admin_login_fail', ip);
-    setSessionCookie(res, 'admin');
-    return res.json({ valid: true });
-  }
-  recordRateLimitHit('admin_login_fail', ip, 15 * 60 * 1000);
-  return res.status(403).json({ valid: false, error: 'Senha incorreta' });
 });
 
 // Get config de prioridade (Parte A)
@@ -1941,13 +2115,13 @@ app.put('/api/patients/:id/reorder', async (req, res) => {
   }
 });
 
-// PUT /api/patients/:id/rename — Editar nome do paciente (requer senha admin)
+// PUT /api/patients/:id/rename — Editar nome do paciente (requer gerente ou admin)
 app.put('/api/patients/:id/rename', async (req, res) => {
   try {
     const { id } = req.params;
-    const { novoNome, senha } = req.body;
-    if (!isValidAdminPass(senha)) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    const { novoNome } = req.body;
+    if (!isManagerOrAdminAuthorized(req)) {
+      return res.status(403).json({ error: 'Senha de gerente ou administrador incorreta' });
     }
     if (!novoNome || !novoNome.trim()) {
       return res.status(400).json({ error: 'O novo nome é obrigatório' });
@@ -2186,13 +2360,13 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
 
 // ====== FIM MELHORIA G ======
 
-// Remove patient (desistência) – requires admin password
+// Remove patient (desistência) – requires manager or admin
 app.post('/api/remove-patient', async (req, res) => {
   try {
-    const { id, senha } = req.body;
+    const { id } = req.body;
     
-    if (!isValidAdminPass(senha)) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    if (!isManagerOrAdminAuthorized(req)) {
+      return res.status(403).json({ error: 'Senha de gerente ou administrador incorreta' });
     }
     
     if (!id) {
@@ -2418,7 +2592,7 @@ app.get('/api/current-calling', async (req, res) => {
 });
 
 // ====== DASHBOARD METRICS ======
-app.get('/api/dashboard/metrics', requireAdmin, async (req, res) => {
+app.get('/api/dashboard/metrics', requireManagerOrAdmin, async (req, res) => {
   try {
     const { data } = req.query;
     const hojeRecife = getDataHojeRecife();
@@ -2573,7 +2747,7 @@ app.get('/api/dashboard/metrics', requireAdmin, async (req, res) => {
 });
 
 // Dashboard hourly data
-app.get('/api/dashboard/hourly', requireAdmin, async (req, res) => {
+app.get('/api/dashboard/hourly', requireManagerOrAdmin, async (req, res) => {
   try {
     const { data } = req.query;
     const dataEfetiva = (data && String(data).trim()) || getDataHojeRecife();
@@ -2614,8 +2788,8 @@ app.get('/api/dashboard/hourly', requireAdmin, async (req, res) => {
   }
 });
 
-// Resumo operacional privado: Devoluções SISREG + Sala de Agendamento + Dispositivos Online
-app.get('/api/dashboard/resumo-operacional', requireAdmin, async (req, res) => {
+// Resumo operacional privado: Devoluções SISREG + Sala de Agendamento + Dispositivos Online (dispositivos só para admin)
+app.get('/api/dashboard/resumo-operacional', requireManagerOrAdmin, async (req, res) => {
   try {
     const dataFiltro = (req.query.data && String(req.query.data).trim()) || getDataHojeRecife();
 
@@ -2680,45 +2854,48 @@ app.get('/api/dashboard/resumo-operacional', requireAdmin, async (req, res) => {
       if (agRes.rows[0]) agendamento = agRes.rows[0];
     } catch (_) {}
 
-    let dispositivos = {
-      total: 0,
-      online: 0,
-      com_nome: 0,
-      sem_nome: 0,
-      bloqueados: 0,
-      bloquear_sem_nome: false,
-      lista: []
-    };
-    try {
-      const [dispSumRes, dispCfgRes, dispListRes] = await Promise.all([
-        pool.query(`
-          SELECT
-            COUNT(*)::int AS total,
-            COUNT(*) FILTER (WHERE ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes'))::int AS online,
-            COUNT(*) FILTER (WHERE nome IS NOT NULL AND TRIM(nome) <> '' AND LOWER(TRIM(nome)) <> 'sem nome')::int AS com_nome,
-            COUNT(*) FILTER (WHERE nome IS NULL OR TRIM(nome) = '' OR LOWER(TRIM(nome)) = 'sem nome')::int AS sem_nome,
-            COUNT(*) FILTER (WHERE ativo = false)::int AS bloqueados
-          FROM dispositivos
-        `),
-        pool.query(`SELECT valor FROM configuracoes WHERE chave = 'bloquear_dispositivos_sem_nome'`),
-        pool.query(`
-          SELECT
-            id, nome, setor, ultimo_ip, ultimo_acesso, ativo,
-            (ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes')) AS online,
-            (nome IS NULL OR TRIM(nome) = '' OR LOWER(TRIM(nome)) = 'sem nome') AS sem_nome
-          FROM dispositivos
-          ORDER BY (ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes')) DESC NULLS LAST, ultimo_acesso DESC NULLS LAST
-          LIMIT 50
-        `)
-      ]);
-      if (dispSumRes.rows[0]) {
-        dispositivos = {
-          ...dispSumRes.rows[0],
-          bloquear_sem_nome: dispCfgRes.rows[0]?.valor === 'true',
-          lista: dispListRes.rows || []
-        };
-      }
-    } catch (_) {}
+    let dispositivos = null;
+    if (isAdminAuthorized(req)) {
+      dispositivos = {
+        total: 0,
+        online: 0,
+        com_nome: 0,
+        sem_nome: 0,
+        bloqueados: 0,
+        bloquear_sem_nome: false,
+        lista: []
+      };
+      try {
+        const [dispSumRes, dispCfgRes, dispListRes] = await Promise.all([
+          pool.query(`
+            SELECT
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes'))::int AS online,
+              COUNT(*) FILTER (WHERE nome IS NOT NULL AND TRIM(nome) <> '' AND LOWER(TRIM(nome)) <> 'sem nome')::int AS com_nome,
+              COUNT(*) FILTER (WHERE nome IS NULL OR TRIM(nome) = '' OR LOWER(TRIM(nome)) = 'sem nome')::int AS sem_nome,
+              COUNT(*) FILTER (WHERE ativo = false)::int AS bloqueados
+            FROM dispositivos
+          `),
+          pool.query(`SELECT valor FROM configuracoes WHERE chave = 'bloquear_dispositivos_sem_nome'`),
+          pool.query(`
+            SELECT
+              id, nome, setor, ultimo_ip, ultimo_acesso, ativo,
+              (ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes')) AS online,
+              (nome IS NULL OR TRIM(nome) = '' OR LOWER(TRIM(nome)) = 'sem nome') AS sem_nome
+            FROM dispositivos
+            ORDER BY (ultimo_acesso >= (CURRENT_TIMESTAMP - INTERVAL '2 minutes')) DESC NULLS LAST, ultimo_acesso DESC NULLS LAST
+            LIMIT 50
+          `)
+        ]);
+        if (dispSumRes.rows[0]) {
+          dispositivos = {
+            ...dispSumRes.rows[0],
+            bloquear_sem_nome: dispCfgRes.rows[0]?.valor === 'true',
+            lista: dispListRes.rows || []
+          };
+        }
+      } catch (_) {}
+    }
 
     res.json({
       data: dataFiltro,
@@ -3201,10 +3378,10 @@ app.delete('/api/ctrl-agendamentos/:id', async (req, res) => {
 app.put('/api/ctrl-agendamentos/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, horario, queixa, equipe, cpf6, status, motivo, senha, mes_agendamento, ano_agendamento } = req.body;
+    const { nome, horario, queixa, equipe, cpf6, status, motivo, mes_agendamento, ano_agendamento } = req.body;
 
-    if (!isValidAdminPass(senha)) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    if (!isManagerOrAdminAuthorized(req)) {
+      return res.status(403).json({ error: 'Senha de gerente ou administrador incorreta' });
     }
     if (!nome || !horario) {
       return res.status(400).json({ error: 'Nome e horário são obrigatórios' });
@@ -3452,6 +3629,9 @@ app.get('/api/vagas-medicos', async (req, res) => {
 // PUT /api/vagas-medicos — Criar/atualizar vagas de um médico
 app.put('/api/vagas-medicos', async (req, res) => {
   try {
+    if (!isManagerOrAdminAuthorized(req)) {
+      return res.status(403).json({ error: 'Senha de gerente ou administrador incorreta' });
+    }
     const { medico, mes, ano, vagas } = req.body;
     if (!medico || !mes || !ano || vagas === undefined) {
       return res.status(400).json({ error: 'medico, mes, ano e vagas são obrigatórios' });
@@ -3481,6 +3661,9 @@ app.put('/api/vagas-medicos', async (req, res) => {
 // DELETE /api/vagas-medicos/:id — Excluir registro de vaga (permite refazer)
 app.delete('/api/vagas-medicos/:id', async (req, res) => {
   try {
+    if (!isManagerOrAdminAuthorized(req)) {
+      return res.status(403).json({ error: 'Senha de gerente ou administrador incorreta' });
+    }
     const { id } = req.params;
     const result = await pool.query('DELETE FROM vagas_medicos WHERE id = $1 RETURNING *', [id]);
     if (result.rows.length === 0) {
@@ -3898,7 +4081,7 @@ app.get('/api/agendamentos/coletas/stats', async (req, res) => {
 });
 
 // GET - Dashboard semanal de Coletas de Sangue (agendado vs realizado)
-app.get('/api/dashboard/coletas-semanal', requireAdmin, async (req, res) => {
+app.get('/api/dashboard/coletas-semanal', requireManagerOrAdmin, async (req, res) => {
   try {
     const { semanas } = req.query;
     const numSemanas = parseInt(semanas) || 4;
@@ -3972,7 +4155,7 @@ app.get('/api/dashboard/coletas-semanal', requireAdmin, async (req, res) => {
 });
 
 // GET - Dashboard de Coletas para controle manual (entrada manual de dados)
-app.get('/api/dashboard/coletas-manual', requireAdmin, async (req, res) => {
+app.get('/api/dashboard/coletas-manual', requireManagerOrAdmin, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT * FROM coletas_controle ORDER BY data_coleta ASC`
@@ -3985,7 +4168,7 @@ app.get('/api/dashboard/coletas-manual', requireAdmin, async (req, res) => {
 });
 
 // POST - Salvar registro manual de coleta
-app.post('/api/dashboard/coletas-manual', requireAdmin, async (req, res) => {
+app.post('/api/dashboard/coletas-manual', requireManagerOrAdmin, async (req, res) => {
   try {
     // Criar tabela se não existir
     await pool.query(`
@@ -4020,7 +4203,7 @@ app.post('/api/dashboard/coletas-manual', requireAdmin, async (req, res) => {
 });
 
 // DELETE - Remover registro manual de coleta
-app.delete('/api/dashboard/coletas-manual/:id', requireAdmin, async (req, res) => {
+app.delete('/api/dashboard/coletas-manual/:id', requireManagerOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM coletas_controle WHERE id = $1', [id]);
@@ -5282,12 +5465,12 @@ app.get('/api/motivos-busca-ativa', async (req, res) => {
   }
 });
 
-// POST – adicionar novo motivo de busca ativa (Admin)
+// POST – adicionar novo motivo de busca ativa (Gerente ou Admin)
 app.post('/api/admin/motivos-busca-ativa', async (req, res) => {
   try {
-    const { descricao, setor_sugerido, senha } = req.body || {};
-    if (!isValidAdminPass(senha)) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    const { descricao, setor_sugerido } = req.body || {};
+    if (!isManagerOrAdminAuthorized(req)) {
+      return res.status(403).json({ error: 'Senha de gerente ou administrador incorreta' });
     }
     const descLimpa = String(descricao || '').trim().slice(0, 120);
     const setorLimpo = String(setor_sugerido || '').trim().slice(0, 60);
@@ -5315,13 +5498,13 @@ app.post('/api/admin/motivos-busca-ativa', async (req, res) => {
   }
 });
 
-// PUT – renomear ou ativar/desativar motivo de busca ativa (Admin)
+// PUT – renomear ou ativar/desativar motivo de busca ativa (Gerente ou Admin)
 app.put('/api/admin/motivos-busca-ativa/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { descricao, setor_sugerido, ativo, senha } = req.body || {};
-    if (!isValidAdminPass(senha)) {
-      return res.status(403).json({ error: 'Senha administrativa incorreta' });
+    const { descricao, setor_sugerido, ativo } = req.body || {};
+    if (!isManagerOrAdminAuthorized(req)) {
+      return res.status(403).json({ error: 'Senha de gerente ou administrador incorreta' });
     }
     const atualRes = await pool.query('SELECT * FROM motivos_busca_ativa WHERE id = $1', [id]);
     if (atualRes.rows.length === 0) {
@@ -5678,12 +5861,10 @@ app.post('/api/patients/:id/busca-ativa/ofertar', async (req, res) => {
   }
 });
 
-// GET – Relatório Admin Unificado (Parte A + Parte B) com filtro por Dia/Período e Turno no fuso America/Recife
+// GET – Relatório Gerencial/Admin Unificado (Parte A + Parte B) com filtro por Dia/Período e Turno no fuso America/Recife
 app.get('/api/admin/relatorio-prioridade-busca', async (req, res) => {
-  const senhaAdmin = req.headers['x-admin-password'] || req.headers['x-admin-pass'] || '';
-  const isAdminSess = req.session && req.session.role === 'admin';
-  if (!isAdminSess && !isValidAdminPass(senhaAdmin)) {
-    return res.status(403).json({ error: 'Acesso restrito ao administrador.' });
+  if (!isManagerOrAdminAuthorized(req)) {
+    return res.status(403).json({ error: 'Acesso restrito à gerência ou administração.' });
   }
   try {
     const hojeRecife = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Recife' }).format(new Date());

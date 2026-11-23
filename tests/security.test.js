@@ -7,6 +7,7 @@ const {
   SESSION_COOKIE_NAME,
   DEFAULT_GATE_HASH,
   LEGACY_ADMIN_HASHES,
+  DEFAULT_MANAGER_HASH,
   sha256Hex,
   safeEqualStr,
   parseCookies,
@@ -15,6 +16,8 @@ const {
   verifySessionToken,
   isValidGatePass,
   isValidAdminPass,
+  isValidManagerPass,
+  resolvePrivilegedRole,
   isPublicApiRoute,
   getClientIp,
   isRateLimited,
@@ -23,6 +26,12 @@ const {
   checkRateLimit,
   buildCorsOptions
 } = require('../lib/seguranca');
+const {
+  MAX_TENTATIVAS_ANTES_BLOQUEIO,
+  DURACAO_BLOQUEIO_TEMP_MS,
+  calcularEstadoBloqueioAtual,
+  calcularProximoEstadoFalha
+} = require('../lib/dispositivos');
 const { limparPreviasExpiradas } = require('../lib/receitas');
 
 test('HMAC session tokens validate, reject tampering, and enforce expiration', () => {
@@ -38,6 +47,9 @@ test('HMAC session tokens validate, reject tampering, and enforce expiration', (
 
     const adminToken = createSessionToken('admin', 60_000);
     assert.equal(verifySessionToken(adminToken)?.role, 'admin');
+
+    const gerenteToken = createSessionToken('gerente', 60_000);
+    assert.equal(verifySessionToken(gerenteToken)?.role, 'gerente');
 
     const [payloadB64, sigB64] = token.split('.');
     const tamperedSig = `${payloadB64}.${sigB64.slice(0, -1)}${sigB64.endsWith('a') ? 'b' : 'a'}`;
@@ -85,24 +97,36 @@ test('isValidGatePass supports GATE_PASSWORD, GATE_HASH, and non-empty checks', 
   }
 });
 
-test('isValidAdminPass validates ADMIN_PASSWORDS via timing-safe comparison and stores only hashes in fallback', () => {
+test('isValidAdminPass e isValidManagerPass validam papéis separados com timing-safe comparison', () => {
   const prevAdmins = process.env.ADMIN_PASSWORDS;
+  const prevManagers = process.env.MANAGER_PASSWORDS;
   try {
     assert.equal(Array.isArray(LEGACY_ADMIN_HASHES), true);
-    assert.equal(LEGACY_ADMIN_HASHES.length, 2);
+    assert.equal(LEGACY_ADMIN_HASHES.length, 1);
     assert.equal(LEGACY_ADMIN_HASHES.includes(DEFAULT_GATE_HASH), false);
     LEGACY_ADMIN_HASHES.forEach(h => assert.match(h, /^[a-f0-9]{64}$/));
+    assert.match(DEFAULT_MANAGER_HASH, /^[a-f0-9]{64}$/);
+    assert.notEqual(DEFAULT_MANAGER_HASH, LEGACY_ADMIN_HASHES[0]);
+    assert.notEqual(DEFAULT_MANAGER_HASH, DEFAULT_GATE_HASH);
 
-    process.env.ADMIN_PASSWORDS = 'admin-alpha,admin-beta';
-    assert.equal(isValidAdminPass('admin-alpha'), true);
-    assert.equal(isValidAdminPass('admin-beta'), true);
-    assert.equal(isValidAdminPass('admin-gamma'), false);
+    process.env.ADMIN_PASSWORDS = 'admin-alpha-test';
+    process.env.MANAGER_PASSWORDS = 'gerente-beta-test';
+    assert.equal(isValidAdminPass('admin-alpha-test'), true);
+    assert.equal(isValidAdminPass('gerente-beta-test'), false);
+    assert.equal(isValidManagerPass('gerente-beta-test'), true);
+    assert.equal(isValidManagerPass('admin-alpha-test'), false);
+    assert.equal(resolvePrivilegedRole('admin-alpha-test'), 'admin');
+    assert.equal(resolvePrivilegedRole('gerente-beta-test'), 'gerente');
+    assert.equal(resolvePrivilegedRole('senha-invalida-qualquer'), null);
     assert.equal(isValidAdminPass(''), false);
+    assert.equal(isValidManagerPass(''), false);
     assert.equal(safeEqualStr('abc', 'abc'), true);
     assert.equal(safeEqualStr('abc', 'abd'), false);
   } finally {
     if (prevAdmins === undefined) delete process.env.ADMIN_PASSWORDS;
     else process.env.ADMIN_PASSWORDS = prevAdmins;
+    if (prevManagers === undefined) delete process.env.MANAGER_PASSWORDS;
+    else process.env.MANAGER_PASSWORDS = prevManagers;
   }
 });
 
@@ -559,6 +583,55 @@ test('Global unnamed-device blocking logic enforces 5 safety guards accurately',
   );
 });
 
+test('Bloqueio progressivo por tentativas (5 erros -> 5 min -> bloqueio definitivo so Admin desbloqueia)', () => {
+  assert.equal(MAX_TENTATIVAS_ANTES_BLOQUEIO, 5);
+  assert.equal(DURACAO_BLOQUEIO_TEMP_MS, 5 * 60 * 1000);
+
+  const t0 = 1_700_000_000_000;
+  let dev = { ativo: true, tentativas_falhas: 0, bloqueio_etapa: 0, bloqueio_temporario_ate: null, motivo_bloqueio: null };
+
+  for (let i = 1; i <= 4; i++) {
+    const f = calcularProximoEstadoFalha(dev, t0 + i * 1000);
+    assert.equal(f.action, 'warn');
+    assert.equal(f.status, 401);
+    assert.equal(f.tentativas_falhas, i);
+    assert.equal(f.restantes, 5 - i);
+    dev = {
+      ...dev,
+      tentativas_falhas: f.tentativas_falhas,
+      bloqueio_etapa: f.bloqueio_etapa,
+      bloqueio_temporario_ate: f.bloqueio_temporario_ate
+    };
+  }
+
+  // 5o erro consecutivo -> bloqueio temporario de 5 minutos
+  const f5 = calcularProximoEstadoFalha(dev, t0 + 5000);
+  assert.equal(f5.action, 'temp_lock_5m');
+  assert.equal(f5.status, 429);
+  assert.equal(f5.bloqueio_etapa, 1);
+  assert.equal(f5.retryAfterSec, 300);
+  dev = {
+    ...dev,
+    tentativas_falhas: f5.tentativas_falhas,
+    bloqueio_etapa: f5.bloqueio_etapa,
+    bloqueio_temporario_ate: f5.bloqueio_temporario_ate,
+    motivo_bloqueio: f5.motivo_bloqueio
+  };
+
+  // Durante os 5 minutos, continua bloqueado mesmo apos refresh
+  const during = calcularEstadoBloqueioAtual(dev, t0 + 60_000);
+  assert.equal(during.bloqueioTemporario, true);
+  assert.equal(during.bloqueadoDefinitivo, false);
+
+  // Apos expirar os 5 minutos, se errar mais 1 vez -> bloqueio definitivo
+  const f6 = calcularProximoEstadoFalha(dev, t0 + 5000 + DURACAO_BLOQUEIO_TEMP_MS + 1000);
+  assert.equal(f6.action, 'block_device_permanent');
+  assert.equal(f6.status, 423);
+  assert.equal(f6.ativo, false);
+  assert.equal(f6.bloqueio_etapa, 2);
+  assert.equal(f6.motivo_bloqueio, 'excesso_tentativas');
+});
+
 test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are enforced', () => {
   const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const appJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
@@ -570,7 +643,7 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.match(serverJs, /POST \/api\/ctrl-agendamentos[\s\S]{0,600}isManual\s*&&\s*!isValidAdminPass\(senha\)/);
   assert.match(serverJs, /DELETE \/api\/ctrl-agendamentos\/:id[\s\S]{0,400}(?:!isAdminAuthorized\(req\)|!isValidAdminPass\(senha\))/);
   assert.equal(appJs.includes("btoa(senha) !== 'Y2hpY28xMjM='"), false, 'hardcoded base64 check must be removed from exports');
-  assert.equal(appJs.includes("pedirSenhaAdmin('Exportar Controle de Agendamentos (Excel/CSV)'") && appJs.includes("pedirSenhaAdmin('Exportar Controle de Agendamentos (PDF)'"), true);
+  assert.equal(appJs.includes("pedirSenhaGerenteOuAdmin('Exportar Controle de Agendamentos (Excel/CSV)'") && appJs.includes("pedirSenhaGerenteOuAdmin('Exportar Controle de Agendamentos (PDF)'"), true);
   assert.equal(appJs.includes('abrirModalNovoCtrlAdmin'), true);
   assert.equal(appJs.includes('removerCtrlAgendamento(id, btn)') && appJs.includes("pedirSenhaAdmin('Excluir Registro da Sala de Agendamento'"), true);
 
@@ -590,7 +663,8 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.equal(sisregFront.includes("buscarAtalhoSisreg('EXAMES DE LABORATORIO')"), true);
   assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
   assert.equal(indexHtml.includes('formularios-pec.js?v=1.9'), true);
-  assert.equal(indexHtml.includes('app.js?v=8.3'), true);
+  assert.equal(indexHtml.includes('dispositivos.js?v=5.2'), true);
+  assert.equal(indexHtml.includes('app.js?v=8.4'), true);
 });
 
 test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e PDF estão integrados', () => {
@@ -645,19 +719,21 @@ test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e P
   assert.equal(salvarSlice.includes('fecharModalDevolucoesProfissional()'), true);
 });
 
-test('Dashboard Privado exige admin no servidor, corrige bugs críticos e integra novos indicadores', () => {
+test('Dashboard Privado separa Gerente x Admin (Dispositivos só Admin) e mantém hardening', () => {
   const root = path.join(__dirname, '..');
   const serverJs = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   const dispBack = fs.readFileSync(path.join(root, 'lib', 'dispositivos.js'), 'utf8');
   const dashHtml = fs.readFileSync(path.join(root, 'public', 'dashboard.html'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
 
-  assert.equal(serverJs.includes("app.get('/api/dashboard/metrics', requireAdmin"), true);
-  assert.equal(serverJs.includes("app.get('/api/dashboard/hourly', requireAdmin"), true);
-  assert.equal(serverJs.includes("app.get('/api/dashboard/resumo-operacional', requireAdmin"), true);
-  assert.equal(serverJs.includes("app.get('/api/dashboard/coletas-semanal', requireAdmin"), true);
-  assert.equal(serverJs.includes("app.get('/api/dashboard/coletas-manual', requireAdmin"), true);
-  assert.equal(serverJs.includes("app.post('/api/dashboard/coletas-manual', requireAdmin"), true);
-  assert.equal(serverJs.includes("app.delete('/api/dashboard/coletas-manual/:id', requireAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/metrics', requireManagerOrAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/hourly', requireManagerOrAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/resumo-operacional', requireManagerOrAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/coletas-semanal', requireManagerOrAdmin"), true);
+  assert.equal(serverJs.includes("app.get('/api/dashboard/coletas-manual', requireManagerOrAdmin"), true);
+  assert.equal(serverJs.includes("app.post('/api/dashboard/coletas-manual', requireManagerOrAdmin"), true);
+  assert.equal(serverJs.includes("app.delete('/api/dashboard/coletas-manual/:id', requireManagerOrAdmin"), true);
+  assert.equal(serverJs.includes('let dispositivos = null;'), true);
   assert.equal(dispBack.includes('req.session && req.session.role === \'admin\''), true);
 
   assert.equal(dashHtml.includes('SETORES_DASH'), true);
@@ -665,6 +741,7 @@ test('Dashboard Privado exige admin no servidor, corrige bugs críticos e integr
   assert.equal(dashHtml.includes('checkExistingAdminSession'), true);
   assert.equal(dashHtml.includes('logoutDashboard'), true);
   assert.equal(dashHtml.includes('switchDashTab'), true);
+  assert.equal(dashHtml.includes('applyDashRoleUI'), true);
   assert.equal(dashHtml.includes('btnExportColetasPDF'), true);
   assert.equal(dashHtml.includes('maxlength="64"'), true);
   assert.equal(dashHtml.includes('tab-prioridades'), true);
@@ -672,4 +749,6 @@ test('Dashboard Privado exige admin no servidor, corrige bugs críticos e integr
   assert.equal(dashHtml.includes('tab-dispositivos'), true);
   assert.equal(dashHtml.includes('maxlength="10"'), false);
   assert.equal(dashHtml.includes('textContent = "API"'), false);
+  assert.equal(indexHtml.includes('admin-strict-only'), true);
+  assert.equal(indexHtml.includes('manager-or-admin-tab'), true);
 });

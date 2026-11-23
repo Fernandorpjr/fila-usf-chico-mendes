@@ -252,19 +252,23 @@ function mostrarAlertaDispositivoBloqueado(info = {}) {
       </div>
     `;
   } else {
+    const isExcesso = info.motivo === 'excesso_tentativas';
+    const descBloqueio = isExcesso
+      ? 'Este aparelho foi <b>bloqueado automaticamente por excesso de tentativas incorretas de senha</b>. Apenas o Administrador pode desbloquear.'
+      : 'Este aparelho foi desativado ou bloqueado no painel de administração da USF Chico Mendes.';
     overlay.innerHTML = `
       <div style="max-width:480px;width:100%;background:#fff;color:#1f2937;padding:30px;border-radius:16px;box-shadow:0 10px 25px rgba(0,0,0,0.3);">
         <div style="font-size:48px;margin-bottom:12px;">🚫</div>
         <h2 style="color:#b91c1c;margin:0 0 10px 0;">Dispositivo Bloqueado</h2>
-        <p style="font-size:14px;color:#4b5563;line-height:1.5;">Este aparelho foi desativado ou bloqueado no painel de administração da USF Chico Mendes.</p>
+        <p style="font-size:14px;color:#4b5563;line-height:1.5;">${descBloqueio}</p>
         <p style="font-size:13px;color:#6b7280;margin-top:10px;">ID do dispositivo: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${_escDisp(deviceIdExibido || 'N/A')}</code></p>
-        <div id="bloqueio-status-msg" style="margin-top:14px;font-size:12px;color:#9ca3af;">Procure a coordenação para solicitar o desbloqueio.</div>
+        <div id="bloqueio-status-msg" style="margin-top:14px;font-size:12px;color:#9ca3af;">Procure o Administrador para solicitar o desbloqueio.</div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
           <button type="button" onclick="verificarLiberacaoDispositivoAgora()" style="width:100%;padding:10px 14px;border-radius:10px;border:none;background:#1f2937;color:#fff;font-size:13px;font-weight:800;cursor:pointer;">
             🔄 Verificar se já foi desbloqueado
           </button>
           <button type="button" onclick="desbloqueioEmergencialAdmin()" style="width:100%;padding:9px 14px;border-radius:10px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:12.5px;font-weight:700;cursor:pointer;">
-            🔑 Acesso Emergencial (Administrador)
+            🔑 Acesso Emergencial (Somente Administrador)
           </button>
         </div>
       </div>
@@ -286,7 +290,7 @@ async function verificarLiberacaoDispositivoAgora() {
 }
 
 async function desbloqueioEmergencialAdmin() {
-  const senha = prompt('🔑 Digite a senha de Administrador para acesso emergencial:');
+  const senha = prompt('🔑 Digite a senha EXCLUSIVA de Administrador para acesso emergencial:');
   if (!senha) return;
   const s = senha.trim();
   if (!s) return;
@@ -296,16 +300,22 @@ async function desbloqueioEmergencialAdmin() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ senha: s })
+      body: JSON.stringify({ senha: s, modo_emergencia: true })
     });
-    if (!res.ok) {
-      alert('❌ Senha de administrador incorreta!');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.role !== 'admin') {
+      alert(data.error || '🔒 Senha incorreta ou acesso restrito apenas ao Administrador!');
       return;
     }
 
     if (typeof isAdmin !== 'undefined') isAdmin = true;
+    if (typeof isGerente !== 'undefined') isGerente = false;
+    if (typeof userRole !== 'undefined') userRole = 'admin';
     if (typeof adminPassword !== 'undefined') adminPassword = s;
-    try { sessionStorage.setItem('usf_admin_pwd', s); } catch (e) {}
+    try {
+      sessionStorage.setItem('usf_admin_pwd', s);
+      sessionStorage.setItem('usf_user_role', 'admin');
+    } catch (e) {}
 
     if (typeof isGateAuthenticated !== 'undefined') isGateAuthenticated = true;
     try {

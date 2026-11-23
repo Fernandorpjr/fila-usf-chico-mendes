@@ -170,10 +170,11 @@
   <div class="lock-box">
     <div style="font-size:46px;margin-bottom:10px;">📊</div>
     <div style="font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;margin-bottom:6px;">Dashboard Privado</div>
-    <div style="font-size:13.5px;color:var(--gray-600);margin-bottom:6px;">Digite a senha administrativa para acessar</div>
+    <div style="font-size:13.5px;color:var(--gray-600);margin-bottom:6px;">Digite a senha de Administrador ou Gerente para acessar</div>
     <input type="password" id="lockPassword" placeholder="Digite a senha" maxlength="64" autocomplete="current-password" onkeypress="if(event.key==='Enter')verifyDashboardAccess()">
     <button id="btnUnlockDash" onclick="verifyDashboardAccess()">🔓 Acessar Dashboard</button>
     <div id="lockError" style="display:none;margin-top:10px;padding:9px 12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:12.5px;font-weight:700;"></div>
+    <div id="lockCountdown" style="display:none;margin-top:8px;font-size:13px;font-weight:800;color:#b45309;"></div>
     <div style="margin-top:14px;"><a href="/" style="color:var(--blue);font-size:13px;font-weight:700;">← Voltar ao sistema</a></div>
   </div>
 </div>
@@ -181,7 +182,8 @@
 <header class="header">
   <div class="logo">
     <span>📊 Dashboard – <span style="color:var(--orange);">USF</span> Chico Mendes</span>
-    <div class="online-pill" onclick="switchDashTab('tab-dispositivos')" title="Clique para ver os dispositivos online agora">
+    <span id="dashRoleBadge" style="font-size:11.5px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.12);color:#e2e8f0;display:none;"></span>
+    <div class="online-pill" id="dashOnlinePill" onclick="switchDashTab('tab-dispositivos')" title="Clique para ver os dispositivos online agora">
       <span class="online-dot"></span>
       <span style="color:#bbf7d0;font-weight:900;" id="dashActiveUsers">0</span>
       <span style="color:var(--gray-300);">Online</span>
@@ -536,6 +538,9 @@ let activeTabId = 'tab-realtime';
 let dashRefreshTimer = null;
 let autoRefreshPaused = false;
 let dashboardUnlocked = false;
+let currentDashRole = null;
+let dashTempLockTimer = null;
+let dashDeviceBlocked = false;
 
 function escHtml(str) {
   return String(str ?? '')
@@ -698,12 +703,102 @@ const customDataLabelsPlugin = {
 Chart.register(customDataLabelsPlugin);
 
 // ====== SEGURANÇA, SESSÃO & FETCH CENTRALIZADO ======
+function clearDashTempLockTimer() {
+  if (dashTempLockTimer) {
+    clearInterval(dashTempLockTimer);
+    dashTempLockTimer = null;
+  }
+  const cdEl = document.getElementById('lockCountdown');
+  if (cdEl) {
+    cdEl.style.display = 'none';
+    cdEl.textContent = '';
+  }
+}
+
+function setDashLockControlsDisabled(disabled) {
+  const pwdInput = document.getElementById('lockPassword');
+  const btn = document.getElementById('btnUnlockDash');
+  if (pwdInput) pwdInput.disabled = disabled;
+  if (btn) btn.disabled = disabled;
+}
+
+function applyDashLockoutState(bloqueadoDefinitivo, tempLockedUntilMs, customMsg) {
+  const errEl = document.getElementById('lockError');
+  const cdEl = document.getElementById('lockCountdown');
+  clearDashTempLockTimer();
+  dashDeviceBlocked = Boolean(bloqueadoDefinitivo);
+
+  if (bloqueadoDefinitivo) {
+    setDashLockControlsDisabled(true);
+    if (errEl) {
+      errEl.textContent = customMsg || '⛔ Este dispositivo foi bloqueado por excesso de tentativas incorretas. Apenas a senha de Administrador pode desbloqueá-lo na tela principal.';
+      errEl.style.display = 'block';
+    }
+    return;
+  }
+
+  const targetMs = Number(tempLockedUntilMs) || 0;
+  if (targetMs > Date.now()) {
+    setDashLockControlsDisabled(true);
+    if (errEl) {
+      errEl.textContent = customMsg || '⏳ Muitas tentativas incorretas. Este aparelho está temporariamente bloqueado por 5 minutos.';
+      errEl.style.display = 'block';
+    }
+    const tick = () => {
+      const restMs = targetMs - Date.now();
+      if (restMs <= 0) {
+        clearDashTempLockTimer();
+        setDashLockControlsDisabled(false);
+        if (errEl) errEl.textContent = '⚠️ Tempo concluído. Atenção: uma nova senha incorreta bloqueará o dispositivo em definitivo.';
+        setTimeout(() => document.getElementById('lockPassword')?.focus(), 50);
+        return;
+      }
+      const totalSec = Math.ceil(restMs / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = String(totalSec % 60).padStart(2, '0');
+      if (cdEl) {
+        cdEl.style.display = 'block';
+        cdEl.textContent = `Aguarde ${min}:${sec} para tentar novamente`;
+      }
+    };
+    tick();
+    dashTempLockTimer = setInterval(tick, 1000);
+    return;
+  }
+
+  setDashLockControlsDisabled(false);
+}
+
+function applyDashRoleUI(role) {
+  currentDashRole = (role === 'admin' || role === 'gerente') ? role : null;
+  const isAdminRole = currentDashRole === 'admin';
+  const roleBadge = document.getElementById('dashRoleBadge');
+  if (roleBadge) {
+    roleBadge.textContent = isAdminRole ? '🛡️ Administrador' : '👔 Gerente';
+    roleBadge.className = `role-pill ${isAdminRole ? 'admin' : 'gerente'}`;
+  }
+  const btnTabDevices = document.getElementById('btnTabDevices');
+  const paneDevices = document.getElementById('tab-dispositivos');
+  const onlinePill = document.getElementById('dashOnlinePill');
+  if (btnTabDevices) btnTabDevices.style.display = isAdminRole ? 'inline-flex' : 'none';
+  if (onlinePill) onlinePill.style.display = isAdminRole ? 'inline-flex' : 'none';
+  if (!isAdminRole && paneDevices) {
+    paneDevices.classList.remove('active');
+    if (activeTabId === 'tab-dispositivos') {
+      switchDashTab('tab-realtime');
+    }
+  }
+}
+
 function showLockScreen(msg = '') {
   dashboardUnlocked = false;
+  currentDashRole = null;
   if (dashRefreshTimer) {
     clearInterval(dashRefreshTimer);
     dashRefreshTimer = null;
   }
+  clearDashTempLockTimer();
+  setDashLockControlsDisabled(false);
   document.getElementById('dashContent').style.display = 'none';
   document.getElementById('lockOverlay').style.display = 'flex';
   const errEl = document.getElementById('lockError');
@@ -734,7 +829,7 @@ function setDashStatusBanner(msg = '') {
 async function apiDashFetch(url, options = {}) {
   const opts = { ...options, credentials: 'same-origin' };
   const r = await fetch(url, opts);
-  if (r.status === 401 || r.status === 403) {
+  if (r.status === 401 || r.status === 403 || r.status === 423) {
     showLockScreen('🔒 Sessão administrativa expirada ou sem permissão. Faça login novamente.');
     return null;
   }
@@ -747,8 +842,10 @@ async function apiDashFetch(url, options = {}) {
   return r;
 }
 
-function enterDashboard() {
+function enterDashboard(role = 'admin') {
+  clearDashTempLockTimer();
   dashboardUnlocked = true;
+  applyDashRoleUI(role);
   document.getElementById('lockOverlay').style.display = 'none';
   document.getElementById('dashContent').style.display = 'block';
   const errEl = document.getElementById('lockError');
@@ -775,8 +872,18 @@ async function checkExistingAdminSession() {
     const r = await fetch(`${API_URL}/auth/session`, { credentials: 'same-origin' });
     if (r.ok) {
       const data = await r.json().catch(() => ({}));
-      if (data && data.authenticated && data.role === 'admin') {
-        enterDashboard();
+      if (data && data.deviceBlocked) {
+        showLockScreen('');
+        applyDashLockoutState(true, 0);
+        return;
+      }
+      if (data && data.tempLockedUntil && Number(data.tempLockedUntil) > Date.now()) {
+        showLockScreen('');
+        applyDashLockoutState(false, data.tempLockedUntil);
+        return;
+      }
+      if (data && data.authenticated && (data.role === 'admin' || data.role === 'gerente')) {
+        enterDashboard(data.role);
         return;
       }
     }
@@ -790,7 +897,7 @@ async function verifyDashboardAccess() {
   const errEl = document.getElementById('lockError');
   const pwd = (pwdInput?.value || '').trim();
   if (!pwd) {
-    if (errEl) { errEl.textContent = '❌ Digite a senha administrativa.'; errEl.style.display = 'block'; }
+    if (errEl) { errEl.textContent = '❌ Digite a senha de Gerente ou Administrador.'; errEl.style.display = 'block'; }
     return;
   }
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Verificando...'; }
@@ -803,23 +910,31 @@ async function verifyDashboardAccess() {
       credentials: 'same-origin',
       body: JSON.stringify({ senha: pwd })
     });
-    if (r.ok) {
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && (data.role === 'admin' || data.role === 'gerente')) {
       if (pwdInput) pwdInput.value = '';
-      enterDashboard();
+      enterDashboard(data.role);
       return;
     }
-    const data = await r.json().catch(() => ({}));
-    if (r.status === 429) {
-      if (errEl) { errEl.textContent = data.error || '⏳ Muitas tentativas incorretas. Aguarde alguns minutos.'; errEl.style.display = 'block'; }
+    if (r.status === 423 || data.bloqueado_definitivo) {
+      applyDashLockoutState(true, 0, data.error);
+    } else if (r.status === 429) {
+      applyDashLockoutState(false, data.desbloqueio_em || (Date.now() + Number(data.segundos_restantes || 300) * 1000), data.error);
     } else if (r.status === 503) {
       if (errEl) { errEl.textContent = data.error || '⏸️ Sistema fora do horário de funcionamento.'; errEl.style.display = 'block'; }
     } else {
-      if (errEl) { errEl.textContent = '❌ Senha administrativa incorreta.'; errEl.style.display = 'block'; }
+      const rest = Number.isFinite(Number(data.tentativas_restantes))
+        ? ` (${data.tentativas_restantes} tentativa(s) restante(s))`
+        : '';
+      if (errEl) { errEl.textContent = `${data.error || '❌ Senha incorreta.'}${rest}`; errEl.style.display = 'block'; }
     }
   } catch (e) {
     if (errEl) { errEl.textContent = '❌ Erro de conexão ao validar senha.'; errEl.style.display = 'block'; }
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔓 Acessar Dashboard'; }
+    if (btn) {
+      if (!dashDeviceBlocked && !dashTempLockTimer) btn.disabled = false;
+      btn.textContent = '🔓 Acessar Dashboard';
+    }
   }
 }
 
@@ -839,6 +954,9 @@ async function logoutDashboard() {
 
 // ====== NAVEGAÇÃO POR ABAS E AUTO-REFRESH INTELIGENTE ======
 function switchDashTab(tabId) {
+  if (tabId === 'tab-dispositivos' && currentDashRole !== 'admin') {
+    tabId = 'tab-realtime';
+  }
   activeTabId = tabId;
   document.querySelectorAll('.dash-tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
@@ -1637,7 +1755,10 @@ function renderSisregEAgendamentos() {
 }
 
 function renderDispositivosPanel() {
-  const disp = resumoOperacionalData?.dispositivos || {};
+  if (currentDashRole !== 'admin' || !resumoOperacionalData?.dispositivos) {
+    return;
+  }
+  const disp = resumoOperacionalData.dispositivos;
   const onlineCount = Number(disp.online || 0);
 
   document.getElementById('dashActiveUsers').textContent = String(onlineCount);

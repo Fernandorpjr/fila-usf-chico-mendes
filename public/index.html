@@ -63,7 +63,7 @@
     border-top: 1px solid rgba(255, 255, 255, 0.14);
     width: 100%;
   }
-  .admin-active .admin-toolbar { display: flex !important; }
+  .admin-active .admin-toolbar, body.manager-active .admin-toolbar { display: flex !important; }
   .admin-toolbar-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .admin-toolbar-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; color: rgba(255, 255, 255, 0.58); margin-right: 2px; white-space: nowrap; }
   .admin-toolbar-divider { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.16); }
@@ -71,6 +71,7 @@
   .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
   .btn-admin-lock:hover { background: rgba(255,255,255,0.1); }
   .btn-admin-lock.unlocked { color: var(--green); border-color: rgba(74,171,60,0.5); background: rgba(74,171,60,0.1); }
+  .btn-admin-lock.manager { color: #fde68a; border-color: rgba(250,204,21,0.5); background: rgba(250,204,21,0.14); }
   .btn-reset { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s; letter-spacing: 0.4px; white-space: nowrap; }
   .btn-reset:hover { background: rgba(229,57,53,0.15); color: var(--red); border-color: rgba(229,57,53,0.3); }
   .select-voz-admin { background: rgba(15,23,42,0.65); color: #fff; border: 1px solid rgba(255,255,255,0.25); padding: 6px 8px; border-radius: 8px; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; cursor: pointer; outline: none; white-space: nowrap; }
@@ -78,9 +79,10 @@
   .select-voz-admin option { background: #0f172a; color: #fff; font-weight: 700; }
   .clock { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 800; color: var(--yellow); letter-spacing: 1.5px; white-space: nowrap; line-height: 1.1; text-align: right; }
   .date-display { font-size: 11.5px; color: var(--gray-300); text-align: right; white-space: nowrap; }
-  .admin-only { display: none !important; }
-  .admin-active .admin-only { display: flex !important; }
+  .admin-only, .admin-strict-only { display: none !important; }
+  .admin-active .admin-only, body.admin-active .admin-strict-only { display: flex !important; }
   .admin-active select.admin-only { display: inline-block !important; }
+  body.admin-active button.admin-strict-only, body.admin-active button.admin-only { display: inline-flex !important; }
 
   /* ====== MELHORIA G: CONTROLES DE REORDENAÇÃO (ADMIN RBAC) ====== */
 
@@ -2033,9 +2035,9 @@
       border-left: 4px solid #f59e0b !important;
     }
 
-    /* ====== PAINEL RESUMO DO PROFISSIONAL (ADMIN-ONLY) ====== */
+    /* ====== PAINEL RESUMO DO PROFISSIONAL (GERENTE E ADMIN) ====== */
     .prof-summary-wrap { display: none; margin-bottom: 18px; }
-    body.admin-active .prof-summary-wrap { display: block; }
+    body.admin-active .prof-summary-wrap, body.manager-active .prof-summary-wrap { display: block; }
     .prof-summary-card {
       border-radius: 16px;
       border: 1.5px solid #cbd5e1;
@@ -2482,15 +2484,15 @@
     </div>
   </div>
   <div class="admin-toolbar" id="admin-toolbar">
-    <div class="admin-toolbar-group">
+    <div class="admin-toolbar-group admin-strict-only">
       <span class="admin-toolbar-label">Operação</span>
       <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
       <button id="btn-palestra" class="btn-palestra" onclick="togglePausaPalestra()" title="Pausar atendimento em todos os computadores e TVs">🎙️ Pausar</button>
       <!-- === FIM MELHORIA F === -->
       <button id="btn-mutirao-hoje" class="btn-reset" onclick="toggleMutiraoHoje()" title="Liberar ou encerrar expediente extra / mutirão hoje">🗓️ Mutirão Hoje</button>
     </div>
-    <div class="admin-toolbar-divider"></div>
-    <div class="admin-toolbar-group">
+    <div class="admin-toolbar-divider admin-strict-only"></div>
+    <div class="admin-toolbar-group admin-strict-only">
       <span class="admin-toolbar-label">Áudio / TV</span>
       <select id="select-voz-sistema" class="select-voz-admin" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas (Somente Admin — toca teste ao trocar)">
         <option value="feminina_br">🎙️ Francisca (Fem)</option>
@@ -2509,11 +2511,11 @@
         <option value="none">🔇 Sem Jingle</option>
       </select>
     </div>
-    <div class="admin-toolbar-divider"></div>
+    <div class="admin-toolbar-divider admin-strict-only"></div>
     <div class="admin-toolbar-group">
       <span class="admin-toolbar-label">Gestão</span>
       <a href="/dashboard" target="_blank" class="btn-reset" style="text-decoration:none;display:inline-flex;align-items:center;" title="Abrir Painel de Métricas">📊 Dashboard</a>
-      <button class="btn-reset" onclick="resetData()" title="Zerar fila diária">🗑️ Resetar Diário</button>
+      <button class="btn-reset admin-strict-only" onclick="resetData()" title="Zerar fila diária (Somente Administrador)">🗑️ Resetar Diário</button>
     </div>
   </div>
 </header>
@@ -2537,7 +2539,7 @@
   <button class="nav-tab" onclick="showScreen('agendamentos')" id="tab-agendamentos">📅 Agendamentos</button>
   <button class="nav-tab ctrl-agend-tab" onclick="showScreen('ctrl_agendamentos')" id="tab-ctrl_agendamentos">🗂️ Sala de Agendamento <span class="tab-badge" style="background:#e67e22;display:none;" id="badge-ctrl_agendamentos">0</span></button>
   <button class="nav-tab admin-only-tab" onclick="showScreen('dispositivos')" id="tab-dispositivos" style="display:none;">💻 Dispositivos</button>
-  <button class="nav-tab admin-only-tab" onclick="showScreen('admin_relatorios')" id="tab-admin_relatorios" style="display:none;">📡 Prioridade &amp; alumIA</button>
+  <button class="nav-tab manager-or-admin-tab" onclick="showScreen('admin_relatorios')" id="tab-admin_relatorios" style="display:none;">📡 Prioridade &amp; alumIA</button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
   <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
@@ -5120,10 +5122,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.1"></script>
-<script src="dispositivos.js?v=5.1"></script>
+<script src="dispositivos.js?v=5.2"></script>
 <script src="receitas-previa.js?v=1.9"></script>
 <script src="formularios-pec.js?v=1.9"></script>
 <script src="regulacao-sisreg.js?v=2.0"></script>
-<script src="app.js?v=8.3"></script>
+<script src="app.js?v=8.4"></script>
 </body>
 </html>
