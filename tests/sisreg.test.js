@@ -359,7 +359,7 @@ test('Motor OCR resiliente (lib/ocr-ai.js) faz fallback de 503, circuit breaker,
   assert.ok(DEFAULT_GEMINI_MODELS.includes('gemini-flash-lite-latest'));
   assert.ok(DEFAULT_GEMINI_MODELS.includes('gemini-3.6-flash'));
   assert.ok(!DEFAULT_GEMINI_MODELS.includes('gemini-2.5-flash-lite'));
-  assert.ok(DEFAULT_GROQ_VISION_MODELS.includes('meta-llama/llama-4-scout-17b-16e-instruct'));
+  assert.ok(DEFAULT_GROQ_VISION_MODELS.includes('qwen/qwen3.8-27b'));
 
   assert.deepEqual(buildGenerationConfig('gemini-3.5-flash-lite', 1800).thinkingConfig, { thinkingLevel: 'MINIMAL' });
   assert.deepEqual(buildGenerationConfig('gemini-2.5-flash-lite', 1800).thinkingConfig, { thinkingBudget: 0 });
@@ -469,7 +469,7 @@ test('Motor OCR faz failover automático para Groq Vision em imagens, respeita c
   });
   assert.equal(groqRes1.ok, true);
   assert.equal(groqRes1.provider, 'groq');
-  assert.equal(groqRes1.model, 'groq/meta-llama/llama-4-scout-17b-16e-instruct');
+  assert.equal(groqRes1.model, 'groq/qwen/qwen3.8-27b');
   assert.equal(groqRes1.parsed.paciente_nome, 'JOSE GROQ');
   assert.equal(groqRes1.fromCache, false);
   const callsAfterFirst = calls1.length;
