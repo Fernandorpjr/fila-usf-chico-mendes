@@ -27,6 +27,7 @@ const {
 } = require('../lib/sisreg');
 const {
   DEFAULT_GEMINI_MODELS,
+  DEFAULT_GROQ_VISION_MODELS,
   buildGenerationConfig,
   ordenarModelosPorSaude,
   marcarModeloEmCooldown,
@@ -355,8 +356,10 @@ test('Devoluções SISREG direcionam corretamente ACS/Médico/Enfermagem/Odonto,
 test('Motor OCR resiliente (lib/ocr-ai.js) faz fallback de 503, circuit breaker, tradução PT-BR e cache SHA-256', async () => {
   resetarEstadoOcrTeste();
   assert.equal(DEFAULT_GEMINI_MODELS[0], 'gemini-3.5-flash-lite');
-  assert.ok(DEFAULT_GEMINI_MODELS.includes('gemini-3.1-flash-lite'));
-  assert.ok(DEFAULT_GEMINI_MODELS.includes('gemini-2.5-flash-lite'));
+  assert.ok(DEFAULT_GEMINI_MODELS.includes('gemini-flash-lite-latest'));
+  assert.ok(DEFAULT_GEMINI_MODELS.includes('gemini-3.6-flash'));
+  assert.ok(!DEFAULT_GEMINI_MODELS.includes('gemini-2.5-flash-lite'));
+  assert.ok(DEFAULT_GROQ_VISION_MODELS.includes('meta-llama/llama-4-scout-17b-16e-instruct'));
 
   assert.deepEqual(buildGenerationConfig('gemini-3.5-flash-lite', 1800).thinkingConfig, { thinkingLevel: 'MINIMAL' });
   assert.deepEqual(buildGenerationConfig('gemini-2.5-flash-lite', 1800).thinkingConfig, { thinkingBudget: 0 });
@@ -364,8 +367,8 @@ test('Motor OCR resiliente (lib/ocr-ai.js) faz fallback de 503, circuit breaker,
 
   // Circuit breaker move modelo congestionado para o fim da fila
   marcarModeloEmCooldown('gemini-3.5-flash-lite', 503, 1000);
-  const ordenados = ordenarModelosPorSaude(['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'], 5000);
-  assert.deepEqual(ordenados, ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite']);
+  const ordenados = ordenarModelosPorSaude(['gemini-3.5-flash-lite', 'gemini-flash-lite-latest'], 5000);
+  assert.deepEqual(ordenados, ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite']);
 
   // Fallback real com mock fetchImpl (1o retorna 503 -> cai automatico para o 2o que retorna 200 -> 2a chamada vem do cache)
   resetarEstadoOcrTeste();
@@ -390,6 +393,7 @@ test('Motor OCR resiliente (lib/ocr-ai.js) faz fallback de 503, circuit breaker,
 
   const res1 = await executarOcrGeminiJson({
     apiKey: 'fake-key',
+    groqApiKey: '',
     prompt: 'extract',
     mimeType: 'image/jpeg',
     base64Data: 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=',
@@ -399,7 +403,8 @@ test('Motor OCR resiliente (lib/ocr-ai.js) faz fallback de 503, circuit breaker,
     jitterMaxMs: 0
   });
   assert.equal(res1.ok, true);
-  assert.equal(res1.model, 'gemini-3.1-flash-lite');
+  assert.equal(res1.provider, 'gemini');
+  assert.equal(res1.model, 'gemini-flash-lite-latest');
   assert.equal(res1.parsed.paciente_nome, 'MARIA SILVA');
   assert.equal(res1.fromCache, false);
   assert.equal(chamados.length, 2);
@@ -407,6 +412,7 @@ test('Motor OCR resiliente (lib/ocr-ai.js) faz fallback de 503, circuit breaker,
   // Mesma imagem retorna imediatamente do cache sem chamar fetchImpl
   const resCache = await executarOcrGeminiJson({
     apiKey: 'fake-key',
+    groqApiKey: '',
     prompt: 'extract',
     mimeType: 'image/jpeg',
     base64Data: 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=',
@@ -414,12 +420,125 @@ test('Motor OCR resiliente (lib/ocr-ai.js) faz fallback de 503, circuit breaker,
     fetchImpl: fakeFetch
   });
   assert.equal(resCache.ok, true);
+  assert.equal(resCache.provider, 'gemini');
   assert.equal(resCache.fromCache, true);
   assert.equal(chamados.length, 2);
 
   // Traducao amigavel quando todos falham com 503
   assert.ok(formatarErroOcrAmigavel('This model is currently experiencing high demand', 503).includes('congestionado'));
   assert.ok(formatarErroOcrAmigavel('Quota exceeded', 429).includes('gratuita'));
+});
+
+test('Motor OCR faz failover automático para Groq Vision em imagens, respeita cache e ignora Groq em PDFs', async () => {
+  // Caso 1: Todos Gemini retornam 503 -> cai automatico para Groq Vision -> 2a chamada vem do cache
+  resetarEstadoOcrTeste();
+  const calls1 = [];
+  const fakeFetchFailover = async (url, init) => {
+    calls1.push({ url, init });
+    if (url.includes('generativelanguage.googleapis.com')) {
+      return {
+        ok: false,
+        status: 503,
+        json: async () => ({ error: { message: 'This model is currently experiencing high demand.' } })
+      };
+    }
+    assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
+    assert.equal(init.headers.Authorization, 'Bearer fake-groq');
+    const body = JSON.parse(init.body);
+    assert.equal(body.messages[0].content[1].type, 'image_url');
+    assert.ok(body.messages[0].content[1].image_url.url.startsWith('data:image/jpeg;base64,'));
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ paciente_nome: 'JOSE GROQ', confianca: 88 }) } }]
+      })
+    };
+  };
+
+  const groqRes1 = await executarOcrGeminiJson({
+    apiKey: 'fake-gemini',
+    groqApiKey: 'fake-groq',
+    prompt: 'extract',
+    mimeType: 'image/jpeg',
+    base64Data: 'R1JPUV9JTUFHRV9URVNUXzE=',
+    cacheNamespace: 'groq-teste',
+    fetchImpl: fakeFetchFailover,
+    backoffBaseMs: 0,
+    jitterMaxMs: 0
+  });
+  assert.equal(groqRes1.ok, true);
+  assert.equal(groqRes1.provider, 'groq');
+  assert.equal(groqRes1.model, 'groq/meta-llama/llama-4-scout-17b-16e-instruct');
+  assert.equal(groqRes1.parsed.paciente_nome, 'JOSE GROQ');
+  assert.equal(groqRes1.fromCache, false);
+  const callsAfterFirst = calls1.length;
+  assert.ok(calls1.some(c => c.url.includes('api.groq.com')));
+
+  const groqCached = await executarOcrGeminiJson({
+    apiKey: 'fake-gemini',
+    groqApiKey: 'fake-groq',
+    prompt: 'extract',
+    mimeType: 'image/jpeg',
+    base64Data: 'R1JPUV9JTUFHRV9URVNUXzE=',
+    cacheNamespace: 'groq-teste',
+    fetchImpl: fakeFetchFailover
+  });
+  assert.equal(groqCached.ok, true);
+  assert.equal(groqCached.provider, 'groq');
+  assert.equal(groqCached.fromCache, true);
+  assert.equal(calls1.length, callsAfterFirst);
+
+  // Caso 2: PDF com Gemini em 503 nunca chama Groq Vision
+  resetarEstadoOcrTeste();
+  const callsPdf = [];
+  const fakeFetchPdf = async (url) => {
+    callsPdf.push(url);
+    return {
+      ok: false,
+      status: 503,
+      json: async () => ({ error: { message: 'This model is currently experiencing high demand.' } })
+    };
+  };
+  const pdfRes = await executarOcrGeminiJson({
+    apiKey: 'fake-gemini',
+    groqApiKey: 'fake-groq',
+    prompt: 'extract',
+    mimeType: 'application/pdf',
+    base64Data: 'JVBERi0xLjQK',
+    cacheNamespace: 'groq-pdf',
+    fetchImpl: fakeFetchPdf,
+    backoffBaseMs: 0,
+    jitterMaxMs: 0
+  });
+  assert.equal(pdfRes.ok, false);
+  assert.equal(callsPdf.some(u => u.includes('api.groq.com')), false);
+
+  // Caso 3: Sem chave Gemini, mas com groqApiKey em imagem -> chama direto Groq Vision
+  resetarEstadoOcrTeste();
+  const callsOnlyGroq = [];
+  const onlyGroqRes = await executarOcrGeminiJson({
+    apiKey: '',
+    groqApiKey: 'fake-groq',
+    prompt: 'extract',
+    mimeType: 'image/jpeg',
+    base64Data: 'T05MWV9HUk9RX0lNRw==',
+    cacheNamespace: 'groq-only',
+    fetchImpl: async (url) => {
+      callsOnlyGroq.push(url);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: JSON.stringify({ paciente_nome: 'APENAS GROQ' }) } }]
+        })
+      };
+    }
+  });
+  assert.equal(onlyGroqRes.ok, true);
+  assert.equal(onlyGroqRes.provider, 'groq');
+  assert.equal(onlyGroqRes.parsed.paciente_nome, 'APENAS GROQ');
+  assert.deepEqual(callsOnlyGroq, ['https://api.groq.com/openai/v1/chat/completions']);
 });
 
 test('Devoluções SISREG validam anexos, detalhes, prazo de 3 dias e limpeza automática de vencidos', async () => {
