@@ -28,9 +28,11 @@ const {
 } = require('../lib/seguranca');
 const {
   MAX_TENTATIVAS_ANTES_BLOQUEIO,
+  MAX_TENTATIVAS_EMERGENCIA,
   DURACAO_BLOQUEIO_TEMP_MS,
   calcularEstadoBloqueioAtual,
-  calcularProximoEstadoFalha
+  calcularProximoEstadoFalha,
+  calcularProximoEstadoFalhaEmergencia
 } = require('../lib/dispositivos');
 const { limparPreviasExpiradas } = require('../lib/receitas');
 
@@ -632,6 +634,45 @@ test('Bloqueio progressivo por tentativas (5 erros -> 5 min -> bloqueio definiti
   assert.equal(f6.motivo_bloqueio, 'excesso_tentativas');
 });
 
+test('Bloqueio total após 3 erros no desbloqueio emergencial só libera por outro dispositivo Admin', () => {
+  assert.equal(MAX_TENTATIVAS_EMERGENCIA, 3);
+  let dev = { ativo: true, tentativas_emergencia: 0, emergencia_bloqueada: false, motivo_bloqueio: null };
+
+  const e1 = calcularProximoEstadoFalhaEmergencia(dev);
+  assert.equal(e1.blockedTotal, false);
+  assert.equal(e1.status, 403);
+  assert.equal(e1.tentativas_emergencia, 1);
+  assert.equal(e1.restantes, 2);
+  dev = { ...dev, ...e1 };
+
+  const e2 = calcularProximoEstadoFalhaEmergencia(dev);
+  assert.equal(e2.blockedTotal, false);
+  assert.equal(e2.status, 403);
+  assert.equal(e2.tentativas_emergencia, 2);
+  assert.equal(e2.restantes, 1);
+  dev = { ...dev, ...e2 };
+
+  const e3 = calcularProximoEstadoFalhaEmergencia(dev);
+  assert.equal(e3.blockedTotal, true);
+  assert.equal(e3.status, 423);
+  assert.equal(e3.ativo, false);
+  assert.equal(e3.emergencia_bloqueada, true);
+  assert.equal(e3.tentativas_emergencia, 3);
+  assert.equal(e3.restantes, 0);
+  assert.equal(e3.motivo_bloqueio, 'bloqueio_total_emergencia');
+  dev = { ...dev, ...e3 };
+
+  const e4 = calcularProximoEstadoFalhaEmergencia(dev);
+  assert.equal(e4.blockedTotal, true);
+  assert.equal(e4.status, 423);
+  assert.equal(e4.emergencia_bloqueada, true);
+
+  const est = calcularEstadoBloqueioAtual(dev);
+  assert.equal(est.bloqueadoDefinitivo, true);
+  assert.equal(est.emergenciaBloqueada, true);
+  assert.equal(est.motivoBloqueio, 'bloqueio_total_emergencia');
+});
+
 test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are enforced', () => {
   const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const appJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
@@ -663,9 +704,12 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.equal(sisregFront.includes("buscarAtalhoSisreg('EXAMES DE LABORATORIO')"), true);
   assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
   assert.equal(indexHtml.includes('formularios-pec.js?v=1.9'), true);
-  assert.equal(indexHtml.includes('dispositivos.js?v=5.2'), true);
+  assert.equal(indexHtml.includes('dispositivos.js?v=5.3'), true);
   assert.equal(indexHtml.includes('receitas-previa.js?v=2.0'), true);
   assert.equal(indexHtml.includes('app.js?v=8.5'), true);
+  const dispFront = fs.readFileSync(path.join(__dirname, '..', 'public', 'dispositivos.js'), 'utf8');
+  assert.equal(dispFront.includes('bloqueio_total_emergencia'), true);
+  assert.equal(dispFront.includes('BLOQUEIO TOTAL DO APARELHO'), true);
 });
 
 test('Devoluções direcionadas, canal ACS no chat, campo solução, atalhos e PDF estão integrados', () => {

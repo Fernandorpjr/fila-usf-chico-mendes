@@ -94,9 +94,11 @@ async function executarHeartbeatDispositivo(forcarVerificacao = false) {
       if (forcarVerificacao) {
         const msgEl = document.getElementById('bloqueio-status-msg');
         if (msgEl) {
-          msgEl.textContent = errData.motivo === 'bloqueado'
-            ? '🚫 Este aparelho ainda consta como bloqueado pela coordenação.'
-            : '⏳ Ainda aguardando liberação pela coordenação. Assim que o Admin salvar um nome, clique novamente.';
+          msgEl.textContent = (errData.emergencia_bloqueada || errData.motivo === 'bloqueio_total_emergencia')
+            ? '⛔ BLOQUEIO TOTAL ativo. Somente o Administrador pode liberar este aparelho na aba Dispositivos de outro computador.'
+            : (errData.motivo === 'bloqueado' || errData.motivo === 'excesso_tentativas'
+              ? '🚫 Este aparelho ainda consta como bloqueado pela coordenação.'
+              : '⏳ Ainda aguardando liberação pela coordenação. Assim que o Admin salvar um nome, clique novamente.');
           msgEl.style.color = '#b91c1c';
         }
       }
@@ -122,8 +124,12 @@ async function executarHeartbeatDispositivo(forcarVerificacao = false) {
         window.sincronizarIdentidadeDispositivoNoChat(_dispositivoAtualNome, _dispositivoAtualSetor);
       }
 
-      if (data.ativo === false) {
-        mostrarAlertaDispositivoBloqueado({ ...data, motivo: 'bloqueado', code: 'DEVICE_BLOCKED' });
+      if (data.ativo === false || data.emergencia_bloqueada) {
+        mostrarAlertaDispositivoBloqueado({
+          ...data,
+          motivo: data.emergencia_bloqueada ? 'bloqueio_total_emergencia' : (data.motivo_bloqueio || 'bloqueado'),
+          code: 'DEVICE_BLOCKED'
+        });
       } else {
         const existingOverlay = document.getElementById('bloqueio-overlay');
         if (existingOverlay) {
@@ -193,7 +199,13 @@ async function registrarAcessoDispositivo() {
 function mostrarAlertaDispositivoBloqueado(info = {}) {
   if (typeof isModoTV === 'function' && isModoTV()) return;
 
-  const isSemNome = info.motivo === 'sem_nome' || info.code === 'DEVICE_UNNAMED';
+  const isBloqueioTotal = Boolean(
+    info.emergencia_bloqueada ||
+    info.bloqueio_total ||
+    info.motivo === 'bloqueio_total_emergencia' ||
+    info.motivo_bloqueio === 'bloqueio_total_emergencia'
+  );
+  const isSemNome = !isBloqueioTotal && (info.motivo === 'sem_nome' || info.code === 'DEVICE_UNNAMED');
   if (isSemNome && typeof isAdmin !== 'undefined' && isAdmin) {
     const existingAdminOverlay = document.getElementById('bloqueio-overlay');
     if (existingAdminOverlay) existingAdminOverlay.remove();
@@ -207,7 +219,7 @@ function mostrarAlertaDispositivoBloqueado(info = {}) {
 
   const deviceIdExibido = info.id || _dispositivoAtualId || '';
   const codigoCurto = deviceIdExibido ? deviceIdExibido.slice(0, 8).toUpperCase() : 'PENDENTE';
-  const motivoChave = isSemNome ? 'sem_nome' : 'bloqueado';
+  const motivoChave = isBloqueioTotal ? 'bloqueio_total' : (isSemNome ? 'sem_nome' : 'bloqueado');
 
   const existing = document.getElementById('bloqueio-overlay');
   if (existing) {
@@ -223,7 +235,7 @@ function mostrarAlertaDispositivoBloqueado(info = {}) {
   overlay.dataset.deviceId = deviceIdExibido;
   overlay.style.cssText = isSemNome
     ? 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,44,115,0.96);color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:sans-serif;'
-    : 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(185,28,28,0.95);color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:sans-serif;';
+    : 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(153,27,27,0.97);color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:sans-serif;';
 
   if (isSemNome) {
     overlay.innerHTML = `
@@ -249,6 +261,27 @@ function mostrarAlertaDispositivoBloqueado(info = {}) {
             🔑 Acesso Emergencial (Administrador)
           </button>
         </div>
+      </div>
+    `;
+  } else if (isBloqueioTotal) {
+    overlay.innerHTML = `
+      <div style="max-width:480px;width:100%;background:#fff;color:#1f2937;padding:30px;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,0.45);border:2px solid #dc2626;">
+        <div style="font-size:50px;margin-bottom:10px;">⛔</div>
+        <h2 style="color:#991b1b;margin:0 0 10px 0;">BLOQUEIO TOTAL DO APARELHO</h2>
+        <p style="font-size:14px;color:#374151;line-height:1.55;margin:0 0 14px 0;">
+          A senha de Administrador foi digitada incorretamente <b>3 vezes</b> na tentativa de desbloqueio emergencial. Por segurança, o desbloqueio neste aparelho foi <b>bloqueado em definitivo</b>.
+        </p>
+        <div style="background:#fef2f2;border:1.5px dashed #fca5a5;border-radius:10px;padding:12px;margin-bottom:14px;">
+          <div style="font-size:11px;font-weight:800;color:#991b1b;text-transform:uppercase;">Código do aparelho bloqueado</div>
+          <div style="font-size:22px;font-weight:900;color:#7f1d1d;font-family:monospace;letter-spacing:1.5px;margin-top:4px;">${_escDisp(codigoCurto)}</div>
+          ${deviceIdExibido ? `<div style="font-size:11px;color:#64748b;font-family:monospace;margin-top:4px;word-break:break-all;">${_escDisp(deviceIdExibido)}</div>` : ''}
+        </div>
+        <div id="bloqueio-status-msg" style="font-size:12.5px;color:#7f1d1d;font-weight:700;min-height:18px;margin-bottom:14px;">
+          Solicite ao Administrador que libere este aparelho pela aba <b>Dispositivos</b> em outro computador autorizado.
+        </div>
+        <button type="button" onclick="verificarLiberacaoDispositivoAgora()" style="width:100%;padding:11px 16px;border-radius:10px;border:none;background:#1f2937;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer;">
+          🔄 Verificar se o Administrador já liberou
+        </button>
       </div>
     `;
   } else {
@@ -290,20 +323,39 @@ async function verificarLiberacaoDispositivoAgora() {
 }
 
 async function desbloqueioEmergencialAdmin() {
-  const senha = prompt('🔑 Digite a senha EXCLUSIVA de Administrador para acesso emergencial:');
+  const senha = prompt('🔑 Digite a senha EXCLUSIVA de Administrador para acesso emergencial (máx. 3 erros):');
   if (!senha) return;
   const s = senha.trim();
   if (!s) return;
 
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (_dispositivoAtualId) {
+      headers['x-device-id'] = _dispositivoAtualId;
+    }
     const res = await fetch(`${API_URL}/verify-admin`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       credentials: 'same-origin',
       body: JSON.stringify({ senha: s, modo_emergencia: true })
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 423 || data.bloqueio_total || data.emergencia_bloqueada) {
+      mostrarAlertaDispositivoBloqueado({
+        id: _dispositivoAtualId,
+        motivo: 'bloqueio_total_emergencia',
+        emergencia_bloqueada: true,
+        bloqueio_total: true
+      });
+      alert(data.error || '⛔ BLOQUEIO TOTAL: 3 tentativas incorretas! Este aparelho só pode ser liberado pelo Administrador em outro computador.');
+      return;
+    }
     if (!res.ok || data.role !== 'admin') {
+      const msgEl = document.getElementById('bloqueio-status-msg');
+      if (msgEl && Number.isFinite(Number(data.tentativas_restantes))) {
+        msgEl.textContent = `⚠️ Senha incorreta. Restam ${data.tentativas_restantes} tentativa(s) antes do BLOQUEIO TOTAL do aparelho.`;
+        msgEl.style.color = '#dc2626';
+      }
       alert(data.error || '🔒 Senha incorreta ou acesso restrito apenas ao Administrador!');
       return;
     }

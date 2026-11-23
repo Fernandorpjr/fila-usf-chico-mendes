@@ -17,8 +17,10 @@ const {
   setupDispositivos,
   getDeviceId,
   MAX_TENTATIVAS_ANTES_BLOQUEIO,
+  MAX_TENTATIVAS_EMERGENCIA,
   consultarEstadoBloqueioDispositivo,
   registrarFalhaAuthDispositivo,
+  registrarFalhaEmergenciaDispositivo,
   resetarTentativasAuthDispositivo
 } = require('./lib/dispositivos');
 const { setupHistorico } = require('./lib/historico');
@@ -1013,6 +1015,7 @@ app.get('/api/auth/session', async (req, res) => {
     exp: sess && !blockedNonAdmin ? sess.exp : null,
     deviceId: estado.deviceId || null,
     deviceBlocked: Boolean(estado.bloqueadoDefinitivo),
+    emergencyBlocked: Boolean(estado.emergenciaBloqueada),
     motivoBloqueio: estado.motivoBloqueio || null,
     tempLockedUntil: (estado.bloqueioTemporario && estado.lockedUntil)
       ? new Date(estado.lockedUntil).getTime()
@@ -1028,37 +1031,46 @@ app.post('/api/verify-admin', async (req, res) => {
     const ip = getClientIp(req);
 
     if (modo_emergencia === true) {
-      const rlEmerg = isRateLimited('admin_emergency_fail', ip, 10, 15 * 60 * 1000);
-      if (rlEmerg.blocked) {
-        return res.status(429).json({
+      if (estado.emergenciaBloqueada) {
+        return res.status(423).json({
           valid: false,
           bloqueado_definitivo: true,
-          error: 'Muitas tentativas no desbloqueio emergencial. Aguarde alguns minutos.'
+          bloqueio_total: true,
+          emergencia_bloqueada: true,
+          tentativas_restantes: 0,
+          motivo: 'bloqueio_total_emergencia',
+          error: '⛔ BLOQUEIO TOTAL: este dispositivo errou a senha de Administrador 3 vezes e não pode mais tentar desbloquear por aqui. O Administrador deve liberá-lo na aba Dispositivos de outro aparelho.'
         });
       }
       if (isValidAdminPass(senha)) {
         resetRateLimit('admin_emergency_fail', ip);
         if (estado.deviceId) {
-          await pool.query(
-            `UPDATE dispositivos
-             SET ativo = true,
-                 tentativas_falhas = 0,
-                 bloqueio_etapa = 0,
-                 bloqueio_temporario_ate = NULL,
-                 motivo_bloqueio = NULL,
-                 ultimo_acesso = CURRENT_TIMESTAMP
-             WHERE id = $1`,
-            [estado.deviceId]
-          ).catch(() => {});
+          await resetarTentativasAuthDispositivo(pool, estado.deviceId, true).catch(() => {});
         }
         setSessionCookie(res, 'admin');
         return res.json({ valid: true, role: 'admin', unlockedDevice: true });
       }
-      recordRateLimitHit('admin_emergency_fail', ip, 15 * 60 * 1000);
+      const falhaEmerg = await registrarFalhaEmergenciaDispositivo(req, res, pool);
+      if (falhaEmerg.blockedTotal) {
+        return res.status(423).json({
+          valid: false,
+          bloqueado_definitivo: true,
+          bloqueio_total: true,
+          emergencia_bloqueada: true,
+          tentativas_emergencia: falhaEmerg.tentativas_emergencia,
+          tentativas_restantes: 0,
+          motivo: 'bloqueio_total_emergencia',
+          error: '⛔ BLOQUEIO TOTAL: 3 tentativas incorretas no acesso emergencial! Este aparelho foi bloqueado totalmente e só pode ser liberado pelo Administrador na aba Dispositivos de outro computador.'
+        });
+      }
       return res.status(403).json({
         valid: false,
         bloqueado_definitivo: Boolean(estado.bloqueadoDefinitivo),
-        error: 'Senha exclusiva de Administrador incorreta.'
+        bloqueio_total: false,
+        emergencia_bloqueada: false,
+        tentativas_emergencia: falhaEmerg.tentativas_emergencia,
+        tentativas_restantes: falhaEmerg.restantes,
+        error: `Senha exclusiva de Administrador incorreta. Restam ${falhaEmerg.restantes} tentativa(s) de ${MAX_TENTATIVAS_EMERGENCIA} antes do BLOQUEIO TOTAL do aparelho.`
       });
     }
 
