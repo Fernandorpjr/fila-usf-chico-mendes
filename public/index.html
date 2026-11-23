@@ -4738,9 +4738,9 @@
     </div>
     <div class="previa-modal-body">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <input type="file" id="pr-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarListaImagensReceita(this.files);this.value='';">
-        <input type="file" id="pr-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="if(this.files&&this.files.length)processarListaImagensReceita(this.files);this.value='';">
-        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('pr-file-camera').click()">📸 Tirar Foto (Câmera)</button>
+        <input type="file" id="pr-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarListaImagensReceita(fl);">
+        <input type="file" id="pr-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarListaImagensReceita(fl);">
+        <button type="button" id="pr-btn-camera" class="btn btn-primary btn-sm" onclick="document.getElementById('pr-file-camera').click()">📸 Tirar Foto (Câmera)</button>
         <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('pr-file-upload').click()">📄 Escolher Imagem / PDF (Ctrl+V)</button>
       </div>
 
@@ -5039,14 +5039,20 @@
 
       <div id="sm-pane-leitor" style="display:none;">
         <div class="sisreg-toolbar">
-          <input type="file" id="sm-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivoModalSisregMedico(this.files);this.value='';">
-          <input type="file" id="sm-file-upload" accept="image/*,application/pdf" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivoModalSisregMedico(this.files);this.value='';">
-          <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('sm-file-cam').click()">📸 Tirar Foto</button>
+          <input type="file" id="sm-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarArquivoModalSisregMedico(fl);">
+          <input type="file" id="sm-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarArquivoModalSisregMedico(fl);">
+          <button type="button" id="sm-btn-cam" class="btn btn-primary btn-sm" onclick="document.getElementById('sm-file-cam').click()">📸 Tirar Foto</button>
           <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('sm-file-upload').click()">🖼️ Escolher Foto / PDF (Ctrl+V)</button>
+          <button type="button" class="btn btn-sm" style="background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;font-weight:800;" onclick="limparAnexosModalSisregMedico()">🔄 Nova Leitura</button>
         </div>
         <div id="sm-ocr-status" class="pr-status-box" style="display:none;"></div>
         <div class="sisreg-split-grid">
           <div>
+            <div id="sm-img-nav" class="vp-nav-bar" style="display:none;">
+              <button type="button" class="btn btn-sm" style="background:#334155;color:#fff;" onclick="navegarFotoModalMed(-1)">◀ Anterior</button>
+              <span id="sm-img-counter" style="font-size:12px;font-weight:900;">Arquivo 1 de 1</span>
+              <button type="button" class="btn btn-sm" style="background:#334155;color:#fff;margin-left:auto;" onclick="navegarFotoModalMed(1)">Próximo ▶</button>
+            </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
               <button type="button" class="btn btn-outline btn-sm" onclick="zoomModalMedImg(-0.25)">➖ Zoom</button>
               <button type="button" class="btn btn-outline btn-sm" onclick="zoomModalMedImg(0.25)">➕ Zoom</button>
@@ -5056,8 +5062,9 @@
             <div id="sm-img-stage" class="sisreg-img-stage" style="height:440px;">
               <img id="sm-stage-img" src="" alt="Documento" draggable="false" style="display:none;">
               <iframe id="sm-stage-pdf-iframe" class="previa-pdf-frame" style="display:none;" title="Prévia PDF SISREG"></iframe>
-              <div id="sm-stage-empty" class="sisreg-stage-empty">📷 Anexe foto ou PDF da ficha/encaminhamento ou cole com <strong>Ctrl+V</strong>.</div>
+              <div id="sm-stage-empty" class="sisreg-stage-empty">📷 Anexe foto ou PDF da ficha/encaminhamento ou cole com <strong>Ctrl+V</strong> (até 6 arquivos).</div>
             </div>
+            <div id="sm-thumbs-strip" class="vp-thumbs-strip"></div>
           </div>
           <div class="sisreg-form-col">
             <div id="sm-alertas-box"></div>
@@ -5123,9 +5130,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.1"></script>
 <script src="dispositivos.js?v=5.2"></script>
-<script src="receitas-previa.js?v=1.9"></script>
+<script src="receitas-previa.js?v=2.0"></script>
 <script src="formularios-pec.js?v=1.9"></script>
-<script src="regulacao-sisreg.js?v=2.0"></script>
-<script src="app.js?v=8.4"></script>
+<script src="regulacao-sisreg.js?v=2.1"></script>
+<script src="app.js?v=8.5"></script>
 </body>
 </html>

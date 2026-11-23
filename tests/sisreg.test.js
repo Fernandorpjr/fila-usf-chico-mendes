@@ -13,8 +13,10 @@ const {
   formatarObservacaoSisreg,
   normalizarResultadoOcrSisreg,
   inferirSetorDestinoDevolucao,
+  normalizarSetorDestinoDevolucao,
   resolverCanalChatDevolucao,
   normalizarStatusDevolucao,
+  pertenceAoProfissionalDevolucao,
   formatarMensagemChatDevolucao,
   PRAZO_DEVOLUCAO_DIAS,
   MAX_PRORROGACOES_DEVOLUCAO,
@@ -286,7 +288,47 @@ test('Devoluções SISREG direcionam corretamente ACS/Médico/Enfermagem/Odonto,
     observacao: 'Confirmar rua atual'
   }, 'alerta');
   assert.ok(msgAlerta.includes('DEVOLUÇÃO SISREG [Setor: ACS · Ana Paula]'));
+  assert.ok(msgAlerta.includes('Destinatário: Ana Paula'));
   assert.ok(msgAlerta.includes('Devoluções SISREG'));
+
+  const msgTodosMed = formatarMensagemChatDevolucao({
+    paciente_nome: 'José Carlos',
+    motivo: 'Falta justificativa clínica',
+    setor_destino: 'Médico',
+    profissional_equipe: 'Todos os Médicos'
+  }, 'alerta');
+  assert.ok(msgTodosMed.includes('Destinatário: Todos (Médico)'));
+
+  // Filtro estrito por destinatário (Médico, Enfermagem, Odontologia, ACS vs Todos)
+  const devIsrael = { setor_destino: 'Médico', profissional_equipe: 'Dr. Israel Christian', motivo: 'CID' };
+  const devTodosMed = { setor_destino: 'Médico', profissional_equipe: null, motivo: 'CID' };
+  const devMariana = { setor_destino: 'Enfermagem', profissional_equipe: 'Mariana Vaz', motivo: 'Justificativa' };
+  const devJuliana = { setor_destino: 'Odontologia', profissional_equipe: 'Dra. Juliana Cavalcante', motivo: 'Proc' };
+  const devAnaPaula = { setor_destino: 'ACS', profissional_equipe: 'Ana Paula', motivo: 'Endereço' };
+
+  assert.equal(pertenceAoProfissionalDevolucao(devIsrael, 'Médico', 'Dr. Israel Christian'), true);
+  assert.equal(pertenceAoProfissionalDevolucao(devIsrael, 'Médico', 'Dr. Joene Halan'), false);
+  assert.equal(pertenceAoProfissionalDevolucao(devIsrael, 'Médico', ''), true);
+  assert.equal(pertenceAoProfissionalDevolucao(devTodosMed, 'Médico', 'Dr. Joene Halan'), true);
+  assert.equal(pertenceAoProfissionalDevolucao(devMariana, 'Enfermagem', 'Mariana Vaz'), true);
+  assert.equal(pertenceAoProfissionalDevolucao(devMariana, 'Enfermagem', 'Jorge Marcio'), false);
+  assert.equal(pertenceAoProfissionalDevolucao(devJuliana, 'Odontologia', 'Dra. Juliana Cavalcante'), true);
+  assert.equal(pertenceAoProfissionalDevolucao(devJuliana, 'Médico', 'Dr. Israel Christian'), false);
+  assert.equal(pertenceAoProfissionalDevolucao(devAnaPaula, 'ACS', 'Ana Paula'), true);
+  assert.equal(pertenceAoProfissionalDevolucao(devAnaPaula, 'ACS', 'Lenilda'), false);
+
+  // Estabilidade OCR (Gemini 2.5 Flash sem thinking travando + ObjectURL + AbortController + câmera multi-foto)
+  const root = path.join(__dirname, '..');
+  const receitasBack = fs.readFileSync(path.join(root, 'lib', 'receitas.js'), 'utf8');
+  const sisregBack = fs.readFileSync(path.join(root, 'lib', 'sisreg.js'), 'utf8');
+  const receitasFront = fs.readFileSync(path.join(root, 'public', 'receitas-previa.js'), 'utf8');
+  const sisregFront = fs.readFileSync(path.join(root, 'public', 'regulacao-sisreg.js'), 'utf8');
+
+  assert.ok(receitasBack.includes('gemini-2.5-flash-lite') && receitasBack.includes('thinkingBudget: 0'));
+  assert.ok(sisregBack.includes('gemini-2.5-flash-lite') && sisregBack.includes('thinkingBudget: 0'));
+  assert.ok(receitasFront.includes('URL.createObjectURL') && receitasFront.includes('AbortController'));
+  assert.ok(sisregFront.includes('URL.createObjectURL') && sisregFront.includes('AbortController'));
+  assert.ok(sisregFront.includes('navegarFotoModalMed') && sisregFront.includes('dev-prof-filtro-prof'));
 
   const msgSol = formatarMensagemChatDevolucao({
     paciente_nome: 'Maria José',

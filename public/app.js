@@ -988,6 +988,7 @@ function initOverview() {
 // ====== FILTER SECTOR ======
 function filterSector(key, profissional) {
   sectorFilters[key] = profissional || null;
+  window._usfSectorFilters = sectorFilters;
   const bar = document.getElementById('filter-bar-' + key);
   if (bar) {
     bar.querySelectorAll('.btn-filter').forEach(btn => {
@@ -1003,6 +1004,7 @@ function filterSector(key, profissional) {
   updateBadges();
   renderAllSectorAttended();
   if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais();
+  if (typeof atualizarBadgesDevolucoesSetores === 'function') atualizarBadgesDevolucoesSetores();
 }
 
 // ====== CLOCK ======

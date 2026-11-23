@@ -24,6 +24,31 @@ let _previaModalAnexos = [];
 let _previaModalFotoIdx = 0;
 let _vpPdfBlobUrl = null;
 let _previaCapturaTargetPatient = null;
+let _previaAnalisesAtivas = 0;
+
+async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 28000) {
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller ? controller.signal : undefined
+    });
+    const txt = await res.text();
+    let data = {};
+    try { data = txt ? JSON.parse(txt) : {}; } catch (_) {
+      data = { ok: false, error: `Resposta inválida do servidor (HTTP ${res.status}).` };
+    }
+    return { res, data };
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      throw new Error('Tempo limite excedido ao analisar imagem (28s). Imagem mantida na prévia.');
+    }
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function isPreviaAnexoPdf(anx) {
   if (!anx) return false;
@@ -240,10 +265,20 @@ function fecharModalCapturaReceita() {
   _previaCapturaTargetPatient = null;
 }
 
+function atualizarBotaoCameraCaptura() {
+  const btnCam = document.getElementById('pr-btn-camera');
+  if (!btnCam) return;
+  const qtd = _previaAnexosCaptura.length;
+  btnCam.textContent = qtd > 0
+    ? `📸 + Tirar outra foto (${qtd}/${MAX_ANEXOS_CAPTURA})`
+    : '📸 Tirar Foto (Câmera)';
+}
+
 function renderGaleriaCapturaReceita() {
   const wrap = document.getElementById('pr-galeria-wrap');
   const grid = document.getElementById('pr-galeria-grid');
   const cntEl = document.getElementById('pr-galeria-count');
+  atualizarBotaoCameraCaptura();
   if (!wrap || !grid) return;
 
   if (_previaAnexosCaptura.length === 0) {
@@ -315,28 +350,51 @@ function atualizarTipoGlobalPorAnexos() {
 
 function comprimirFotoReceita(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Falha ao ler arquivo'));
-    reader.onload = (ev) => {
-      const img = new Image();
-      img.onerror = () => resolve(ev.target.result);
-      img.onload = () => {
-        const MAX = 1050;
-        let w = img.width;
-        let h = img.height;
-        if (w > MAX || h > MAX) {
-          if (w > h) { h = Math.round(h * (MAX / w)); w = MAX; }
-          else { w = Math.round(w * (MAX / h)); h = MAX; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.72));
-      };
-      img.src = ev.target.result;
+    const objUrl = typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(file) : null;
+    if (!objUrl) {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Falha ao ler arquivo'));
+      reader.onload = (ev) => resolve(ev.target.result);
+      reader.readAsDataURL(file);
+      return;
+    }
+    const img = new Image();
+    let finalizado = false;
+    const finalizar = (cb) => {
+      if (finalizado) return;
+      finalizado = true;
+      clearTimeout(timer);
+      try { URL.revokeObjectURL(objUrl); } catch (_) {}
+      cb();
     };
-    reader.readAsDataURL(file);
+    const timer = setTimeout(() => {
+      finalizar(() => reject(new Error('Tempo esgotado ao carregar foto da câmera.')));
+    }, 12000);
+    img.onerror = () => finalizar(() => reject(new Error('Não foi possível decodificar a foto capturada.')));
+    img.onload = () => {
+      finalizar(() => {
+        try {
+          const MAX = 1050;
+          let w = img.naturalWidth || img.width || MAX;
+          let h = img.naturalHeight || img.height || MAX;
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = Math.round(h * (MAX / w)); w = MAX; }
+            else { w = Math.round(w * (MAX / h)); h = MAX; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+          canvas.width = 0;
+          canvas.height = 0;
+          resolve(dataUrl);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    };
+    img.src = objUrl;
   });
 }
 
@@ -438,10 +496,10 @@ async function processarListaImagensReceita(fileList) {
   const statusEl = document.getElementById('pr-ocr-status');
   const tipoAtual = document.getElementById('pr-tipo')?.value || 'branca';
   const setorRecepcao = document.getElementById('input-setor')?.value || '';
-  let ultimaClf = null;
-  let falhasOcr = 0;
-  let ultimaMsgErro = '';
+  const novosAnexos = [];
+  let falhasLeituraLocal = 0;
 
+  // Passo 1: comprimir e exibir imediatamente todos os anexos (evita perda da 2ª foto da câmera)
   for (let i = 0; i < selecionados.length; i++) {
     const file = selecionados[i];
     const ehPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
@@ -450,15 +508,14 @@ async function processarListaImagensReceita(fileList) {
         statusEl.style.display = 'block';
         statusEl.className = 'pr-status-box loading';
         statusEl.textContent = ehPdf
-          ? '⏳ Lendo PDF e identificando o documento...'
+          ? '⏳ Preparando PDF...'
           : (selecionados.length > 1
-            ? `⏳ Analisando arquivo ${i + 1} de ${selecionados.length}...`
-            : '⏳ Analisando documento...');
+            ? `⏳ Preparando foto ${i + 1} de ${selecionados.length}...`
+            : '⏳ Preparando foto capturada...');
       }
-
       const b64 = ehPdf ? await lerPdfBase64Previa(file) : await comprimirFotoReceita(file);
       const novoAnexo = {
-        id: `anx_${Date.now().toString(36)}_${i + 1}`,
+        id: `anx_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}_${i + 1}`,
         categoria: setorRecepcao === 'Regulação' ? 'encaminhamento' : normalizarCategoriaAnexoFront(tipoAtual),
         rotulo: ehPdf ? 'PDF' : null,
         imagem_base64: b64,
@@ -469,73 +526,107 @@ async function processarListaImagensReceita(fileList) {
         novoAnexo.nome_arquivo = file.name || 'documento.pdf';
       }
       _previaAnexosCaptura.push(novoAnexo);
-      const idxAtual = _previaAnexosCaptura.length - 1;
+      novosAnexos.push({ anexo: novoAnexo, b64, ehPdf });
       renderGaleriaCapturaReceita();
-
-      const res = await fetch(`${API_URL}/receita-previa/analisar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ arquivo_base64: b64 })
-      });
-      const data = await res.json();
-
-      if (data.ok && data.ocr) {
-        const o = data.ocr;
-        const ehSisreg = data.classificacao?.categoria_destino === 'sisreg' || o.destino_ia === 'sisreg';
-        const cat = ehSisreg
-          ? 'encaminhamento'
-          : normalizarCategoriaAnexoFront(o.tipo_documento || o.tipo_receita);
-        _previaAnexosCaptura[idxAtual].categoria = cat;
-        _previaAnexosCaptura[idxAtual].ocr = {
-          destino_ia: ehSisreg ? 'sisreg' : 'receita',
-          tipo_receita: o.tipo_receita || null,
-          tipo_documento: cat,
-          medicamento: o.medicamento || null,
-          medicamentos_posologia: o.dados_extras?.medicamentos_posologia || null,
-          data_emissao: o.data_emissao || null,
-          observacoes: o.observacoes || null,
-          especialidade: o.dados_extras?.especialidade || null,
-          hipotese_diagnostica: o.dados_extras?.hipotese_diagnostica || null,
-          cid10: o.dados_extras?.cid10 || null,
-          justificativa: o.dados_extras?.justificativa || null,
-          observacoes_revisada: o.dados_extras?.observacoes_revisada || null,
-          codigo_solicitacao: o.dados_extras?.codigo_solicitacao || null,
-          paciente_municipio: o.dados_extras?.paciente_municipio || null,
-          paciente_cep: o.dados_extras?.paciente_cep || null,
-          paciente_uf: o.dados_extras?.paciente_uf || null
-        };
-        if (o.dados_extras?.especialidade) {
-          _previaAnexosCaptura[idxAtual].rotulo = String(o.dados_extras.especialidade).slice(0, 40);
-        }
-        mesclarOcrNoFormularioCaptura(o);
-        if (ehSisreg) {
-          const selTipo = document.getElementById('pr-tipo');
-          if (selTipo) selTipo.value = 'sisreg';
-        }
-        ultimaClf = data.classificacao || ultimaClf;
-        renderGaleriaCapturaReceita();
-        atualizarTipoGlobalPorAnexos();
-      } else {
-        falhasOcr++;
-        ultimaMsgErro = data.error || 'Leitura automática indisponível.';
-      }
     } catch (err) {
-      falhasOcr++;
-      ultimaMsgErro = err?.message || 'Falha na leitura automática.';
+      falhasLeituraLocal++;
+      showToast(err?.message || 'Erro ao preparar arquivo selecionado.', true);
     }
+  }
+
+  if (novosAnexos.length === 0) {
+    if (statusEl && falhasLeituraLocal > 0) {
+      statusEl.style.display = 'block';
+      statusEl.className = 'pr-status-box warn';
+      statusEl.textContent = '⚠️ Não foi possível ler a imagem selecionada.';
+    }
+    return;
+  }
+
+  let ultimaClf = null;
+  let falhasOcr = 0;
+  let ultimaMsgErro = '';
+  _previaAnalisesAtivas++;
+  try {
+    for (let i = 0; i < novosAnexos.length; i++) {
+      const { anexo, b64, ehPdf } = novosAnexos[i];
+      try {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.className = 'pr-status-box loading';
+          statusEl.textContent = ehPdf
+            ? '⏳ Lendo PDF e identificando o documento...'
+            : (novosAnexos.length > 1
+              ? `⏳ Analisando arquivo ${i + 1} de ${novosAnexos.length}... (você já pode anexar outra foto)`
+              : '⏳ Analisando documento...');
+        }
+
+        const { data } = await fetchJsonPreviaComTimeout(`${API_URL}/receita-previa/analisar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ arquivo_base64: b64 })
+        }, 28000);
+
+        if (data.ok && data.ocr) {
+          const o = data.ocr;
+          const ehSisreg = data.classificacao?.categoria_destino === 'sisreg' || o.destino_ia === 'sisreg';
+          const cat = ehSisreg
+            ? 'encaminhamento'
+            : normalizarCategoriaAnexoFront(o.tipo_documento || o.tipo_receita);
+          anexo.categoria = cat;
+          anexo.ocr = {
+            destino_ia: ehSisreg ? 'sisreg' : 'receita',
+            tipo_receita: o.tipo_receita || null,
+            tipo_documento: cat,
+            medicamento: o.medicamento || null,
+            medicamentos_posologia: o.dados_extras?.medicamentos_posologia || null,
+            data_emissao: o.data_emissao || null,
+            observacoes: o.observacoes || null,
+            especialidade: o.dados_extras?.especialidade || null,
+            hipotese_diagnostica: o.dados_extras?.hipotese_diagnostica || null,
+            cid10: o.dados_extras?.cid10 || null,
+            justificativa: o.dados_extras?.justificativa || null,
+            observacoes_revisada: o.dados_extras?.observacoes_revisada || null,
+            codigo_solicitacao: o.dados_extras?.codigo_solicitacao || null,
+            paciente_municipio: o.dados_extras?.paciente_municipio || null,
+            paciente_cep: o.dados_extras?.paciente_cep || null,
+            paciente_uf: o.dados_extras?.paciente_uf || null
+          };
+          if (o.dados_extras?.especialidade) {
+            anexo.rotulo = String(o.dados_extras.especialidade).slice(0, 40);
+          }
+          mesclarOcrNoFormularioCaptura(o);
+          if (ehSisreg) {
+            const selTipo = document.getElementById('pr-tipo');
+            if (selTipo) selTipo.value = 'sisreg';
+          }
+          ultimaClf = data.classificacao || ultimaClf;
+          renderGaleriaCapturaReceita();
+          atualizarTipoGlobalPorAnexos();
+        } else {
+          falhasOcr++;
+          ultimaMsgErro = data.error || 'Leitura automática indisponível.';
+        }
+      } catch (err) {
+        falhasOcr++;
+        ultimaMsgErro = err?.message || 'Falha na leitura automática.';
+      }
+    }
+  } finally {
+    _previaAnalisesAtivas = Math.max(0, _previaAnalisesAtivas - 1);
   }
 
   atualizarTipoGlobalPorAnexos();
   if (ultimaClf) atualizarSugestaoReceitaLocal(ultimaClf);
 
-  if (statusEl) {
+  if (statusEl && _previaAnalisesAtivas === 0) {
     if (falhasOcr === 0) {
       const destLabel = ultimaClf?.categoria_destino === 'sisreg'
         ? '📋 Documento do SISREG / Regulação identificado!'
         : `💊 Receita identificada (destino sugerido: ${ultimaClf?.fila_destino || 'Médico'})!`;
       statusEl.className = 'pr-status-box ok';
-      statusEl.textContent = `✅ Leitura concluída (${selecionados.length} arquivo${selecionados.length > 1 ? 's' : ''}) · ${destLabel}`;
-    } else if (falhasOcr < selecionados.length) {
+      statusEl.textContent = `✅ Leitura concluída (${_previaAnexosCaptura.length} arquivo${_previaAnexosCaptura.length > 1 ? 's' : ''} na prévia) · ${destLabel}`;
+    } else if (falhasOcr < novosAnexos.length) {
       statusEl.className = 'pr-status-box warn';
       statusEl.textContent = `⚠️ Arquivos anexados, mas ${falhasOcr} não pôde ser lido automaticamente (${ultimaMsgErro}).`;
     } else {

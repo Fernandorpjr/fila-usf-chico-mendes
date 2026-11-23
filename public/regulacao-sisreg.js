@@ -14,7 +14,7 @@
   let _sisregDevFiltro = 'abertas';
   let _sisregDevSetorFiltro = 'todos';
   let _sisregDevBusca = '';
-  const _devProfModalState = { setor: 'Médico', status: 'pendente', busca: '' };
+  const _devProfModalState = { setor: 'Médico', profissional: '', status: 'pendente', busca: '' };
   let _devNovoAnexo = { base64: null, tipo: null, nome: '', bytes: 0 };
   const _cacheAnexosDev = {};
   let _devVisualizadorState = { id: null, zoom: 1, rot: 0, panX: 0, panY: 0, pdfBlobUrl: null };
@@ -67,6 +67,8 @@
     arquivoTipo: null,
     imgBase64: null,
     pdfNome: '',
+    anexos: [],
+    anexoIdx: 0,
     dados: criarDadosVaziosSisreg(),
     sugestoes: [],
     resultadosBusca: [],
@@ -77,6 +79,30 @@
     panX: 0,
     panY: 0
   };
+
+  async function fetchJsonSisregComTimeout(url, options = {}, timeoutMs = 28000) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: controller ? controller.signal : undefined
+      });
+      const txt = await res.text();
+      let data = {};
+      try { data = txt ? JSON.parse(txt) : {}; } catch (_) {
+        data = { ok: false, error: `Resposta inválida do servidor (HTTP ${res.status}).` };
+      }
+      return { res, data };
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        throw new Error('Tempo limite excedido ao analisar imagem (28s). Foto mantida na tela.');
+      }
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
 
   const SINONIMOS_FRONT = {
     usg: ['ultrassonografia', 'ultra-sonografia', 'ecografia'],
@@ -705,31 +731,60 @@
   }
 
   // ===== COMPRESSÃO DE IMAGEM / LEITURA PDF =====
-  function comprimirImagemSisreg(file) {
+  function comprimirImagemViaObjectUrl(file, maxDim = 1350, quality = 0.80) {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('Falha ao ler imagem'));
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onerror = () => resolve(ev.target.result);
-        img.onload = () => {
-          const MAX = 1350;
-          let w = img.width;
-          let h = img.height;
-          if (w > MAX || h > MAX) {
-            if (w > h) { h = Math.round(h * (MAX / w)); w = MAX; }
-            else { w = Math.round(w * (MAX / h)); h = MAX; }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.80));
-        };
-        img.src = ev.target.result;
+      const objUrl = typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(file) : null;
+      if (!objUrl) {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+        reader.onload = (ev) => resolve(ev.target.result);
+        reader.readAsDataURL(file);
+        return;
+      }
+      const img = new Image();
+      let done = false;
+      const finish = (cb) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { URL.revokeObjectURL(objUrl); } catch (_) {}
+        cb();
       };
-      reader.readAsDataURL(file);
+      const timer = setTimeout(() => {
+        finish(() => reject(new Error('Tempo esgotado ao carregar foto da câmera.')));
+      }, 12000);
+      img.onerror = () => finish(() => reject(new Error('Não foi possível ler a imagem capturada.')));
+      img.onload = () => {
+        finish(() => {
+          try {
+            let w = img.naturalWidth || img.width || maxDim;
+            let h = img.naturalHeight || img.height || maxDim;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+              else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            let out = canvas.toDataURL('image/jpeg', quality);
+            if (out.length > 2_000_000) {
+              out = canvas.toDataURL('image/jpeg', 0.58);
+            }
+            canvas.width = 0;
+            canvas.height = 0;
+            resolve(out);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      };
+      img.src = objUrl;
     });
+  }
+
+  function comprimirImagemSisreg(file) {
+    return comprimirImagemViaObjectUrl(file, 1350, 0.80);
   }
 
   function lerPdfBase64(file) {
@@ -806,9 +861,9 @@
           <!-- ABA 1: PRÉVIA / LEITOR DE FICHA E PDF -->
           <div id="sisreg-pane-leitor" style="${_sisregAbaAtiva === 'leitor' ? '' : 'display:none;'}">
             <div class="sisreg-toolbar">
-              <input type="file" id="sisreg-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivosCopilotoSisreg(this.files);this.value='';">
-              <input type="file" id="sisreg-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="if(this.files&&this.files.length)processarArquivosCopilotoSisreg(this.files);this.value='';">
-              <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('sisreg-file-cam').click()">📸 Tirar Foto da Ficha</button>
+              <input type="file" id="sisreg-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarArquivosCopilotoSisreg(fl);">
+              <input type="file" id="sisreg-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarArquivosCopilotoSisreg(fl);">
+              <button type="button" id="sisreg-btn-cam" class="btn btn-primary btn-sm" onclick="document.getElementById('sisreg-file-cam').click()">📸 Tirar Foto da Ficha</button>
               <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('sisreg-file-upload').click()">📄 Escolher Foto / PDF (Ctrl+V)</button>
               <button type="button" class="btn btn-sm" style="background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;font-weight:800;" onclick="limparFichaCopilotoSisreg()">🔄 Nova Prévia</button>
               <div id="sisreg-pac-vinculado-pill" class="sisreg-pac-pill" style="display:none;">
@@ -1103,8 +1158,8 @@
               </div>
               <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;">
                 <input type="text" id="dev-obs" style="flex:1;min-width:240px;" placeholder="O que precisa verificar/corrigir (ex: confirmar endereço/mudança c/ ACS ou procedimento correto c/ médico)...">
-                <input type="file" id="dev-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivosNovaDevolucao(this.files);this.value='';">
-                <input type="file" id="dev-file-upload" accept="image/*,application/pdf" style="display:none;" onchange="if(this.files&&this.files.length)processarArquivosNovaDevolucao(this.files);this.value='';">
+                <input type="file" id="dev-file-cam" accept="image/*" capture="environment" style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarArquivosNovaDevolucao(fl);">
+                <input type="file" id="dev-file-upload" accept="image/*,application/pdf" style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarArquivosNovaDevolucao(fl);">
                 <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('dev-file-cam').click()" title="Tirar foto da ficha/espelho SISREG">📸 Foto</button>
                 <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('dev-file-upload').click()" title="Anexar foto ou PDF (ou use Ctrl+V)">📎 Foto/PDF (Ctrl+V)</button>
                 <span id="dev-anexo-preview-pill" style="display:none;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#dbeafe;color:#1e40af;font-size:11.5px;font-weight:800;"></span>
@@ -1380,33 +1435,43 @@
   }
 
   // ===== PROCESSAR ARQUIVOS (FOTOS / PDF) =====
+  function atualizarBotaoCameraCopiloto() {
+    const btnCam = document.getElementById('sisreg-btn-cam');
+    if (!btnCam) return;
+    const qtd = _copilotoState.anexos.length;
+    btnCam.textContent = qtd > 0
+      ? `📸 + Tirar outra foto (${qtd}/6)`
+      : '📸 Tirar Foto da Ficha';
+  }
+
   async function processarArquivosCopilotoSisreg(fileList) {
     const files = Array.from(fileList || []).filter(Boolean);
     if (!files.length) return;
     abrirModalPreviaRegulacao('leitor');
 
     const statusEl = document.getElementById('sisreg-ocr-status');
-    let anexosAdicionados = 0;
+    const vagas = 6 - _copilotoState.anexos.length;
+    if (vagas <= 0) {
+      if (typeof showToast === 'function') showToast('Limite máximo de 6 arquivos atingido.', true);
+      return;
+    }
 
-    for (let i = 0; i < files.length && _copilotoState.anexos.length < 6; i++) {
-      const f = files[i];
+    const selecionados = files.slice(0, vagas);
+    const novosAnexos = [];
+    for (let i = 0; i < selecionados.length; i++) {
+      const f = selecionados[i];
       const ehPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
       const ehImg = !f.type || f.type.startsWith('image/');
       if (!ehPdf && !ehImg) continue;
-
       try {
         if (statusEl) {
           statusEl.style.display = 'block';
           statusEl.className = 'pr-status-box loading';
-          statusEl.textContent = ehPdf
-            ? '⏳ Lendo PDF... aguarde alguns segundos.'
-            : (files.length > 1
-              ? `⏳ Analisando arquivo ${i + 1} de ${files.length}...`
-              : '⏳ Analisando documento e cruzando com o SISREG...');
+          statusEl.textContent = ehPdf ? '⏳ Preparando PDF...' : '⏳ Preparando foto capturada...';
         }
         const b64 = ehPdf ? await lerPdfBase64(f) : await comprimirImagemSisreg(f);
         const anexoObj = {
-          id: `sr_${Date.now().toString(36)}_${i + 1}`,
+          id: `sr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}_${i + 1}`,
           categoria: 'encaminhamento',
           rotulo: ehPdf ? 'PDF' : null,
           imagem_base64: b64,
@@ -1418,19 +1483,34 @@
         }
         _copilotoState.anexos.push(anexoObj);
         _copilotoState.anexoIdx = _copilotoState.anexos.length - 1;
+        novosAnexos.push({ b64, ehPdf, acumular: _copilotoState.anexos.length > 1 });
         renderVisualizadorCopiloto();
+        atualizarBotaoCameraCopiloto();
         atualizarPillPacienteVinculado();
-        await executarAnaliseIaCopiloto(b64, statusEl, anexosAdicionados > 0);
-        anexosAdicionados++;
       } catch (err) {
         if (statusEl) {
           statusEl.style.display = 'block';
           statusEl.className = 'pr-status-box warn';
-          statusEl.textContent = `⚠️ ${err.message || 'Erro ao processar arquivo.'}`;
+          statusEl.textContent = `⚠️ ${err.message || 'Erro ao preparar arquivo.'}`;
         }
       }
     }
-    if (anexosAdicionados === 0 && typeof showToast === 'function') {
+
+    for (let i = 0; i < novosAnexos.length; i++) {
+      const item = novosAnexos[i];
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.className = 'pr-status-box loading';
+        statusEl.textContent = item.ehPdf
+          ? '⏳ Lendo PDF... aguarde alguns segundos.'
+          : (novosAnexos.length > 1
+            ? `⏳ Analisando arquivo ${i + 1} de ${novosAnexos.length}...`
+            : '⏳ Analisando documento e cruzando com o SISREG...');
+      }
+      await executarAnaliseIaCopiloto(item.b64, statusEl, item.acumular);
+    }
+
+    if (novosAnexos.length === 0 && typeof showToast === 'function') {
       showToast('Envie fotos (JPG/PNG) ou PDFs até 2 MB.', true);
     }
   }
@@ -1484,12 +1564,11 @@
   async function executarAnaliseIaCopiloto(base64Str, statusEl, acumular = false) {
     _copilotoState.analisando = true;
     try {
-      const res = await fetch(`${getApiUrlBase()}/sisreg/analisar-ficha`, {
+      const { data } = await fetchJsonSisregComTimeout(`${getApiUrlBase()}/sisreg/analisar-ficha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ arquivo_base64: base64Str })
-      });
-      const data = await res.json();
+      }, 28000);
       if (data.ok && data.dados) {
         _copilotoState.dados = mesclarDadosSisreg(_copilotoState.dados, data.dados, acumular);
         if (!acumular) _copilotoState.telefoneConferido = false;
@@ -1509,11 +1588,11 @@
           statusEl.textContent = `⚠️ ${data.error || 'Leitura automática indisponível — imagem mantida para leitura manual.'}`;
         }
       }
-    } catch (_) {
+    } catch (err) {
       if (statusEl) {
         statusEl.style.display = 'block';
         statusEl.className = 'pr-status-box warn';
-        statusEl.textContent = '⚠️ Falha de conexão na leitura automática. A foto permanece visível ao lado.';
+        statusEl.textContent = `⚠️ ${err?.message || 'Falha de conexão na leitura automática.'} A foto permanece visível ao lado.`;
       }
     } finally {
       _copilotoState.analisando = false;
@@ -1549,6 +1628,7 @@
     _copilotoState.sugestoes = [];
     const statusEl = document.getElementById('sisreg-ocr-status');
     if (statusEl) statusEl.style.display = 'none';
+    atualizarBotaoCameraCopiloto();
     renderEstadoFormularioCopiloto();
   }
 
@@ -2250,21 +2330,74 @@
     return 'Médico';
   }
 
+  function limparProfDevFront(v) {
+    const s = String(v || '').trim();
+    if (!s || /^todos\b/i.test(normTxtDev(s))) return '';
+    return s;
+  }
+
+  function pertenceAoProfissionalDevolucaoFront(item, setorAlvo = '', profAlvo = '') {
+    if (!item || typeof item !== 'object') return false;
+    const setorItem = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
+    const sAlvoNorm = normTxtDev(setorAlvo);
+    if (sAlvoNorm && sAlvoNorm !== 'todos' && normTxtDev(setorItem) !== sAlvoNorm) {
+      return false;
+    }
+    const profFiltro = normTxtDev(profAlvo);
+    if (!profFiltro || profFiltro.startsWith('todos')) {
+      return true;
+    }
+    const profItem = normTxtDev(item.profissional_equipe);
+    if (!profItem || profItem.startsWith('todos')) {
+      return true;
+    }
+    return profItem === profFiltro || profItem.includes(profFiltro) || profFiltro.includes(profItem);
+  }
+
+  function obterProfissionalAtivoTabSetorFront(setor) {
+    const keyMap = { 'Médico': 'medico', 'Enfermagem': 'enfermagem', 'Odontologia': 'odontologia' };
+    const k = keyMap[setor];
+    if (!k) return '';
+    const filtros = typeof sectorFilters !== 'undefined' ? sectorFilters : (window._usfSectorFilters || {});
+    if (filtros && Object.prototype.hasOwnProperty.call(filtros, k)) {
+      return filtros[k] || '';
+    }
+    const btnActive = document.querySelector(`#filter-bar-${k} .btn-filter.active`);
+    if (btnActive && btnActive.dataset && typeof btnActive.dataset.prof === 'string') {
+      return btnActive.dataset.prof;
+    }
+    return '';
+  }
+
+  function badgeDestinatarioDevHtml(item, setorItem) {
+    const prof = limparProfDevFront(item?.profissional_equipe);
+    if (prof) {
+      return `<span class="sisreg-pill-mini" style="background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;">🎯 Para: ${escSisreg(prof)}</span>`;
+    }
+    return `<span class="sisreg-pill-mini" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;">👥 Todos (${escSisreg(setorItem)})</span>`;
+  }
+
   function popularSelectProfissionaisDevolucao(setor = 'Médico', selecionado = '') {
     const sel = document.getElementById('dev-profissional');
     if (!sel) return;
     const setorNorm = SETOR_DEV_META[setor] ? setor : 'Médico';
+    const todosLabels = {
+      'Médico': '👥 Todos os Médicos',
+      'Enfermagem': '👥 Todos da Enfermagem',
+      'Odontologia': '👥 Todos da Odontologia',
+      'ACS': '👥 Todos os ACS'
+    };
     const baseLista = PROFISSIONAIS_DEVOLUCAO_POR_SETOR[setorNorm] || [];
     const selNorm = normTxtDev(selecionado);
     let matched = '';
-    if (selNorm) {
+    if (selNorm && !selNorm.startsWith('todos')) {
       matched = baseLista.find(p => normTxtDev(p) === selNorm)
         || baseLista.find(p => normTxtDev(p).includes(selNorm) || selNorm.includes(normTxtDev(p)))
         || '';
     }
-    const opts = [`<option value="">Todos (${escSisreg(setorNorm)})</option>`]
+    const opts = [`<option value="">${escSisreg(todosLabels[setorNorm] || `Todos (${setorNorm})`)}</option>`]
       .concat(baseLista.map(p => `<option value="${escSisreg(p)}">${escSisreg(p)}</option>`));
-    if (selecionado && !matched) {
+    if (selecionado && !matched && !selNorm.startsWith('todos')) {
       opts.push(`<option value="${escSisreg(selecionado)}">${escSisreg(selecionado)}</option>`);
       matched = selecionado;
     }
@@ -2388,15 +2521,7 @@
   }
 
   function comprimirArquivoImagemDevolucao(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('Falha ao ler imagem'));
-      reader.onload = async (ev) => {
-        const comp = await comprimirDataUrlDevolucao(ev.target.result);
-        resolve(comp);
-      };
-      reader.readAsDataURL(file);
-    });
+    return comprimirImagemViaObjectUrl(file, 1100, 0.72);
   }
 
   function lerPdfDevolucaoBase64(file) {
@@ -2575,7 +2700,7 @@
     }
   }
 
-  function aplicarFiltrosDevolucoesLista(todas, statusFlt, setorFlt, busca) {
+  function aplicarFiltrosDevolucoesLista(todas, statusFlt, setorFlt, busca, profFlt = '') {
     const bNorm = normTxtDev(busca || '');
     return (Array.isArray(todas) ? todas : []).filter(item => {
       const st = item.status || 'pendente';
@@ -2586,6 +2711,7 @@
       }
       const setorItem = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
       if (setorFlt && setorFlt !== 'todos' && setorItem !== setorFlt) return false;
+      if (profFlt && !pertenceAoProfissionalDevolucaoFront(item, setorFlt, profFlt)) return false;
       if (bNorm) {
         const hay = normTxtDev(`${item.paciente_nome || ''} ${item.codigo_solicitacao || ''} ${item.procedimento || ''} ${item.motivo || ''} ${item.profissional_equipe || ''} ${item.observacao || ''} ${item.solucao || ''} ${setorItem}`);
         if (!hay.includes(bNorm)) return false;
@@ -2648,10 +2774,10 @@
 
     document.querySelectorAll('.sisreg-dev-badge-setor').forEach(el => {
       const setor = el.dataset.setor || '';
+      const profAtivo = setor ? obterProfissionalAtivoTabSetorFront(setor) : '';
       const count = todas.filter(x => {
         if ((x.status || 'pendente') !== 'pendente') return false;
-        const s = x.setor_destino || inferirSetorPorMotivoEProfFront(x.motivo, x.profissional_equipe);
-        return !setor || s === setor;
+        return pertenceAoProfissionalDevolucaoFront(x, setor || 'todos', profAtivo);
       }).length;
       el.style.display = count > 0 ? 'inline-flex' : 'none';
       el.textContent = String(count);
@@ -2729,6 +2855,7 @@
               <strong style="font-size:13.5px;color:#0f172a;">${escSisreg(item.paciente_nome)}</strong>
               ${item.codigo_solicitacao ? `<code class="sisreg-code-badge">${escSisreg(item.codigo_solicitacao)}</code>` : ''}
               ${badgeSetorDevolucaoHtml(setorDestino)}
+              ${badgeDestinatarioDevHtml(item, setorDestino)}
               ${badgeStatusDevolucaoHtml(st)}
               ${badgePrazoDevHtml(item)}
               ${temAnexo ? `<span class="sisreg-pill-mini" style="background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;">📎 Anexo (${kbAnexo} KB)</span>` : ''}
@@ -2909,7 +3036,9 @@
     if (!item) return;
     const setorDestino = item.setor_destino || inferirSetorPorMotivoEProfFront(item.motivo, item.profissional_equipe);
     const canal = (SETOR_DEV_META[setorDestino]?.canal) || 'medico';
-    const texto = `↩️ DEVOLUÇÃO SISREG [Setor: ${setorDestino}${item.profissional_equipe ? ' · ' + item.profissional_equipe : ''}] — Paciente: ${item.paciente_nome}` +
+    const profDest = limparProfDevFront(item.profissional_equipe);
+    const destLabel = profDest ? `🎯 Destinatário: ${profDest}` : `👥 Destinatário: Todos (${setorDestino})`;
+    const texto = `↩️ DEVOLUÇÃO SISREG [Setor: ${setorDestino}${profDest ? ' · ' + profDest : ''}] — ${destLabel} | Paciente: ${item.paciente_nome}` +
       (item.codigo_solicitacao ? ` (Prot: ${item.codigo_solicitacao})` : '') +
       (item.procedimento ? ` | Proc: ${item.procedimento}` : '') +
       ` | Motivo: ${item.motivo}` +
@@ -3068,10 +3197,18 @@
     }
   }
 
-  function abrirModalDevolucoesProfissional(setor = 'Médico') {
+  function abrirModalDevolucoesProfissional(setor = 'Médico', profInicial = null) {
     _devVisualizadorState.id = null;
     revogarDevViewerPdfUrl();
-    _devProfModalState.setor = SETOR_DEV_META[setor] ? setor : 'todos';
+    const setorNorm = SETOR_DEV_META[setor] ? setor : 'todos';
+    _devProfModalState.setor = setorNorm;
+    if (profInicial !== null) {
+      _devProfModalState.profissional = limparProfDevFront(profInicial);
+    } else if (setorNorm !== 'todos') {
+      _devProfModalState.profissional = limparProfDevFront(obterProfissionalAtivoTabSetorFront(setorNorm));
+    } else {
+      _devProfModalState.profissional = '';
+    }
     _devProfModalState.status = 'pendente';
     const modal = document.getElementById('modal-devolucoes-profissional');
     if (!modal) return;
@@ -3101,7 +3238,18 @@
   function trocarSetorModalDevProf(setor) {
     _devVisualizadorState.id = null;
     revogarDevViewerPdfUrl();
-    _devProfModalState.setor = setor || 'todos';
+    const setorNorm = setor || 'todos';
+    _devProfModalState.setor = setorNorm;
+    _devProfModalState.profissional = setorNorm !== 'todos'
+      ? limparProfDevFront(obterProfissionalAtivoTabSetorFront(setorNorm))
+      : '';
+    renderModalDevolucoesProfissional();
+  }
+
+  function trocarProfissionalModalDevProf(prof) {
+    _devVisualizadorState.id = null;
+    revogarDevViewerPdfUrl();
+    _devProfModalState.profissional = limparProfDevFront(prof);
     renderModalDevolucoesProfissional();
   }
 
@@ -3239,7 +3387,8 @@
       _sisregDevolucoesTodas,
       _devProfModalState.status,
       _devProfModalState.setor,
-      _devProfModalState.busca
+      _devProfModalState.busca,
+      _devProfModalState.profissional
     );
   }
 
@@ -3398,6 +3547,24 @@
       || Object.values(PROFISSIONAIS_DEVOLUCAO_POR_SETOR).flat())
       .map(p => `<option value="${escSisreg(p)}"></option>`).join('');
 
+    const listaProfsFiltro = _devProfModalState.setor !== 'todos'
+      ? (PROFISSIONAIS_DEVOLUCAO_POR_SETOR[_devProfModalState.setor] || [])
+      : [];
+    const contarPendProf = (pNome) => todas.filter(x => {
+      if ((x.status || 'pendente') !== 'pendente') return false;
+      return pertenceAoProfissionalDevolucaoFront(x, _devProfModalState.setor, pNome);
+    }).length;
+    const selectProfHtml = listaProfsFiltro.length > 0
+      ? `<select id="dev-prof-filtro-prof" onchange="trocarProfissionalModalDevProf(this.value)" style="padding:6px 10px;border:1.5px solid #2563eb;border-radius:8px;font-size:12.5px;font-weight:800;background:#eff6ff;color:#1e3a8a;">
+          <option value="">👥 Todos de ${escSisreg(_devProfModalState.setor)} (${contarPendSetor(_devProfModalState.setor)})</option>
+          ${listaProfsFiltro.map(p => {
+            const qtdP = contarPendProf(p);
+            const sel = normTxtDev(_devProfModalState.profissional) === normTxtDev(p) ? ' selected' : '';
+            return `<option value="${escSisreg(p)}"${sel}>🎯 ${escSisreg(p)}${qtdP > 0 ? ` (${qtdP})` : ''}</option>`;
+          }).join('')}
+        </select>`
+      : '';
+
     modal.innerHTML = `
       <div class="previa-modal-card wide" style="max-width:1020px;">
         <div class="previa-modal-head" style="background:linear-gradient(135deg,#9a3412,#c2410c);">
@@ -3420,6 +3587,7 @@
               <button type="button" class="btn-filter ${_devProfModalState.status === 'corrigida' ? 'active' : ''}" onclick="trocarFiltroModalDevProf('corrigida')">✅ Corrigidas</button>
               <button type="button" class="btn-filter ${_devProfModalState.status === 'todas' ? 'active' : ''}" onclick="trocarFiltroModalDevProf('todas')">🗂️ Todas</button>
             </div>
+            ${selectProfHtml}
             <input type="text" id="dev-prof-busca-inp" value="${escSisreg(_devProfModalState.busca)}" oninput="onBuscaModalDevProfInput(this.value)" placeholder="🔎 Buscar paciente ou procedimento..." style="flex:1;min-width:170px;padding:6px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12.5px;font-weight:700;">
             <input type="text" id="dev-prof-autor-nome" list="dev-prof-autor-list" value="${escSisreg(autorPadrao)}" placeholder="Seu nome (Profissional / ACS) *" style="min-width:190px;padding:6px 10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:12.5px;font-weight:700;">
             <datalist id="dev-prof-autor-list">${profDatalist}</datalist>
@@ -3470,6 +3638,7 @@
               <strong style="font-size:14px;color:#0f172a;">${escSisreg(item.paciente_nome)}</strong>
               ${item.codigo_solicitacao ? `<code class="sisreg-code-badge">${escSisreg(item.codigo_solicitacao)}</code>` : ''}
               ${badgeSetorDevolucaoHtml(setorItem)}
+              ${badgeDestinatarioDevHtml(item, setorItem)}
               ${badgeStatusDevolucaoHtml(item.status || 'pendente')}
               ${badgePrazoDevHtml(item)}
               ${temAnexo ? `<span class="sisreg-pill-mini" style="background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;">📎 Documento (${kbAnexo} KB)</span>` : ''}
@@ -3736,68 +3905,186 @@
     );
   }
 
-  async function processarArquivoModalSisregMedico(fileList) {
-    const file = (fileList || [])[0];
-    if (!file) return;
-    const statusEl = document.getElementById('sm-ocr-status');
+  function atualizarBotaoCameraModalMed() {
+    const btnCam = document.getElementById('sm-btn-cam');
+    if (!btnCam) return;
+    const qtd = (_modalMedState.anexos || []).length;
+    btnCam.textContent = qtd > 0 ? `📸 + Tirar outra foto (${qtd}/6)` : '📸 Tirar Foto';
+  }
+
+  function renderVisualizadorModalMed() {
     const imgEl = document.getElementById('sm-stage-img');
     const pdfFrame = document.getElementById('sm-stage-pdf-iframe');
     const emptyEl = document.getElementById('sm-stage-empty');
+    const navEl = document.getElementById('sm-img-nav');
+    const cntEl = document.getElementById('sm-img-counter');
+    const strip = document.getElementById('sm-thumbs-strip');
+    const total = (_modalMedState.anexos || []).length;
+    atualizarBotaoCameraModalMed();
     revogarMedPdfBlobUrl();
-    try {
-      let b64 = '';
-      if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
-        _modalMedState.arquivoTipo = 'pdf';
-        _modalMedState.pdfNome = file.name;
-        b64 = await lerPdfBase64(file);
-        if (imgEl) imgEl.style.display = 'none';
-        if (emptyEl) emptyEl.style.display = 'none';
-        if (pdfFrame) {
-          const blobUrl = criarBlobUrlPdfSisreg(b64);
-          _medPdfBlobUrl = blobUrl;
-          pdfFrame.src = blobUrl || b64;
-          pdfFrame.style.display = 'block';
-        }
-      } else {
-        _modalMedState.arquivoTipo = 'image';
-        b64 = await comprimirImagemSisreg(file);
-        _modalMedState.imgBase64 = b64;
-        resetModalMedImgView();
-        if (pdfFrame) { pdfFrame.src = 'about:blank'; pdfFrame.style.display = 'none'; }
-        if (imgEl) { imgEl.src = b64; imgEl.style.display = 'block'; }
-        if (emptyEl) emptyEl.style.display = 'none';
-      }
 
-      if (statusEl) {
-        statusEl.style.display = 'block';
-        statusEl.className = 'pr-status-box loading';
-        statusEl.textContent = '⏳ Extraindo texto da ficha e conferindo no SISREG...';
+    if (total === 0) {
+      _modalMedState.arquivoTipo = null;
+      _modalMedState.imgBase64 = null;
+      _modalMedState.pdfNome = '';
+      if (imgEl) { imgEl.src = ''; imgEl.style.display = 'none'; }
+      if (pdfFrame) { pdfFrame.src = 'about:blank'; pdfFrame.style.display = 'none'; }
+      if (emptyEl) emptyEl.style.display = 'flex';
+      if (navEl) navEl.style.display = 'none';
+      if (strip) { strip.style.display = 'none'; strip.innerHTML = ''; }
+      return;
+    }
+
+    if (_modalMedState.anexoIdx >= total) _modalMedState.anexoIdx = total - 1;
+    if (_modalMedState.anexoIdx < 0) _modalMedState.anexoIdx = 0;
+    const ativo = _modalMedState.anexos[_modalMedState.anexoIdx];
+    const ehPdf = ativo.tipo === 'pdf' || isDataUrlPdfSisreg(ativo.imagem_base64, ativo.mime_type);
+    _modalMedState.arquivoTipo = ehPdf ? 'pdf' : 'image';
+    _modalMedState.imgBase64 = ehPdf ? null : ativo.imagem_base64;
+    _modalMedState.pdfNome = ativo.nome_arquivo || '';
+
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (ehPdf) {
+      if (imgEl) { imgEl.src = ''; imgEl.style.display = 'none'; }
+      if (pdfFrame) {
+        const blobUrl = criarBlobUrlPdfSisreg(ativo.imagem_base64);
+        _medPdfBlobUrl = blobUrl;
+        pdfFrame.src = blobUrl || ativo.imagem_base64;
+        pdfFrame.style.display = 'block';
       }
-      const res = await fetch(`${getApiUrlBase()}/sisreg/analisar-ficha`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ arquivo_base64: b64 })
-      });
-      const data = await res.json();
-      if (data.ok && data.dados) {
-        _modalMedState.dados = data.dados;
-        _modalMedState.sugestoes = data.sugestoes_procedimentos || [];
-        incrementarContadorLidasHoje();
+    } else {
+      resetModalMedImgView();
+      if (pdfFrame) { pdfFrame.src = 'about:blank'; pdfFrame.style.display = 'none'; }
+      if (imgEl) { imgEl.src = ativo.imagem_base64; imgEl.style.display = 'block'; }
+    }
+
+    if (navEl) {
+      navEl.style.display = total > 1 ? 'flex' : 'none';
+      if (cntEl) cntEl.textContent = `Arquivo ${_modalMedState.anexoIdx + 1} de ${total}${ehPdf ? ' · 📄 PDF' : ''}`;
+    }
+    if (strip) {
+      if (total > 1) {
+        strip.style.display = 'flex';
+        strip.innerHTML = _modalMedState.anexos.map((a, idx) => {
+          const isP = a.tipo === 'pdf' || isDataUrlPdfSisreg(a.imagem_base64, a.mime_type);
+          const thumbBody = isP
+            ? `<div class="pr-thumb-pdf-mini">📄</div>`
+            : `<img src="${a.imagem_base64}" alt="Arquivo ${idx + 1}">`;
+          return `<button type="button" class="vp-thumb-btn${idx === _modalMedState.anexoIdx ? ' active' : ''}" onclick="selecionarFotoModalMed(${idx})">
+            ${thumbBody}
+            <span>${isP ? '📄' : '📷'} ${idx + 1}</span>
+          </button>`;
+        }).join('');
+      } else {
+        strip.style.display = 'none';
+        strip.innerHTML = '';
+      }
+    }
+  }
+
+  function navegarFotoModalMed(delta) {
+    const t = (_modalMedState.anexos || []).length;
+    if (t <= 1) return;
+    _modalMedState.anexoIdx = (_modalMedState.anexoIdx + delta + t) % t;
+    renderVisualizadorModalMed();
+  }
+
+  function selecionarFotoModalMed(idx) {
+    if (idx < 0 || idx >= (_modalMedState.anexos || []).length) return;
+    _modalMedState.anexoIdx = idx;
+    renderVisualizadorModalMed();
+  }
+
+  function limparAnexosModalSisregMedico() {
+    _modalMedState.anexos = [];
+    _modalMedState.anexoIdx = 0;
+    _modalMedState.dados = criarDadosVaziosSisreg();
+    _modalMedState.sugestoes = [];
+    renderVisualizadorModalMed();
+    preencherCamposModalMedico();
+    renderSugestoesModalMedico();
+    const statusEl = document.getElementById('sm-ocr-status');
+    if (statusEl) statusEl.style.display = 'none';
+  }
+
+  async function processarArquivoModalSisregMedico(fileList) {
+    const files = Array.from(fileList || []).filter(Boolean);
+    if (!files.length) return;
+    const statusEl = document.getElementById('sm-ocr-status');
+    const vagas = 6 - (_modalMedState.anexos || []).length;
+    if (vagas <= 0) {
+      if (typeof showToast === 'function') showToast('Limite máximo de 6 arquivos atingido nesta leitura.', true);
+      return;
+    }
+
+    const selecionados = files.slice(0, vagas);
+    const novosItens = [];
+    for (let i = 0; i < selecionados.length; i++) {
+      const file = selecionados[i];
+      const ehPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      const ehImg = !file.type || file.type.startsWith('image/');
+      if (!ehPdf && !ehImg) continue;
+      try {
         if (statusEl) {
-          statusEl.className = 'pr-status-box ok';
-          statusEl.textContent = '✅ Leitura concluída! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial.';
+          statusEl.style.display = 'block';
+          statusEl.className = 'pr-status-box loading';
+          statusEl.textContent = ehPdf ? '⏳ Preparando PDF...' : '⏳ Preparando foto capturada...';
         }
-        preencherCamposModalMedico();
-        renderSugestoesModalMedico();
-      } else if (statusEl) {
-        statusEl.className = 'pr-status-box warn';
-        statusEl.textContent = `⚠️ ${data.error || 'Não foi possível ler automaticamente.'}`;
+        const b64 = ehPdf ? await lerPdfBase64(file) : await comprimirImagemSisreg(file);
+        _modalMedState.anexos.push({
+          id: `sm_${Date.now().toString(36)}_${i + 1}`,
+          tipo: ehPdf ? 'pdf' : 'image',
+          mime_type: ehPdf ? 'application/pdf' : 'image/jpeg',
+          nome_arquivo: file.name || (ehPdf ? 'documento.pdf' : 'foto.jpg'),
+          imagem_base64: b64
+        });
+        _modalMedState.anexoIdx = _modalMedState.anexos.length - 1;
+        novosItens.push({ b64, acumular: _modalMedState.anexos.length > 1 });
+        renderVisualizadorModalMed();
+      } catch (err) {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.className = 'pr-status-box warn';
+          statusEl.textContent = `⚠️ ${err.message}`;
+        }
       }
-    } catch (err) {
-      if (statusEl) {
-        statusEl.style.display = 'block';
-        statusEl.className = 'pr-status-box warn';
-        statusEl.textContent = `⚠️ ${err.message}`;
+    }
+
+    for (let i = 0; i < novosItens.length; i++) {
+      const it = novosItens[i];
+      try {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.className = 'pr-status-box loading';
+          statusEl.textContent = novosItens.length > 1
+            ? `⏳ Extraindo texto (${i + 1} de ${novosItens.length}) e conferindo no SISREG...`
+            : '⏳ Extraindo texto da ficha e conferindo no SISREG...';
+        }
+        const { data } = await fetchJsonSisregComTimeout(`${getApiUrlBase()}/sisreg/analisar-ficha`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ arquivo_base64: it.b64 })
+        }, 28000);
+        if (data.ok && data.dados) {
+          _modalMedState.dados = mesclarDadosSisreg(_modalMedState.dados, data.dados, it.acumular);
+          _modalMedState.sugestoes = Array.isArray(data.sugestoes_procedimentos) ? data.sugestoes_procedimentos : _modalMedState.sugestoes;
+          incrementarContadorLidasHoje();
+          if (statusEl) {
+            statusEl.className = 'pr-status-box ok';
+            statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial.`;
+          }
+          preencherCamposModalMedico();
+          renderSugestoesModalMedico();
+        } else if (statusEl) {
+          statusEl.className = 'pr-status-box warn';
+          statusEl.textContent = `⚠️ ${data.error || 'Não foi possível ler automaticamente.'}`;
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.className = 'pr-status-box warn';
+          statusEl.textContent = `⚠️ ${err?.message || 'Falha na leitura.'}`;
+        }
       }
     }
   }
@@ -3976,6 +4263,8 @@
   window.abrirModalDevolucoesProfissional = abrirModalDevolucoesProfissional;
   window.fecharModalDevolucoesProfissional = fecharModalDevolucoesProfissional;
   window.trocarSetorModalDevProf = trocarSetorModalDevProf;
+  window.trocarProfissionalModalDevProf = trocarProfissionalModalDevProf;
+  window.atualizarBadgesDevolucoesSetores = atualizarBadgesDevolucoesSetores;
   window.trocarFiltroModalDevProf = trocarFiltroModalDevProf;
   window.onBuscaModalDevProfInput = onBuscaModalDevProfInput;
   window.aplicarAtalhoSolucaoDevProf = aplicarAtalhoSolucaoDevProf;
@@ -4003,6 +4292,9 @@
   window.girarModalMedImg = girarModalMedImg;
   window.resetModalMedImgView = resetModalMedImgView;
   window.processarArquivoModalSisregMedico = processarArquivoModalSisregMedico;
+  window.navegarFotoModalMed = navegarFotoModalMed;
+  window.selecionarFotoModalMed = selecionarFotoModalMed;
+  window.limparAnexosModalSisregMedico = limparAnexosModalSisregMedico;
   window.aplicarProcedimentoSisregExterno = aplicarProcedimentoSisregExterno;
   window.transferirLeituraModalMedParaFicha = transferirLeituraModalMedParaFicha;
   window.copiarTextoSisreg = copiarTextoSisreg;
