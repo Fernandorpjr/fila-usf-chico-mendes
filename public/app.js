@@ -404,6 +404,7 @@ let intervalChat = null;   // referência ao setInterval do chat (~linha 2422)
 let intervalAgend = null;  // referência ao setInterval de agendamentos (~linha 2447)
 let intervalCheckPausa = null;
 let _mutiraoLiberadoData = '';
+let _expedienteExtraAteMs = 0;
 
 function getDataHojeRecife() {
   try {
@@ -435,6 +436,7 @@ function getDayAndHourRecife(date) {
 // --- isDentroDoHorario: America/Recife | Segunda–Sexta | 06h–18h ---
 // Substitui a versão antiga (America/Sao_Paulo, sem dia da semana) que fica nas linhas ~2362
 function isDentroDoHorario() {
+  if (_expedienteExtraAteMs && Date.now() < _expedienteExtraAteMs) return true;
   const now = new Date();
   const { day, hour } = getDayAndHourRecife(now);
 
@@ -459,7 +461,17 @@ function isDentroDoHorario() {
 function atualizarBotaoMutirao() {
   const btn = document.getElementById('btn-mutirao-hoje');
   if (!btn) return;
+  const extraAtivo = Boolean(_expedienteExtraAteMs && Date.now() < _expedienteExtraAteMs);
   const ativo = _mutiraoLiberadoData === getDataHojeRecife();
+  if (extraAtivo) {
+    const horaFim = new Date(_expedienteExtraAteMs).toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit'
+    });
+    btn.textContent = `⏱️ Extra até ${horaFim}`;
+    btn.style.background = 'rgba(74, 171, 60, 0.25)';
+    btn.style.borderColor = 'rgba(74, 171, 60, 0.7)';
+    return;
+  }
   btn.textContent = ativo ? '✅ Mutirão Ativo' : '🗓️ Mutirão Hoje';
   btn.style.background = ativo ? 'rgba(74, 171, 60, 0.25)' : '';
   btn.style.borderColor = ativo ? 'rgba(74, 171, 60, 0.7)' : '';
@@ -471,6 +483,8 @@ async function carregarStatusMutiraoHoje() {
     if (!res.ok) return;
     const data = await res.json();
     _mutiraoLiberadoData = data.liberado ? (data.hoje || getDataHojeRecife()) : '';
+    const parsedExtra = data.extra_ativo && data.extra_ate ? Date.parse(data.extra_ate) : 0;
+    _expedienteExtraAteMs = Number.isFinite(parsedExtra) ? parsedExtra : 0;
     atualizarBotaoMutirao();
     checkExpediente();
   } catch (_) {}

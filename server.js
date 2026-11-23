@@ -249,25 +249,43 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 app.use(express.static('public'));
 
-// === BLOQUEIO POR HORÁRIO (06:00 - 20:00 America/Recife | Seg-Sex ou Mutirão liberado) ===
-const _mutiraoServerCache = { data: '', checkedAt: 0 };
-async function isMutiraoLiberadoHojeServer() {
-  const hoje = getDataHojeRecife();
+// === BLOQUEIO POR HORÁRIO (06:00 - 20:00 America/Recife | Seg-Sex, Mutirão ou Hora Extra temporária) ===
+const _mutiraoServerCache = { data: '', extraAteIso: '', extraAteMs: 0, checkedAt: 0 };
+async function getExpedienteConfigServer() {
   const now = Date.now();
   if (now - _mutiraoServerCache.checkedAt < 30000) {
-    return _mutiraoServerCache.data === hoje;
+    return _mutiraoServerCache;
   }
   try {
-    const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'mutirao_data_liberada'`);
-    _mutiraoServerCache.data = r.rows[0]?.valor || '';
+    const r = await pool.query(
+      `SELECT chave, valor FROM configuracoes WHERE chave IN ('mutirao_data_liberada', 'expediente_extra_ate')`
+    );
+    let mutiraoData = '';
+    let extraAteIso = '';
+    for (const row of r.rows || []) {
+      if (row.chave === 'mutirao_data_liberada') mutiraoData = row.valor || '';
+      if (row.chave === 'expediente_extra_ate') extraAteIso = row.valor || '';
+    }
+    const parsedExtra = extraAteIso ? Date.parse(extraAteIso) : 0;
+    _mutiraoServerCache.data = mutiraoData;
+    _mutiraoServerCache.extraAteIso = extraAteIso;
+    _mutiraoServerCache.extraAteMs = Number.isFinite(parsedExtra) ? parsedExtra : 0;
     _mutiraoServerCache.checkedAt = now;
-    return _mutiraoServerCache.data === hoje;
   } catch {
-    return false;
+    // mantém estado cacheado em erro transitório
   }
+  return _mutiraoServerCache;
+}
+
+async function isMutiraoLiberadoHojeServer() {
+  const hoje = getDataHojeRecife();
+  const cfg = await getExpedienteConfigServer();
+  return cfg.data === hoje;
 }
 
 async function isDentroDoHorario() {
+  const cfg = await getExpedienteConfigServer();
+  if (cfg.extraAteMs && Date.now() < cfg.extraAteMs) return true;
   const now = new Date();
   const hoje = getDataHojeRecife();
   const hour = parseInt(new Intl.DateTimeFormat('pt-BR', {
@@ -278,7 +296,7 @@ async function isDentroDoHorario() {
   if (day >= 1 && day <= 5) return true;
   const DATAS_MUTIRAO = ['2026-09-26', '2026-11-07', '2026-04-11', '2026-11-14', '2026-04-18'];
   if (DATAS_MUTIRAO.includes(hoje)) return true;
-  return await isMutiraoLiberadoHojeServer();
+  return cfg.data === hoje;
 }
 
 app.use('/api', async (req, res, next) => {
@@ -1145,13 +1163,32 @@ app.get('/api/config-prioridade', (req, res) => {
   res.json(CONFIG_PRIORIDADE);
 });
 
-// Mutirão / Sábado liberado hoje (persistido no banco para todas as estações)
+// Mutirão / Sábado liberado hoje + hora extra temporária (persistido no banco para todas as estações)
 app.get('/api/config/mutirao-hoje', async (req, res) => {
   try {
     const hoje = getDataHojeRecife();
-    const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'mutirao_data_liberada'`);
-    const data = r.rows[0]?.valor || '';
-    res.json({ liberado: data === hoje, data: data || null, hoje });
+    const r = await pool.query(
+      `SELECT chave, valor FROM configuracoes WHERE chave IN ('mutirao_data_liberada', 'expediente_extra_ate')`
+    );
+    let data = '';
+    let extraAteIso = '';
+    for (const row of r.rows || []) {
+      if (row.chave === 'mutirao_data_liberada') data = row.valor || '';
+      if (row.chave === 'expediente_extra_ate') extraAteIso = row.valor || '';
+    }
+    const extraAteMs = extraAteIso ? Date.parse(extraAteIso) : 0;
+    const extraAtivo = Boolean(Number.isFinite(extraAteMs) && extraAteMs > Date.now());
+    _mutiraoServerCache.data = data;
+    _mutiraoServerCache.extraAteIso = extraAteIso;
+    _mutiraoServerCache.extraAteMs = Number.isFinite(extraAteMs) ? extraAteMs : 0;
+    _mutiraoServerCache.checkedAt = Date.now();
+    res.json({
+      liberado: data === hoje,
+      data: data || null,
+      hoje,
+      extra_ate: extraAtivo ? extraAteIso : null,
+      extra_ativo: extraAtivo
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1164,6 +1201,31 @@ app.post('/api/config/mutirao-hoje', async (req, res) => {
       return res.status(401).json({ error: 'Senha de administrador inválida.' });
     }
     const hoje = getDataHojeRecife();
+
+    if (req.body?.horas_extra !== undefined) {
+      const rawHoras = Number(req.body.horas_extra);
+      const horas = Number.isFinite(rawHoras) ? Math.max(0, Math.min(12, rawHoras)) : 0;
+      const extraIso = horas > 0 ? new Date(Date.now() + horas * 3600000).toISOString() : '';
+      await pool.query(
+        `INSERT INTO configuracoes (chave, valor)
+         VALUES ('expediente_extra_ate', $1)
+         ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+        [extraIso]
+      );
+      _mutiraoServerCache.extraAteIso = extraIso;
+      _mutiraoServerCache.extraAteMs = extraIso ? Date.parse(extraIso) : 0;
+      _mutiraoServerCache.checkedAt = Date.now();
+      if (req.body?.liberado === undefined) {
+        return res.json({
+          success: true,
+          extra_ate: extraIso || null,
+          extra_ativo: Boolean(extraIso),
+          horas_extra: horas,
+          hoje
+        });
+      }
+    }
+
     const liberado = req.body?.liberado !== undefined ? Boolean(req.body.liberado) : true;
     const novoValor = liberado ? hoje : '';
     await pool.query(
@@ -1174,7 +1236,14 @@ app.post('/api/config/mutirao-hoje', async (req, res) => {
     );
     _mutiraoServerCache.data = novoValor;
     _mutiraoServerCache.checkedAt = Date.now();
-    res.json({ success: true, liberado, data: novoValor || null, hoje });
+    res.json({
+      success: true,
+      liberado,
+      data: novoValor || null,
+      hoje,
+      extra_ate: _mutiraoServerCache.extraAteMs > Date.now() ? _mutiraoServerCache.extraAteIso : null,
+      extra_ativo: Boolean(_mutiraoServerCache.extraAteMs > Date.now())
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
