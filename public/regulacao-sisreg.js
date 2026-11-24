@@ -80,7 +80,13 @@
     panY: 0
   };
 
-  function renderBannerReceitaNoSisreg(statusEl, alertaReceita) {
+  function formatarTagProvedorSisreg(data) {
+    const modelRaw = String(data?.model || '').trim();
+    const isGroq = data?.provider === 'groq' || /^groq\//i.test(modelRaw);
+    return isGroq ? '(Groq)' : '(Gemini)';
+  }
+
+  function renderBannerReceitaNoSisreg(statusEl, alertaReceita, tagProvedor = '') {
     if (!statusEl || !alertaReceita || !alertaReceita.eh_receita) return false;
     const fila = alertaReceita.fila_destino || 'Médico';
     const badge = fila === 'Enfermagem'
@@ -90,11 +96,15 @@
         : '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dbeafe;color:#1e40af;font-weight:900;">🔵 Somente Médico pode fazer</span>';
     const motivo = alertaReceita.motivo_profissional ? `<div>${escSisreg(alertaReceita.motivo_profissional)}</div>` : '';
     const meds = alertaReceita.medicamentos ? `<div><b>Medicamentos:</b> ${escSisreg(alertaReceita.medicamentos)}</div>` : '';
-    const venc = alertaReceita.data_vencimento ? `<div><b>Vencimento estimado:</b> ${escSisreg(alertaReceita.data_vencimento)}</div>` : '';
+    const regra = alertaReceita.regra_validade ? ` · ${escSisreg(alertaReceita.regra_validade)}` : '';
+    const urgMap = { vencida: ' (Vencida)', urgente: ` (Vence em ${alertaReceita.dias_restantes}d)`, normal: ` (Válida - ${alertaReceita.dias_restantes}d)` };
+    const urgTxt = alertaReceita.dias_restantes !== null && alertaReceita.dias_restantes !== undefined ? (urgMap[alertaReceita.urgencia] || '') : '';
+    const venc = alertaReceita.data_vencimento ? `<div><b>Validade:</b> ${escSisreg(alertaReceita.data_vencimento)}${urgTxt}${regra}</div>` : '';
+    const prov = tagProvedor ? ` <span style="color:#64748b;font-weight:700;">${escSisreg(tagProvedor)}</span>` : '';
     statusEl.style.display = 'block';
     statusEl.className = 'pr-status-box warn';
     statusEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">
-      <div><strong>💊 Este documento é uma RECEITA (não é ficha do SISREG).</strong></div>
+      <div><strong>💊 Este documento é uma RECEITA (não é ficha do SISREG).</strong>${prov}</div>
       <div>${badge}</div>
       ${motivo}${meds}${venc}
     </div>`;
@@ -1605,10 +1615,11 @@
         if (!acumular) _copilotoState.telefoneConferido = false;
         _copilotoState.sugestoes = Array.isArray(data.sugestoes_procedimentos) ? data.sugestoes_procedimentos : [];
         incrementarContadorLidasHoje();
-        if (statusEl && !renderBannerReceitaNoSisreg(statusEl, data.alerta_receita)) {
+        const tagProv = formatarTagProvedorSisreg(data);
+        if (statusEl && !renderBannerReceitaNoSisreg(statusEl, data.alerta_receita, tagProv)) {
           statusEl.style.display = 'block';
           statusEl.className = 'pr-status-box ok';
-          statusEl.textContent = '✅ Leitura concluída! Confira os alertas, o telefone e copie as observações para o SISREG.';
+          statusEl.textContent = `✅ Leitura concluída! Confira os alertas, o telefone e copie as observações para o SISREG. · ${tagProv}`;
         }
         renderEstadoFormularioCopiloto();
         rebuscarProcedimentosCopiloto();
@@ -4106,9 +4117,10 @@
         _modalMedState.dados = mesclarDadosSisreg(_modalMedState.dados, data.dados, acumular);
         _modalMedState.sugestoes = Array.isArray(data.sugestoes_procedimentos) ? data.sugestoes_procedimentos : _modalMedState.sugestoes;
         incrementarContadorLidasHoje();
-        if (statusEl && !renderBannerReceitaNoSisreg(statusEl, data.alerta_receita)) {
+        const tagProv = formatarTagProvedorSisreg(data);
+        if (statusEl && !renderBannerReceitaNoSisreg(statusEl, data.alerta_receita, tagProv)) {
           statusEl.className = 'pr-status-box ok';
-          statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial.`;
+          statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial. · ${tagProv}`;
         }
         preencherCamposModalMedico();
         renderSugestoesModalMedico();

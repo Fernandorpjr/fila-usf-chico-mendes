@@ -26,6 +26,12 @@ let _vpPdfBlobUrl = null;
 let _previaCapturaTargetPatient = null;
 let _previaAnalisesAtivas = 0;
 
+function formatarTagProvedorPrevia(data) {
+  const modelRaw = String(data?.model || '').trim();
+  const isGroq = data?.provider === 'groq' || /^groq\//i.test(modelRaw);
+  return isGroq ? '(Groq)' : '(Gemini)';
+}
+
 async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 42000) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -563,6 +569,7 @@ async function executarOcrEmListaPrevia(novosAnexos) {
   if (!Array.isArray(novosAnexos) || novosAnexos.length === 0) return;
   const statusEl = document.getElementById('pr-ocr-status');
   let ultimaClf = null;
+  let ultimaTagProvedor = '';
   let falhasOcr = 0;
   let ultimaMsgErro = '';
   _previaAnalisesAtivas++;
@@ -587,6 +594,7 @@ async function executarOcrEmListaPrevia(novosAnexos) {
         }, 42000);
 
         if (data.ok && data.ocr) {
+          ultimaTagProvedor = formatarTagProvedorPrevia(data);
           const o = data.ocr;
           const ehSisreg = data.classificacao?.categoria_destino === 'sisreg' || o.destino_ia === 'sisreg';
           const cat = ehSisreg
@@ -651,7 +659,7 @@ async function executarOcrEmListaPrevia(novosAnexos) {
         destLabel = `💊 Receita identificada · ${profLabel}`;
       }
       statusEl.className = 'pr-status-box ok';
-      statusEl.textContent = `✅ Leitura concluída (${_previaAnexosCaptura.length} arquivo${_previaAnexosCaptura.length > 1 ? 's' : ''} na prévia) · ${destLabel}`;
+      statusEl.textContent = `✅ Leitura concluída (${_previaAnexosCaptura.length} arquivo${_previaAnexosCaptura.length > 1 ? 's' : ''} na prévia) · ${destLabel}${ultimaTagProvedor ? ' · ' + ultimaTagProvedor : ''}`;
     } else {
       const prefix = falhasOcr < novosAnexos.length
         ? `⚠️ Arquivos anexados, mas ${falhasOcr} não pôde ser lido automaticamente (${ultimaMsgErro}).`
@@ -683,7 +691,7 @@ function atualizarSugestaoReceitaLocal(clfServer) {
     return;
   }
   let filaSug = clfServer?.fila_destino || (tipo === 'azul' ? 'Médico' : tipo === 'odonto' ? 'Odontologia' : 'Médico');
-  const validadeTxt = tipo === 'azul' ? '2 meses (Azul)' : '6 meses';
+  const validadeTxt = clfServer?.regra_validade || (tipo === 'azul' ? '2 meses (Azul)' : '6 meses');
   const profBadge = filaSug === 'Enfermagem'
     ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:900;">🟢 ENFERMEIRO PODE FAZER (Enfermagem)</span>'
     : filaSug === 'Odontologia'

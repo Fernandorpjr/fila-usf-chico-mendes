@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const {
   MAX_ANEXOS_PREVIA,
   calcularDataVencimento,
+  adicionarDiasDataBR,
+  calcularDuracaoComprimidos,
   calcularDiasRestantes,
   classificarUrgencia,
   classificarReceita,
@@ -166,4 +168,60 @@ test('classificarDocumentoPrevia routes SISREG docs to Regulacao and recipes to 
   const resumoPdf = resumirAnexosSemImagem(normPdf);
   assert.equal(resumoPdf[0].mime_type, 'application/pdf');
   assert.equal(resumoPdf[0].nome_arquivo, 'ficha.pdf');
+});
+
+test('classificarReceita combina duração dos comprimidos com o teto legal de 6/2 meses', () => {
+  assert.equal(adicionarDiasDataBR('01/11/2026', 30), '01/12/2026');
+
+  // Caso 1: 60 cp com 2/dia = 30 dias (< 6 meses legais) -> vence em 30 dias
+  const r30 = classificarReceita(
+    'branca',
+    'Losartana 50mg',
+    '01/11/2026',
+    new Date('2026-11-23T12:00:00Z'),
+    { itens_posologia: [{ medicamento: 'Losartana 50mg', quantidade_total: 60, dose_diaria: 2 }] }
+  );
+  assert.equal(r30.dias_tratamento, 30);
+  assert.equal(r30.data_vencimento, '01/12/2026');
+  assert.equal(r30.data_limite_legal, '01/05/2027');
+  assert.ok(r30.regra_validade.includes('30 dias'));
+
+  // Caso 2: 360 cp com 1/dia = 360 dias (> 6 meses legais) -> trava no teto legal de 6 meses
+  const rTeto = classificarReceita(
+    'branca',
+    'Losartana 50mg',
+    '01/11/2026',
+    new Date('2026-11-23T12:00:00Z'),
+    { itens_posologia: [{ medicamento: 'Losartana 50mg', quantidade_total: 360, dose_diaria: 1 }] }
+  );
+  assert.equal(rTeto.dias_tratamento, 360);
+  assert.equal(rTeto.data_vencimento, '01/05/2027');
+  assert.ok(rTeto.regra_validade.includes('teto legal'));
+
+  // Caso 3: Multiplos medicamentos (30 dias e 60 dias) -> vence no que acaba primeiro (30 dias)
+  const rMulti = classificarReceita(
+    'branca',
+    'Losartana 50mg, Metformina 850mg',
+    '01/11/2026',
+    new Date('2026-11-23T12:00:00Z'),
+    {
+      itens_posologia: [
+        { medicamento: 'Metformina 850mg', quantidade_total: 120, dose_diaria: 2 },
+        { medicamento: 'Losartana 50mg', quantidade_total: 30, dose_diaria: 1 }
+      ]
+    }
+  );
+  assert.equal(rMulti.dias_tratamento, 30);
+  assert.equal(rMulti.data_vencimento, '01/12/2026');
+
+  // Caso 4: Fallback por texto sem itens_posologia estruturados
+  const rTexto = classificarReceita(
+    'branca',
+    'Losartana 50mg',
+    '01/11/2026',
+    new Date('2026-11-23T12:00:00Z'),
+    { texto_posologia: 'Losartana 50mg - 60 comprimidos, tomar 1 cp 12/12h' }
+  );
+  assert.equal(rTexto.dias_tratamento, 30);
+  assert.equal(rTexto.data_vencimento, '01/12/2026');
 });
