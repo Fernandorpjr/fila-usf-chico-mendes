@@ -80,15 +80,25 @@
     panY: 0
   };
 
-  function formatarSeloIaSisreg(data) {
-    const modelRaw = String(data?.model || '').trim();
-    const isGroq = data?.provider === 'groq' || /^groq\//i.test(modelRaw);
-    const shortModel = modelRaw.replace(/^groq\//i, '').split('/').pop();
-    const suffix = data?.cached ? ' · cache' : '';
-    if (isGroq) {
-      return `⚡ IA: Groq (${shortModel || 'qwen3.8-27b'})${suffix}`;
-    }
-    return `🤖 IA: Gemini (${shortModel || 'flash'})${suffix}`;
+  function renderBannerReceitaNoSisreg(statusEl, alertaReceita) {
+    if (!statusEl || !alertaReceita || !alertaReceita.eh_receita) return false;
+    const fila = alertaReceita.fila_destino || 'Médico';
+    const badge = fila === 'Enfermagem'
+      ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:900;">🟢 Enfermeiro pode fazer (Enfermagem)</span>'
+      : fila === 'Odontologia'
+        ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:900;">🦷 Dentista (Odontologia)</span>'
+        : '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dbeafe;color:#1e40af;font-weight:900;">🔵 Somente Médico pode fazer</span>';
+    const motivo = alertaReceita.motivo_profissional ? `<div>${escSisreg(alertaReceita.motivo_profissional)}</div>` : '';
+    const meds = alertaReceita.medicamentos ? `<div><b>Medicamentos:</b> ${escSisreg(alertaReceita.medicamentos)}</div>` : '';
+    const venc = alertaReceita.data_vencimento ? `<div><b>Vencimento estimado:</b> ${escSisreg(alertaReceita.data_vencimento)}</div>` : '';
+    statusEl.style.display = 'block';
+    statusEl.className = 'pr-status-box warn';
+    statusEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">
+      <div><strong>💊 Este documento é uma RECEITA (não é ficha do SISREG).</strong></div>
+      <div>${badge}</div>
+      ${motivo}${meds}${venc}
+    </div>`;
+    return true;
   }
 
   async function fetchJsonSisregComTimeout(url, options = {}, timeoutMs = 42000) {
@@ -1595,10 +1605,10 @@
         if (!acumular) _copilotoState.telefoneConferido = false;
         _copilotoState.sugestoes = Array.isArray(data.sugestoes_procedimentos) ? data.sugestoes_procedimentos : [];
         incrementarContadorLidasHoje();
-        if (statusEl) {
+        if (statusEl && !renderBannerReceitaNoSisreg(statusEl, data.alerta_receita)) {
           statusEl.style.display = 'block';
           statusEl.className = 'pr-status-box ok';
-          statusEl.textContent = `✅ Leitura concluída! Confira os alertas, o telefone e copie as observações para o SISREG. · ${formatarSeloIaSisreg(data)}`;
+          statusEl.textContent = '✅ Leitura concluída! Confira os alertas, o telefone e copie as observações para o SISREG.';
         }
         renderEstadoFormularioCopiloto();
         rebuscarProcedimentosCopiloto();
@@ -4096,9 +4106,9 @@
         _modalMedState.dados = mesclarDadosSisreg(_modalMedState.dados, data.dados, acumular);
         _modalMedState.sugestoes = Array.isArray(data.sugestoes_procedimentos) ? data.sugestoes_procedimentos : _modalMedState.sugestoes;
         incrementarContadorLidasHoje();
-        if (statusEl) {
+        if (statusEl && !renderBannerReceitaNoSisreg(statusEl, data.alerta_receita)) {
           statusEl.className = 'pr-status-box ok';
-          statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial. · ${formatarSeloIaSisreg(data)}`;
+          statusEl.textContent = `✅ Leitura concluída (${_modalMedState.anexos.length} arquivo${_modalMedState.anexos.length > 1 ? 's' : ''})! Copie o texto para o PEC ou transfira para a Ficha Ambulatorial.`;
         }
         preencherCamposModalMedico();
         renderSugestoesModalMedico();

@@ -445,8 +445,11 @@ test('Motor OCR faz failover automático para Groq Vision em imagens, respeita c
     assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
     assert.equal(init.headers.Authorization, 'Bearer fake-groq');
     const body = JSON.parse(init.body);
-    assert.equal(body.messages[0].content[1].type, 'image_url');
-    assert.ok(body.messages[0].content[1].image_url.url.startsWith('data:image/jpeg;base64,'));
+    const sysMsg = body.messages.find(m => m.role === 'system');
+    const userMsg = body.messages.find(m => m.role === 'user');
+    assert.ok(sysMsg && sysMsg.content.includes('observacoes_revisada'));
+    assert.equal(userMsg.content[1].type, 'image_url');
+    assert.ok(userMsg.content[1].image_url.url.startsWith('data:image/jpeg;base64,'));
     return {
       ok: true,
       status: 200,
@@ -539,6 +542,15 @@ test('Motor OCR faz failover automático para Groq Vision em imagens, respeita c
   assert.equal(onlyGroqRes.provider, 'groq');
   assert.equal(onlyGroqRes.parsed.paciente_nome, 'APENAS GROQ');
   assert.deepEqual(callsOnlyGroq, ['https://api.groq.com/openai/v1/chat/completions']);
+
+  const receitaNoSisreg = normalizarResultadoOcrSisreg({
+    tipo_arquivo: 'receita_branca',
+    medicamentos: 'Losartana 50mg, Metformina 850mg',
+    data_emissao_receita: '10/11/2026'
+  });
+  assert.equal(receitaNoSisreg.tipo_arquivo, 'receita_branca');
+  assert.equal(receitaNoSisreg.medicamentos, 'Losartana 50mg, Metformina 850mg');
+  assert.equal(receitaNoSisreg.data_emissao_receita, '10/11/2026');
 });
 
 test('Devoluções SISREG validam anexos, detalhes, prazo de 3 dias e limpeza automática de vencidos', async () => {

@@ -26,17 +26,6 @@ let _vpPdfBlobUrl = null;
 let _previaCapturaTargetPatient = null;
 let _previaAnalisesAtivas = 0;
 
-function formatarSeloIaPrevia(data) {
-  const modelRaw = String(data?.model || '').trim();
-  const isGroq = data?.provider === 'groq' || /^groq\//i.test(modelRaw);
-  const shortModel = modelRaw.replace(/^groq\//i, '').split('/').pop();
-  const suffix = data?.cached ? ' · cache' : '';
-  if (isGroq) {
-    return `⚡ IA: Groq (${shortModel || 'qwen3.8-27b'})${suffix}`;
-  }
-  return `🤖 IA: Gemini (${shortModel || 'flash'})${suffix}`;
-}
-
 async function fetchJsonPreviaComTimeout(url, options = {}, timeoutMs = 42000) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -574,7 +563,6 @@ async function executarOcrEmListaPrevia(novosAnexos) {
   if (!Array.isArray(novosAnexos) || novosAnexos.length === 0) return;
   const statusEl = document.getElementById('pr-ocr-status');
   let ultimaClf = null;
-  let ultimaIaSelo = '';
   let falhasOcr = 0;
   let ultimaMsgErro = '';
   _previaAnalisesAtivas++;
@@ -599,7 +587,6 @@ async function executarOcrEmListaPrevia(novosAnexos) {
         }, 42000);
 
         if (data.ok && data.ocr) {
-          ultimaIaSelo = formatarSeloIaPrevia(data);
           const o = data.ocr;
           const ehSisreg = data.classificacao?.categoria_destino === 'sisreg' || o.destino_ia === 'sisreg';
           const cat = ehSisreg
@@ -653,11 +640,18 @@ async function executarOcrEmListaPrevia(novosAnexos) {
 
   if (statusEl && _previaAnalisesAtivas === 0) {
     if (falhasOcr === 0) {
-      const destLabel = ultimaClf?.categoria_destino === 'sisreg'
-        ? '📋 Documento do SISREG / Regulação identificado!'
-        : `💊 Receita identificada (destino sugerido: ${ultimaClf?.fila_destino || 'Médico'})!`;
+      let destLabel = '📋 Documento do SISREG / Regulação identificado!';
+      if (ultimaClf?.categoria_destino !== 'sisreg') {
+        const filaRec = ultimaClf?.fila_destino || 'Médico';
+        const profLabel = filaRec === 'Enfermagem'
+          ? '🟢 Enfermeiro pode fazer (Enfermagem)'
+          : filaRec === 'Odontologia'
+            ? '🦷 Dentista pode fazer (Odontologia)'
+            : '🔵 Somente Médico pode fazer';
+        destLabel = `💊 Receita identificada · ${profLabel}`;
+      }
       statusEl.className = 'pr-status-box ok';
-      statusEl.textContent = `✅ Leitura concluída (${_previaAnexosCaptura.length} arquivo${_previaAnexosCaptura.length > 1 ? 's' : ''} na prévia) · ${destLabel}${ultimaIaSelo ? ' · ' + ultimaIaSelo : ''}`;
+      statusEl.textContent = `✅ Leitura concluída (${_previaAnexosCaptura.length} arquivo${_previaAnexosCaptura.length > 1 ? 's' : ''} na prévia) · ${destLabel}`;
     } else {
       const prefix = falhasOcr < novosAnexos.length
         ? `⚠️ Arquivos anexados, mas ${falhasOcr} não pôde ser lido automaticamente (${ultimaMsgErro}).`
@@ -690,6 +684,14 @@ function atualizarSugestaoReceitaLocal(clfServer) {
   }
   let filaSug = clfServer?.fila_destino || (tipo === 'azul' ? 'Médico' : tipo === 'odonto' ? 'Odontologia' : 'Médico');
   const validadeTxt = tipo === 'azul' ? '2 meses (Azul)' : '6 meses';
+  const profBadge = filaSug === 'Enfermagem'
+    ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:900;">🟢 ENFERMEIRO PODE FAZER (Enfermagem)</span>'
+    : filaSug === 'Odontologia'
+      ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:900;">🦷 DENTISTA PODE FAZER (Odontologia)</span>'
+      : '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dbeafe;color:#1e40af;font-weight:900;">🔵 SOMENTE MÉDICO PODE FAZER</span>';
+  const motivoHtml = clfServer?.motivo_profissional
+    ? `<div style="margin-top:4px;font-size:12px;color:#334155;">${escSafe(clfServer.motivo_profissional)}</div>`
+    : '';
 
   if (clfServer && clfServer.data_vencimento) {
     const urgMap = {
@@ -698,14 +700,14 @@ function atualizarSugestaoReceitaLocal(clfServer) {
       normal: `🟢 Válida (${clfServer.dias_restantes}d)`
     };
     const badgeUrg = urgMap[clfServer.urgencia] || '';
-    box.innerHTML = `<strong>💊 Receita</strong> · Setor sugerido: <b>${escSafe(filaSug)}</b> · Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}`;
+    box.innerHTML = `<div><strong>💊 Receita</strong> · ${profBadge}</div>${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}</div>`;
     box.dataset.filaSugerida = filaSug;
     box.dataset.dataVenc = clfServer.data_vencimento;
     box.dataset.diasRest = clfServer.dias_restantes ?? '';
     box.dataset.urgencia = clfServer.urgencia || 'normal';
     box.style.display = 'block';
   } else {
-    box.innerHTML = `<strong>ℹ️ Classificação:</strong> Receita <b>${tipo === 'azul' ? 'Azul (Controle Especial)' : tipo === 'odonto' ? 'Odontológica' : 'Branca (PEC)'}</b> · Validade: ${validadeTxt} · Setor sugerido: <b>${escSafe(filaSug)}</b>`;
+    box.innerHTML = `<div><strong>💊 Receita ${tipo === 'azul' ? 'Azul (Controle Especial)' : tipo === 'odonto' ? 'Odontológica' : 'Branca (PEC)'}</strong> · ${profBadge}</div>${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Setor sugerido: <b>${escSafe(filaSug)}</b></div>`;
     box.dataset.filaSugerida = filaSug;
     box.style.display = 'block';
   }
