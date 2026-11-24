@@ -163,10 +163,12 @@ function configurarCabecalhoBotoesCaptura(target) {
   const titEl = document.getElementById('pr-modal-titulo');
   const btnConf = document.getElementById('pr-btn-confirmar');
   const btnSug = document.getElementById('pr-btn-confirmar-sugerido');
+  const btnNova = document.getElementById('pr-btn-nova-analise');
   if (target && target.modoAnaliseAvulsa) {
     if (titEl) titEl.textContent = '💊 Analisar Receituário (Foto ou PDF)';
     if (btnConf) btnConf.style.display = 'none';
     if (btnSug) btnSug.style.display = 'none';
+    if (btnNova) btnNova.style.display = 'inline-flex';
   } else if (target && target.id) {
     if (titEl) titEl.textContent = `📎 Anexar Prévia — ${target.nome} (${target.setor})`;
     if (btnConf) {
@@ -174,6 +176,7 @@ function configurarCabecalhoBotoesCaptura(target) {
       btnConf.style.display = 'inline-flex';
     }
     if (btnSug) btnSug.style.display = 'none';
+    if (btnNova) btnNova.style.display = 'none';
   } else {
     if (titEl) titEl.textContent = '📎 Prévia de Documentos (Foto ou PDF — até 6 arquivos)';
     if (btnConf) {
@@ -181,6 +184,7 @@ function configurarCabecalhoBotoesCaptura(target) {
       btnConf.style.display = 'inline-flex';
     }
     if (btnSug) btnSug.style.display = 'inline-flex';
+    if (btnNova) btnNova.style.display = 'none';
   }
 }
 

@@ -7495,7 +7495,8 @@ function initAcsEscutaScreen() {
       <span class="pec-forms-title">🖨️ Formulário do ACS:</span>
       <button type="button" class="pec-form-btn" onclick="abrirDeclaracaoResidenciaAcs('', false)">🏠 Declaração de Residência</button>
       <button type="button" class="pec-form-btn branco" onclick="abrirDeclaracaoResidenciaAcs('', true)">📃 Em Branco</button>
-      <button type="button" class="pec-form-btn sisreg" onclick="abrirModalDevolucoesProfissional('ACS')" title="Ver e responder devoluções do SISREG (endereço/cadastro)">↩️ Devoluções SISREG <span class="sisreg-dev-count sisreg-dev-badge-setor" data-setor="ACS" style="display:none;">0</span></button>
+      <span class="pec-forms-sep"></span>
+      <button type="button" class="pec-form-btn devolucao" onclick="abrirModalDevolucoesProfissional('ACS')" title="Ver e responder devoluções do SISREG (endereço/cadastro)">↩️ Devoluções SISREG <span class="sisreg-dev-count sisreg-dev-badge-setor" data-setor="ACS" style="display:none;">0</span></button>
     </div>
     <div class="acs-grid" id="acs-grid-container"></div>
   `;

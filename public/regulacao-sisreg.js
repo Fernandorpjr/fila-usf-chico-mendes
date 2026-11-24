@@ -864,8 +864,8 @@
           <span class="pec-forms-title">📋 Prévia Regulação (SISREG):</span>
           <button type="button" class="pec-form-btn sisreg" onclick="abrirModalPreviaRegulacao('leitor')">👁️ Abrir Prévia SISREG <span class="previa-teste-tag">Liberado para teste</span></button>
           <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('busca')">🔎 Busca SISREG</button>
-          <button type="button" class="pec-form-btn" onclick="abrirModalPreviaRegulacao('devolucoes','pendente')" title="Pendências aguardando resposta dos profissionais/ACS">↩️ Devoluções <span id="sisreg-dev-badge-bar" class="sisreg-dev-count" style="display:none;">0</span></button>
-          <button type="button" class="pec-form-btn" style="background:#ecfdf5;color:#065f46;border-color:#6ee7b7;" onclick="abrirModalPreviaRegulacao('devolucoes','respondida')" title="Ver pendências já respondidas pelos profissionais/ACS prontas para corrigir no SISREG">✅ Respondidas <span id="sisreg-resp-badge-bar" class="sisreg-dev-count resp" style="display:none;">0</span></button>
+          <button type="button" class="pec-form-btn devolucao" onclick="abrirModalPreviaRegulacao('devolucoes','pendente')" title="Pendências aguardando resposta dos profissionais/ACS">↩️ Devoluções <span id="sisreg-dev-badge-bar" class="sisreg-dev-count" style="display:none;">0</span></button>
+          <button type="button" class="pec-form-btn positivo" onclick="abrirModalPreviaRegulacao('devolucoes','respondida')" title="Ver pendências já respondidas pelos profissionais/ACS prontas para corrigir no SISREG">✅ Respondidas <span id="sisreg-resp-badge-bar" class="sisreg-dev-count resp" style="display:none;">0</span></button>
           <span id="sisreg-lidas-hoje-badge" class="sisreg-stat-pill dark" style="margin-left:auto;">📊 Lidas hoje: ${getContadorLidasHoje()}</span>
         </div>
       `;
