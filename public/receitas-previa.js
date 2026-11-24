@@ -163,13 +163,23 @@ function configurarCabecalhoBotoesCaptura(target) {
   const titEl = document.getElementById('pr-modal-titulo');
   const btnConf = document.getElementById('pr-btn-confirmar');
   const btnSug = document.getElementById('pr-btn-confirmar-sugerido');
-  if (target && target.id) {
+  if (target && target.modoAnaliseAvulsa) {
+    if (titEl) titEl.textContent = '💊 Analisar Receituário (Foto ou PDF)';
+    if (btnConf) btnConf.style.display = 'none';
+    if (btnSug) btnSug.style.display = 'none';
+  } else if (target && target.id) {
     if (titEl) titEl.textContent = `📎 Anexar Prévia — ${target.nome} (${target.setor})`;
-    if (btnConf) btnConf.textContent = '💾 Salvar Prévia neste Paciente';
+    if (btnConf) {
+      btnConf.textContent = '💾 Salvar Prévia neste Paciente';
+      btnConf.style.display = 'inline-flex';
+    }
     if (btnSug) btnSug.style.display = 'none';
   } else {
     if (titEl) titEl.textContent = '📎 Prévia de Documentos (Foto ou PDF — até 6 arquivos)';
-    if (btnConf) btnConf.textContent = '✅ Anexar na Fila Atual';
+    if (btnConf) {
+      btnConf.textContent = '✅ Anexar na Fila Atual';
+      btnConf.style.display = 'inline-flex';
+    }
     if (btnSug) btnSug.style.display = 'inline-flex';
   }
 }
@@ -214,6 +224,33 @@ function abrirModalCapturaReceita() {
   atualizarSugestaoReceitaLocal();
   modal.classList.add('show');
 }
+
+function abrirModalAnalisarReceituario(setor = 'Médico') {
+  const modal = document.getElementById('modal-captura-receita');
+  if (!modal) return;
+  _previaCapturaTargetPatient = { id: null, modoAnaliseAvulsa: true, setor: setor || 'Médico' };
+  configurarCabecalhoBotoesCaptura(_previaCapturaTargetPatient);
+
+  _previaAnexosCaptura = [];
+  _previaDadosExtrasAtual = null;
+
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setVal('pr-tipo', setor === 'Odontologia' ? 'odonto' : 'branca');
+  setVal('pr-paciente-nome', '');
+  setVal('pr-paciente-cns', '');
+  setVal('pr-medicamentos', '');
+  setVal('pr-data-emissao', '');
+  setVal('pr-medico-emitente', '');
+  setVal('pr-observacoes', '');
+
+  const statusEl = document.getElementById('pr-ocr-status');
+  if (statusEl) statusEl.style.display = 'none';
+
+  renderGaleriaCapturaReceita();
+  atualizarSugestaoReceitaLocal();
+  modal.classList.add('show');
+}
+window.abrirModalAnalisarReceituario = abrirModalAnalisarReceituario;
 
 async function abrirModalCapturaReceitaPaciente(patientId, nomePaciente, setor) {
   const modal = document.getElementById('modal-captura-receita');
