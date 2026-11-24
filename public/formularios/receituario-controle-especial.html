@@ -61,7 +61,7 @@
   <button onclick="copiar()">Copiar 1ª via para a 2ª</button>
   <button onclick="deixarEmBranco()">📄 Deixar em Branco</button>
   <button onclick="salvarEmitente()">💾 Salvar Emitente</button>
-  <label style="display:inline-flex;align-items:center;gap:4px;font-weight:bold;color:#1f5fbf;cursor:pointer;"><input type="checkbox" id="chk-espelhar" checked> Espelhar 1ª ↔ 2ª via</button>
+  <label style="display:inline-flex;align-items:center;gap:4px;font-weight:bold;color:#1f5fbf;cursor:pointer;"><input type="checkbox" id="chk-espelhar" checked> Espelhar 1ª ↔ 2ª via</label>
   <span>Clique nos campos para digitar.</span>
 </div>
 <div class="page">
@@ -72,9 +72,9 @@
       <div class="sec">SECRETARIA DE SAÚDE</div>
     </div>
     <div class="box tbox">
-      <div class="ttl">RECEITUÁRIO CONTRLE ESPECIAL</div>
+      <div class="ttl">RECEITUÁRIO CONTROLE ESPECIAL</div>
       <div class="dist">
-        <span>DISTRITO SANTITÁRIO: <u class="ed" data-k="dist" data-def="IV">IV</u></span>
+        <span>DISTRITO SANITÁRIO: <u class="ed" data-k="dist" data-def="V">V</u></span>
         <span>UNIDADE DE SAÚDE: <u class="ed" data-k="unid" data-def="0177 USF Chico Mendes">0177 USF Chico Mendes</u></span>
       </div>
     </div>
@@ -102,7 +102,7 @@
         <div class="tag">IDENTIFICAÇÃO DO COMPRADOR</div>
         <div class="r"><span class="lab">NOME COMPLETO:</span><div class="fld" data-k="c_nome"></div></div>
         <div class="r"><div class="fld" data-k="c_nome2"></div></div>
-        <div class="r"><span class="lab">CRM</span><div class="fld" data-k="c_crm"></div><span class="lab">&nbsp;UF</span><div class="fld s" data-k="c_uf"></div><span class="lab">&nbsp;Nº</span><div class="fld s" data-k="c_n"></div></div>
+        <div class="r"><span class="lab">IDENT.:</span><div class="fld" data-k="c_crm"></div><span class="lab">&nbsp;ÓRG. EMISSOR:</span><div class="fld s" data-k="c_uf"></div><span class="lab">&nbsp;UF:</span><div class="fld s" data-k="c_n"></div></div>
         <div class="r"><span class="lab">Endereço completo</span><div class="fld" data-k="c_end"></div></div>
         <div class="r"><div class="fld" data-k="c_end2"></div></div>
         <div class="r"><span class="lab">Telefone:</span><div class="fld" data-k="c_tel"></div></div>
@@ -112,7 +112,7 @@
         <div class="tag">IDENTIFICAÇÃO DO FORNECEDOR</div>
         <div class="sp"></div>
         <div class="fld" data-k="f_ass"></div>
-        <div class="cap">ASSINATURA D FARMACÊUTICO</div>
+        <div class="cap">ASSINATURA DO FARMACÊUTICO</div>
         <div class="r dt"><span class="lab">DATA:&nbsp;</span><div class="fld s" data-k="f_dd"></div><span>/</span><div class="fld s" data-k="f_mm"></div><span>/</span><div class="fld s" data-k="f_aa"></div></div>
       </div>
     </div>
@@ -124,9 +124,9 @@
       <div class="sec">SECRETARIA DE SAÚDE</div>
     </div>
     <div class="box tbox">
-      <div class="ttl">RECEITUÁRIO CONTRLE ESPECIAL</div>
+      <div class="ttl">RECEITUÁRIO CONTROLE ESPECIAL</div>
       <div class="dist">
-        <span>DISTRITO SANTITÁRIO: <u class="ed" data-k="dist" data-def="IV">IV</u></span>
+        <span>DISTRITO SANITÁRIO: <u class="ed" data-k="dist" data-def="V">V</u></span>
         <span>UNIDADE DE SAÚDE: <u class="ed" data-k="unid" data-def="0177 USF Chico Mendes">0177 USF Chico Mendes</u></span>
       </div>
     </div>
@@ -154,7 +154,7 @@
         <div class="tag">IDENTIFICAÇÃO DO COMPRADOR</div>
         <div class="r"><span class="lab">NOME COMPLETO:</span><div class="fld" data-k="c_nome"></div></div>
         <div class="r"><div class="fld" data-k="c_nome2"></div></div>
-        <div class="r"><span class="lab">CRM</span><div class="fld" data-k="c_crm"></div><span class="lab">&nbsp;UF</span><div class="fld s" data-k="c_uf"></div><span class="lab">&nbsp;Nº</span><div class="fld s" data-k="c_n"></div></div>
+        <div class="r"><span class="lab">IDENT.:</span><div class="fld" data-k="c_crm"></div><span class="lab">&nbsp;ÓRG. EMISSOR:</span><div class="fld s" data-k="c_uf"></div><span class="lab">&nbsp;UF:</span><div class="fld s" data-k="c_n"></div></div>
         <div class="r"><span class="lab">Endereço completo</span><div class="fld" data-k="c_end"></div></div>
         <div class="r"><div class="fld" data-k="c_end2"></div></div>
         <div class="r"><span class="lab">Telefone:</span><div class="fld" data-k="c_tel"></div></div>
@@ -164,7 +164,7 @@
         <div class="tag">IDENTIFICAÇÃO DO FORNECEDOR</div>
         <div class="sp"></div>
         <div class="fld" data-k="f_ass"></div>
-        <div class="cap">ASSINATURA D FARMACÊUTICO</div>
+        <div class="cap">ASSINATURA DO FARMACÊUTICO</div>
         <div class="r dt"><span class="lab">DATA:&nbsp;</span><div class="fld s" data-k="f_dd"></div><span>/</span><div class="fld s" data-k="f_mm"></div><span>/</span><div class="fld s" data-k="f_aa"></div></div>
       </div>
     </div>
@@ -258,7 +258,7 @@
       var el=vias[0]&&vias[0].querySelector('[data-k="'+k+'"]');
       if(el) el.textContent=v||'';
     }
-    set0('dist', 'IV');
+    set0('dist', d.distrito || 'V');
     set0('unid', d.unidade||'US 177 USF CHICO MENDES');
     var profNorm = String(d.profissional || '').trim().toLowerCase();
     var savedNomeNorm = String(saved.e_nome || '').trim().toLowerCase();
@@ -274,8 +274,16 @@
     set0('e_cid', saved.e_cid||'Recife');
     set0('e_uf2', saved.e_uf2||'PE');
 
-    set0('paciente', d.paciente_nome||'');
-    set0('p_end', d.paciente_endereco||'');
+    var docPac = d.paciente_cpf ? ('CPF: ' + d.paciente_cpf) : (d.paciente_cns ? ('CNS: ' + d.paciente_cns) : '');
+    set0('paciente', [d.paciente_nome || '', docPac].filter(Boolean).join(' · '));
+    var endBase = d.paciente_endereco || [
+      d.paciente_logradouro || '',
+      d.paciente_numero ? ('nº ' + d.paciente_numero) : '',
+      d.paciente_complemento || '',
+      d.paciente_bairro || '',
+      d.paciente_cep ? ('CEP ' + d.paciente_cep) : ''
+    ].filter(Boolean).join(', ');
+    set0('p_end', [endBase, d.paciente_telefone ? ('Tel: ' + d.paciente_telefone) : ''].filter(Boolean).join(' · '));
 
     var linhas=String(d.prescricao||'').split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean);
     if(linhas.length>0 && linhas[0].length<=52){

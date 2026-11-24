@@ -485,7 +485,7 @@
     setK('n1', dn[0]);
     setK('n2', dn[1]);
     setK('n3', dn[2]);
-    setK('sus', d.paciente_cns||'');
+    setK('sus', d.paciente_cns||d.paciente_cpf||'');
     setK('fone', d.paciente_telefone||'');
     setK('k42', d.profissional||saved.solicitante_lab||saved.ass||'');
 
@@ -511,7 +511,7 @@
     else if(e.data.type==='FORM_ADICIONAR_EXAME'){
       var p=e.data.payload||{};
       if(p.paciente_nome && !document.querySelector('[data-k="paciente"]')?.textContent.trim()) setK('paciente', p.paciente_nome);
-      if(p.paciente_cns && !document.querySelector('[data-k="sus"]')?.textContent.trim()) setK('sus', p.paciente_cns);
+      if((p.paciente_cns || p.paciente_cpf) && !document.querySelector('[data-k="sus"]')?.textContent.trim()) setK('sus', p.paciente_cns || p.paciente_cpf);
       if(p.paciente_telefone && !document.querySelector('[data-k="fone"]')?.textContent.trim()) setK('fone', p.paciente_telefone);
       aplicarExameNoFormularioLab(p.exame_nome || p.exame, p.exame);
     }

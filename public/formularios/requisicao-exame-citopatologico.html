@@ -503,7 +503,12 @@
         <div class="form-line">
             <div class="field">
                 <label>Bairro</label>
-                <input type="text" class="large-input">
+                <input type="text" class="large-input" list="bairros-usf-list">
+                <datalist id="bairros-usf-list">
+                    <option value="Caçote"></option>
+                    <option value="Areias"></option>
+                    <option value="Estância"></option>
+                </datalist>
             </div>
             <div class="field" style="margin-left: 20px;">
                 <label>CEP</label>
@@ -1322,13 +1327,19 @@
             setInputByLabel('Unidade de Saúde', d.unidade || 'US 177 USF CHICO MENDES', 0);
             setInputByLabel('Município', 'RECIFE', 0);
 
-            const docRaw = String(d.paciente_cns || '').trim();
-            const docDigits = docRaw.replace(/\D/g, '');
-            if (docDigits.length === 11) {
-                setInputByLabel('CPF', docRaw, 0);
-            } else if (docRaw) {
-                setInputByLabel('Cartão SUS*', docRaw, 0);
+            const cnsRaw = String(d.paciente_cns || '').trim();
+            const cnsDigits = cnsRaw.replace(/\D/g, '');
+            let cpfVal = String(d.paciente_cpf || '').trim();
+            if (!cpfVal && cnsDigits.length === 11) {
+                cpfVal = cnsRaw;
             }
+            if (cnsRaw && cnsDigits.length !== 11) {
+                setInputByLabel('Cartão SUS*', cnsRaw, 0);
+            }
+            if (cpfVal) {
+                setInputByLabel('CPF', cpfVal, 0);
+            }
+            setInputByLabel('RG', d.paciente_rg || '', 0);
 
             setInputByLabel('Nome Completo*', d.paciente_nome || '', 0);
             setInputByLabel('Data Nascimento*', d.paciente_dn || '', 0);
@@ -1337,9 +1348,17 @@
                 : calcularIdadePorDataBR(d.paciente_dn);
             setInputByLabel('Idade', idadeCalc, 0);
             setInputByLabel('Nome Completo da Mãe', d.paciente_mae || '', 0);
-            setInputByLabel('Endereço (Logradouro)', d.paciente_endereco || '', 0);
-            setInputByLabel('Município', 'RECIFE', 1);
-            setInputByLabel('UF', 'PE', 1);
+            setInputByLabel('Endereço (Logradouro)', d.paciente_logradouro || d.paciente_endereco || '', 0);
+            setInputByLabel('Número', d.paciente_numero || '', 0);
+            setInputByLabel('Complemento', d.paciente_complemento || '', 0);
+            const munPac = (d.paciente_municipio || 'RECIFE').trim();
+            if (munPac.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'recife') {
+                setInputByLabel('Código do Município', '2611606', 0);
+            }
+            setInputByLabel('Município', munPac.toUpperCase(), 1);
+            setInputByLabel('UF', (d.paciente_uf || 'PE').toUpperCase(), 1);
+            setInputByLabel('Bairro', d.paciente_bairro || '', 0);
+            setInputByLabel('CEP', d.paciente_cep || '', 0);
             setInputByLabel('Telefone', d.paciente_telefone || '', 0);
 
             setInputByLabel('Data da coleta*', d.data_br || dataHojeBR(), 0);

@@ -15,6 +15,13 @@ const {
   normalizarAnexosPrevia,
   resumirAnexosSemImagem,
   normalizarDadosExtras,
+  formatarCpfBR,
+  formatarCnsBR,
+  separarCnsECpf,
+  formatarCepBR,
+  formatarTelefoneBR,
+  normalizarBairroUsf,
+  decomporEnderecoPaciente,
   formatarPrescricaoParaFormulario
 } = require('../lib/receitas');
 
@@ -294,4 +301,53 @@ test('identificarPerfilClinicoReceita classifica Hipertenso, Diabetico, Ambos (H
   assert.ok(prev.label.includes('prevenção'));
 
   assert.equal(identificarPerfilClinicoReceita('Dipirona 500mg'), null);
+});
+
+test('separarCnsECpf, formatadores e normalizarBairroUsf (Cacote/Areias/Estancia) funcionam corretamente', () => {
+  assert.equal(formatarCpfBR('12345678901'), '123.456.789-01');
+  assert.equal(formatarCnsBR('898001234567890'), '898 0012 3456 7890');
+  assert.equal(formatarCepBR('50890120'), '50890-120');
+  assert.equal(formatarTelefoneBR('81987654321'), '(81) 98765-4321');
+  assert.equal(formatarTelefoneBR('987654321'), '(81) 98765-4321');
+
+  // Quando OCR coloca CPF de 11 digitos dentro de paciente_cns
+  const sep1 = separarCnsECpf('12345678901', null);
+  assert.equal(sep1.paciente_cns, null);
+  assert.equal(sep1.paciente_cpf, '123.456.789-01');
+
+  // Quando ambos existem
+  const sep2 = separarCnsECpf('898001234567890', '12345678901');
+  assert.equal(sep2.paciente_cns, '898 0012 3456 7890');
+  assert.equal(sep2.paciente_cpf, '123.456.789-01');
+
+  // Normalizacao dos 3 bairros da USF Chico Mendes
+  assert.equal(normalizarBairroUsf('cacote'), 'Caçote');
+  assert.equal(normalizarBairroUsf('Bairro Cacot'), 'Caçote');
+  assert.equal(normalizarBairroUsf('areia'), 'Areias');
+  assert.equal(normalizarBairroUsf('AREIAS'), 'Areias');
+  assert.equal(normalizarBairroUsf('estancia'), 'Estância');
+  assert.equal(normalizarBairroUsf('', 'Rua São José, 45 - Estancia'), 'Estância');
+  assert.equal(normalizarBairroUsf('Jardim São Paulo'), 'Jardim São Paulo');
+
+  // Decomposicao completa de endereco sem duplicar rua/numero/bairro/cep
+  const end = decomporEnderecoPaciente({
+    endereco: 'Rua João da Silva, 145, Casa B, Cacote, 50890-120 - Recife/PE'
+  });
+  assert.equal(end.logradouro, 'Rua João da Silva');
+  assert.equal(end.numero, '145');
+  assert.equal(end.complemento, 'Casa B');
+  assert.equal(end.bairro, 'Caçote');
+  assert.equal(end.cep, '50890-120');
+
+  const ext = normalizarDadosExtras({
+    paciente_cns: '12345678901',
+    paciente_endereco: 'Av. Recife, 300, Areias, CEP 50860-000',
+    paciente_numero: '300',
+    paciente_telefone: '81999998888'
+  });
+  assert.equal(ext.paciente_cpf, '123.456.789-01');
+  assert.equal(ext.paciente_numero, '300');
+  assert.equal(ext.paciente_bairro, 'Areias');
+  assert.equal(ext.paciente_cep, '50860-000');
+  assert.equal(ext.paciente_telefone, '(81) 99999-8888');
 });

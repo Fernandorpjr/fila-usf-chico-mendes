@@ -71,7 +71,7 @@
   .chk { cursor: pointer; position: relative; }
   .chk.on::after { content: "✓"; position: absolute; left: .2mm; top: -1.4mm; font-size: 11pt; line-height: 1; font-weight: bold; }
   .opt { cursor: pointer; border-radius: 1.2mm; padding: 0 1mm; border: 1px solid transparent; }
-  .opt.sel { border-color: #000; background: #e8e8e8; }
+  .opt.sel { border: 1.5px solid #000; background: #dcdcdc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @media print {
     .toolbar { display: none !important; }
     .f:hover, .f:focus, .f-cell:hover, .f-cell:focus, .ln:hover, .ln:focus, .uline:hover, .uline:focus { background: transparent; }
@@ -294,6 +294,50 @@
     }
   }
 
+  function marcarPatologia(textoAlvo, ativo){
+    if(!ativo) return;
+    var target=String(textoAlvo||'').toLowerCase();
+    var cells=document.querySelectorAll('.c');
+    for(var i=0;i<cells.length;i++){
+      var chks=cells[i].querySelectorAll('.chk');
+      for(var j=0;j<chks.length;j++){
+        var sib=chks[j].nextSibling;
+        var txt=sib && sib.nodeValue ? sib.nodeValue.trim().toLowerCase() : '';
+        if(txt.indexOf(target)===0){
+          chks[j].classList.add('on');
+          return;
+        }
+      }
+    }
+  }
+
+  function marcarRetorno(ativo){
+    if(!ativo) return;
+    var cells=document.querySelectorAll('.c');
+    for(var i=0;i<cells.length;i++){
+      if(getCellLabel(cells[i]).indexOf('retorno p/ unidade')===0){
+        var chk=cells[i].querySelector('.chk');
+        if(chk) chk.classList.add('on');
+        break;
+      }
+    }
+  }
+
+  function marcarRisco(risco){
+    var r=String(risco||'').trim().toLowerCase();
+    if(!r) return;
+    var opts=document.querySelectorAll('.risk .opt');
+    opts.forEach(function(o){
+      var txt=o.textContent.toLowerCase();
+      var match=(r==='azul' && txt.indexOf('azul')>=0) ||
+        (r==='verde' && txt.indexOf('verde')>=0) ||
+        (r==='amarelo' && txt.indexOf('amarelo')>=0) ||
+        (r==='vermelho' && txt.indexOf('vermelho')>=0);
+      if(match) o.classList.add('sel');
+      else o.classList.remove('sel');
+    });
+  }
+
   function dividirTextoExame(texto, maxLen) {
     var s = String(texto || '').replace(/\s+/g, ' ').trim();
     if (!s) return [];
@@ -364,15 +408,23 @@
     if(!d || d.modo==='branco') return;
     setFieldByLabel('CNES:', d.cnes||'0000965');
     setFieldByLabel('Nome da Unidade Solicitante:', d.unidade||'US 177 USF CHICO MENDES');
-    setFieldByLabel('Município:', 'Recife');
-    setFieldByLabel('UF:', 'PE');
-    setFieldByLabel('Número do Cartão Nacional de Saúde - CNS:', d.paciente_cns||'');
+    setFieldByLabel('CEP:', d.paciente_cep||'');
+    setFieldByLabel('Número:', d.paciente_numero||'');
+    setFieldByLabel('Complemento:', d.paciente_complemento||'');
+    setFieldByLabel('Bairro:', d.paciente_bairro||'');
+    setFieldByLabel('Município:', d.paciente_municipio||'Recife');
+    setFieldByLabel('UF:', d.paciente_uf||'PE');
+    setFieldByLabel('Número do Cartão Nacional de Saúde - CNS:', d.paciente_cns||d.paciente_cpf||'');
     setFieldByLabel('Data de Nascimento:', d.paciente_dn||'');
     marcarSexo(d.paciente_sexo);
     setFieldByLabel('Telefone Celular / Fixo:', d.paciente_telefone||'');
     setFieldByLabel('Nome Completo:', d.paciente_nome||'');
     setFieldByLabel('Nome da Mãe:', d.paciente_mae||'');
-    setFieldByLabel('Endereço (Rua', d.paciente_endereco||'');
+    setFieldByLabel('Endereço (Rua', d.paciente_logradouro||d.paciente_endereco||'');
+    marcarPatologia('diabetes', d.tem_diabetes);
+    marcarPatologia('hipertensão', d.tem_hipertensao);
+    marcarRetorno(d.tipo_vaga==='retorno');
+    marcarRisco(d.risco);
     setFieldByLabel('Profissional:', d.profissional||'');
     if (d.tipo_solicitacao === 'exame' && d.exame_descricao) {
       inserirExameNaTabela(d.exame_descricao);
@@ -384,6 +436,7 @@
     setFieldByLabel('CID 10 Principal:', d.cid10||'');
     setFieldByLabel('Data de Solicitação:', d.data_br||'');
     setFieldByLabel('Condições Clínicas', d.justificativa||'');
+    if(d.codigo_solicitacao) setFieldByLabel('Código de Solicitação:', d.codigo_solicitacao);
   };
 
   window.aplicarProcedimentoSisreg=function(d){
@@ -408,12 +461,24 @@
     merge('Hipótese Diagnóstica:', d.hipotese_diagnostica||'', false);
     merge('CID 10 Principal:', d.cid10||'', false);
     merge('Condições Clínicas', d.justificativa||'', false);
-    merge('Número do Cartão Nacional de Saúde - CNS:', d.paciente_cns||'', false);
+    merge('Número do Cartão Nacional de Saúde - CNS:', d.paciente_cns||d.paciente_cpf||'', false);
     merge('Nome Completo:', d.paciente_nome||'', false);
     merge('Telefone Celular / Fixo:', d.paciente_telefone||'', false);
     merge('Data de Nascimento:', d.paciente_dn||'', false);
     merge('Nome da Mãe:', d.paciente_mae||'', false);
-    merge('Endereço (Rua', d.paciente_endereco||'', false);
+    merge('CEP:', d.paciente_cep||'', false);
+    merge('Endereço (Rua', d.paciente_logradouro||d.paciente_endereco||'', false);
+    merge('Número:', d.paciente_numero||'', false);
+    merge('Complemento:', d.paciente_complemento||'', false);
+    merge('Bairro:', d.paciente_bairro||'', false);
+    merge('Município:', d.paciente_municipio||'', false);
+    merge('UF:', d.paciente_uf||'', false);
+    merge('Código de Solicitação:', d.codigo_solicitacao||'', false);
+    marcarSexo(d.paciente_sexo);
+    marcarPatologia('diabetes', d.tem_diabetes);
+    marcarPatologia('hipertensão', d.tem_hipertensao);
+    marcarRetorno(d.tipo_vaga==='retorno');
+    marcarRisco(d.risco);
   };
 
   window.addEventListener('message',function(e){

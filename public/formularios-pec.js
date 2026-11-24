@@ -6,37 +6,37 @@ const SETORES_CLINICOS_FILA = ['Médico', 'Enfermagem', 'Odontologia'];
 
 const FORMULARIOS_PEC_REG = {
   'receituario': {
-    url: '/formularios/receituario.html?v=1.2',
+    url: '/formularios/receituario.html?v=1.3',
     titulo: '📄 Receituário (2 vias espelhadas)',
     shortLabel: '📄 Receituário',
     icon: '📄'
   },
   'controle-especial': {
-    url: '/formularios/receituario-controle-especial.html?v=1.2',
+    url: '/formularios/receituario-controle-especial.html?v=1.3',
     titulo: '🔵 Receituário de Controle Especial (2 vias espelhadas)',
     shortLabel: '🔵 Controle Especial',
     icon: '🔵'
   },
   'exames-laboratoriais': {
-    url: '/formularios/receituario-exames-laboratoriais.html?v=1.2',
+    url: '/formularios/receituario-exames-laboratoriais.html?v=1.3',
     titulo: '🧪 Receituário para Exames Laboratoriais',
     shortLabel: '🧪 Exames Lab.',
     icon: '🧪'
   },
   'ficha-ambulatorial': {
-    url: '/formularios/ficha-solicitacao-ambulatorial.html?v=1.2',
+    url: '/formularios/ficha-solicitacao-ambulatorial.html?v=1.3',
     titulo: '📋 Ficha de Solicitação Ambulatorial',
     shortLabel: '📋 Ficha Ambulatorial',
     icon: '📋'
   },
   'citopatologico': {
-    url: '/formularios/requisicao-exame-citopatologico.html?v=1.2',
+    url: '/formularios/requisicao-exame-citopatologico.html?v=1.3',
     titulo: '🔬 Requisição de Exame Citopatológico',
     shortLabel: '🔬 Citopatológico',
     icon: '🔬'
   },
   'declaracao-residencia': {
-    url: '/formularios/declaracao-residencia.html?v=1.2',
+    url: '/formularios/declaracao-residencia.html?v=1.3',
     titulo: '🏠 Declaração de Residência (ACS)',
     shortLabel: '🏠 Decl. Residência',
     icon: '🏠'
@@ -178,6 +178,204 @@ function montarJustificativaClinica(_paciente, extraJustificativa) {
     : '';
 }
 
+function normTextFormFront(v) {
+  return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function formatarCpfFront(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  const digits = s.replace(/\D/g, '');
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  }
+  return '';
+}
+
+function formatarCnsFront(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  const digits = s.replace(/\D/g, '');
+  if (digits.length === 15) {
+    return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7, 11)} ${digits.slice(11)}`;
+  }
+  return s;
+}
+
+function separarCnsCpfFront(cnsRaw, cpfRaw) {
+  const cStr = String(cnsRaw || '').trim();
+  const pStr = String(cpfRaw || '').trim();
+  const cDig = cStr.replace(/\D/g, '');
+  const pDig = pStr.replace(/\D/g, '');
+
+  let cnsFinal = '';
+  let cpfFinal = '';
+
+  if (pDig.length === 11) cpfFinal = formatarCpfFront(pDig);
+  else if (pDig.length === 15) cnsFinal = formatarCnsFront(pDig);
+
+  if (cDig.length === 15) cnsFinal = formatarCnsFront(cDig);
+  else if (cDig.length === 11) {
+    if (!cpfFinal) cpfFinal = formatarCpfFront(cDig);
+  } else if (cStr && !cnsFinal && cDig.length > 0 && cDig.length !== 11) {
+    cnsFinal = cStr;
+  }
+
+  if (!cpfFinal && pStr && pDig.length > 0 && pDig.length !== 15) {
+    cpfFinal = pStr;
+  }
+  return { paciente_cns: cnsFinal, paciente_cpf: cpfFinal };
+}
+
+function formatarCepFront(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  const m = s.match(/(\d{5})[-.\s]?(\d{3})/);
+  if (m) return `${m[1]}-${m[2]}`;
+  const digits = s.replace(/\D/g, '');
+  if (digits.length === 8) return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  return '';
+}
+
+function formatarTelFront(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  let digits = s.replace(/\D/g, '');
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+  if (digits.length === 9 && digits.startsWith('9')) digits = `81${digits}`;
+  else if (digits.length === 8) digits = `81${digits}`;
+  if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return s;
+}
+
+function normalizarBairroUsfFront(bairroRaw, enderecoRaw = '') {
+  const detectar = (txt) => {
+    const clean = normTextFormFront(txt)
+      .replace(/^bairro\s*[:\-]?\s*/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!clean) return '';
+    if (/(?:^|[\s,;\-\/])(?:cacote|cacot|casote|cassote|cac0te|cocote|cacoti)(?:$|[\s,;\-\/])/.test(clean)) {
+      return 'Caçote';
+    }
+    if (/(?:^|[\s,;\-\/])(?:areias?|areia\s*do\s*recife|areis|ari[ae]s)(?:$|[\s,;\-\/])/.test(clean)) {
+      return 'Areias';
+    }
+    if (/(?:^|[\s,;\-\/])(?:estancias?|estansia|estanc1a|extancia)(?:$|[\s,;\-\/])/.test(clean)) {
+      return 'Estância';
+    }
+    return '';
+  };
+  const bStr = String(bairroRaw || '').trim();
+  if (bStr) {
+    const matched = detectar(bStr);
+    if (matched) return matched;
+    return bStr.replace(/^bairro\s*[:\-]?\s*/i, '').trim();
+  }
+  const eStr = String(enderecoRaw || '').trim();
+  if (eStr) {
+    return detectar(eStr);
+  }
+  return '';
+}
+
+function decomporEnderecoFront({
+  endereco = '',
+  numero = '',
+  complemento = '',
+  bairro = '',
+  cep = '',
+  municipio = '',
+  uf = ''
+} = {}) {
+  let log = String(endereco || '').trim();
+  let num = String(numero || '').trim();
+  let comp = String(complemento || '').trim();
+  let cepFmt = formatarCepFront(cep);
+  const bairroNorm = normalizarBairroUsfFront(bairro, log);
+  const mun = String(municipio || '').trim() || 'Recife';
+  const ufClean = String(uf || '').trim().toUpperCase() || 'PE';
+
+  if (log) {
+    const cepMatch = log.match(/(?:CEP\s*[:\-]?\s*)?(\d{5})[-.\s]?(\d{3})\b/i);
+    if (cepMatch) {
+      if (!cepFmt) cepFmt = `${cepMatch[1]}-${cepMatch[2]}`;
+      log = log.replace(cepMatch[0], ' ');
+    }
+    log = log.replace(/[\s,\-–]+Recife(?:\s*[\/\-]\s*PE)?\s*$/i, ' ');
+    if (bairroNorm) {
+      const rxB = new RegExp(`(?:,|\\s[-–]\\s|\\s+bairro\\s+)\\s*(?:${bairroNorm}|cac[o0]t[eé]?|areias?|est[aâ]ncias?)\\s*(?=$|,)`, 'gi');
+      log = log.replace(rxB, ' ');
+    }
+    const compMatch = log.match(/(?:^|[,\s\-]+)((?:casa|cs|ap(?:to)?|apartamento|bl(?:oco)?|fundos|frente|t[ée]rreo|andar|quadra|qd|lote|lt)\b[^,]*?)(?=,|$)/i);
+    if (compMatch) {
+      if (!comp) comp = compMatch[1].replace(/\s+/g, ' ').trim();
+      log = log.replace(compMatch[0], ' ');
+    }
+    if (!num) {
+      const numMatch = log.match(/(?:,\s*|\s+)(?:n[º°o.]*\s*)?(\d+[A-Za-z]?|s\s*\/\s*n|sem\s+n[uú]mero)\s*(?=$|,|\s+-)/i);
+      if (numMatch) {
+        num = numMatch[1].replace(/\s+/g, '').toUpperCase();
+        log = log.replace(numMatch[0], ' ');
+      }
+    } else {
+      const numEsc = num.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      log = log.replace(new RegExp(`(?:,\\s*|\\s+)(?:n[º°o.]*\\s*)?${numEsc}\\s*(?=$|,|\\s+-)`, 'i'), ' ');
+    }
+    log = log
+      .replace(/\bCEP\s*[:\-]?\s*$/i, '')
+      .replace(/^[\s,\-–]+|[\s,\-–]+$/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\s*,\s*,+/g, ',')
+      .trim();
+  }
+
+  const partesCompletas = [];
+  if (log) partesCompletas.push(log);
+  if (num) partesCompletas.push(`nº ${num}`);
+  if (comp) partesCompletas.push(comp);
+  const tail = [bairroNorm, cepFmt ? `CEP ${cepFmt}` : ''].filter(Boolean).join(' - ');
+  if (tail) partesCompletas.push(tail);
+
+  return {
+    logradouro: log,
+    numero: num,
+    complemento: comp,
+    bairro: bairroNorm,
+    cep: cepFmt,
+    municipio: mun,
+    uf: ufClean,
+    endereco_completo: partesCompletas.join(', ')
+  };
+}
+
+function detectarHiperdiaFront({ previa, ext, ocrAtivo, cid10, prescricao }) {
+  let tem_hipertensao = Boolean(ext?.tem_hipertensao || ocrAtivo?.tem_hipertensao);
+  let tem_diabetes = Boolean(ext?.tem_diabetes || ocrAtivo?.tem_diabetes);
+  const perfilCod = normTextFormFront(ext?.perfil_clinico?.codigo || ext?.perfil_clinico || '');
+  if (perfilCod === 'hipertenso') tem_hipertensao = true;
+  if (perfilCod === 'diabetico') tem_diabetes = true;
+  if (perfilCod === 'hipertenso_diabetico') {
+    tem_hipertensao = true;
+    tem_diabetes = true;
+  }
+  const cidNorm = normTextFormFront(cid10);
+  if (/\bi1[0-5]\b/.test(cidNorm)) tem_hipertensao = true;
+  if (/\be1[0-4]\b/.test(cidNorm)) tem_diabetes = true;
+
+  const textoMeds = normTextFormFront([previa?.medicamentos, ocrAtivo?.medicamento, prescricao].filter(Boolean).join(' '));
+  if (/\b(losartana|hidroclorotiazida|captopril|enalapril|anlodipino|nifedipino|atenolol|propranolol|metildopa|espironolactona|furosemida|carvedilol|clortalidona|valsartana|olmesartana|ramipril|metoprolol|indapamida)\b/.test(textoMeds)) {
+    tem_hipertensao = true;
+  }
+  if (/\b(metformina|glibenclamida|gliclazida|glimepirida|dapagliflozina|empagliflozina|vildagliptina|sitagliptina|insulina)\b/.test(textoMeds)) {
+    tem_diabetes = true;
+  }
+  return { tem_hipertensao, tem_diabetes };
+}
+
 function montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexoAtivo, tipoForm }) {
   const hoje = obterDataHojeRecife();
   const ext = previa?.dados_extras && typeof previa.dados_extras === 'object' ? previa.dados_extras : {};
@@ -196,10 +394,26 @@ function montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexo
   const cid10 = ocrAtivo?.cid10 || ext.cid10 || '';
   const justificativaExtra = ocrAtivo?.justificativa || ext.justificativa || '';
 
+  const rawCns = previa?.paciente_cns || ocrAtivo?.paciente_cns || paciente?.cns || '';
+  const rawCpf = ocrAtivo?.paciente_cpf || ext.paciente_cpf || previa?.paciente_cpf || paciente?.cpf || '';
+  const docs = separarCnsCpfFront(rawCns, rawCpf);
+  const endDecomp = decomporEnderecoFront({
+    endereco: ocrAtivo?.paciente_endereco || ext.paciente_endereco || paciente?.endereco || '',
+    numero: ocrAtivo?.paciente_numero || ext.paciente_numero || paciente?.numero || '',
+    complemento: ocrAtivo?.paciente_complemento || ext.paciente_complemento || paciente?.complemento || '',
+    bairro: ocrAtivo?.paciente_bairro || ext.paciente_bairro || paciente?.bairro || '',
+    cep: ocrAtivo?.paciente_cep || ext.paciente_cep || paciente?.cep || '',
+    municipio: ocrAtivo?.paciente_municipio || ext.paciente_municipio || paciente?.municipio || '',
+    uf: ocrAtivo?.paciente_uf || ext.paciente_uf || paciente?.uf || ''
+  });
+  const telFmt = formatarTelFront(ocrAtivo?.paciente_telefone || ext.paciente_telefone || paciente?.telefone || '');
+  const hiperdia = detectarHiperdiaFront({ previa, ext, ocrAtivo, cid10, prescricao });
+
   return {
     modo: modo === 'branco' ? 'branco' : 'preencher',
     cnes: CNES_PADRAO_USF,
     unidade: UNIDADE_PADRAO_USF,
+    distrito: 'V',
     profissional: obterProfissionalSelecionadoSetor(setor, paciente),
     acs_nome: acsNome || paciente?.acs_responsavel || '',
     data_dd: hoje.dd,
@@ -208,15 +422,29 @@ function montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexo
     data_br: hoje.data_br,
     paciente_nome: previa?.paciente_nome_ocr || paciente?.nome || '',
     paciente_idade: paciente?.idade !== undefined && paciente?.idade !== null ? String(paciente.idade) : '',
-    paciente_cns: previa?.paciente_cns || '',
-    paciente_endereco: ext.paciente_endereco || '',
-    paciente_dn: ext.paciente_data_nascimento || '',
-    paciente_sexo: ext.paciente_sexo || '',
-    paciente_telefone: ext.paciente_telefone || '',
-    paciente_mae: ext.paciente_mae || '',
+    paciente_cns: docs.paciente_cns,
+    paciente_cpf: docs.paciente_cpf,
+    paciente_rg: ocrAtivo?.paciente_rg || ext.paciente_rg || paciente?.rg || '',
+    paciente_logradouro: endDecomp.logradouro,
+    paciente_numero: endDecomp.numero,
+    paciente_complemento: endDecomp.complemento,
+    paciente_bairro: endDecomp.bairro,
+    paciente_cep: endDecomp.cep,
+    paciente_municipio: endDecomp.municipio,
+    paciente_uf: endDecomp.uf,
+    paciente_endereco: endDecomp.endereco_completo || endDecomp.logradouro || '',
+    paciente_dn: ocrAtivo?.paciente_data_nascimento || ext.paciente_data_nascimento || '',
+    paciente_sexo: ocrAtivo?.paciente_sexo || ext.paciente_sexo || '',
+    paciente_telefone: telFmt,
+    paciente_mae: ocrAtivo?.paciente_mae || ext.paciente_mae || '',
     prescricao,
     especialidade,
     tipo_solicitacao: ext.tipo_solicitacao || '',
+    tipo_vaga: ocrAtivo?.tipo_vaga || ext.tipo_vaga || '',
+    risco: ocrAtivo?.risco || ext.risco || '',
+    codigo_solicitacao: ocrAtivo?.codigo_solicitacao || ext.codigo_solicitacao || '',
+    tem_hipertensao: hiperdia.tem_hipertensao,
+    tem_diabetes: hiperdia.tem_diabetes,
     exame_descricao: ext.exame_descricao || '',
     exame_solicitado: ext.exame_solicitado || '',
     exame_nome: ext.exame_nome || '',
@@ -658,6 +886,25 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
   const modalAbertoFicha = modalAbertoQualquer && _foEstadoAtual.tipo === 'ficha-ambulatorial';
   const modalAbertoLab = modalAbertoQualquer && _foEstadoAtual.tipo === 'exames-laboratoriais';
 
+  const docsProc = separarCnsCpfFront(d.paciente_cns, d.paciente_cpf);
+  const endProc = decomporEnderecoFront({
+    endereco: d.paciente_endereco || '',
+    numero: d.paciente_numero || '',
+    complemento: d.paciente_complemento || '',
+    bairro: d.paciente_bairro || '',
+    cep: d.paciente_cep || '',
+    municipio: d.paciente_municipio || '',
+    uf: d.paciente_uf || ''
+  });
+  const telProc = formatarTelFront(d.paciente_telefone || '');
+  const hiperProc = detectarHiperdiaFront({
+    previa: { medicamentos: d.medicamentos || '' },
+    ext: { cid10: d.cid10 || '' },
+    ocrAtivo: null,
+    cid10: d.cid10 || '',
+    prescricao: d.observacoes_revisada || ''
+  });
+
   if (isExameLab && modalAbertoLab) {
     const iframe = document.getElementById('fo-iframe');
     if (iframe?.contentWindow) {
@@ -668,8 +915,9 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
           exame_nome: proc?.name || procTexto,
           exame_codigo: proc?.code || '',
           paciente_nome: d.paciente_nome || '',
-          paciente_cns: d.paciente_cns || '',
-          paciente_telefone: d.paciente_telefone || ''
+          paciente_cns: docsProc.paciente_cns || docsProc.paciente_cpf || '',
+          paciente_cpf: docsProc.paciente_cpf || '',
+          paciente_telefone: telProc || ''
         }
       }, window.location.origin);
       if (typeof showToast === 'function') showToast('🧪 Exame adicionado ao Formulário de Exames Laboratoriais!');
@@ -691,11 +939,25 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
           hipotese_diagnostica: d.hipotese_diagnostica || '',
           justificativa: d.observacoes_revisada || d.observacoes_original || '',
           paciente_nome: d.paciente_nome || '',
-          paciente_cns: d.paciente_cns || '',
-          paciente_telefone: d.paciente_telefone || '',
-          paciente_endereco: d.paciente_endereco || '',
+          paciente_cns: docsProc.paciente_cns || '',
+          paciente_cpf: docsProc.paciente_cpf || '',
+          paciente_telefone: telProc || '',
+          paciente_logradouro: endProc.logradouro || '',
+          paciente_numero: endProc.numero || '',
+          paciente_complemento: endProc.complemento || '',
+          paciente_bairro: endProc.bairro || '',
+          paciente_cep: endProc.cep || '',
+          paciente_municipio: endProc.municipio || 'Recife',
+          paciente_uf: endProc.uf || 'PE',
+          paciente_endereco: endProc.endereco_completo || endProc.logradouro || '',
           paciente_dn: d.paciente_dn || '',
-          paciente_mae: d.paciente_mae || ''
+          paciente_sexo: d.paciente_sexo || '',
+          paciente_mae: d.paciente_mae || '',
+          tipo_vaga: d.tipo_vaga || '',
+          risco: d.risco || '',
+          codigo_solicitacao: d.codigo_solicitacao || '',
+          tem_hipertensao: hiperProc.tem_hipertensao,
+          tem_diabetes: hiperProc.tem_diabetes
         }
       }, window.location.origin);
       if (typeof showToast === 'function') {
@@ -721,7 +983,7 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
   const previaSintetica = {
     ...(basePrev || {}),
     paciente_nome_ocr: d.paciente_nome || basePrev?.paciente_nome_ocr || null,
-    paciente_cns: d.paciente_cns || basePrev?.paciente_cns || null,
+    paciente_cns: docsProc.paciente_cns || basePrev?.paciente_cns || null,
     dados_extras: {
       ...baseExt,
       tipo_solicitacao: isExame ? 'exame' : 'consulta',
@@ -732,11 +994,24 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
       cid10: d.cid10 || baseExt.cid10 || null,
       hipotese_diagnostica: d.hipotese_diagnostica || baseExt.hipotese_diagnostica || null,
       justificativa: d.observacoes_revisada || d.observacoes_original || baseExt.justificativa || null,
-      paciente_telefone: d.paciente_telefone || baseExt.paciente_telefone || null,
-      paciente_endereco: d.paciente_endereco || baseExt.paciente_endereco || null,
+      paciente_cpf: docsProc.paciente_cpf || baseExt.paciente_cpf || null,
+      paciente_rg: d.paciente_rg || baseExt.paciente_rg || null,
+      paciente_telefone: telProc || baseExt.paciente_telefone || null,
+      paciente_endereco: endProc.logradouro || baseExt.paciente_endereco || null,
+      paciente_numero: endProc.numero || baseExt.paciente_numero || null,
+      paciente_complemento: endProc.complemento || baseExt.paciente_complemento || null,
+      paciente_bairro: endProc.bairro || baseExt.paciente_bairro || null,
+      paciente_cep: endProc.cep || baseExt.paciente_cep || null,
+      paciente_municipio: endProc.municipio || baseExt.paciente_municipio || null,
+      paciente_uf: endProc.uf || baseExt.paciente_uf || null,
       paciente_data_nascimento: d.paciente_dn || baseExt.paciente_data_nascimento || null,
       paciente_mae: d.paciente_mae || baseExt.paciente_mae || null,
-      paciente_sexo: d.paciente_sexo || baseExt.paciente_sexo || null
+      paciente_sexo: d.paciente_sexo || baseExt.paciente_sexo || null,
+      tipo_vaga: d.tipo_vaga || baseExt.tipo_vaga || null,
+      risco: d.risco || baseExt.risco || null,
+      codigo_solicitacao: d.codigo_solicitacao || baseExt.codigo_solicitacao || null,
+      tem_hipertensao: hiperProc.tem_hipertensao || baseExt.tem_hipertensao || false,
+      tem_diabetes: hiperProc.tem_diabetes || baseExt.tem_diabetes || false
     }
   };
   abrirFormularioOficial(targetForm, {

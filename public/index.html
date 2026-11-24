@@ -4796,10 +4796,31 @@
           <input type="text" id="pr-paciente-nome" placeholder="Nome completo">
         </div>
         <div class="form-group" style="margin:0;">
-          <label>CNS / CPF</label>
-          <input type="text" id="pr-paciente-cns" placeholder="Cartão SUS ou CPF">
+          <label>Cartão SUS (CNS)</label>
+          <input type="text" id="pr-paciente-cns" placeholder="Cartão SUS (15 dígitos)">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>CPF</label>
+          <input type="text" id="pr-paciente-cpf" placeholder="000.000.000-00">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Telefone</label>
+          <input type="text" id="pr-paciente-telefone" placeholder="(81) 9XXXX-XXXX">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>CEP</label>
+          <input type="text" id="pr-paciente-cep" placeholder="50000-000">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Bairro</label>
+          <input type="text" id="pr-paciente-bairro" list="bairros-usf-list" placeholder="Caçote, Areias ou Estância">
         </div>
       </div>
+      <datalist id="bairros-usf-list">
+        <option value="Caçote"></option>
+        <option value="Areias"></option>
+        <option value="Estância"></option>
+      </datalist>
       <div class="form-group" style="margin-top:10px;">
         <label>Medicamentos / Procedimento Solicitado</label>
         <textarea id="pr-medicamentos" rows="2" placeholder="Ex.: Losartana 50mg, Metformina 850mg ou USG Tireoide, Cardiologia..."></textarea>
@@ -4879,6 +4900,7 @@
               </div>
               <button type="button" class="btn btn-primary btn-sm" onclick="copiarTextoPrevia('vp-cns','CNS/CPF')">📋 Copiar CNS</button>
             </div>
+            <div id="vp-contato-row" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0;font-size:12px;color:#334155;line-height:1.45;"></div>
           </div>
 
           <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;">
@@ -5150,9 +5172,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="historico.js?v=5.1"></script>
 <script src="dispositivos.js?v=5.3"></script>
-<script src="receitas-previa.js?v=2.2"></script>
-<script src="formularios-pec.js?v=2.0"></script>
-<script src="regulacao-sisreg.js?v=2.3"></script>
+<script src="receitas-previa.js?v=2.3"></script>
+<script src="formularios-pec.js?v=2.1"></script>
+<script src="regulacao-sisreg.js?v=2.4"></script>
 <script src="app.js?v=8.6"></script>
 </body>
 </html>

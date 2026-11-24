@@ -42,6 +42,10 @@
   <button class="main" onclick="window.print()">🖨 Imprimir</button>
   <button onclick="deixarEmBranco()">📄 Deixar em Branco</button>
   <button onclick="salvarAcs()">💾 Salvar Dados do ACS</button>
+  <span>Bairro:</span>
+  <button type="button" onclick="setBairro('Caçote')">Caçote</button>
+  <button type="button" onclick="setBairro('Areias')">Areias</button>
+  <button type="button" onclick="setBairro('Estância')">Estância</button>
   <span>Clique nos campos para digitar.</span>
 </div>
 <div class="page">
@@ -115,6 +119,10 @@
     }
   };
 
+  window.setBairro=function(nome){
+    setK('bairro', nome||'');
+  };
+
   window.aplicarDados=function(d){
     window.deixarEmBranco(true);
     if(!d || d.modo==='branco') return;
@@ -125,23 +133,43 @@
     setK('matricula', saved.matricula||'');
     setK('ass', saved.ass||d.acs_nome||saved.nome||'');
     setK('declarado', d.paciente_nome||'');
+    setK('rg', d.paciente_rg||'');
 
-    var digits=String(d.paciente_cns||'').replace(/\D/g,'');
-    if(digits.length===11) setK('cpf', d.paciente_cns);
-
-    if(d.paciente_endereco){
-      var endStr=String(d.paciente_endereco).trim();
-      var cepMatch=endStr.match(/(\d{5})-?(\d{3})/);
-      if(cepMatch){
-        setK('cep1', cepMatch[1]);
-        setK('cep2', cepMatch[2]);
-      }
-      var numMatch=endStr.match(/(?:,|\bn[ºo°]\.?)\s*(\d+[A-Za-z]?)\b/i);
-      if(numMatch){
-        setK('numero', numMatch[1]);
-      }
-      setK('rua', endStr);
+    var cpfRaw = String(d.paciente_cpf || '').trim();
+    var cnsDigits = String(d.paciente_cns || '').replace(/\D/g, '');
+    if (cpfRaw) {
+      setK('cpf', cpfRaw);
+    } else if (cnsDigits.length === 11) {
+      setK('cpf', cnsDigits.slice(0,3)+'.'+cnsDigits.slice(3,6)+'.'+cnsDigits.slice(6,9)+'-'+cnsDigits.slice(9));
     }
+
+    var cepFonte = String(d.paciente_cep || d.paciente_endereco || '').trim();
+    var cepMatch = cepFonte.match(/(\d{5})-?(\d{3})/);
+    if (cepMatch) {
+      setK('cep1', cepMatch[1]);
+      setK('cep2', cepMatch[2]);
+    }
+
+    var numVal = String(d.paciente_numero || '').trim();
+    if (!numVal && d.paciente_endereco) {
+      var numMatch = String(d.paciente_endereco).match(/(?:,|\bn[ºo°]\.?)\s*(\d+[A-Za-z]?)\b/i);
+      if (numMatch) numVal = numMatch[1];
+    }
+    setK('numero', numVal);
+    setK('bairro', d.paciente_bairro || '');
+
+    var ruaLimpa = String(d.paciente_logradouro || '').trim();
+    if (!ruaLimpa && d.paciente_endereco) {
+      ruaLimpa = String(d.paciente_endereco)
+        .replace(/(?:CEP\s*[:\-]?\s*)?\d{5}-?\d{3}/gi, '')
+        .replace(/\b(?:Ca[çc]ote|Areias|Est[âa]ncia)\b/gi, '')
+        .trim();
+      if (numVal) {
+        ruaLimpa = ruaLimpa.replace(new RegExp('(?:,\\s*|\\s+)(?:n[º°o.]*\\s*)?' + numVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), '');
+      }
+      ruaLimpa = ruaLimpa.replace(/^[\s,\-–]+|[\s,\-–]+$/g, '').trim();
+    }
+    setK('rua', ruaLimpa);
 
     setK('dia', dt.dia);
     setK('mes', dt.mes);

@@ -213,9 +213,14 @@ function abrirModalCapturaReceita() {
   const setorAtual = document.getElementById('input-setor')?.value || '';
   const tipoDefault = p.tipo_receita || (setorAtual === 'Odontologia' ? 'odonto' : setorAtual === 'Regulação' ? 'sisreg' : 'branca');
 
+  const extInit = p.dados_extras && typeof p.dados_extras === 'object' ? p.dados_extras : {};
   document.getElementById('pr-tipo').value = tipoDefault;
   document.getElementById('pr-paciente-nome').value = p.paciente_nome_ocr || document.getElementById('input-nome')?.value || '';
   document.getElementById('pr-paciente-cns').value = p.paciente_cns || '';
+  if (document.getElementById('pr-paciente-cpf')) document.getElementById('pr-paciente-cpf').value = extInit.paciente_cpf || '';
+  if (document.getElementById('pr-paciente-telefone')) document.getElementById('pr-paciente-telefone').value = extInit.paciente_telefone || '';
+  if (document.getElementById('pr-paciente-cep')) document.getElementById('pr-paciente-cep').value = extInit.paciente_cep || '';
+  if (document.getElementById('pr-paciente-bairro')) document.getElementById('pr-paciente-bairro').value = extInit.paciente_bairro || '';
   document.getElementById('pr-medicamentos').value = p.medicamentos || '';
   document.getElementById('pr-data-emissao').value = p.data_emissao || '';
   document.getElementById('pr-medico-emitente').value = p.medico_emitente || '';
@@ -242,6 +247,10 @@ function abrirModalAnalisarReceituario(setor = 'Médico') {
   setVal('pr-tipo', setor === 'Odontologia' ? 'odonto' : 'branca');
   setVal('pr-paciente-nome', '');
   setVal('pr-paciente-cns', '');
+  setVal('pr-paciente-cpf', '');
+  setVal('pr-paciente-telefone', '');
+  setVal('pr-paciente-cep', '');
+  setVal('pr-paciente-bairro', '');
   setVal('pr-medicamentos', '');
   setVal('pr-data-emissao', '');
   setVal('pr-medico-emitente', '');
@@ -267,6 +276,10 @@ async function abrirModalCapturaReceitaPaciente(patientId, nomePaciente, setor) 
   document.getElementById('pr-tipo').value = setor === 'Odontologia' ? 'odonto' : setor === 'Regulação' ? 'sisreg' : 'branca';
   document.getElementById('pr-paciente-nome').value = nomePaciente || '';
   document.getElementById('pr-paciente-cns').value = '';
+  if (document.getElementById('pr-paciente-cpf')) document.getElementById('pr-paciente-cpf').value = '';
+  if (document.getElementById('pr-paciente-telefone')) document.getElementById('pr-paciente-telefone').value = '';
+  if (document.getElementById('pr-paciente-cep')) document.getElementById('pr-paciente-cep').value = '';
+  if (document.getElementById('pr-paciente-bairro')) document.getElementById('pr-paciente-bairro').value = '';
   document.getElementById('pr-medicamentos').value = '';
   document.getElementById('pr-data-emissao').value = '';
   document.getElementById('pr-medico-emitente').value = '';
@@ -293,10 +306,15 @@ async function abrirModalCapturaReceitaPaciente(patientId, nomePaciente, setor) 
           ocr: null
         }];
       }
+      const extPac = p.dados_extras && typeof p.dados_extras === 'object' ? p.dados_extras : {};
       _previaDadosExtrasAtual = p.dados_extras ? { ...p.dados_extras } : null;
       if (p.tipo_receita) document.getElementById('pr-tipo').value = p.tipo_receita;
       document.getElementById('pr-paciente-nome').value = p.paciente_nome_ocr || nomePaciente || '';
       document.getElementById('pr-paciente-cns').value = p.paciente_cns || '';
+      if (document.getElementById('pr-paciente-cpf')) document.getElementById('pr-paciente-cpf').value = extPac.paciente_cpf || '';
+      if (document.getElementById('pr-paciente-telefone')) document.getElementById('pr-paciente-telefone').value = extPac.paciente_telefone || '';
+      if (document.getElementById('pr-paciente-cep')) document.getElementById('pr-paciente-cep').value = extPac.paciente_cep || '';
+      if (document.getElementById('pr-paciente-bairro')) document.getElementById('pr-paciente-bairro').value = extPac.paciente_bairro || '';
       document.getElementById('pr-medicamentos').value = p.medicamentos || '';
       document.getElementById('pr-data-emissao').value = p.data_emissao || '';
       document.getElementById('pr-medico-emitente').value = p.medico_emitente || '';
@@ -464,8 +482,13 @@ function mesclarOcrNoFormularioCaptura(o) {
     const el = document.getElementById(id);
     if (el && !el.value.trim() && val) el.value = String(val).trim();
   };
+  const ext = o.dados_extras && typeof o.dados_extras === 'object' ? o.dados_extras : {};
   setIfBlank('pr-paciente-nome', o.paciente_nome);
   setIfBlank('pr-paciente-cns', o.paciente_cns);
+  setIfBlank('pr-paciente-cpf', o.paciente_cpf || ext.paciente_cpf);
+  setIfBlank('pr-paciente-telefone', ext.paciente_telefone);
+  setIfBlank('pr-paciente-cep', ext.paciente_cep);
+  setIfBlank('pr-paciente-bairro', ext.paciente_bairro);
   setIfBlank('pr-data-emissao', o.data_emissao);
   setIfBlank('pr-medico-emitente', o.medico_emitente);
 
@@ -483,7 +506,6 @@ function mesclarOcrNoFormularioCaptura(o) {
     }
   }
 
-  const ext = o.dados_extras && typeof o.dados_extras === 'object' ? o.dados_extras : {};
   if (!document.getElementById('pr-medicamentos')?.value.trim() && ext.especialidade) {
     setIfBlank('pr-medicamentos', ext.especialidade);
   }
@@ -492,13 +514,17 @@ function mesclarOcrNoFormularioCaptura(o) {
   }
   const merged = { ...(_previaDadosExtrasAtual || {}) };
   [
-    'paciente_endereco', 'paciente_bairro', 'paciente_cep', 'paciente_municipio', 'paciente_uf',
+    'paciente_cpf', 'paciente_rg', 'paciente_endereco', 'paciente_numero', 'paciente_complemento',
+    'paciente_bairro', 'paciente_cep', 'paciente_municipio', 'paciente_uf',
     'paciente_data_nascimento', 'paciente_sexo', 'paciente_telefone', 'paciente_mae',
     'especialidade', 'tipo_vaga', 'risco', 'hipotese_diagnostica', 'cid10',
     'codigo_solicitacao', 'observacoes_revisada', 'destino_ia'
   ].forEach(k => {
     if (!merged[k] && ext[k]) merged[k] = ext[k];
   });
+  if (!merged.paciente_cpf && o.paciente_cpf) merged.paciente_cpf = o.paciente_cpf;
+  if (typeof ext.tem_hipertensao === 'boolean') merged.tem_hipertensao = merged.tem_hipertensao || ext.tem_hipertensao;
+  if (typeof ext.tem_diabetes === 'boolean') merged.tem_diabetes = merged.tem_diabetes || ext.tem_diabetes;
   if (o.destino_ia && !merged.destino_ia) merged.destino_ia = o.destino_ia;
   if (Array.isArray(ext.alertas_digitacao) && ext.alertas_digitacao.length > 0) {
     merged.alertas_digitacao = Array.from(new Set([...(merged.alertas_digitacao || []), ...ext.alertas_digitacao]));
@@ -656,9 +682,18 @@ async function executarOcrEmListaPrevia(novosAnexos) {
             justificativa: o.dados_extras?.justificativa || null,
             observacoes_revisada: o.dados_extras?.observacoes_revisada || null,
             codigo_solicitacao: o.dados_extras?.codigo_solicitacao || null,
+            paciente_cpf: o.paciente_cpf || o.dados_extras?.paciente_cpf || null,
+            paciente_rg: o.dados_extras?.paciente_rg || null,
+            paciente_telefone: o.dados_extras?.paciente_telefone || null,
+            paciente_endereco: o.dados_extras?.paciente_endereco || null,
+            paciente_numero: o.dados_extras?.paciente_numero || null,
+            paciente_complemento: o.dados_extras?.paciente_complemento || null,
+            paciente_bairro: o.dados_extras?.paciente_bairro || null,
             paciente_municipio: o.dados_extras?.paciente_municipio || null,
             paciente_cep: o.dados_extras?.paciente_cep || null,
-            paciente_uf: o.dados_extras?.paciente_uf || null
+            paciente_uf: o.dados_extras?.paciente_uf || null,
+            risco: o.dados_extras?.risco || null,
+            tipo_vaga: o.dados_extras?.tipo_vaga || null
           };
           if (o.dados_extras?.especialidade) {
             anexo.rotulo = String(o.dados_extras.especialidade).slice(0, 40);
@@ -777,6 +812,10 @@ async function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
   const tipo_receita = document.getElementById('pr-tipo')?.value || 'branca';
   const paciente_nome_ocr = document.getElementById('pr-paciente-nome')?.value.trim() || '';
   const paciente_cns = document.getElementById('pr-paciente-cns')?.value.trim() || '';
+  const paciente_cpf = document.getElementById('pr-paciente-cpf')?.value.trim() || '';
+  const paciente_telefone = document.getElementById('pr-paciente-telefone')?.value.trim() || '';
+  const paciente_cep = document.getElementById('pr-paciente-cep')?.value.trim() || '';
+  const paciente_bairro = document.getElementById('pr-paciente-bairro')?.value.trim() || '';
   const medicamentos = document.getElementById('pr-medicamentos')?.value.trim() || '';
   const data_emissao = document.getElementById('pr-data-emissao')?.value.trim() || '';
   const medico_emitente = document.getElementById('pr-medico-emitente')?.value.trim() || '';
@@ -789,6 +828,14 @@ async function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
     return;
   }
 
+  const dadosExtrasFinal = { ...(_previaDadosExtrasAtual || {}) };
+  if (paciente_cpf) dadosExtrasFinal.paciente_cpf = paciente_cpf;
+  else delete dadosExtrasFinal.paciente_cpf;
+  if (paciente_telefone) dadosExtrasFinal.paciente_telefone = paciente_telefone;
+  if (paciente_cep) dadosExtrasFinal.paciente_cep = paciente_cep;
+  if (paciente_bairro) dadosExtrasFinal.paciente_bairro = paciente_bairro;
+  const temDadosExtras = Object.values(dadosExtrasFinal).some(v => v !== null && v !== undefined && v !== '');
+
   const payload = {
     tipo_receita,
     paciente_nome_ocr: paciente_nome_ocr || null,
@@ -800,7 +847,7 @@ async function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
     fila_sugerida,
     imagem_base64: _previaAnexosCaptura[0]?.imagem_base64 || null,
     anexos: _previaAnexosCaptura.map(a => ({ ...a })),
-    dados_extras: _previaDadosExtrasAtual || null
+    dados_extras: temDadosExtras ? dadosExtrasFinal : null
   };
 
   if (_previaCapturaTargetPatient && _previaCapturaTargetPatient.id) {
@@ -1160,7 +1207,23 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
     const profTxt = profDirecionado ? ` · 👨‍⚕️ ${profDirecionado}` : '';
     document.getElementById('vp-subtitulo').textContent = `Setor: ${setorExibicao}${profTxt}${totalTxt}${pr.status_revisao === 'revisada' ? ' · ✅ Marcada como pronta' : ' · ⏳ Aguardando revisão'}`;
     document.getElementById('vp-nome-pac').textContent = pr.paciente_nome_ocr || nomePaciente;
-    document.getElementById('vp-cns').textContent = pr.paciente_cns || 'Não identificado';
+    document.getElementById('vp-cns').textContent = pr.paciente_cns || pr.dados_extras?.paciente_cpf || 'Não identificado';
+    const contatoRow = document.getElementById('vp-contato-row');
+    if (contatoRow) {
+      const extVp = pr.dados_extras && typeof pr.dados_extras === 'object' ? pr.dados_extras : {};
+      const partesContato = [];
+      if (extVp.paciente_cpf) partesContato.push(`<b>CPF:</b> ${escSafe(extVp.paciente_cpf)}`);
+      if (extVp.paciente_telefone) partesContato.push(`<b>Tel:</b> ${escSafe(extVp.paciente_telefone)}`);
+      if (extVp.paciente_bairro) partesContato.push(`<b>Bairro:</b> ${escSafe(extVp.paciente_bairro)}`);
+      if (extVp.paciente_cep) partesContato.push(`<b>CEP:</b> ${escSafe(extVp.paciente_cep)}`);
+      if (partesContato.length > 0) {
+        contatoRow.innerHTML = partesContato.join(' &nbsp;·&nbsp; ');
+        contatoRow.style.display = 'block';
+      } else {
+        contatoRow.innerHTML = '';
+        contatoRow.style.display = 'none';
+      }
+    }
     document.getElementById('vp-tipo').textContent = pr.tipo_receita === 'sisreg'
       ? '📋 SISREG / Encaminhamento'
       : pr.tipo_receita === 'azul'

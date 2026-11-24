@@ -260,11 +260,15 @@
       codigo_solicitacao: '',
       paciente_nome: '',
       paciente_cns: '',
+      paciente_cpf: '',
+      paciente_rg: '',
       paciente_dn: '',
       paciente_sexo: '',
       paciente_mae: '',
       paciente_telefone: '',
       paciente_endereco: '',
+      paciente_numero: '',
+      paciente_complemento: '',
       paciente_bairro: '',
       paciente_cep: '',
       paciente_municipio: 'Recife',
@@ -511,10 +515,13 @@
     { rx: /\bipojuca\b/, nome: 'Ipojuca' }
   ];
 
-  function verificarEnderecoRecifeFront({ municipio, uf, cep, endereco }) {
+  function verificarEnderecoRecifeFront({ municipio, uf, cep, endereco, bairro }) {
     const munNorm = normSisregFront(municipio);
     const ufNorm = normSisregFront(uf);
     const endNorm = normSisregFront(endereco);
+    const bairroNorm = normSisregFront(bairro);
+    const ehBairroUsf = /(?:^|[\s,])(?:cacote|areias?|estancias?)(?:$|[\s,])/.test(bairroNorm) ||
+      /(?:^|[\s,])(?:cacote|areias?|estancias?)(?:$|[\s,])/.test(endNorm);
     const cepDigits = String(cep || '').replace(/\D/g, '');
     const motivos = [];
 
@@ -548,7 +555,7 @@
     if (motivos.length > 0) {
       return { status: 'fora_recife', alerta: `🚫 Risco de DEVOLUÇÃO por endereço fora de Recife: ${motivos.join(' · ')}`, motivos };
     }
-    if (!munNorm && cepDigits.length !== 8 && !endNorm) {
+    if (!munNorm && cepDigits.length !== 8 && !endNorm && !ehBairroUsf) {
       return { status: 'incompleto', alerta: 'Endereço/Município não confirmado — verifique se reside em Recife-PE.', motivos: [] };
     }
     return { status: 'ok', alerta: null, motivos: [] };
@@ -1013,10 +1020,17 @@
                       </div>
                     </div>
                     <div class="sisreg-field">
-                      <label>CNS / CPF <span id="sr-cns-badge" class="sisreg-inline-badge"></span></label>
+                      <label>Cartão SUS (CNS) <span id="sr-cns-badge" class="sisreg-inline-badge"></span></label>
                       <div class="sisreg-inp-copy">
                         <input type="text" id="sr-cns" placeholder="15 dígitos" oninput="onCampoSisregAlterado('paciente_cns', this.value)">
                         <button type="button" onclick="copiarCampoSisreg('sr-cns','CNS')" title="Copiar CNS">📋</button>
+                      </div>
+                    </div>
+                    <div class="sisreg-field">
+                      <label>CPF</label>
+                      <div class="sisreg-inp-copy">
+                        <input type="text" id="sr-cpf" placeholder="000.000.000-00" oninput="onCampoSisregAlterado('paciente_cpf', this.value)">
+                        <button type="button" onclick="copiarCampoSisreg('sr-cpf','CPF')" title="Copiar CPF">📋</button>
                       </div>
                     </div>
                     <div class="sisreg-field">
@@ -1031,8 +1045,12 @@
                       </div>
                     </div>
                     <div class="sisreg-field">
-                      <label>Endereço / Bairro</label>
+                      <label>Logradouro / Endereço</label>
                       <input type="text" id="sr-endereco" oninput="onCampoSisregAlterado('paciente_endereco', this.value)">
+                    </div>
+                    <div class="sisreg-field">
+                      <label>Bairro (Caçote / Areias / Estância)</label>
+                      <input type="text" id="sr-bairro" list="bairros-usf-list" placeholder="Caçote, Areias ou Estância" oninput="onCampoSisregAlterado('paciente_bairro', this.value)">
                     </div>
                     <div class="sisreg-grid-cep">
                       <div class="sisreg-field">
@@ -1561,9 +1579,9 @@
   function mesclarDadosSisreg(atual, novo, acumular) {
     const out = { ...atual };
     const chavesTexto = [
-      'tipo_arquivo', 'codigo_solicitacao', 'paciente_nome', 'paciente_cns',
+      'tipo_arquivo', 'codigo_solicitacao', 'paciente_nome', 'paciente_cns', 'paciente_cpf', 'paciente_rg',
       'paciente_dn', 'paciente_sexo', 'paciente_mae', 'paciente_telefone',
-      'paciente_endereco', 'paciente_bairro', 'paciente_cep', 'paciente_municipio',
+      'paciente_endereco', 'paciente_numero', 'paciente_complemento', 'paciente_bairro', 'paciente_cep', 'paciente_municipio',
       'paciente_uf', 'tipo_vaga', 'risco', 'especialidade_ou_exame',
       'hipotese_diagnostica', 'cid10', 'medico_solicitante', 'crm_conselho', 'data_solicitacao'
     ];
@@ -1706,10 +1724,12 @@
     };
     setVal('sr-nome', d.paciente_nome);
     setVal('sr-cns', d.paciente_cns);
+    setVal('sr-cpf', d.paciente_cpf);
     setVal('sr-dn', d.paciente_dn);
     setVal('sr-mae', d.paciente_mae);
     setVal('sr-telefone', d.paciente_telefone);
     setVal('sr-endereco', d.paciente_endereco);
+    setVal('sr-bairro', d.paciente_bairro);
     setVal('sr-municipio', d.paciente_municipio);
     setVal('sr-uf', d.paciente_uf);
     setVal('sr-cep', d.paciente_cep);
@@ -1973,7 +1993,8 @@
       municipio: d.paciente_municipio,
       uf: d.paciente_uf,
       cep: d.paciente_cep,
-      endereco: d.paciente_endereco
+      endereco: d.paciente_endereco,
+      bairro: d.paciente_bairro
     });
 
     const cnsBadge = document.getElementById('sr-cns-badge');
@@ -2072,7 +2093,15 @@
         paciente_nome_ocr: d.paciente_nome || '',
         paciente_cns: d.paciente_cns || '',
         dados_extras: {
+          paciente_cpf: d.paciente_cpf || '',
+          paciente_rg: d.paciente_rg || '',
           paciente_endereco: d.paciente_endereco || '',
+          paciente_numero: d.paciente_numero || '',
+          paciente_complemento: d.paciente_complemento || '',
+          paciente_bairro: d.paciente_bairro || '',
+          paciente_cep: d.paciente_cep || '',
+          paciente_municipio: d.paciente_municipio || '',
+          paciente_uf: d.paciente_uf || '',
           paciente_telefone: d.paciente_telefone || ''
         }
       }
@@ -2259,11 +2288,15 @@
           codigo_solicitacao: ext.codigo_solicitacao || '',
           paciente_nome: pr.paciente_nome_ocr || nomePaciente,
           paciente_cns: pr.paciente_cns || '',
+          paciente_cpf: ext.paciente_cpf || '',
+          paciente_rg: ext.paciente_rg || '',
           paciente_dn: ext.paciente_data_nascimento || '',
           paciente_sexo: ext.paciente_sexo || '',
           paciente_mae: ext.paciente_mae || '',
           paciente_telefone: ext.paciente_telefone || '',
           paciente_endereco: ext.paciente_endereco || '',
+          paciente_numero: ext.paciente_numero || '',
+          paciente_complemento: ext.paciente_complemento || '',
           paciente_bairro: ext.paciente_bairro || '',
           paciente_cep: ext.paciente_cep || '',
           paciente_municipio: ext.paciente_municipio || 'Recife',
@@ -2328,7 +2361,11 @@
         justificativa: d.observacoes_original || d.observacoes_revisada || null,
         observacoes_revisada: d.observacoes_revisada || null,
         alertas_digitacao: Array.isArray(d.alertas_digitacao) ? d.alertas_digitacao : [],
+        paciente_cpf: d.paciente_cpf || null,
+        paciente_rg: d.paciente_rg || null,
         paciente_endereco: d.paciente_endereco || null,
+        paciente_numero: d.paciente_numero || null,
+        paciente_complemento: d.paciente_complemento || null,
         paciente_data_nascimento: d.paciente_dn || null,
         paciente_sexo: d.paciente_sexo || null,
         paciente_telefone: d.paciente_telefone || null,
@@ -2481,7 +2518,8 @@
       municipio: d.paciente_municipio,
       uf: d.paciente_uf,
       cep: d.paciente_cep,
-      endereco: d.paciente_endereco
+      endereco: d.paciente_endereco,
+      bairro: d.paciente_bairro
     });
     const motEl = document.getElementById('dev-motivo');
     const ehProblemaCadastro = endInfo.status === 'fora_recife' || !d.paciente_telefone;

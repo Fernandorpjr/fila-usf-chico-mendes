@@ -591,3 +591,57 @@ test('Devoluções SISREG validam anexos, detalhes, prazo de 3 dias e limpeza au
   assert.ok(sqlExecutado.includes("status = 'corrigida'"));
   assert.ok(sqlExecutado.includes('prazo_em < CURRENT_TIMESTAMP'));
 });
+
+test('normalizarResultadoOcrSisreg separa CPF/CNS, decompoe endereco e normaliza bairros Caçote/Areias/Estância', () => {
+  const res = normalizarResultadoOcrSisreg({
+    paciente_nome: 'MARIA SILVA',
+    paciente_cns: '898001234567890',
+    paciente_cpf: '12345678901',
+    paciente_telefone: '81988887777',
+    paciente_endereco: 'Rua da Esperança, 42, Apto 2, Cacote, 50870-110 - Recife/PE'
+  });
+  assert.equal(res.paciente_cns, '898 0012 3456 7890');
+  assert.equal(res.paciente_cpf, '123.456.789-01');
+  assert.equal(res.paciente_telefone, '(81) 98888-7777');
+  assert.equal(res.paciente_endereco, 'Rua da Esperança');
+  assert.equal(res.paciente_numero, '42');
+  assert.equal(res.paciente_complemento, 'Apto 2');
+  assert.equal(res.paciente_bairro, 'Caçote');
+  assert.equal(res.paciente_cep, '50870-110');
+
+  const endRec = verificarEnderecoRecife({ bairro: 'Estância' });
+  assert.equal(endRec.status, 'ok');
+  assert.equal(endRec.recifeOk, true);
+});
+
+test('Formularios HTML PEC estao sem erros estruturais e preenchem CPF, CEP, Telefone e Bairro', () => {
+  const dir = path.join(__dirname, '..', 'public', 'formularios');
+  const ctrlEsp = fs.readFileSync(path.join(dir, 'receituario-controle-especial.html'), 'utf8');
+  assert.equal(ctrlEsp.includes('CONTRLE'), false);
+  assert.equal(ctrlEsp.includes('SANTITÁRIO'), false);
+  assert.equal(ctrlEsp.includes('ASSINATURA D FARMACÊUTICO'), false);
+  assert.equal(ctrlEsp.includes('Espelhar 1ª ↔ 2ª via</button>'), false);
+  assert.ok(ctrlEsp.includes('RECEITUÁRIO CONTROLE ESPECIAL'));
+  assert.ok(ctrlEsp.includes('DISTRITO SANITÁRIO:'));
+  assert.ok(ctrlEsp.includes('IDENT.:'));
+
+  const fichaAmb = fs.readFileSync(path.join(dir, 'ficha-solicitacao-ambulatorial.html'), 'utf8');
+  assert.ok(fichaAmb.includes("setFieldByLabel('CEP:', d.paciente_cep"));
+  assert.ok(fichaAmb.includes("setFieldByLabel('Número:', d.paciente_numero"));
+  assert.ok(fichaAmb.includes("setFieldByLabel('Complemento:', d.paciente_complemento"));
+  assert.ok(fichaAmb.includes("setFieldByLabel('Bairro:', d.paciente_bairro"));
+  assert.ok(fichaAmb.includes('marcarPatologia'));
+  assert.ok(fichaAmb.includes('marcarRisco'));
+
+  const declRes = fs.readFileSync(path.join(dir, 'declaracao-residencia.html'), 'utf8');
+  assert.ok(declRes.includes("setK('bairro', d.paciente_bairro"));
+  assert.ok(declRes.includes("setK('cpf', cpfRaw)"));
+  assert.ok(declRes.includes("setBairro('Caçote')"));
+
+  const cito = fs.readFileSync(path.join(dir, 'requisicao-exame-citopatologico.html'), 'utf8');
+  assert.ok(cito.includes("setInputByLabel('Bairro', d.paciente_bairro"));
+  assert.ok(cito.includes("setInputByLabel('CEP', d.paciente_cep"));
+  assert.ok(cito.includes("setInputByLabel('Número', d.paciente_numero"));
+  assert.ok(cito.includes("setInputByLabel('Complemento', d.paciente_complemento"));
+  assert.ok(cito.includes('bairros-usf-list'));
+});
