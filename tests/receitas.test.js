@@ -5,6 +5,7 @@ const {
   calcularDataVencimento,
   adicionarDiasDataBR,
   calcularDuracaoComprimidos,
+  calcularSaldoComprimidos,
   calcularDiasRestantes,
   classificarUrgencia,
   classificarReceita,
@@ -224,4 +225,42 @@ test('classificarReceita combina duração dos comprimidos com o teto legal de 6
   );
   assert.equal(rTexto.dias_tratamento, 30);
   assert.equal(rTexto.data_vencimento, '01/12/2026');
+});
+
+test('calcularSaldoComprimidos calcula se ainda tem, quantos restam e quantos faltam receber', () => {
+  const ref = new Date('2026-11-23T12:00:00Z'); // 22 dias após 01/11/2026
+
+  // Ainda tem comprimidos (60 cp, 2/dia, 22d decorridos -> 44 consumidos -> 16 restantes / 8d)
+  const tem = calcularSaldoComprimidos(
+    [{ medicamento: 'Losartana', quantidade_total: 60, dose_diaria: 2 }],
+    '',
+    '01/11/2026',
+    ref
+  );
+  assert.equal(tem.ainda_tem, true);
+  assert.equal(tem.comprimidos_restantes_est, 16);
+  assert.equal(tem.dias_restantes_est, 8);
+  assert.ok(tem.resumo.includes('16'));
+
+  // Já acabou (01/10/2026 -> 53 dias decorridos >= 30d -> 0 restantes)
+  const acabou = calcularSaldoComprimidos(
+    [{ medicamento: 'Losartana', quantidade_total: 60, dose_diaria: 2 }],
+    '',
+    '01/10/2026',
+    ref
+  );
+  assert.equal(acabou.ainda_tem, false);
+  assert.equal(acabou.comprimidos_restantes_est, 0);
+  assert.ok(acabou.resumo.includes('Sem comprimidos'));
+
+  // Retirada parcial anotada na receita (retirou 30 de 60 -> falta receber 30)
+  const parcial = calcularSaldoComprimidos(
+    [{ medicamento: 'Losartana', quantidade_total: 60, dose_diaria: 2, quantidade_ja_retirada: 30 }],
+    '',
+    '01/11/2026',
+    ref
+  );
+  assert.equal(parcial.ainda_tem, true);
+  assert.equal(parcial.falta_receber, 30);
+  assert.ok(parcial.resumo.includes('falta receber 30'));
 });

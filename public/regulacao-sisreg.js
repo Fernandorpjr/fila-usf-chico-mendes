@@ -100,13 +100,14 @@
     const urgMap = { vencida: ' (Vencida)', urgente: ` (Vence em ${alertaReceita.dias_restantes}d)`, normal: ` (Válida - ${alertaReceita.dias_restantes}d)` };
     const urgTxt = alertaReceita.dias_restantes !== null && alertaReceita.dias_restantes !== undefined ? (urgMap[alertaReceita.urgencia] || '') : '';
     const venc = alertaReceita.data_vencimento ? `<div><b>Validade:</b> ${escSisreg(alertaReceita.data_vencimento)}${urgTxt}${regra}</div>` : '';
+    const saldoHtml = alertaReceita.saldo_comprimidos?.resumo ? `<div><b>Comprimidos:</b> ${escSisreg(alertaReceita.saldo_comprimidos.resumo)}</div>` : '';
     const prov = tagProvedor ? ` <span style="color:#64748b;font-weight:700;">${escSisreg(tagProvedor)}</span>` : '';
     statusEl.style.display = 'block';
     statusEl.className = 'pr-status-box warn';
     statusEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">
       <div><strong>💊 Este documento é uma RECEITA (não é ficha do SISREG).</strong>${prov}</div>
       <div>${badge}</div>
-      ${motivo}${meds}${venc}
+      ${motivo}${meds}${venc}${saldoHtml}
     </div>`;
     return true;
   }

@@ -700,6 +700,10 @@ function atualizarSugestaoReceitaLocal(clfServer) {
   const motivoHtml = clfServer?.motivo_profissional
     ? `<div style="margin-top:4px;font-size:12px;color:#334155;">${escSafe(clfServer.motivo_profissional)}</div>`
     : '';
+  const saldo = clfServer?.saldo_comprimidos;
+  const saldoHtml = saldo?.resumo
+    ? `<div style="margin-top:4px;font-size:12px;font-weight:800;color:${saldo.ainda_tem ? '#166534' : '#b91c1c'};">Comprimidos: ${escSafe(saldo.resumo)}</div>`
+    : '';
 
   if (clfServer && clfServer.data_vencimento) {
     const urgMap = {
@@ -708,14 +712,14 @@ function atualizarSugestaoReceitaLocal(clfServer) {
       normal: `🟢 Válida (${clfServer.dias_restantes}d)`
     };
     const badgeUrg = urgMap[clfServer.urgencia] || '';
-    box.innerHTML = `<div><strong>💊 Receita</strong> · ${profBadge}</div>${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}</div>`;
+    box.innerHTML = `<div><strong>💊 Receita</strong> · ${profBadge}</div>${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}</div>${saldoHtml}`;
     box.dataset.filaSugerida = filaSug;
     box.dataset.dataVenc = clfServer.data_vencimento;
     box.dataset.diasRest = clfServer.dias_restantes ?? '';
     box.dataset.urgencia = clfServer.urgencia || 'normal';
     box.style.display = 'block';
   } else {
-    box.innerHTML = `<div><strong>💊 Receita ${tipo === 'azul' ? 'Azul (Controle Especial)' : tipo === 'odonto' ? 'Odontológica' : 'Branca (PEC)'}</strong> · ${profBadge}</div>${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Setor sugerido: <b>${escSafe(filaSug)}</b></div>`;
+    box.innerHTML = `<div><strong>💊 Receita ${tipo === 'azul' ? 'Azul (Controle Especial)' : tipo === 'odonto' ? 'Odontológica' : 'Branca (PEC)'}</strong> · ${profBadge}</div>${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Setor sugerido: <b>${escSafe(filaSug)}</b></div>${saldoHtml}`;
     box.dataset.filaSugerida = filaSug;
     box.style.display = 'block';
   }
