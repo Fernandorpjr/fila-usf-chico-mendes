@@ -6,6 +6,7 @@ const {
   adicionarDiasDataBR,
   calcularDuracaoComprimidos,
   calcularSaldoComprimidos,
+  identificarPerfilClinicoReceita,
   calcularDiasRestantes,
   classificarUrgencia,
   classificarReceita,
@@ -227,7 +228,7 @@ test('classificarReceita combina duração dos comprimidos com o teto legal de 6
   assert.equal(rTexto.data_vencimento, '01/12/2026');
 });
 
-test('calcularSaldoComprimidos calcula se ainda tem, quantos restam e quantos faltam receber', () => {
+test('calcularSaldoComprimidos calcula saldo, bloqueia retirada em receita vencida e limita pelo prazo restante', () => {
   const ref = new Date('2026-11-23T12:00:00Z'); // 22 dias após 01/11/2026
 
   // Ainda tem comprimidos (60 cp, 2/dia, 22d decorridos -> 44 consumidos -> 16 restantes / 8d)
@@ -242,25 +243,55 @@ test('calcularSaldoComprimidos calcula se ainda tem, quantos restam e quantos fa
   assert.equal(tem.dias_restantes_est, 8);
   assert.ok(tem.resumo.includes('16'));
 
-  // Já acabou (01/10/2026 -> 53 dias decorridos >= 30d -> 0 restantes)
-  const acabou = calcularSaldoComprimidos(
-    [{ medicamento: 'Losartana', quantidade_total: 60, dose_diaria: 2 }],
+  // Caso reportado: Losartana 180 cp, 1/dia, retirou 60, emitida ha 200 dias (vencida!)
+  // Mesmo faltando 120 na soma bruta, receita vencida nao tem comprimido disponivel para retirar
+  const vencidaComRetirada = calcularSaldoComprimidos(
+    [{ medicamento: 'Losartana', quantidade_total: 180, dose_diaria: 1, quantidade_ja_retirada: 60 }],
     '',
-    '01/10/2026',
-    ref
+    '07/05/2026',
+    ref,
+    true
   );
-  assert.equal(acabou.ainda_tem, false);
-  assert.equal(acabou.comprimidos_restantes_est, 0);
-  assert.ok(acabou.resumo.includes('Sem comprimidos'));
+  assert.equal(vencidaComRetirada.ainda_tem, false);
+  assert.equal(vencidaComRetirada.comprimidos_restantes_est, 0);
+  assert.equal(vencidaComRetirada.falta_receber, 0);
+  assert.ok(vencidaComRetirada.resumo.includes('Receita vencida'));
+  assert.equal(vencidaComRetirada.resumo.includes('falta receber'), false);
 
-  // Retirada parcial anotada na receita (retirou 30 de 60 -> falta receber 30)
-  const parcial = calcularSaldoComprimidos(
-    [{ medicamento: 'Losartana', quantidade_total: 60, dose_diaria: 2, quantidade_ja_retirada: 30 }],
+  // Receita valida: 180 cp, 1/dia, retirou 60, emitida ha 100 dias (restam 80 dias -> pode retirar ate 80 cp, nao 120)
+  const ref100d = new Date('2026-08-09T12:00:00Z'); // 100d após 01/05/2026
+  const parcialValida = calcularSaldoComprimidos(
+    [{ medicamento: 'Losartana', quantidade_total: 180, dose_diaria: 1, quantidade_ja_retirada: 60 }],
     '',
-    '01/11/2026',
-    ref
+    '01/05/2026',
+    ref100d,
+    false
   );
-  assert.equal(parcial.ainda_tem, true);
-  assert.equal(parcial.falta_receber, 30);
-  assert.ok(parcial.resumo.includes('falta receber 30'));
+  assert.equal(parcialValida.ainda_tem, true);
+  assert.equal(parcialValida.falta_receber, 80);
+  assert.ok(parcialValida.resumo.includes('80 cp'));
+});
+
+test('identificarPerfilClinicoReceita classifica Hipertenso, Diabetico, Ambos (Hiperdia) e Prevencao', () => {
+  const hip = identificarPerfilClinicoReceita('Losartana 50mg, Hidroclorotiazida 25mg');
+  assert.equal(hip.codigo, 'hipertenso');
+  assert.equal(hip.hiperdia, true);
+  assert.ok(hip.label.includes('Hipertenso'));
+
+  const diab = identificarPerfilClinicoReceita('Metformina 850mg, Insulina NPH');
+  assert.equal(diab.codigo, 'diabetico');
+  assert.equal(diab.hiperdia, true);
+  assert.ok(diab.label.includes('Diabético'));
+
+  const ambos = identificarPerfilClinicoReceita('Losartana 50mg, Metformina 850mg');
+  assert.equal(ambos.codigo, 'hipertenso_diabetico');
+  assert.equal(ambos.hiperdia, true);
+  assert.ok(ambos.label.includes('Hipertenso e Diabético'));
+
+  const prev = identificarPerfilClinicoReceita('Sinvastatina 20mg, AAS 100mg');
+  assert.equal(prev.codigo, 'prevencao');
+  assert.equal(prev.hiperdia, false);
+  assert.ok(prev.label.includes('prevenção'));
+
+  assert.equal(identificarPerfilClinicoReceita('Dipirona 500mg'), null);
 });

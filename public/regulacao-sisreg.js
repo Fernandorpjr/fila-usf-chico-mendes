@@ -95,6 +95,7 @@
         ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:900;">🦷 Dentista (Odontologia)</span>'
         : '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dbeafe;color:#1e40af;font-weight:900;">🔵 Somente Médico pode fazer</span>';
     const motivo = alertaReceita.motivo_profissional ? `<div>${escSisreg(alertaReceita.motivo_profissional)}</div>` : '';
+    const perfilHtml = alertaReceita.perfil_clinico?.label ? `<div><b>Perfil:</b> ${escSisreg(alertaReceita.perfil_clinico.label)}</div>` : '';
     const meds = alertaReceita.medicamentos ? `<div><b>Medicamentos:</b> ${escSisreg(alertaReceita.medicamentos)}</div>` : '';
     const regra = alertaReceita.regra_validade ? ` · ${escSisreg(alertaReceita.regra_validade)}` : '';
     const urgMap = { vencida: ' (Vencida)', urgente: ` (Vence em ${alertaReceita.dias_restantes}d)`, normal: ` (Válida - ${alertaReceita.dias_restantes}d)` };
@@ -107,7 +108,7 @@
     statusEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">
       <div><strong>💊 Este documento é uma RECEITA (não é ficha do SISREG).</strong>${prov}</div>
       <div>${badge}</div>
-      ${motivo}${meds}${venc}${saldoHtml}
+      ${perfilHtml}${motivo}${meds}${venc}${saldoHtml}
     </div>`;
     return true;
   }

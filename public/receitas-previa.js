@@ -700,6 +700,13 @@ function atualizarSugestaoReceitaLocal(clfServer) {
   const motivoHtml = clfServer?.motivo_profissional
     ? `<div style="margin-top:4px;font-size:12px;color:#334155;">${escSafe(clfServer.motivo_profissional)}</div>`
     : '';
+  const perfil = clfServer?.perfil_clinico;
+  const perfilMeds = Array.isArray(perfil?.medicamentos_base) && perfil.medicamentos_base.length > 0
+    ? ` <span style="font-weight:600;">(${escSafe(perfil.medicamentos_base.join(', '))})</span>`
+    : '';
+  const perfilHtml = perfil?.label
+    ? `<div style="margin-top:4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${perfil.hiperdia ? '#fef3c7' : '#f3e8ff'};color:${perfil.hiperdia ? '#92400e' : '#6b21a8'};font-size:12px;font-weight:900;">Perfil: ${escSafe(perfil.label)}</span>${perfilMeds}</div>`
+    : '';
   const saldo = clfServer?.saldo_comprimidos;
   const saldoHtml = saldo?.resumo
     ? `<div style="margin-top:4px;font-size:12px;font-weight:800;color:${saldo.ainda_tem ? '#166534' : '#b91c1c'};">Comprimidos: ${escSafe(saldo.resumo)}</div>`
@@ -712,14 +719,14 @@ function atualizarSugestaoReceitaLocal(clfServer) {
       normal: `🟢 Válida (${clfServer.dias_restantes}d)`
     };
     const badgeUrg = urgMap[clfServer.urgencia] || '';
-    box.innerHTML = `<div><strong>💊 Receita</strong> · ${profBadge}</div>${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}</div>${saldoHtml}`;
+    box.innerHTML = `<div><strong>💊 Receita</strong> · ${profBadge}</div>${perfilHtml}${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}</div>${saldoHtml}`;
     box.dataset.filaSugerida = filaSug;
     box.dataset.dataVenc = clfServer.data_vencimento;
     box.dataset.diasRest = clfServer.dias_restantes ?? '';
     box.dataset.urgencia = clfServer.urgencia || 'normal';
     box.style.display = 'block';
   } else {
-    box.innerHTML = `<div><strong>💊 Receita ${tipo === 'azul' ? 'Azul (Controle Especial)' : tipo === 'odonto' ? 'Odontológica' : 'Branca (PEC)'}</strong> · ${profBadge}</div>${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Setor sugerido: <b>${escSafe(filaSug)}</b></div>${saldoHtml}`;
+    box.innerHTML = `<div><strong>💊 Receita ${tipo === 'azul' ? 'Azul (Controle Especial)' : tipo === 'odonto' ? 'Odontológica' : 'Branca (PEC)'}</strong> · ${profBadge}</div>${perfilHtml}${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Setor sugerido: <b>${escSafe(filaSug)}</b></div>${saldoHtml}`;
     box.dataset.filaSugerida = filaSug;
     box.style.display = 'block';
   }
