@@ -53,6 +53,7 @@ const {
   isValidManagerPass,
   resolvePrivilegedRole,
   isPublicApiRoute,
+  verifySameOriginMutation,
   getSessionFromRequest,
   setSessionCookie,
   clearSessionCookie,
@@ -364,6 +365,15 @@ app.use('/api', async (req, res, next) => {
     res.set('Surrogate-Control', 'no-store');
   }
 
+  // Proteção anti-CSRF por verificação estrita de Origin em requisições mutantes
+  const originCheck = verifySameOriginMutation(req);
+  if (!originCheck.ok) {
+    return res.status(403).json({
+      error: 'Origem da requisição não autorizada para esta operação.',
+      code: 'CSRF_ORIGIN_DENIED'
+    });
+  }
+
   // Autenticação obrigatória para rotas protegidas da API (TV e QR Code têm rotas públicas sanitizadas)
   if (!isPublicApiRoute(req.method, req.path)) {
     const sess = getSessionFromRequest(req);
@@ -442,7 +452,7 @@ const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermag
 // Canais de chat válidos
 const CANAIS_CHAT = ['geral', 'recepcao', 'acolhimento', 'acs', 'medico', 'enfermagem', 'odontologia', 'farmacia', 'regulacao', 'gerencia'];
 
-const DB_SCHEMA_VERSION = '2026-11-25-bloco2-v2';
+const DB_SCHEMA_VERSION = '2026-11-25-bloco1-mutirao-v1';
 
 // Create tables on startup
 async function initDB() {
@@ -774,32 +784,52 @@ async function initDB() {
     `);
     // ====== FIM MELHORIA 4: TABELA ======
 
-    // ====== CADASTRO DE PROFISSIONAIS (com profissão/cargo) ======
+    // ====== CADASTRO DE PROFISSIONAIS (com profissão, setor e regime fixo/mutirão) ======
     await pool.query(`
       CREATE TABLE IF NOT EXISTS profissionais_cadastro (
         id SERIAL PRIMARY KEY,
         nome TEXT NOT NULL UNIQUE,
         profissao TEXT,
+        setor TEXT DEFAULT 'Médico',
+        regime TEXT NOT NULL DEFAULT 'fixo',
+        ordem SMALLINT DEFAULT 50,
         ativo BOOLEAN DEFAULT true,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    // Seed idempotente – preenche profissionais com profissão
+    await pool.query(`ALTER TABLE profissionais_cadastro ADD COLUMN IF NOT EXISTS setor TEXT DEFAULT 'Médico'`);
+    await pool.query(`ALTER TABLE profissionais_cadastro ADD COLUMN IF NOT EXISTS regime TEXT NOT NULL DEFAULT 'fixo'`);
+    await pool.query(`ALTER TABLE profissionais_cadastro ADD COLUMN IF NOT EXISTS ordem SMALLINT DEFAULT 50`);
+
+    // Backfill único para bases antigas onde ainda não havia coluna setor
+    await pool.query(
+      `UPDATE profissionais_cadastro SET regime = 'mutirao', setor = 'Enfermagem', ordem = 14
+       WHERE nome = 'Renata Célia' AND (setor IS NULL OR setor = '')`
+    );
+
+    // Seed idempotente – preserva alterações feitas pelo coordenador na tela
     const profSeed = [
-      ['Dra. Juliana Cavalcante', 'Cirurgiã-Dentista – Estratégia Saúde da Família'],
-      ['Dra. Mirela Mota', 'Clínica Geral – Médica da Estratégia Saúde da Família'],
-      ['Dr. Israel Christian', 'Médico – Estratégia Saúde da Família'],
-      ['Dr. Joene Halan', 'Médico – Estratégia Saúde da Família'],
-      ['Jorge Marcio', 'Enfermeiro – Estratégia Saúde da Família'],
-      ['Mariana Vaz', 'Enfermeira – Estratégia Saúde da Família'],
-      ['Lucelia de Abreu', 'Enfermeira – Estratégia Saúde da Família'],
-      ['Renata Célia', 'Enfermeira – Estratégia Saúde da Família']
+      ['Dr. Israel Christian', 'Médico – Estratégia Saúde da Família', 'Médico', 'fixo', 1],
+      ['Dr. Joene Halan', 'Médico – Estratégia Saúde da Família', 'Médico', 'fixo', 2],
+      ['Dra. Mirela Mota', 'Clínica Geral – Médica da Estratégia Saúde da Família', 'Médico', 'fixo', 3],
+      ['Mariana Vaz', 'Enfermeira – Estratégia Saúde da Família', 'Enfermagem', 'fixo', 11],
+      ['Jorge Marcio', 'Enfermeiro – Estratégia Saúde da Família', 'Enfermagem', 'fixo', 12],
+      ['Lucelia de Abreu', 'Enfermeira – Estratégia Saúde da Família', 'Enfermagem', 'fixo', 13],
+      ['Renata Célia', 'Enfermeira – Estratégia Saúde da Família', 'Enfermagem', 'mutirao', 14],
+      ['Dra. Juliana Cavalcante', 'Cirurgiã-Dentista – Estratégia Saúde da Família', 'Odontologia', 'fixo', 21],
+      ['Viviane', 'Técnica de Enfermagem', 'Téc. Enfermagem', 'fixo', 31],
+      ['Vilma', 'Técnica de Enfermagem', 'Téc. Enfermagem', 'fixo', 32],
+      ['Fernando', 'Técnico de Enfermagem', 'Téc. Enfermagem', 'fixo', 33]
     ];
-    for (const [nome, profissao] of profSeed) {
+    for (const [nome, profissao, setor, regime, ordem] of profSeed) {
       await pool.query(
-        `INSERT INTO profissionais_cadastro (nome, profissao) VALUES ($1, $2)
-         ON CONFLICT (nome) DO UPDATE SET profissao = $2`,
-        [nome, profissao]
+        `INSERT INTO profissionais_cadastro (nome, profissao, setor, regime, ordem)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (nome) DO UPDATE SET
+           profissao = COALESCE(NULLIF(profissionais_cadastro.profissao, ''), EXCLUDED.profissao),
+           setor = COALESCE(NULLIF(profissionais_cadastro.setor, ''), EXCLUDED.setor),
+           ordem = COALESCE(profissionais_cadastro.ordem, EXCLUDED.ordem)`,
+        [nome, profissao, setor, regime, ordem]
       );
     }
     // ====== FIM CADASTRO DE PROFISSIONAIS ======
@@ -983,6 +1013,8 @@ async function garantirColunasEscuta(dbClientOrPool) {
 
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS exames_coleta JSONB DEFAULT NULL`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS ausente_temporario BOOLEAN NOT NULL DEFAULT false`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS client_request_id VARCHAR(64)`);
+    await runner.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_patients_client_req_id ON patients (client_request_id) WHERE client_request_id IS NOT NULL`);
     await runner.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS patient_fila_id INTEGER DEFAULT NULL`);
 
     await runner.query(`
@@ -1045,6 +1077,14 @@ app.get('/api/health', (req, res) => {
 // Autenticação do Portão de Entrada (sessão em cookie HttpOnly assinado + trava progressiva por dispositivo)
 app.post('/api/auth/login', async (req, res) => {
   try {
+    const rlIp = checkRateLimit('auth_login_ip', getClientIp(req), 30, 5 * 60 * 1000);
+    if (!rlIp.allowed) {
+      return res.status(429).json({
+        ok: false,
+        segundos_restantes: rlIp.retryAfterSec,
+        error: `Muitas tentativas deste IP. Aguarde ${rlIp.retryAfterSec}s para tentar novamente.`
+      });
+    }
     const estado = await consultarEstadoBloqueioDispositivo(req, pool);
     if (estado.bloqueadoDefinitivo) {
       return res.status(423).json({
@@ -1149,8 +1189,15 @@ app.get('/api/auth/session', async (req, res) => {
 app.post('/api/verify-admin', async (req, res) => {
   try {
     const { senha, modo_emergencia, apenas_admin } = req.body || {};
-    const estado = await consultarEstadoBloqueioDispositivo(req, pool);
     const ip = getClientIp(req);
+    const rlVerify = checkRateLimit('verify_admin_ip', ip, 25, 5 * 60 * 1000);
+    if (!rlVerify.allowed) {
+      return res.status(429).json({
+        valid: false,
+        error: `Muitas tentativas de autenticação administrativa. Aguarde ${rlVerify.retryAfterSec}s.`
+      });
+    }
+    const estado = await consultarEstadoBloqueioDispositivo(req, pool);
 
     if (modo_emergencia === true) {
       if (estado.emergenciaBloqueada) {
@@ -1635,11 +1682,13 @@ app.post('/api/patients/:id/iniciar-consulta', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `UPDATE patients SET status = 'em_consulta', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+      `UPDATE patients SET status = 'em_consulta', updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status NOT IN ('atendido', 'desistencia')
+       RETURNING *`,
       [id]
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Paciente não encontrado' });
+      return res.status(409).json({ error: 'Paciente não encontrado ou já finalizado/desistente.' });
     }
     io.emit('queueUpdate');
     res.json(result.rows[0]);
@@ -1851,11 +1900,30 @@ app.post('/api/patients', async (req, res) => {
       motivo_primeira_escuta,
       queixa,
       horario_marcado,
-      exames_coleta
+      exames_coleta,
+      client_request_id
     } = req.body;
 
-    if (!nome || !setor) {
+    const nomeLimpo = String(nome || '').replace(/\s+/g, ' ').trim();
+    if (!nomeLimpo || !setor) {
       return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
+    }
+    if (nomeLimpo.length < 2 || nomeLimpo.length > 120) {
+      return res.status(400).json({ error: 'Nome do paciente deve ter entre 2 e 120 caracteres.' });
+    }
+    if (!SETORES.includes(setor)) {
+      return res.status(400).json({ error: 'Setor informado é inválido.' });
+    }
+    const clientReqId = client_request_id ? String(client_request_id).trim().slice(0, 64) : null;
+
+    if (clientReqId) {
+      const dupRes = await pool.query(
+        'SELECT * FROM patients WHERE client_request_id = $1 LIMIT 1',
+        [clientReqId]
+      );
+      if (dupRes.rows.length > 0) {
+        return res.status(200).json({ ...dupRes.rows[0], idempotent: true });
+      }
     }
 
     const examesColetaNorm = normalizarPayloadExamesColeta(exames_coleta);
@@ -1878,41 +1946,53 @@ app.post('/api/patients', async (req, res) => {
     const horario = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
     const equipeFinal = equipe_paciente ? String(equipe_paciente).trim().slice(0, 80) : null;
     const motivoEscuta1Final = motivo_primeira_escuta
-      ? String(motivo_primeira_escuta).trim()
-      : (queixa ? String(queixa).trim() : null);
+      ? String(motivo_primeira_escuta).trim().slice(0, 500)
+      : (queixa ? String(queixa).trim().slice(0, 500) : null);
 
-    const result = await pool.query(
-      `INSERT INTO patients (
-         nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento,
-         profissional, condicoes_especiais, etapa_fluxo, idade, nivel_prioridade,
-         equipe_paciente, motivo_primeira_escuta, queixa, setor_destino, profissional_destino,
-         horario_marcado, ordem_prioridade_odonto, exames_coleta, updated_at
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP)
-       RETURNING *`,
-      [
-        nome,
-        setor,
-        horario,
-        'aguardando',
-        prioridadeFinal,
-        tipoPrioridadeFinal,
-        tipo_atendimento || null,
-        profissional || null,
-        condicoes_especiais || null,
-        etapa_fluxo || 'recepcao',
-        calc.idade,
-        nivelFinal,
-        equipeFinal,
-        motivoEscuta1Final,
-        motivoEscuta1Final,
-        setor,
-        profissional || null,
-        horarioMarcadoFinal,
-        ordemPrioridadeOdontoFinal,
-        examesColetaNorm ? JSON.stringify(examesColetaNorm) : null
-      ]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        `INSERT INTO patients (
+           nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento,
+           profissional, condicoes_especiais, etapa_fluxo, idade, nivel_prioridade,
+           equipe_paciente, motivo_primeira_escuta, queixa, setor_destino, profissional_destino,
+           horario_marcado, ordem_prioridade_odonto, exames_coleta, client_request_id, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [
+          nomeLimpo,
+          setor,
+          horario,
+          'aguardando',
+          prioridadeFinal,
+          tipoPrioridadeFinal,
+          tipo_atendimento ? String(tipo_atendimento).trim().slice(0, 60) : null,
+          profissional ? String(profissional).trim().slice(0, 80) : null,
+          condicoes_especiais ? String(condicoes_especiais).trim().slice(0, 200) : null,
+          etapa_fluxo || 'recepcao',
+          calc.idade,
+          nivelFinal,
+          equipeFinal,
+          motivoEscuta1Final,
+          motivoEscuta1Final,
+          setor,
+          profissional ? String(profissional).trim().slice(0, 80) : null,
+          horarioMarcadoFinal,
+          ordemPrioridadeOdontoFinal,
+          examesColetaNorm ? JSON.stringify(examesColetaNorm) : null,
+          clientReqId
+        ]
+      );
+    } catch (insErr) {
+      if (insErr && insErr.code === '23505' && clientReqId) {
+        const dupAfter = await pool.query('SELECT * FROM patients WHERE client_request_id = $1 LIMIT 1', [clientReqId]);
+        if (dupAfter.rows.length > 0) {
+          return res.status(200).json({ ...dupAfter.rows[0], idempotent: true });
+        }
+      }
+      throw insErr;
+    }
 
     const novoPaciente = result.rows[0];
     await reordenarFilaSetor(pool, setor);
@@ -2954,7 +3034,15 @@ app.post('/api/remove-patient', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Paciente não encontrado' });
     }
-    
+    const pacRem = result.rows[0];
+    await registrarAuditoriaFila(pool, req, {
+      pacienteId: pacRem.id,
+      acao: 'DESISTENCIA',
+      setor: pacRem.setor,
+      valorAnterior: `${pacRem.nome} (${pacRem.status})`,
+      valorNovo: 'desistencia'
+    });
+
     io.emit('queueUpdate');
     res.json({ message: 'Paciente removido com sucesso', patient: result.rows[0] });
   } catch (error) {
@@ -3522,7 +3610,15 @@ app.post('/api/reset', async (req, res) => {
     await pool.query('ALTER SEQUENCE patients_id_seq RESTART WITH 1');
     await pool.query('ALTER SEQUENCE chat_messages_id_seq RESTART WITH 1');
     try { await pool.query('ALTER SEQUENCE chat_channels_id_seq RESTART WITH 1'); } catch(e) {}
-    
+
+    await registrarAuditoriaFila(pool, req, {
+      pacienteId: null,
+      acao: 'RESET_DIARIO',
+      setor: 'Admin',
+      valorAnterior: 'filas_do_dia',
+      valorNovo: 'zerado'
+    });
+
     io.emit('queueUpdate');
     io.emit('chatReset');
     io.emit('chatChannelClear', { canal: '__all__' });
@@ -3584,8 +3680,13 @@ app.get('/api/chat/canais/:canal', async (req, res) => {
 app.post('/api/chat/canais/:canal', async (req, res) => {
   try {
     const { canal } = req.params;
+    if (!CANAIS_CHAT.includes(canal)) {
+      return res.status(400).json({ error: 'Canal de chat inválido.' });
+    }
     const { autor, texto, urgente, anexo_nome, anexo_base64 } = req.body;
-    if (!autor || (!texto && !anexo_base64)) {
+    const autorLimpo = String(autor || '').trim().slice(0, 80);
+    const textoLimpo = String(texto || '').trim().slice(0, 4000);
+    if (!autorLimpo || (!textoLimpo && !anexo_base64)) {
       console.error(`❌ Chat error [${canal}]: Autor or texto/anexo missing`);
       return res.status(400).json({ error: 'Autor e texto/anexo são obrigatórios' });
     }
@@ -3597,7 +3698,7 @@ app.post('/api/chat/canais/:canal', async (req, res) => {
 
     const result = await pool.query(
       'INSERT INTO chat_channels (canal, autor, texto, urgente, anexo_nome, anexo_base64) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [canal, autor, texto || '', urgente || false, anexo_nome || null, anexo_base64 || null]
+      [canal, autorLimpo, textoLimpo, Boolean(urgente), anexo_nome ? String(anexo_nome).trim().slice(0, 180) : null, anexo_base64 || null]
     );
     const msg = result.rows[0];
     io.emit('chatChannelMessage', { canal, mensagem: msg });
@@ -3625,12 +3726,12 @@ app.post('/api/chat/canais/:canal/clear', async (req, res) => {
   }
 });
 
-// POST marcar como lido
+// POST/GET/DELETE pin e read com validação de canal
 app.post('/api/chat/read', async (req, res) => {
   try {
     const { canal, setor } = req.body;
-    if (!canal || !setor) {
-      return res.status(400).json({ error: 'Canal e setor são obrigatórios' });
+    if (!canal || !setor || !CANAIS_CHAT.includes(canal)) {
+      return res.status(400).json({ error: 'Canal e setor válidos são obrigatórios' });
     }
     // Get latest message id
     const latestResult = await pool.query(
@@ -3771,6 +3872,9 @@ app.get('/api/chat/presenca', async (req, res) => {
 app.get('/api/chat/canais/:canal/pin', async (req, res) => {
   try {
     const { canal } = req.params;
+    if (!CANAIS_CHAT.includes(canal)) {
+      return res.status(400).json({ error: 'Canal inválido.' });
+    }
     const result = await pool.query('SELECT * FROM chat_channel_pins WHERE canal = $1', [canal]);
     res.json(result.rows.length ? result.rows[0] : null);
   } catch (error) {
@@ -3782,14 +3886,19 @@ app.get('/api/chat/canais/:canal/pin', async (req, res) => {
 app.post('/api/chat/canais/:canal/pin', async (req, res) => {
   try {
     const { canal } = req.params;
+    if (!CANAIS_CHAT.includes(canal)) {
+      return res.status(400).json({ error: 'Canal inválido.' });
+    }
     const { texto, autor } = req.body;
-    if (!texto || !autor) return res.status(400).json({ error: 'Texto e autor obrigatórios' });
+    const textoPin = String(texto || '').trim().slice(0, 500);
+    const autorPin = String(autor || '').trim().slice(0, 80);
+    if (!textoPin || !autorPin) return res.status(400).json({ error: 'Texto e autor obrigatórios' });
     await pool.query(
       `INSERT INTO chat_channel_pins (canal, texto, autor) VALUES ($1, $2, $3)
        ON CONFLICT (canal) DO UPDATE SET texto = $2, autor = $3, created_at = CURRENT_TIMESTAMP`,
-      [canal, texto, autor]
+      [canal, textoPin, autorPin]
     );
-    io.emit('chatPinUpdate', { canal, pin: { texto, autor } });
+    io.emit('chatPinUpdate', { canal, pin: { texto: textoPin, autor: autorPin } });
     res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3800,6 +3909,9 @@ app.post('/api/chat/canais/:canal/pin', async (req, res) => {
 app.delete('/api/chat/canais/:canal/pin', async (req, res) => {
   try {
     const { canal } = req.params;
+    if (!CANAIS_CHAT.includes(canal)) {
+      return res.status(400).json({ error: 'Canal inválido.' });
+    }
     await pool.query('DELETE FROM chat_channel_pins WHERE canal = $1', [canal]);
     io.emit('chatPinUpdate', { canal, pin: null });
     res.json({ ok: true });
@@ -4324,14 +4436,21 @@ app.delete('/api/vagas-medicos/:id', async (req, res) => {
 // POST /api/voice-call — Registrar chamada de voz pendente
 app.post('/api/voice-call', async (req, res) => {
   try {
-    const { nome, setor, destino } = req.body;
-    if (!nome) {
+    const rl = checkRateLimit('voice_call_ip', getClientIp(req), 30, 60 * 1000);
+    if (!rl.allowed) {
+      return res.status(429).json({ error: 'Limite de chamadas de voz atingido. Aguarde alguns segundos.' });
+    }
+    const { nome, setor, destino } = req.body || {};
+    const nomeLimpo = String(nome || '').trim().slice(0, 120);
+    const setorLimpo = String(setor || 'Agendamento').trim().slice(0, 60);
+    const destinoLimpo = String(destino || 'Sala de Agendamento').trim().slice(0, 80);
+    if (!nomeLimpo) {
       return res.status(400).json({ error: 'Nome é obrigatório' });
     }
     const result = await pool.query(
       `INSERT INTO pending_voice_calls (nome, setor, destino)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [nome, setor || 'Agendamento', destino || 'Sala de Agendamento']
+       VALUES ($1, $2, $3) RETURNING id, nome, setor, destino, created_at`,
+      [nomeLimpo, setorLimpo, destinoLimpo]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -4339,13 +4458,15 @@ app.post('/api/voice-call', async (req, res) => {
   }
 });
 
-// GET /api/voice-call/pending — Listar chamadas não processadas
+// GET /api/voice-call/pending — Listar chamadas não processadas (projeção explícita LGPD)
 app.get('/api/voice-call/pending', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM pending_voice_calls
+      `SELECT id, nome, setor, destino, created_at
+       FROM pending_voice_calls
        WHERE processed = false
-       ORDER BY created_at ASC`
+       ORDER BY created_at ASC
+       LIMIT 20`
     );
     res.json(result.rows);
   } catch (error) {
@@ -4646,7 +4767,7 @@ async function synthesizeGooglePtBrTTS(texto) {
 
 async function handleTtsRequest(req, res) {
   try {
-    const rl = checkRateLimit('tts', getClientIp(req), 120, 60 * 1000);
+    const rl = checkRateLimit('tts', getClientIp(req), 60, 60 * 1000);
     if (!rl.allowed) {
       return res.status(429).json({ error: 'Limite de chamadas de voz excedido temporariamente.' });
     }
@@ -5318,6 +5439,14 @@ app.post('/api/agendamentos/:id/enviar-fila', async (req, res) => {
       } else if (tipoNorm === 'exame') {
         setorDest = 'Téc. Enfermagem';
         tipoAtendDest = 'Procedimento';
+      } else if (profDest) {
+        const profCadRes = await client.query(
+          `SELECT setor FROM profissionais_cadastro WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) LIMIT 1`,
+          [profDest]
+        );
+        if (profCadRes.rows[0]?.setor && SETORES.includes(profCadRes.rows[0].setor)) {
+          setorDest = profCadRes.rows[0].setor;
+        }
       }
     }
 
@@ -5423,13 +5552,21 @@ app.post('/api/patients/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const { senha } = req.body;
-    if (!isValidAdminPass(senha)) {
+    if (!isAdminAuthorized(req) && !isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     const result = await pool.query('DELETE FROM patients WHERE id = $1 RETURNING *', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Paciente não encontrado' });
     }
+    const delPat = result.rows[0];
+    await registrarAuditoriaFila(pool, req, {
+      pacienteId: null,
+      acao: 'EXCLUIR_PACIENTE',
+      setor: delPat.setor,
+      valorAnterior: `${delPat.nome} (#${delPat.id})`,
+      valorNovo: 'excluido_admin'
+    });
     io.emit('queueUpdate');
     res.json({ message: 'Paciente excluído do banco', patient: result.rows[0] });
   } catch (error) {
@@ -5442,13 +5579,21 @@ app.post('/api/history/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const { senha } = req.body;
-    if (!isValidAdminPass(senha)) {
+    if (!isAdminAuthorized(req) && !isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     const result = await pool.query('DELETE FROM call_history WHERE id = $1 RETURNING *', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Registro não encontrado' });
     }
+    const delHist = result.rows[0];
+    await registrarAuditoriaFila(pool, req, {
+      pacienteId: null,
+      acao: 'EXCLUIR_HISTORICO',
+      setor: delHist.setor,
+      valorAnterior: `${delHist.nome} (#${delHist.id})`,
+      valorNovo: 'excluido_admin'
+    });
     io.emit('queueUpdate');
     res.json({ message: 'Registro excluído do histórico', record: result.rows[0] });
   } catch (error) {
@@ -5573,8 +5718,9 @@ app.put('/api/acolhimento/:id/iniciar-escuta', async (req, res) => {
   }
 });
 
-// PUT encaminhar – primeira_escuta -> segunda_escuta
+// PUT encaminhar – primeira_escuta -> segunda_escuta (transacional com lock FOR UPDATE)
 app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const {
@@ -5593,13 +5739,15 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
       return res.status(400).json({ error: 'Queixa / Motivo da 1ª Escuta é obrigatório' });
     }
     const equipeFinal = equipe_paciente ? String(equipe_paciente).trim().slice(0, 80) : null;
-    const pAntesRes = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    await client.query('BEGIN');
+    const pAntesRes = await client.query('SELECT * FROM patients WHERE id = $1 FOR UPDATE', [id]);
     if (pAntesRes.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Paciente não encontrado na 1ª Escuta' });
     }
     const prioEscuta1 = preservarOuElevarPrioridade(pAntesRes.rows[0], { condicoes_especiais });
 
-    const result = await pool.query(
+    const result = await client.query(
       `UPDATE patients
        SET etapa_fluxo = 'segunda_escuta',
            queixa = $2,
@@ -5635,8 +5783,10 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
       ]
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Paciente não encontrado ou não está na 1ª Escuta' });
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Paciente não está mais na 1ª Escuta (já encaminhado ou finalizado).' });
     }
+    await client.query('COMMIT');
     const patient = result.rows[0];
     // Formata o profissional para aparecer no painel
     patient.profissional = patient.profissional_destino ? `2ª Escuta (${patient.profissional_destino})` : '2ª Escuta';
@@ -5659,7 +5809,10 @@ app.put('/api/acolhimento/:id/encaminhar', async (req, res) => {
     }
     res.json(patient);
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
     res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -6059,31 +6212,143 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
   }
 });
 
-// ====== API: PROFISSIONAIS CADASTRO ======
+// ====== API: PROFISSIONAIS CADASTRO (Dinâmico: Fixos, Mutirão Sábado e Substitutos) ======
+const SETORES_PROFISSIONAIS_VALIDOS = ['Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'];
+const REGIMES_PROFISSIONAIS_VALIDOS = ['fixo', 'mutirao', 'substituto'];
 
-// GET – listar profissionais com profissão
+// GET – listar profissionais com setor, regime e profissão
 app.get('/api/profissionais', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM profissionais_cadastro WHERE ativo = true ORDER BY nome ASC');
-    res.json(result.rows);
+    const incluirInativos = req.query.incluir_inativos === '1' || req.query.incluir_inativos === 'true';
+    const sql = incluirInativos
+      ? `SELECT id, nome, setor, profissao, regime, ativo, ordem, created_at
+         FROM profissionais_cadastro
+         ORDER BY COALESCE(ordem, 50) ASC, nome ASC`
+      : `SELECT id, nome, setor, profissao, regime, ativo, ordem, created_at
+         FROM profissionais_cadastro
+         WHERE ativo = true
+         ORDER BY COALESCE(ordem, 50) ASC, nome ASC`;
+    const result = await pool.query(sql);
+    if (incluirInativos) {
+      return res.json(result.rows);
+    }
+    responderJsonComEtag(req, res, result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// PUT – atualizar profissão de um profissional
-app.put('/api/profissionais/:id', async (req, res) => {
+// POST – criar ou reativar profissional/plantonista de mutirão (Gerente ou Admin)
+app.post('/api/profissionais', requireManagerOrAdmin, async (req, res) => {
+  try {
+    const { nome, setor, profissao, regime, ativo, ordem } = req.body || {};
+    const nomeLimpo = String(nome || '').replace(/\s+/g, ' ').trim();
+    if (nomeLimpo.length < 2 || nomeLimpo.length > 80) {
+      return res.status(400).json({ error: 'Informe um nome válido (entre 2 e 80 caracteres).' });
+    }
+    const setorFinal = SETORES_PROFISSIONAIS_VALIDOS.includes(setor) ? setor : null;
+    if (!setorFinal) {
+      return res.status(400).json({ error: 'Selecione um setor clínico válido (Médico, Enfermagem, Odontologia ou Téc. Enfermagem).' });
+    }
+    const regimeFinal = REGIMES_PROFISSIONAIS_VALIDOS.includes(regime) ? regime : 'fixo';
+    const profissaoFinal = profissao ? String(profissao).trim().slice(0, 120) : null;
+    const ativoFinal = ativo !== undefined ? Boolean(ativo) : true;
+    const ordemFinal = Number.isInteger(Number(ordem)) ? Number(ordem) : (regimeFinal === 'mutirao' ? 40 : 25);
+
+    const result = await pool.query(
+      `INSERT INTO profissionais_cadastro (nome, setor, profissao, regime, ativo, ordem)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (nome) DO UPDATE SET
+         setor = EXCLUDED.setor,
+         profissao = COALESCE(EXCLUDED.profissao, profissionais_cadastro.profissao),
+         regime = EXCLUDED.regime,
+         ativo = EXCLUDED.ativo,
+         ordem = EXCLUDED.ordem
+       RETURNING *`,
+      [nomeLimpo, setorFinal, profissaoFinal, regimeFinal, ativoFinal, ordemFinal]
+    );
+    const saved = result.rows[0];
+    await registrarAuditoriaFila(pool, req, {
+      pacienteId: null,
+      acao: 'SALVAR_PROFISSIONAL',
+      setor: setorFinal,
+      valorAnterior: null,
+      valorNovo: `${saved.nome} (${saved.regime})`
+    });
+    res.status(201).json(saved);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT – atualizar dados, setor, regime (fixo/mutirão/substituto) ou status ativo (Gerente ou Admin)
+app.put('/api/profissionais/:id', requireManagerOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { profissao } = req.body;
+    const { nome, setor, profissao, regime, ativo } = req.body || {};
+
+    const curRes = await pool.query('SELECT * FROM profissionais_cadastro WHERE id = $1', [id]);
+    if (curRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Profissional não encontrado' });
+    }
+    const atual = curRes.rows[0];
+
+    const nomeFinal = nome !== undefined ? String(nome).replace(/\s+/g, ' ').trim() : atual.nome;
+    if (nomeFinal.length < 2 || nomeFinal.length > 80) {
+      return res.status(400).json({ error: 'Nome inválido (entre 2 e 80 caracteres).' });
+    }
+    const setorFinal = setor !== undefined ? setor : (atual.setor || 'Médico');
+    if (!SETORES_PROFISSIONAIS_VALIDOS.includes(setorFinal)) {
+      return res.status(400).json({ error: 'Setor inválido.' });
+    }
+    const regimeFinal = regime !== undefined ? regime : (atual.regime || 'fixo');
+    if (!REGIMES_PROFISSIONAIS_VALIDOS.includes(regimeFinal)) {
+      return res.status(400).json({ error: 'Regime inválido.' });
+    }
+    const profissaoFinal = profissao !== undefined ? (profissao ? String(profissao).trim().slice(0, 120) : null) : atual.profissao;
+    const ativoFinal = ativo !== undefined ? Boolean(ativo) : atual.ativo;
+
     const result = await pool.query(
-      'UPDATE profissionais_cadastro SET profissao = $2 WHERE id = $1 RETURNING *',
-      [id, profissao || null]
+      `UPDATE profissionais_cadastro
+       SET nome = $2, setor = $3, profissao = $4, regime = $5, ativo = $6
+       WHERE id = $1
+       RETURNING *`,
+      [id, nomeFinal, setorFinal, profissaoFinal, regimeFinal, ativoFinal]
     );
+    const updated = result.rows[0];
+    await registrarAuditoriaFila(pool, req, {
+      pacienteId: null,
+      acao: 'EDITAR_PROFISSIONAL',
+      setor: setorFinal,
+      valorAnterior: `${atual.nome} [${atual.regime}|ativo=${atual.ativo}]`,
+      valorNovo: `${updated.nome} [${updated.regime}|ativo=${updated.ativo}]`
+    });
+    res.json(updated);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Já existe um profissional com este nome.' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE – remover profissional (Gerente ou Admin)
+app.delete('/api/profissionais/:id', requireManagerOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM profissionais_cadastro WHERE id = $1 RETURNING *', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Profissional não encontrado' });
     }
-    res.json(result.rows[0]);
+    const removed = result.rows[0];
+    await registrarAuditoriaFila(pool, req, {
+      pacienteId: null,
+      acao: 'EXCLUIR_PROFISSIONAL',
+      setor: removed.setor || 'Gerência',
+      valorAnterior: `${removed.nome} (${removed.regime || 'fixo'})`,
+      valorNovo: 'removido'
+    });
+    res.json({ message: 'Profissional removido com sucesso', profissional: removed });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -6102,7 +6367,7 @@ app.get('/api/responsaveis-setor', async (req, res) => {
 });
 
 // POST – criar responsável
-app.post('/api/responsaveis-setor', async (req, res) => {
+app.post('/api/responsaveis-setor', requireManagerOrAdmin, async (req, res) => {
   try {
     const { nome, setor, cargo } = req.body;
     if (!nome || !setor) {
@@ -6122,7 +6387,7 @@ app.post('/api/responsaveis-setor', async (req, res) => {
 });
 
 // PUT – editar responsável
-app.put('/api/responsaveis-setor/:id', async (req, res) => {
+app.put('/api/responsaveis-setor/:id', requireManagerOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { nome, setor, cargo } = req.body;
@@ -6140,7 +6405,7 @@ app.put('/api/responsaveis-setor/:id', async (req, res) => {
 });
 
 // DELETE – remover responsável
-app.delete('/api/responsaveis-setor/:id', async (req, res) => {
+app.delete('/api/responsaveis-setor/:id', requireManagerOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query('DELETE FROM responsaveis_setor WHERE id = $1 RETURNING *', [id]);

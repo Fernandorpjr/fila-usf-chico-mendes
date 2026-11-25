@@ -155,6 +155,7 @@ function handleSessaoExpirada() {
     sessionStorage.removeItem('usf_gate_auth');
     sessionStorage.removeItem('usf_gate_time');
   } catch (e) {}
+  if (typeof limparEspelhoContingenciaLogout === 'function') limparEspelhoContingenciaLogout(true);
   if (typeof stopAllPolling === 'function') stopAllPolling();
   showGate();
   const errEl = document.getElementById('gate-error');
@@ -376,6 +377,7 @@ async function logoutGate() {
     await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'same-origin' });
   } catch (e) {}
   isGateAuthenticated = false;
+  if (typeof limparEspelhoContingenciaLogout === 'function') limparEspelhoContingenciaLogout(true);
   try {
     sessionStorage.removeItem('usf_gate_auth');
     sessionStorage.removeItem('usf_gate_time');
@@ -490,6 +492,7 @@ async function carregarStatusMutiraoHoje() {
     _expedienteExtraAteMs = Math.max(Number.isFinite(parsedExtra) ? parsedExtra : 0, pisoExtraHoje);
     atualizarBotaoMutirao();
     checkExpediente();
+    if (typeof aplicarProfissionaisDinamicosNoSistema === 'function') aplicarProfissionaisDinamicosNoSistema();
   } catch (_) {}
 }
 
@@ -514,6 +517,7 @@ async function toggleMutiraoHoje(forceLiberar) {
     _mutiraoLiberadoData = data.liberado ? (data.hoje || hoje) : '';
     atualizarBotaoMutirao();
     checkExpediente();
+    if (typeof aplicarProfissionaisDinamicosNoSistema === 'function') aplicarProfissionaisDinamicosNoSistema();
     showToast(data.liberado ? '✅ Mutirão liberado para hoje! Sistema ativo até 18h.' : '🔒 Liberação de mutirão encerrada.');
   } catch (err) {
     showToast('Erro ao atualizar modo mutirão.', true);
@@ -1960,34 +1964,26 @@ async function addPatient(btn) {
     etapa_fluxo = 'segunda_escuta';
   }
 
-  if (btn) btn.disabled = true;
-  try {
-    const r = await fetch(`${API_URL}/patients`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nome,
-        setor,
-        prioridade,
-        tipo_prioridade,
-        tipo_atendimento,
-        profissional,
-        condicoes_especiais,
-        etapa_fluxo,
-        idade,
-        equipe_paciente,
-        motivo_primeira_escuta,
-        queixa: motivo_primeira_escuta,
-        horario_marcado,
-        exames_coleta: (nomeSetorOriginal === 'Téc. Enfermagem' && _examesColetaRecepcao) ? _examesColetaRecepcao : null,
-        previa_receita: window._previaReceitaPendente || null
-      })
-    });
-    if (!r.ok) {
-      const errData = await r.json().catch(() => ({}));
-      throw new Error(errData.error || 'Erro ao adicionar paciente!');
-    }
-    const newPatient = await r.json();
+  const patientPayload = {
+    nome,
+    setor,
+    prioridade,
+    tipo_prioridade,
+    tipo_atendimento,
+    profissional,
+    condicoes_especiais,
+    etapa_fluxo,
+    idade,
+    equipe_paciente,
+    motivo_primeira_escuta,
+    queixa: motivo_primeira_escuta,
+    horario_marcado,
+    exames_coleta: (nomeSetorOriginal === 'Téc. Enfermagem' && _examesColetaRecepcao) ? _examesColetaRecepcao : null,
+    previa_receita: window._previaReceitaPendente || null,
+    client_request_id: typeof gerarClientRequestId === 'function' ? gerarClientRequestId() : `req_${Date.now()}`
+  };
+
+  function limparFormularioRecepcaoPosEnvio() {
     document.getElementById('input-nome').value = '';
     if (idadeInput) idadeInput.value = '';
     if (horarioMarcadoInput) horarioMarcadoInput.value = '';
@@ -1999,9 +1995,26 @@ async function addPatient(btn) {
     if (typeof atualizarResumoTubosBox === 'function') atualizarResumoTubosBox('recepcao');
     document.querySelectorAll('#recepcao-equipe-grid .equipe-pill-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('#recepcao-setor-quick-grid .setor-quick-btn').forEach(b => b.classList.remove('active'));
-    // Reset condições checkboxes
     document.querySelectorAll('#condicoes-especiais-recepcao input[type="checkbox"]').forEach(c => c.checked = false);
     togglePrioridadeDetalhes(); toggleTipoAtendimento();
+  }
+
+  if (btn) btn.disabled = true;
+  try {
+    if (navigator.onLine === false) {
+      throw new Error('Failed to fetch (offline)');
+    }
+    const r = await fetch(`${API_URL}/patients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patientPayload)
+    });
+    if (!r.ok) {
+      const errData = await r.json().catch(() => ({}));
+      throw new Error(errData.error || 'Erro ao adicionar paciente!');
+    }
+    const newPatient = await r.json();
+    limparFormularioRecepcaoPosEnvio();
     const isPrio = Number(newPatient.nivel_prioridade) <= 2 || newPatient.prioridade === 'prioritario';
     const prioLabel = isPrio ? ' ⭐ PRIORIDADE' : '';
     const profLabel = profissional ? ` (${profissional})` : '';
@@ -2015,8 +2028,16 @@ async function addPatient(btn) {
     await loadQueues();
     if (setor === 'Acolhimento') loadAcolhimentoFluxo();
     document.getElementById('input-nome')?.focus();
-    // showQrModal(newPatient); // 🚫 Desativado a pedido: Não mostrar modal de QR automático
-  } catch (e) { showToast(e.message || 'Erro ao adicionar paciente!', true); }
+  } catch (e) {
+    if ((navigator.onLine === false || (typeof isErroDeRede === 'function' && isErroDeRede(e))) && typeof enfileirarPacienteOffline === 'function') {
+      enfileirarPacienteOffline(patientPayload, nomeSetorOriginal);
+      limparFormularioRecepcaoPosEnvio();
+      showToast(`🔴 Sem internet! ${nome} guardado na fila offline e será enviado automaticamente quando o sinal voltar.`, true);
+      document.getElementById('input-nome')?.focus();
+    } else {
+      showToast(e.message || 'Erro ao adicionar paciente!', true);
+    }
+  }
   if (btn) btn.disabled = false;
 }
 
@@ -2840,9 +2861,15 @@ async function loadQueues() {
       }
     });
     updateAll();
+    if (typeof mesclarOutboxLocalNasFilas === 'function') mesclarOutboxLocalNasFilas();
+    if (typeof salvarEspelhoFilaContingencia === 'function') salvarEspelhoFilaContingencia();
     const overviewSearch = document.getElementById('overview-search-input');
     if (overviewSearch && overviewSearch.value.trim()) filtrarVisaoGeralPacientes();
-  } catch (e) { registrarFalhaRede(e); console.error(e); }
+  } catch (e) {
+    registrarFalhaRede(e);
+    if (typeof restaurarEspelhoFilaContingenciaSeVazio === 'function') restaurarEspelhoFilaContingenciaSeVazio();
+    console.error(e);
+  }
 }
 async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); if (typeof d.sistemaPausado === 'boolean' && d.sistemaPausado !== isPausado) { aplicarEstadoPausa(d.sistemaPausado, d.pausaMotivo); } currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
 async function loadHistory() {
@@ -5139,17 +5166,162 @@ const PROFISSOES_DEFAULT = {
 };
 
 let profissionaisCache = new Map(); // nome -> profissao
-async function carregarProfissionaisCache() {
+let _listaProfissionaisCadastro = [];
+const _PROFISSIONAIS_FALLBACK = {
+  'Médico': ['Dr. Israel Christian', 'Dr. Joene Halan', 'Dra. Mirela Mota'],
+  'Enfermagem': ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu', 'Renata Célia'],
+  'Odontologia': ['Dra. Juliana Cavalcante'],
+  'Téc. Enfermagem': ['Viviane', 'Vilma', 'Fernando']
+};
+
+function isContextoMutiraoAtivoFront() {
   try {
-    const r = await fetch(`${API_URL}/profissionais`);
+    if (localStorage.getItem('usf_preview_mutirao_profs') === '1') return true;
+  } catch (_) {}
+  if (_expedienteExtraAteMs && Date.now() < _expedienteExtraAteMs) return true;
+  const hoje = getDataHojeRecife();
+  if (_mutiraoLiberadoData === hoje) return true;
+  const DATAS_MUTIRAO = ['2026-09-26', '2026-11-07', '2026-04-11', '2026-11-14', '2026-04-18'];
+  if (DATAS_MUTIRAO.includes(hoje)) return true;
+  try {
+    const { day } = getDayAndHourRecife(new Date());
+    if (day === 6) return true;
+  } catch (_) {}
+  return false;
+}
+
+function filtrarListaProfissionaisAtivos(listaRaw, mutiraoAtivo = isContextoMutiraoAtivoFront()) {
+  const porSetorAtendimento = { 'Médico': [], 'Enfermagem': [], 'Odontologia': [], 'Téc. Enfermagem': [] };
+  const porSetorTodosAtivos = { 'Médico': [], 'Enfermagem': [], 'Odontologia': [], 'Téc. Enfermagem': [] };
+  (Array.isArray(listaRaw) ? listaRaw : []).forEach(p => {
+    if (!p || p.ativo === false) return;
+    const setor = p.setor;
+    const nome = String(p.nome || '').trim();
+    if (!nome || !porSetorTodosAtivos[setor]) return;
+    if (!porSetorTodosAtivos[setor].includes(nome)) porSetorTodosAtivos[setor].push(nome);
+    const regime = String(p.regime || 'fixo').toLowerCase();
+    if (regime !== 'mutirao' || mutiraoAtivo) {
+      if (!porSetorAtendimento[setor].includes(nome)) porSetorAtendimento[setor].push(nome);
+    }
+  });
+  Object.keys(_PROFISSIONAIS_FALLBACK).forEach(s => {
+    if (porSetorAtendimento[s].length === 0) {
+      porSetorAtendimento[s] = [..._PROFISSIONAIS_FALLBACK[s]];
+    }
+    if (porSetorTodosAtivos[s].length === 0) {
+      porSetorTodosAtivos[s] = [..._PROFISSIONAIS_FALLBACK[s]];
+    }
+  });
+  return { porSetorAtendimento, porSetorTodosAtivos };
+}
+
+function atualizarSelectPreservandoValor(selectEl, opcoesHtml) {
+  if (!selectEl) return;
+  const valorAnterior = selectEl.value;
+  selectEl.innerHTML = opcoesHtml;
+  if (valorAnterior && Array.from(selectEl.options).some(o => o.value === valorAnterior || o.text === valorAnterior)) {
+    selectEl.value = valorAnterior;
+  }
+}
+
+function aplicarProfissionaisDinamicosNoSistema() {
+  const mutiraoAtivo = isContextoMutiraoAtivoFront();
+  const { porSetorAtendimento, porSetorTodosAtivos } = filtrarListaProfissionaisAtivos(_listaProfissionaisCadastro, mutiraoAtivo);
+
+  ['Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'].forEach(setor => {
+    if (!SECTOR_CONFIG[setor]) return;
+    const novaLista = porSetorAtendimento[setor];
+    const mudou = JSON.stringify(SECTOR_CONFIG[setor].profissionais) !== JSON.stringify(novaLista);
+    SECTOR_CONFIG[setor].profissionais = novaLista;
+
+    const cfg = SECTOR_CONFIG[setor];
+    const profSelEl = document.getElementById('profissional-' + cfg.key);
+    if (profSelEl) {
+      atualizarSelectPreservandoValor(profSelEl, novaLista.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join(''));
+    }
+    const filterBarEl = document.getElementById('filter-bar-' + cfg.key);
+    if (filterBarEl && setor !== 'Odontologia') {
+      const filtroAtual = sectorFilters[cfg.key] || '';
+      const allBtn = `<button class="btn-filter${filtroAtual === '' ? ' active' : ''}" data-prof="" onclick="filterSector('${cfg.key}','')">📋 Todos</button>`;
+      const btns = novaLista.map(p =>
+        `<button class="btn-filter${filtroAtual === p ? ' active' : ''}" data-prof="${escapeText(p)}" onclick="filterSector('${cfg.key}','${p.replace(/'/g, "\\'")}')">${escapeText(p)}</button>`
+      ).join('');
+      filterBarEl.innerHTML = allBtn + btns;
+    } else if (mudou && typeof initSectorScreens === 'function') {
+      const screenEl = document.getElementById('screen-' + cfg.key);
+      if (screenEl && !screenEl.querySelector('#profissional-' + cfg.key)) {
+        initSectorScreens();
+      }
+    }
+  });
+
+  // Atualizar select de profissional na Recepção quando setor clínico estiver selecionado
+  const setorRecepcao = document.getElementById('input-setor')?.value;
+  if (['Médico', 'Enfermagem', 'Téc. Enfermagem'].includes(setorRecepcao)) {
+    const inpProf = document.getElementById('input-profissional');
+    if (inpProf && SECTOR_CONFIG[setorRecepcao]) {
+      atualizarSelectPreservandoValor(
+        inpProf,
+        `<option value="">— Selecione o profissional —</option>` +
+          SECTOR_CONFIG[setorRecepcao].profissionais.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('')
+      );
+    }
+  }
+
+  // Atualizar selects amplos (Agendamentos, Histórico, Atendidos e Minha Fila Acolhimento) com todos os ativos (inclusive Mutirão)
+  const todosClinicos = [
+    ...porSetorTodosAtivos['Médico'],
+    ...porSetorTodosAtivos['Enfermagem'],
+    ...porSetorTodosAtivos['Odontologia']
+  ];
+  const todosUnicos = [...new Set(todosClinicos)];
+  const todosComTec = [...new Set([...todosUnicos, ...porSetorTodosAtivos['Téc. Enfermagem']])];
+
+  atualizarSelectPreservandoValor(
+    document.getElementById('agend-profissional'),
+    `<option value="">— Opcional —</option>` + todosUnicos.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('')
+  );
+  atualizarSelectPreservandoValor(
+    document.getElementById('hist-filtro-prof'),
+    `<option value="">Todos</option>` + todosUnicos.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('')
+  );
+  const extrasApoio = ['Vivi', 'Leandra'];
+  const atendidosOpts = [...new Set([...todosComTec, ...extrasApoio])];
+  atualizarSelectPreservandoValor(
+    document.getElementById('filter-profissional'),
+    `<option value="">Todos</option>` + atendidosOpts.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('')
+  );
+  atualizarSelectPreservandoValor(
+    document.getElementById('acol-minha-fila-prof'),
+    `<option value="">— Profissional —</option>` + todosUnicos.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('')
+  );
+
+  if (typeof window.atualizarProfissionaisSisregDinamicos === 'function') {
+    window.atualizarProfissionaisSisregDinamicos(porSetorTodosAtivos);
+  }
+  if (typeof updateAll === 'function') updateAll();
+}
+
+async function carregarProfissionaisCache(incluirInativos = false) {
+  try {
+    const qs = incluirInativos ? '?incluir_inativos=1' : '';
+    const r = await fetch(`${API_URL}/profissionais${qs}`);
     if (!r.ok) return;
     const list = await r.json();
+    if (!Array.isArray(list)) return;
+    if (!incluirInativos) {
+      _listaProfissionaisCadastro = list;
+    }
     profissionaisCache.clear();
     list.forEach(p => {
-      if (p.nome && p.profissao) {
+      if (p.nome && p.profissao && p.ativo !== false) {
         profissionaisCache.set(p.nome.trim(), p.profissao.trim());
       }
     });
+    if (!incluirInativos) {
+      aplicarProfissionaisDinamicosNoSistema();
+    }
+    return list;
   } catch(e) { /* silencioso */ }
 }
 
@@ -6692,6 +6864,7 @@ async function loadAcolhimentoFluxo() {
       });
     }
     renderAcolhimentoFluxo();
+    if (typeof salvarEspelhoFilaContingencia === 'function') salvarEspelhoFilaContingencia();
     
     if (rStat.ok) {
       const stats = await rStat.json();
@@ -8678,15 +8851,18 @@ function atualizarStatusConexao(estado, motivo) {
 
   if (estadoAnterior !== estado) {
     if (estado === 'offline') {
-      showToast('🔴 Sem internet! Verifique a conexão antes de chamar pacientes.', true);
+      showToast('🔴 Sem internet! Você ainda pode consultar ou imprimir a fila atual pelo botão Contingência.', true);
     } else if (estadoAnterior === 'offline' && estado === 'online') {
-      showToast('🟢 Conexão restabelecida! Atualizando filas...');
-      Promise.all([
-        typeof loadQueues === 'function' ? loadQueues() : Promise.resolve(),
-        typeof loadCurrentCalling === 'function' ? loadCurrentCalling() : Promise.resolve(),
-        typeof loadHistory === 'function' ? loadHistory() : Promise.resolve(),
-        typeof loadAcolhimentoFluxo === 'function' ? loadAcolhimentoFluxo() : Promise.resolve()
-      ]).catch(() => {});
+      showToast('🟢 Conexão restabelecida! Sincronizando cadastros offline e filas...');
+      Promise.resolve()
+        .then(() => typeof sincronizarFilaOfflinePendente === 'function' ? sincronizarFilaOfflinePendente(false) : null)
+        .then(() => Promise.all([
+          typeof loadQueues === 'function' ? loadQueues() : Promise.resolve(),
+          typeof loadCurrentCalling === 'function' ? loadCurrentCalling() : Promise.resolve(),
+          typeof loadHistory === 'function' ? loadHistory() : Promise.resolve(),
+          typeof loadAcolhimentoFluxo === 'function' ? loadAcolhimentoFluxo() : Promise.resolve()
+        ]))
+        .catch(() => {});
     }
   }
 }
@@ -10532,3 +10708,591 @@ async function enviarAgendamentoParaFila(agendamentoId, nome, btn) {
     if (btn) { btn.disabled = false; btn.textContent = '🏥 Enviar p/ Fila'; }
   }
 }
+
+// ============================================================================
+// GESTÃO DINÂMICA DE EQUIPE / MUTIRÃO + CONTINGÊNCIA OFFLINE (BLOCO 1 & EXTRA)
+// ============================================================================
+async function abrirModalEquipeMutirao() {
+  if (!isManagerOrAdmin()) {
+    showToast('🔒 Ação restrita à Gerência ou Administração.', true);
+    return;
+  }
+  const modal = document.getElementById('modal-equipe-mutirao');
+  if (!modal) return;
+  modal.classList.add('show');
+  const chk = document.getElementById('chk-preview-mutirao-profs');
+  try {
+    if (chk) chk.checked = localStorage.getItem('usf_preview_mutirao_profs') === '1';
+  } catch (_) {}
+  const statusEl = document.getElementById('mutirao-contexto-status');
+  if (statusEl) {
+    statusEl.textContent = isContextoMutiraoAtivoFront()
+      ? '🟢 Modo Mutirão ATIVO agora nas filas'
+      : '⚪ Modo Semana (Seg–Sex): plantonistas de Mutirão ficam ocultos';
+  }
+  const lista = await carregarProfissionaisCache(true);
+  renderListaEquipeMutirao(lista || _listaProfissionaisCadastro);
+}
+
+function fecharModalEquipeMutirao() {
+  document.getElementById('modal-equipe-mutirao')?.classList.remove('show');
+}
+
+function togglePreviewMutiraoProfissionais(checked) {
+  try {
+    if (checked) localStorage.setItem('usf_preview_mutirao_profs', '1');
+    else localStorage.removeItem('usf_preview_mutirao_profs');
+  } catch (_) {}
+  aplicarProfissionaisDinamicosNoSistema();
+  const statusEl = document.getElementById('mutirao-contexto-status');
+  if (statusEl) {
+    statusEl.textContent = isContextoMutiraoAtivoFront()
+      ? '🟢 Modo Mutirão ATIVO agora nas filas'
+      : '⚪ Modo Semana (Seg–Sex): plantonistas de Mutirão ficam ocultos';
+  }
+}
+
+function renderListaEquipeMutirao(lista) {
+  const el = document.getElementById('equipe-mutirao-lista');
+  if (!el) return;
+  const rows = Array.isArray(lista) ? lista : [];
+  if (rows.length === 0) {
+    el.innerHTML = '<div style="padding:14px;text-align:center;color:var(--gray-500);">Nenhum profissional cadastrado.</div>';
+    return;
+  }
+  const regimeBadge = {
+    fixo: { bg: '#dbeafe', fg: '#1e40af', label: '🏥 Fixo (Seg–Sex)' },
+    mutirao: { bg: '#fef3c7', fg: '#92400e', label: '🗓️ Só Mutirão (Sábado)' },
+    substituto: { bg: '#f3e8ff', fg: '#6b21a8', label: '🔄 Substituto' }
+  };
+  el.innerHTML = rows.map(p => {
+    const rb = regimeBadge[p.regime] || regimeBadge.fixo;
+    const opacity = p.ativo === false ? 'opacity:0.55;background:#f8fafc;' : 'background:#fff;';
+    const nomeEsc = escapeText(p.nome || '');
+    const nomeJs = String(p.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;${opacity}">
+      <div style="min-width:210px;flex:1;">
+        <div style="font-weight:800;font-size:13.5px;color:#0f172a;">
+          ${nomeEsc}
+          <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;background:${rb.bg};color:${rb.fg};">${rb.label}</span>
+          ${p.ativo === false ? '<span style="margin-left:4px;font-size:10.5px;color:#b91c1c;font-weight:800;">(Inativo)</span>' : ''}
+        </div>
+        <div style="font-size:11.5px;color:#475569;margin-top:2px;">
+          <strong>Setor:</strong> ${escapeText(p.setor || 'Médico')} ${p.profissao ? `· ${escapeText(p.profissao)}` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <select onchange="alternarRegimeProfissionalMutirao(${Number(p.id)}, this.value)" style="padding:5px 8px;font-size:11.5px;border-radius:7px;border:1px solid #cbd5e1;" title="Regime de exibição nas filas">
+          <option value="fixo"${p.regime === 'fixo' ? ' selected' : ''}>Fixo (Seg–Sex)</option>
+          <option value="mutirao"${p.regime === 'mutirao' ? ' selected' : ''}>Só Mutirão (Sábado)</option>
+          <option value="substituto"${p.regime === 'substituto' ? ' selected' : ''}>Substituto</option>
+        </select>
+        <button type="button" class="btn btn-outline btn-sm" style="padding:5px 9px;font-size:11.5px;" onclick="alternarAtivoProfissionalMutirao(${Number(p.id)}, ${p.ativo === false ? 'true' : 'false'})">${p.ativo === false ? '✅ Reativar' : '⏸️ Desativar'}</button>
+        <button type="button" class="btn btn-outline btn-sm" style="padding:5px 9px;font-size:11.5px;color:#b91c1c;border-color:#fca5a5;" onclick="excluirProfissionalMutirao(${Number(p.id)}, '${nomeJs}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function salvarNovoProfissionalMutirao() {
+  const nome = document.getElementById('eq-novo-nome')?.value.trim() || '';
+  const setor = document.getElementById('eq-novo-setor')?.value || 'Enfermagem';
+  const regime = document.getElementById('eq-novo-regime')?.value || 'mutirao';
+  const profissao = document.getElementById('eq-novo-profissao')?.value.trim() || '';
+  if (nome.length < 2) {
+    showToast('Informe o nome completo do profissional.', true);
+    return;
+  }
+  try {
+    const r = await fetch(`${API_URL}/profissionais`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, setor, regime, profissao: profissao || null, ativo: true })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Erro ao salvar profissional.');
+    document.getElementById('eq-novo-nome').value = '';
+    document.getElementById('eq-novo-profissao').value = '';
+    showToast(`✅ ${d.nome} salvo (${d.setor} · ${d.regime === 'mutirao' ? 'Mutirão Sábado' : d.regime})!`);
+    await carregarProfissionaisCache(false);
+    const lista = await carregarProfissionaisCache(true);
+    renderListaEquipeMutirao(lista || _listaProfissionaisCadastro);
+  } catch (err) {
+    showToast(err.message || 'Erro ao salvar profissional.', true);
+  }
+}
+
+async function alternarRegimeProfissionalMutirao(id, novoRegime) {
+  try {
+    const r = await fetch(`${API_URL}/profissionais/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ regime: novoRegime })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Erro ao atualizar regime.');
+    showToast(`✅ ${d.nome} atualizado para ${novoRegime === 'mutirao' ? 'Só Mutirão (Sábado)' : novoRegime}.`);
+    await carregarProfissionaisCache(false);
+    const lista = await carregarProfissionaisCache(true);
+    renderListaEquipeMutirao(lista || _listaProfissionaisCadastro);
+  } catch (err) {
+    showToast(err.message || 'Erro ao atualizar regime.', true);
+  }
+}
+
+async function alternarAtivoProfissionalMutirao(id, ativo) {
+  try {
+    const r = await fetch(`${API_URL}/profissionais/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ativo: Boolean(ativo) })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Erro ao alterar status.');
+    showToast(`${d.ativo ? '✅' : '⏸️'} ${d.nome} ${d.ativo ? 'ativado' : 'desativado'}.`);
+    await carregarProfissionaisCache(false);
+    const lista = await carregarProfissionaisCache(true);
+    renderListaEquipeMutirao(lista || _listaProfissionaisCadastro);
+  } catch (err) {
+    showToast(err.message || 'Erro ao alterar status.', true);
+  }
+}
+
+async function excluirProfissionalMutirao(id, nome) {
+  if (!confirm(`Remover ${nome} da lista de profissionais?`)) return;
+  try {
+    const r = await fetch(`${API_URL}/profissionais/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Erro ao excluir profissional.');
+    showToast(`🗑️ ${nome} removido da lista.`);
+    await carregarProfissionaisCache(false);
+    const lista = await carregarProfissionaisCache(true);
+    renderListaEquipeMutirao(lista || _listaProfissionaisCadastro);
+  } catch (err) {
+    showToast(err.message || 'Erro ao remover profissional.', true);
+  }
+}
+
+// --- Contingência Offline LGPD (Espelho Criptografado/Ofuscado na Sessão + Outbox + Folha Impressa) ---
+const CONTINGENCIA_KEY_STORAGE = 'usf_contingencia_k1';
+const CONTINGENCIA_ESPELHO_STORAGE = 'usf_contingencia_espelho_v1';
+const CONTINGENCIA_OUTBOX_STORAGE = 'usf_contingencia_outbox_v1';
+let _sincronizandoOutbox = false;
+
+function gerarClientRequestId() {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `req_${crypto.randomUUID()}`.slice(0, 64);
+    }
+  } catch (_) {}
+  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`.slice(0, 64);
+}
+
+function obterChaveSessaoContingencia() {
+  try {
+    let k = sessionStorage.getItem(CONTINGENCIA_KEY_STORAGE);
+    if (!k) {
+      k = `k_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+      sessionStorage.setItem(CONTINGENCIA_KEY_STORAGE, k);
+    }
+    return k;
+  } catch (_) {
+    return 'usf-session-fallback-key';
+  }
+}
+
+function ofuscarPayloadContingencia(obj, chaveStr) {
+  const json = JSON.stringify(obj);
+  const key = String(chaveStr || obterChaveSessaoContingencia());
+  const bytes = new TextEncoder().encode(json);
+  const keyBytes = new TextEncoder().encode(key);
+  const out = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) {
+    out[i] = bytes[i] ^ keyBytes[i % keyBytes.length];
+  }
+  let bin = '';
+  for (let i = 0; i < out.length; i++) bin += String.fromCharCode(out[i]);
+  return btoa(bin);
+}
+
+function desofuscarPayloadContingencia(cipherText, chaveStr) {
+  if (!cipherText || typeof cipherText !== 'string') return null;
+  try {
+    const key = String(chaveStr || obterChaveSessaoContingencia());
+    const keyBytes = new TextEncoder().encode(key);
+    const bin = atob(cipherText);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+      bytes[i] = bin.charCodeAt(i) ^ keyBytes[i % keyBytes.length];
+    }
+    const json = new TextDecoder().decode(bytes);
+    return JSON.parse(json);
+  } catch (_) {
+    return null;
+  }
+}
+
+function sanitizarPacienteEspelhoContingencia(p) {
+  if (!p || typeof p !== 'object') return null;
+  return {
+    id: p.id || null,
+    nome: String(p.nome || '').trim(),
+    setor: p.setor || null,
+    profissional: p.profissional || p.profissional_destino || null,
+    prioridade: p.prioridade || 'geral',
+    tipo_prioridade: p.tipo_prioridade || null,
+    nivel_prioridade: p.nivel_prioridade || 3,
+    ordem_prioridade_odonto: p.ordem_prioridade_odonto || 99,
+    horario: p.horario || '',
+    horario_marcado: p.horario_marcado || null,
+    status: p.status || 'aguardando',
+    etapa_fluxo: p.etapa_fluxo || 'recepcao',
+    equipe_paciente: p.equipe_paciente || null,
+    ausente_temporario: Boolean(p.ausente_temporario),
+    offline_pendente: Boolean(p.offline_pendente),
+    client_request_id: p.client_request_id || null
+  };
+}
+
+function salvarEspelhoFilaContingencia() {
+  try {
+    const queuesSanit = {};
+    SETORES.forEach(s => {
+      queuesSanit[s] = (queues[s] || [])
+        .filter(p => !p.offline_pendente)
+        .map(sanitizarPacienteEspelhoContingencia)
+        .filter(Boolean);
+    });
+    const acolSanit = {
+      recepcao: (acolhimentoFluxo?.recepcao || []).map(sanitizarPacienteEspelhoContingencia).filter(Boolean),
+      primeira_escuta: (acolhimentoFluxo?.primeira_escuta || []).map(sanitizarPacienteEspelhoContingencia).filter(Boolean),
+      segunda_escuta: (acolhimentoFluxo?.segunda_escuta || []).map(sanitizarPacienteEspelhoContingencia).filter(Boolean)
+    };
+    const callingSanit = {};
+    SETORES.forEach(s => {
+      callingSanit[s] = currentCalling?.[s] ? sanitizarPacienteEspelhoContingencia(currentCalling[s]) : null;
+    });
+    const payload = {
+      dataRef: getDataHojeRecife(),
+      savedAt: new Date().toISOString(),
+      queues: queuesSanit,
+      acolhimento: acolSanit,
+      currentCalling: callingSanit
+    };
+    localStorage.setItem(CONTINGENCIA_ESPELHO_STORAGE, ofuscarPayloadContingencia(payload));
+  } catch (_) {}
+}
+
+function lerEspelhoFilaContingencia() {
+  try {
+    const raw = localStorage.getItem(CONTINGENCIA_ESPELHO_STORAGE);
+    if (!raw) return null;
+    const parsed = desofuscarPayloadContingencia(raw);
+    if (!parsed || parsed.dataRef !== getDataHojeRecife()) {
+      localStorage.removeItem(CONTINGENCIA_ESPELHO_STORAGE);
+      return null;
+    }
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+function restaurarEspelhoFilaContingenciaSeVazio() {
+  const temAlgum = SETORES.some(s => Array.isArray(queues[s]) && queues[s].length > 0);
+  if (temAlgum) {
+    mesclarOutboxLocalNasFilas();
+    return false;
+  }
+  const esp = lerEspelhoFilaContingencia();
+  if (!esp || !esp.queues) return false;
+  SETORES.forEach(s => {
+    queues[s] = Array.isArray(esp.queues[s]) ? esp.queues[s].slice() : [];
+  });
+  if (esp.acolhimento) acolhimentoFluxo = esp.acolhimento;
+  if (esp.currentCalling) currentCalling = esp.currentCalling;
+  mesclarOutboxLocalNasFilas();
+  if (typeof updateAll === 'function') updateAll();
+  if (typeof renderAcolhimentoFluxo === 'function') renderAcolhimentoFluxo();
+  showToast('🛡️ Fila restaurada a partir do espelho local (modo contingência offline).');
+  return true;
+}
+
+function lerOutboxOffline() {
+  try {
+    const raw = localStorage.getItem(CONTINGENCIA_OUTBOX_STORAGE);
+    if (!raw) return [];
+    const parsed = desofuscarPayloadContingencia(raw);
+    if (!Array.isArray(parsed)) return [];
+    const hoje = getDataHojeRecife();
+    return parsed.filter(item => item && item.dataRef === hoje && item.payload);
+  } catch (_) {
+    return [];
+  }
+}
+
+function salvarOutboxOffline(items) {
+  try {
+    if (!items || items.length === 0) {
+      localStorage.removeItem(CONTINGENCIA_OUTBOX_STORAGE);
+    } else {
+      localStorage.setItem(CONTINGENCIA_OUTBOX_STORAGE, ofuscarPayloadContingencia(items));
+    }
+  } catch (_) {}
+  atualizarBadgeContingenciaOffline();
+}
+
+function enfileirarPacienteOffline(payload, nomeSetorOriginal) {
+  const items = lerOutboxOffline();
+  if (payload.client_request_id && items.some(it => it.payload?.client_request_id === payload.client_request_id)) {
+    return items;
+  }
+  const horario = new Date().toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit'
+  });
+  const entry = {
+    dataRef: getDataHojeRecife(),
+    queuedAt: new Date().toISOString(),
+    horario,
+    nomeSetorOriginal: nomeSetorOriginal || payload.setor,
+    payload
+  };
+  items.push(entry);
+  salvarOutboxOffline(items);
+  mesclarOutboxLocalNasFilas();
+  if (typeof updateAll === 'function') updateAll();
+  return items;
+}
+
+function mesclarOutboxLocalNasFilas() {
+  const items = lerOutboxOffline();
+  SETORES.forEach(s => {
+    queues[s] = (queues[s] || []).filter(p => !p.offline_pendente);
+  });
+  items.forEach((it, idx) => {
+    const p = it.payload;
+    if (!p || !queues[p.setor]) return;
+    if (queues[p.setor].some(x => x.client_request_id && x.client_request_id === p.client_request_id)) return;
+    queues[p.setor].push(sanitizarPacienteEspelhoContingencia({
+      id: -(idx + 1),
+      nome: p.nome,
+      setor: p.setor,
+      profissional: p.profissional,
+      prioridade: p.prioridade || 'geral',
+      tipo_prioridade: p.tipo_prioridade || null,
+      nivel_prioridade: p.prioridade === 'prioritario' ? 2 : 3,
+      horario: it.horario || '--:--',
+      horario_marcado: p.horario_marcado || null,
+      status: 'aguardando',
+      etapa_fluxo: p.etapa_fluxo || 'recepcao',
+      equipe_paciente: p.equipe_paciente || null,
+      offline_pendente: true,
+      client_request_id: p.client_request_id
+    }));
+  });
+  atualizarBadgeContingenciaOffline();
+}
+
+function atualizarBadgeContingenciaOffline() {
+  const count = lerOutboxOffline().length;
+  const badge = document.getElementById('contingencia-offline-badge');
+  if (badge) {
+    badge.textContent = String(count);
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
+  }
+}
+
+async function sincronizarFilaOfflinePendente(manual = false) {
+  if (_sincronizandoOutbox) return;
+  const pendentes = lerOutboxOffline();
+  if (pendentes.length === 0) {
+    if (manual) showToast('✅ Nenhum cadastro offline pendente para sincronizar.');
+    atualizarBadgeContingenciaOffline();
+    return { synced: 0, remaining: 0 };
+  }
+  if (navigator.onLine === false) {
+    if (manual) showToast('🔴 Sem internet no momento para sincronizar a fila offline.', true);
+    return { synced: 0, remaining: pendentes.length };
+  }
+  _sincronizandoOutbox = true;
+  const restantes = [];
+  let enviados = 0;
+  try {
+    for (const item of pendentes) {
+      try {
+        const r = await fetch(`${API_URL}/patients`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.payload)
+        });
+        if (r.ok || r.status === 400) {
+          enviados++;
+        } else {
+          restantes.push(item);
+        }
+      } catch (_) {
+        restantes.push(item);
+      }
+    }
+    salvarOutboxOffline(restantes);
+    if (enviados > 0) {
+      showToast(`🔄 ${enviados} cadastro(s) offline sincronizado(s) com o servidor!`);
+      await loadQueues();
+    } else if (manual && restantes.length > 0) {
+      showToast('⚠️ Ainda sem conexão estável para enviar os cadastros offline.', true);
+    }
+  } finally {
+    _sincronizandoOutbox = false;
+    if (document.getElementById('modal-contingencia-offline')?.classList.contains('show')) {
+      renderModalContingenciaOffline();
+    }
+  }
+  return { synced: enviados, remaining: restantes.length };
+}
+
+function limparEspelhoContingenciaLogout(preservarChave = false) {
+  try {
+    localStorage.removeItem(CONTINGENCIA_ESPELHO_STORAGE);
+    localStorage.removeItem(CONTINGENCIA_OUTBOX_STORAGE);
+    if (preservarChave) sessionStorage.removeItem(CONTINGENCIA_KEY_STORAGE);
+  } catch (_) {}
+  atualizarBadgeContingenciaOffline();
+}
+
+function limparEspelhoContingenciaManual() {
+  if (!confirm('Limpar o espelho local e a lista offline desta estação?')) return;
+  limparEspelhoContingenciaLogout(false);
+  mesclarOutboxLocalNasFilas();
+  if (typeof updateAll === 'function') updateAll();
+  renderModalContingenciaOffline();
+  showToast('🧹 Espelho local limpo nesta estação.');
+}
+
+function renderModalContingenciaOffline() {
+  const resumoEl = document.getElementById('contingencia-resumo-box');
+  const outboxEl = document.getElementById('contingencia-outbox-lista');
+  const esp = lerEspelhoFilaContingencia();
+  const totalNaFila = SETORES.reduce((acc, s) => acc + ((queues[s] || []).length), 0);
+  const outbox = lerOutboxOffline();
+  const salvoEm = esp?.savedAt
+    ? new Date(esp.savedAt).toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : 'Agora';
+  if (resumoEl) {
+    resumoEl.innerHTML = `
+      <div><strong>📦 Pacientes no espelho atual:</strong> ${totalNaFila} pessoa(s) distribuída(s) nos setores</div>
+      <div><strong>🕒 Última atualização salva:</strong> ${escapeText(salvoEm)} &nbsp;|&nbsp; <strong>📥 Pendentes offline:</strong> ${outbox.length}</div>
+    `;
+  }
+  if (outboxEl) {
+    if (outbox.length === 0) {
+      outboxEl.innerHTML = '<div style="font-size:12.5px;color:var(--gray-500);text-align:center;padding:12px;">Nenhum cadastro offline pendente.</div>';
+    } else {
+      outboxEl.innerHTML = outbox.map((it, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:12.5px;">
+          <div><strong>${i + 1}. ${escapeText(it.payload?.nome || '')}</strong> · ${escapeText(it.nomeSetorOriginal || it.payload?.setor || '')} ${it.payload?.profissional ? `(${escapeText(it.payload.profissional)})` : ''}</div>
+          <span style="font-size:11px;font-weight:800;color:#b45309;">⏳ ${escapeText(it.horario || '')}</span>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+function abrirModalContingenciaOffline() {
+  const modal = document.getElementById('modal-contingencia-offline');
+  if (!modal) return;
+  renderModalContingenciaOffline();
+  modal.classList.add('show');
+}
+
+function fecharModalContingenciaOffline() {
+  document.getElementById('modal-contingencia-offline')?.classList.remove('show');
+}
+
+function gerarHtmlFolhaContingencia(snapshot = {}) {
+  const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' });
+  const queuesData = snapshot.queues || queues || {};
+  const setoresHtml = SETORES.map(setor => {
+    const lista = Array.isArray(queuesData[setor]) ? queuesData[setor] : [];
+    const linhas = lista.length === 0
+      ? '<tr><td colspan="6" style="color:#64748b;font-style:italic;padding:6px;">Nenhum paciente aguardando neste setor.</td></tr>'
+      : lista.map((p, idx) => {
+          const prio = (p.prioridade === 'prioritario' || Number(p.nivel_prioridade) <= 2)
+            ? `⭐ ${escapeText(p.tipo_prioridade || 'Prioritário')}`
+            : 'Geral';
+          const prof = escapeText(p.profissional || p.profissional_destino || (p.etapa_fluxo === 'primeira_escuta' ? '1ª Escuta' : p.etapa_fluxo === 'segunda_escuta' ? '2ª Escuta' : 'Geral'));
+          const hora = escapeText(p.horario_marcado ? `Marc. ${p.horario_marcado} / Cheg. ${p.horario || ''}` : (p.horario || ''));
+          const off = p.offline_pendente ? ' [OFFLINE]' : '';
+          return `<tr>
+            <td style="text-align:center;font-weight:700;">${idx + 1}</td>
+            <td><strong>${escapeText(p.nome || '')}${off}</strong></td>
+            <td>${prof}</td>
+            <td>${prio}</td>
+            <td>${hora}</td>
+            <td style="white-space:nowrap;">☐ Chamado &nbsp; ☐ Atendido &nbsp; ☐ Ausente</td>
+          </tr>`;
+        }).join('');
+    return `<section style="margin-bottom:14px;page-break-inside:avoid;">
+      <h3 style="margin:0 0 6px;padding:4px 8px;background:#e2e8f0;font-size:13px;border-left:4px solid #0f172a;">${escapeText(setor)} (${lista.length})</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+        <thead><tr style="background:#f8fafc;">
+          <th style="width:28px;">#</th><th>Paciente</th><th>Profissional / Etapa</th><th>Prioridade</th><th>Horário</th><th>Controle Manual</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </section>`;
+  }).join('');
+
+  const linhasEmBranco = Array.from({ length: 10 }, (_, i) =>
+    `<tr><td style="height:22px;text-align:center;">+${i + 1}</td><td></td><td></td><td>☐ Geral ☐ Prio</td><td></td><td>☐ Chamado ☐ Atendido</td></tr>`
+  ).join('');
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+    <title>Folha de Contingência — USF Chico Mendes</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 14px; color: #0f172a; }
+      h1 { font-size: 16px; margin: 0 0 4px; }
+      .meta { font-size: 11.5px; color: #475569; margin-bottom: 12px; border-bottom: 2px solid #0f172a; padding-bottom: 6px; }
+      table, th, td { border: 1px solid #94a3b8; }
+      th, td { padding: 4px 6px; text-align: left; }
+      @media print { .no-print { display: none; } }
+    </style></head><body>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h1>🏥 USF Chico Mendes — Folha de Contingência de Filas</h1>
+      <button class="no-print" onclick="window.print()" style="padding:6px 12px;font-weight:700;cursor:pointer;">🖨️ Imprimir</button>
+    </div>
+    <div class="meta">Gerado em: ${escapeText(agora)} · Uso exclusivo da equipe em queda de internet (sem dados clínicos sensíveis).</div>
+    ${setoresHtml}
+    <section style="margin-top:14px;page-break-inside:avoid;">
+      <h3 style="margin:0 0 6px;font-size:13px;">📝 Novos Pacientes Recebidos Durante Queda de Internet</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+        <thead><tr style="background:#f8fafc;"><th style="width:28px;">#</th><th>Nome Completo</th><th>Setor / Profissional</th><th>Prioridade</th><th>Chegada</th><th>Situação</th></tr></thead>
+        <tbody>${linhasEmBranco}</tbody>
+      </table>
+    </section>
+  </body></html>`;
+}
+
+function imprimirFolhaContingenciaFila() {
+  const html = gerarHtmlFolhaContingencia({ queues });
+  const win = window.open('', '_blank', 'width=960,height=740');
+  if (!win) {
+    showToast('⚠️ Permita pop-ups no navegador para imprimir a folha de contingência.', true);
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => { try { win.focus(); win.print(); } catch (_) {} }, 250);
+}
+
+window.addEventListener('online', () => {
+  atualizarStatusConexao('online');
+});
+window.addEventListener('offline', () => {
+  atualizarStatusConexao('offline', 'Navegador sem internet');
+});
+document.addEventListener('DOMContentLoaded', () => {
+  atualizarBadgeContingenciaOffline();
+});

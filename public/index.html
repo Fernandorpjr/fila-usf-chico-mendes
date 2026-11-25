@@ -2527,6 +2527,7 @@
     <div class="admin-toolbar-divider admin-strict-only"></div>
     <div class="admin-toolbar-group">
       <span class="admin-toolbar-label">Gestão</span>
+      <button type="button" class="btn-reset manager-or-admin-tab" style="display:none;background:rgba(13,148,136,0.22);border-color:rgba(45,212,191,0.55);" onclick="abrirModalEquipeMutirao()" title="Gerenciar médicos, enfermeiros e plantonistas de mutirão">👥 Equipe / Mutirão</button>
       <a href="/dashboard" target="_blank" class="btn-reset" style="text-decoration:none;display:inline-flex;align-items:center;" title="Abrir Painel de Métricas">📊 Dashboard</a>
       <button class="btn-reset admin-strict-only" onclick="resetData()" title="Zerar fila diária (Somente Administrador)">🗑️ Resetar Diário</button>
     </div>
@@ -2534,8 +2535,12 @@
 </header>
 
 <div id="offline-banner" class="offline-banner" role="alert">
-  <span>🔴 <strong>SEM INTERNET:</strong> A conexão caiu — as filas e chamadas estão pausadas até a internet voltar.</span>
-  <button type="button" onclick="verificarConexaoAgora(true)">🔄 Testar conexão</button>
+  <span>🔴 <strong>SEM INTERNET:</strong> A conexão caiu — as filas estão operando com espelho local seguro até o sinal voltar.</span>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button type="button" onclick="imprimirFolhaContingenciaFila()" style="background:#fff7ed;color:#9a3412;">🖨️ Imprimir Folha da Fila</button>
+    <button type="button" onclick="abrirModalContingenciaOffline()" style="background:#fef3c7;color:#92400e;">🛡️ Contingência Offline</button>
+    <button type="button" onclick="verificarConexaoAgora(true)">🔄 Testar conexão</button>
+  </div>
 </div>
 
 <nav class="nav-tabs">
@@ -2592,6 +2597,9 @@
             </button>
             <button type="button" class="pec-form-btn" style="padding:7px 11px;" onclick="abrirDeclaracaoResidenciaRecepcao(false)" title="Imprimir Declaração de Residência (ACS)">
               🏠 Decl. Residência (ACS)
+            </button>
+            <button type="button" id="btn-contingencia-recepcao" class="pec-form-btn" style="padding:7px 11px;background:#fff7ed;border-color:#fdba74;color:#9a3412;" onclick="abrirModalContingenciaOffline()" title="Espelho local protegido por sessão e folha impressa de contingência">
+              🛡️ Contingência <span id="contingencia-offline-badge" style="display:none;background:#dc2626;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;margin-left:3px;">0</span>
             </button>
           </div>
         </div>
@@ -5300,6 +5308,71 @@
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Modal Equipe & Mutirão (Cadastro Dinâmico de Profissionais) -->
+<div class="modal-overlay" id="modal-equipe-mutirao" onclick="if(event.target===this)fecharModalEquipeMutirao()">
+  <div class="modal-box" style="max-width:780px;width:95%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
+      <h3 style="margin:0;">👥 Equipe &amp; Plantonistas (Fixos e Mutirão)</h3>
+      <button type="button" class="btn btn-outline btn-sm" onclick="fecharModalEquipeMutirao()">✕ Fechar</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--gray-600);margin:0 0 12px;">
+      Cadastre profissionais extras sem mexer no código. Profissionais marcados como <strong>Só Mutirão (Sábado)</strong> aparecem nas filas automaticamente aos sábados ou quando <strong>🗓️ Mutirão Hoje</strong> estiver ativo.
+    </p>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;cursor:pointer;margin:0;">
+        <input type="checkbox" id="chk-preview-mutirao-profs" onchange="togglePreviewMutiraoProfissionais(this.checked)">
+        <span>👀 Exibir plantonistas de Mutirão nas filas agora (pré-visualização)</span>
+      </label>
+      <span id="mutirao-contexto-status" style="font-size:11.5px;font-weight:800;color:#0f766e;"></span>
+    </div>
+
+    <div style="background:#f0fdfa;border:1.5px solid #5eead4;border-radius:12px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:800;color:#115e59;margin-bottom:8px;">➕ Adicionar / Atualizar Profissional</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1.2fr;gap:8px;">
+        <input type="text" id="eq-novo-nome" placeholder="Nome (ex: Renata Célia)" maxlength="80" style="padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;">
+        <select id="eq-novo-setor" style="padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;">
+          <option value="Enfermagem">👩‍⚕️ Enfermagem</option>
+          <option value="Médico">🩺 Médico</option>
+          <option value="Odontologia">🦷 Odontologia</option>
+          <option value="Téc. Enfermagem">🩹 Téc. Enfermagem</option>
+        </select>
+        <select id="eq-novo-regime" style="padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;">
+          <option value="mutirao">🗓️ Só Mutirão (Sábado)</option>
+          <option value="fixo">🏥 Fixo (Seg–Sex)</option>
+          <option value="substituto">🔄 Substituto / Temporário</option>
+        </select>
+        <input type="text" id="eq-novo-profissao" placeholder="Cargo / Conselho (opc.)" maxlength="120" style="padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;">
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn btn-teal btn-sm" onclick="salvarNovoProfissionalMutirao()">💾 Salvar Profissional</button>
+      </div>
+    </div>
+
+    <div id="equipe-mutirao-lista" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+</div>
+
+<!-- Modal Contingência Offline (Queda de Internet na USF) -->
+<div class="modal-overlay" id="modal-contingencia-offline" onclick="if(event.target===this)fecharModalContingenciaOffline()">
+  <div class="modal-box" style="max-width:680px;width:95%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
+      <h3 style="margin:0;">🛡️ Contingência Offline (Queda de Internet)</h3>
+      <button type="button" class="btn btn-outline btn-sm" onclick="fecharModalContingenciaOffline()">✕ Fechar</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--gray-600);margin:0 0 12px;">
+      O navegador mantém um <strong>espelho local protegido por sessão</strong> (apenas nomes, setores, prioridades e horários — sem CPF, CNS ou queixas clínicas) e é apagado automaticamente ao encerrar a sessão.
+    </p>
+    <div id="contingencia-resumo-box" style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <button type="button" class="btn btn-primary btn-sm" onclick="imprimirFolhaContingenciaFila()">🖨️ Imprimir Folha de Contingência da Fila Atual</button>
+      <button type="button" class="btn btn-green btn-sm" id="btn-sync-outbox-now" onclick="sincronizarFilaOfflinePendente(true)">🔄 Sincronizar Cadastros Offline</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="limparEspelhoContingenciaManual()">🧹 Limpar Espelho Local</button>
+    </div>
+    <div style="font-size:12.5px;font-weight:800;color:var(--gray-700);margin-bottom:6px;">📥 Cadastros realizados offline aguardando internet:</div>
+    <div id="contingencia-outbox-lista" style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff;"></div>
   </div>
 </div>
 

@@ -195,7 +195,7 @@ test('Enfermeira Renata Célia está cadastrada no setor Enfermagem, agendamento
   const regJs = fs.readFileSync(path.join(ROOT, 'public', 'regulacao-sisreg.js'), 'utf8');
   const { inferirSetorDestinoDevolucao } = require('../lib/sisreg');
 
-  assert.equal(serverSrc.includes("['Renata Célia', 'Enfermeira – Estratégia Saúde da Família']"), true);
+  assert.equal(serverSrc.includes("'Renata Célia', 'Enfermeira – Estratégia Saúde da Família'"), true);
   assert.equal(serverSrc.includes("profNorm.includes('renata')"), true);
   assert.match(appSrc, /'Enfermagem':[\s\S]{0,180}profissionais:\s*\[[^\]]*'Renata Célia'/);
   assert.equal(appSrc.includes("'renata célia': 'Enfermeira – Estratégia Saúde da Família'"), true);

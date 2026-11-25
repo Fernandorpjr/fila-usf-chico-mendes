@@ -34,6 +34,15 @@
     ]
   };
 
+  window.atualizarProfissionaisSisregDinamicos = function (porSetor) {
+    if (!porSetor || typeof porSetor !== 'object') return;
+    ['Médico', 'Enfermagem', 'Odontologia'].forEach((setor) => {
+      if (Array.isArray(porSetor[setor]) && porSetor[setor].length > 0) {
+        PROFISSIONAIS_DEVOLUCAO_POR_SETOR[setor] = [...new Set(porSetor[setor])];
+      }
+    });
+  };
+
   const SETOR_DEV_META = {
     'Médico': { icon: '🩺', bg: '#eff6ff', fg: '#1e40af', canal: 'medico' },
     'Enfermagem': { icon: '👩‍⚕️', bg: '#f0fdfa', fg: '#0f766e', canal: 'enfermagem' },
