@@ -645,3 +645,51 @@ test('Formularios HTML PEC estao sem erros estruturais e preenchem CPF, CEP, Tel
   assert.ok(cito.includes("setInputByLabel('Complemento', d.paciente_complemento"));
   assert.ok(cito.includes('bairros-usf-list'));
 });
+
+test('SISREG III: analisa histórico de observações e identifica documento devolvido com Regulador e Data', () => {
+  const {
+    analisarHistoricoObservacoesSisreg,
+    normalizarResultadoOcrSisreg,
+    executarValidacoesFichaSisreg
+  } = require('../lib/sisreg');
+
+  // Caso 1: apenas Solicitante (sem devolução)
+  const semDevolucao = normalizarResultadoOcrSisreg({
+    tipo_arquivo: 'pdf_sisreg',
+    status_documento_sisreg: 'SOLICITADO',
+    observacoes_original: 'Solicitante: PACIENTE COM DOR ABDOMINAL HA 4 MESES.\nData: 10/11/2026'
+  });
+  assert.equal(semDevolucao.documento_devolvido, false);
+  assert.equal(semDevolucao.historico_observacoes.length, 1);
+  assert.equal(semDevolucao.historico_observacoes[0].papel, 'solicitante');
+  assert.equal(semDevolucao.historico_observacoes[0].data, '10/11/2026');
+  assert.equal(semDevolucao.parecer_regulador, null);
+
+  // Caso 2: documento devolvido com Solicitante + Regulador + Data
+  const devolvido = normalizarResultadoOcrSisreg({
+    tipo_arquivo: 'pdf_sisreg',
+    status_documento_sisreg: 'DEVOLVIDO',
+    observacoes_original: [
+      'Solicitante: PACIENTE REFERE DOR EM HIPOCONDRIO DIREITO. Data: 10/11/2026',
+      'Regulador: DR CARLOS ALBERTO Data: 14/11/2026',
+      'FAVOR DESCREVER RESULTADO DE ULTRASSOM PREVIO E TEMPO DE EVOLUCAO.'
+    ].join('\n')
+  });
+  assert.equal(devolvido.documento_devolvido, true);
+  assert.equal(devolvido.status_documento_sisreg, 'DEVOLVIDO');
+  assert.equal(devolvido.data_devolucao_regulador, '14/11/2026');
+  assert.equal(devolvido.nome_regulador, 'DR CARLOS ALBERTO');
+  assert.ok(devolvido.parecer_regulador.includes('ULTRASSOM PREVIO'));
+  assert.ok(devolvido.observacao_solicitante.includes('HIPOCONDRIO DIREITO'));
+  assert.equal(devolvido.observacoes_revisada.includes('ULTRASSOM PREVIO'), false);
+
+  const valDev = executarValidacoesFichaSisreg(devolvido, { procedimentos: [] });
+  assert.ok(valDev.validacoes.pendencias.some(p => p.includes('DEVOLVIDO')));
+
+  // Caso 3: Regulador apenas autorizou -> não marcar como devolvido
+  const autorizado = analisarHistoricoObservacoesSisreg({
+    status_documento_sisreg: 'AUTORIZADO',
+    observacoes_original: 'Solicitante: AVALIACAO OFTALMO. Data: 05/11/2026\nRegulador: AUTORIZADO Data: 07/11/2026'
+  });
+  assert.equal(autorizado.documento_devolvido, false);
+});

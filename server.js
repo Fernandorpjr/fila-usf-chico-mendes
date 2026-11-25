@@ -41,6 +41,11 @@ const {
 } = require('./lib/receitas');
 const { setupSisreg } = require('./lib/sisreg');
 const {
+  normalizarPayloadExamesColeta,
+  extrairCodigosExamesDeTexto,
+  calcularResumoTubosColeta
+} = require('./public/exames-tubos');
+const {
   SESSION_TTL_MS,
   isValidGatePass,
   isValidAdminPass,
@@ -189,6 +194,9 @@ function sanitizarPacientePublico(p) {
   delete clone.motivo_primeira_escuta;
   delete clone.observacao_segunda_escuta;
   delete clone.previa_receita;
+  delete clone.exames_coleta;
+  delete clone.cpf;
+  delete clone.cartao_sus;
   return clone;
 }
 
@@ -896,6 +904,26 @@ async function garantirColunasEscuta(dbClientOrPool) {
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS observacao_segunda_escuta TEXT`);
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS is_intercorrencia_acolhimento BOOLEAN DEFAULT false`);
     await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS horario_marcado TEXT`);
+
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS exames_coleta JSONB DEFAULT NULL`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS ausente_temporario BOOLEAN NOT NULL DEFAULT false`);
+    await runner.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS patient_fila_id INTEGER DEFAULT NULL`);
+
+    await runner.query(`
+      CREATE TABLE IF NOT EXISTS log_auditoria_fila (
+        id SERIAL PRIMARY KEY,
+        paciente_id INT REFERENCES patients(id) ON DELETE SET NULL,
+        acao VARCHAR(50) NOT NULL,
+        setor VARCHAR(60),
+        valor_anterior TEXT,
+        valor_novo TEXT,
+        motivo TEXT,
+        perfil_usuario VARCHAR(30),
+        usuario_dispositivo VARCHAR(80),
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await runner.query(`CREATE INDEX IF NOT EXISTS idx_log_auditoria_fila_data ON log_auditoria_fila(created_at DESC)`);
     _colunasEscutaGarantidas = true;
   } catch (e) {
     console.warn('[garantirColunasEscuta] Aviso ao verificar colunas:', e.message);
@@ -1730,12 +1758,15 @@ app.post('/api/patients', async (req, res) => {
       equipe_paciente,
       motivo_primeira_escuta,
       queixa,
-      horario_marcado
+      horario_marcado,
+      exames_coleta
     } = req.body;
 
     if (!nome || !setor) {
       return res.status(400).json({ error: 'Nome e setor são obrigatórios' });
     }
+
+    const examesColetaNorm = normalizarPayloadExamesColeta(exames_coleta);
 
     const calc = calcularNivelPrioridade(idade, prioridade, tipo_prioridade, condicoes_especiais);
     if (calc.erro) {
@@ -1763,9 +1794,9 @@ app.post('/api/patients', async (req, res) => {
          nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento,
          profissional, condicoes_especiais, etapa_fluxo, idade, nivel_prioridade,
          equipe_paciente, motivo_primeira_escuta, queixa, setor_destino, profissional_destino,
-         horario_marcado, ordem_prioridade_odonto, updated_at
+         horario_marcado, ordem_prioridade_odonto, exames_coleta, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP)
        RETURNING *`,
       [
         nome,
@@ -1786,7 +1817,8 @@ app.post('/api/patients', async (req, res) => {
         setor,
         profissional || null,
         horarioMarcadoFinal,
-        ordemPrioridadeOdontoFinal
+        ordemPrioridadeOdontoFinal,
+        examesColetaNorm ? JSON.stringify(examesColetaNorm) : null
       ]
     );
 
@@ -2024,9 +2056,9 @@ app.post('/api/call-next/:setor', async (req, res) => {
       ? `Consultório Odontológico - ${profissionalFinal}`
       : (medico || null);
 
-    // Update patient status and assign medico/consultorio/profissional (limpa sort_order ao ser chamado)
+    // Update patient status and assign medico/consultorio/profissional (limpa sort_order e ausente_temporario ao ser chamado)
     await client.query(
-      "UPDATE patients SET status = 'chamado', sort_order = NULL, medico = $2, consultorio = $3, profissional = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      "UPDATE patients SET status = 'chamado', sort_order = NULL, ausente_temporario = false, medico = $2, consultorio = $3, profissional = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
       [next.id, medicoFinal, consultorioFinal, profissionalFinal]
     );
 
@@ -2102,7 +2134,7 @@ app.post('/api/patients/:id/rechamar', async (req, res) => {
       return res.status(404).json({ error: 'Paciente não encontrado' });
     }
     const p = pRes.rows[0];
-    await pool.query('UPDATE patients SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [id]);
+    await pool.query('UPDATE patients SET ausente_temporario = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [id]);
 
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Recife',
@@ -2196,27 +2228,383 @@ app.put('/api/patients/:id/reorder', async (req, res) => {
   }
 });
 
-// PUT /api/patients/:id/rename — Editar nome do paciente (requer gerente ou admin)
-app.put('/api/patients/:id/rename', async (req, res) => {
+// Helper compartilhado de auditoria para alterações de rotina na fila (não mistura com log_prioridade)
+async function registrarAuditoriaFila(db, req, {
+  pacienteId,
+  acao,
+  setor = null,
+  valorAnterior = null,
+  valorNovo = null,
+  motivo = null,
+  rotuloExtra = null
+}) {
   try {
-    const { id } = req.params;
-    const { novoNome } = req.body;
-    if (!isManagerOrAdminAuthorized(req)) {
-      return res.status(403).json({ error: 'Senha de gerente ou administrador incorreta' });
-    }
-    if (!novoNome || !novoNome.trim()) {
-      return res.status(400).json({ error: 'O novo nome é obrigatório' });
-    }
-    const result = await pool.query(
-      `UPDATE patients SET nome = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
-      [id, novoNome.trim()]
+    const perfilUsuario = req.session?.role || (isManagerOrAdminAuthorized(req) ? 'admin' : 'staff');
+    const usuarioDisp = await obterUsuarioDispositivo(req, db, rotuloExtra || setor || 'Equipe');
+    await db.query(
+      `INSERT INTO log_auditoria_fila
+         (paciente_id, acao, setor, valor_anterior, valor_novo, motivo, perfil_usuario, usuario_dispositivo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        pacienteId || null,
+        String(acao || '').slice(0, 50),
+        setor ? String(setor).slice(0, 60) : null,
+        valorAnterior ? String(valorAnterior).slice(0, 400) : null,
+        valorNovo ? String(valorNovo).slice(0, 400) : null,
+        motivo ? String(motivo).trim().slice(0, 300) : null,
+        String(perfilUsuario).slice(0, 30),
+        usuarioDisp
+      ]
     );
-    if (result.rows.length === 0) {
+  } catch (err) {
+    console.warn('[auditoria-fila] Aviso ao gravar log:', err.message);
+  }
+}
+
+// PUT /api/patients/:id/rename — Editar nome do paciente diretamente na fila (equipe autenticada, com sincronização e auditoria)
+app.put('/api/patients/:id/rename', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await garantirColunasEscuta(client);
+    const { id } = req.params;
+    const novoNomeRaw = req.body?.novoNome;
+    if (!req.session && !isManagerOrAdminAuthorized(req)) {
+      return res.status(401).json({ error: 'Sessão não autenticada.' });
+    }
+    const nomeLimpo = String(novoNomeRaw || '').replace(/\s+/g, ' ').trim();
+    if (nomeLimpo.length < 2 || nomeLimpo.length > 120) {
+      return res.status(400).json({ error: 'Informe um nome válido (entre 2 e 120 caracteres).' });
+    }
+
+    await client.query('BEGIN');
+    const curRes = await client.query('SELECT * FROM patients WHERE id = $1 FOR UPDATE', [id]);
+    if (curRes.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Paciente não encontrado' });
     }
+    const pacienteAntes = curRes.rows[0];
+    if (pacienteAntes.nome === nomeLimpo) {
+      await client.query('COMMIT');
+      return res.json({ message: 'Nome mantido sem alterações', patient: pacienteAntes });
+    }
+
+    const updRes = await client.query(
+      `UPDATE patients SET nome = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+      [id, nomeLimpo]
+    );
+    const updated = updRes.rows[0];
+
+    // Sincronizar o histórico de chamadas de hoje (para TV/Atendidos), controle de agendamento e prévia sem nome OCR
+    await client.query('SAVEPOINT sp_sync_rename');
+    try {
+      await client.query(
+        `UPDATE call_history
+         SET nome = $2
+         WHERE patient_id = $1
+           AND DATE(created_at AT TIME ZONE 'America/Recife') = (NOW() AT TIME ZONE 'America/Recife')::date`,
+        [id, nomeLimpo]
+      );
+      await client.query(
+        `UPDATE ctrl_agendamentos SET nome = $2, atualizado_em = CURRENT_TIMESTAMP WHERE patient_id = $1`,
+        [id, nomeLimpo]
+      );
+      await client.query(
+        `UPDATE receitas_previas SET paciente_nome_ocr = $2 WHERE patient_id = $1 AND (paciente_nome_ocr IS NULL OR paciente_nome_ocr = $3)`,
+        [id, nomeLimpo, pacienteAntes.nome]
+      );
+    } catch (syncErr) {
+      await client.query('ROLLBACK TO SAVEPOINT sp_sync_rename');
+      console.warn('[rename] Aviso ao sincronizar tabelas relacionadas:', syncErr.message);
+    }
+
+    await registrarAuditoriaFila(client, req, {
+      pacienteId: updated.id,
+      acao: 'editar_nome',
+      setor: updated.setor,
+      valorAnterior: pacienteAntes.nome,
+      valorNovo: nomeLimpo,
+      motivo: req.body?.motivo || null
+    });
+
+    await client.query('COMMIT');
+    await anexarBuscaAtivaDetalhes([updated], pool);
+    await anexarResumoPrevias([updated], pool);
     io.emit('queueUpdate');
     io.emit('acolhimentoUpdate');
-    res.json({ message: 'Nome atualizado', patient: result.rows[0] });
+    res.json({ message: 'Nome atualizado com sucesso', patient: updated });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// PUT /api/patients/:id/prioridade — Alterar/acrescentar prioridade com paciente já na fila e reordenar automaticamente
+app.put('/api/patients/:id/prioridade', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await garantirColunasEscuta(client);
+    const { id } = req.params;
+    const {
+      prioridade,
+      tipo_prioridade,
+      idade,
+      condicoes_especiais,
+      motivo,
+      senha
+    } = req.body || {};
+
+    if (!req.session && !isManagerOrAdminAuthorized(req)) {
+      return res.status(401).json({ error: 'Sessão não autenticada.' });
+    }
+
+    await client.query('BEGIN');
+    const pRes = await client.query('SELECT * FROM patients WHERE id = $1 FOR UPDATE', [id]);
+    if (pRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    const antes = pRes.rows[0];
+    if (antes.status === 'atendido' || antes.status === 'desistencia') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Não é possível alterar prioridade de atendimento já finalizado.' });
+    }
+
+    const idadeInput = idade !== undefined ? idade : antes.idade;
+    const prioInput = prioridade || 'geral';
+    const tipoInput = prioInput === 'prioritario' ? (tipo_prioridade || null) : null;
+    const condInput = condicoes_especiais !== undefined ? condicoes_especiais : antes.condicoes_especiais;
+
+    const calc = calcularNivelPrioridade(idadeInput, prioInput, tipoInput, condInput);
+    if (calc.erro) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: calc.erro });
+    }
+    const calcOdonto = calcularOrdemPrioridadeOdonto(calc.idade, calc.prioridade, calc.tipo_prioridade, condInput);
+
+    const rankAntes = Number(
+      antes.ordem_prioridade_odonto ||
+      (Number(antes.nivel_prioridade) === 1 ? 1 : (antes.prioridade === 'prioritario' || Number(antes.nivel_prioridade) === 2 ? 9 : 99))
+    );
+    const rankNovo = Number(calcOdonto.ordem_prioridade_odonto || 99);
+
+    // Incluir ou elevar prioridade (rankNovo <= rankAntes) é livre para equipe autenticada;
+    // Remover ou rebaixar prioridade já concedida (rankNovo > rankAntes) exige Gerente/Admin.
+    if (rankNovo > rankAntes) {
+      const temGerenteOuAdmin = isManagerOrAdminAuthorized(req) || Boolean(resolvePrivilegedRole(senha));
+      if (!temGerenteOuAdmin) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Para remover ou reduzir uma prioridade já registrada, informe a senha de Gerente ou Administrador.',
+          requiresManagerPassword: true
+        });
+      }
+    }
+
+    const updRes = await client.query(
+      `UPDATE patients
+       SET prioridade = $2,
+           tipo_prioridade = $3,
+           nivel_prioridade = $4,
+           ordem_prioridade_odonto = $5,
+           idade = $6,
+           condicoes_especiais = $7,
+           sort_order = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id,
+        calcOdonto.prioridade,
+        calcOdonto.tipo_prioridade,
+        calcOdonto.nivel,
+        calcOdonto.ordem_prioridade_odonto,
+        calc.idade,
+        condInput || null
+      ]
+    );
+    const updated = updRes.rows[0];
+
+    // Reordena a fila do setor imediatamente pela ordem legal (1º a 10º) + Horário Marcado + Chegada
+    if (updated.status === 'aguardando') {
+      await reordenarFilaSetor(client, updated.setor);
+    }
+
+    await client.query('SAVEPOINT sp_sync_prio');
+    try {
+      await client.query(
+        `UPDATE call_history
+         SET prioridade = $2, tipo_prioridade = $3
+         WHERE patient_id = $1
+           AND DATE(created_at AT TIME ZONE 'America/Recife') = (NOW() AT TIME ZONE 'America/Recife')::date`,
+        [id, updated.prioridade, updated.tipo_prioridade]
+      );
+    } catch (_) {
+      await client.query('ROLLBACK TO SAVEPOINT sp_sync_prio');
+    }
+
+    const descAntes = antes.prioridade === 'prioritario'
+      ? `Prioritário (${antes.tipo_prioridade || `Nível ${antes.nivel_prioridade || 2}`})`
+      : 'Geral';
+    const descNovo = updated.prioridade === 'prioritario'
+      ? `Prioritário (${updated.tipo_prioridade || `Nível ${updated.nivel_prioridade || 2}`})`
+      : 'Geral';
+
+    await registrarAuditoriaFila(client, req, {
+      pacienteId: updated.id,
+      acao: 'alterar_prioridade',
+      setor: updated.setor,
+      valorAnterior: descAntes,
+      valorNovo: descNovo,
+      motivo: motivo || null
+    });
+
+    await client.query('COMMIT');
+    const finalRes = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    const finalPatient = finalRes.rows[0] || updated;
+    await anexarBuscaAtivaDetalhes([finalPatient], pool);
+    await anexarResumoPrevias([finalPatient], pool);
+
+    io.emit('queueUpdate');
+    io.emit('acolhimentoUpdate');
+    res.json({
+      message: 'Prioridade atualizada e fila reordenada com sucesso',
+      patient: finalPatient
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// PUT /api/patients/:id/exames-coleta — Atualizar exames e tubos de coleta na fila (Téc. Enfermagem / Recepção)
+app.put('/api/patients/:id/exames-coleta', async (req, res) => {
+  try {
+    await garantirColunasEscuta(pool);
+    const { id } = req.params;
+    if (!req.session && !isManagerOrAdminAuthorized(req)) {
+      return res.status(401).json({ error: 'Sessão não autenticada.' });
+    }
+    const normExames = normalizarPayloadExamesColeta(req.body?.exames_coleta ?? req.body);
+    const curRes = await pool.query('SELECT id, nome, setor, exames_coleta FROM patients WHERE id = $1', [id]);
+    if (curRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    const antes = curRes.rows[0];
+    const upd = await pool.query(
+      `UPDATE patients SET exames_coleta = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+      [id, normExames ? JSON.stringify(normExames) : null]
+    );
+    const updated = upd.rows[0];
+    const resumoAntes = calcularResumoTubosColeta(antes.exames_coleta).resumoCurto || 'Sem tubos';
+    const resumoNovo = calcularResumoTubosColeta(normExames).resumoCurto || 'Sem tubos';
+    await registrarAuditoriaFila(pool, req, {
+      pacienteId: updated.id,
+      acao: 'atualizar_tubos_coleta',
+      setor: updated.setor,
+      valorAnterior: resumoAntes,
+      valorNovo: resumoNovo
+    });
+    io.emit('queueUpdate');
+    res.json({ message: 'Tubos de coleta atualizados', patient: updated, resumo: calcularResumoTubosColeta(normExames) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/patients/:id/ausente-temporario — Paciente não respondeu à chamada: volta p/ fila sem perder cadastro e libera próximo
+app.put('/api/patients/:id/ausente-temporario', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await garantirColunasEscuta(client);
+    const { id } = req.params;
+    if (!req.session && !isManagerOrAdminAuthorized(req)) {
+      return res.status(401).json({ error: 'Sessão não autenticada.' });
+    }
+
+    await client.query('BEGIN');
+    const pRes = await client.query('SELECT * FROM patients WHERE id = $1 FOR UPDATE', [id]);
+    if (pRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    const p = pRes.rows[0];
+    if (p.status !== 'chamado') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Apenas paciente com chamada ativa pode ser marcado como ausente temporário.' });
+    }
+
+    const paramsFila = [p.setor, p.id];
+    let profFilter = '';
+    if (p.profissional && String(p.profissional).trim()) {
+      paramsFila.push(String(p.profissional).trim());
+      profFilter = ` AND (profissional = $3 OR profissional IS NULL OR profissional = '')`;
+    }
+    const esperaRes = await client.query(
+      `SELECT id FROM patients
+       WHERE setor = $1 AND status = 'aguardando' AND id <> $2${profFilter}
+       ORDER BY ${SQL_ORDEM_FILA}`,
+      paramsFila
+    );
+    const ids = esperaRes.rows.map(r => r.id);
+    // Coloca logo após o 1º aguardando (posição 2) para destravar a chamada seguinte e ainda permitir rechamar rápido
+    const insertIdx = Math.min(1, ids.length);
+    ids.splice(insertIdx, 0, p.id);
+
+    await client.query(
+      `UPDATE patients
+       SET status = 'aguardando',
+           ausente_temporario = true,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [p.id]
+    );
+    for (let i = 0; i < ids.length; i++) {
+      await client.query('UPDATE patients SET sort_order = $1 WHERE id = $2', [i + 1, ids[i]]);
+    }
+
+    await registrarAuditoriaFila(client, req, {
+      pacienteId: p.id,
+      acao: 'ausente_temporario',
+      setor: p.setor,
+      valorAnterior: 'chamado',
+      valorNovo: `aguardando (${insertIdx + 1}º lugar — ausente temporário)`,
+      motivo: req.body?.motivo || 'Não respondeu à chamada'
+    });
+
+    await client.query('COMMIT');
+    const outRes = await pool.query('SELECT * FROM patients WHERE id = $1', [p.id]);
+    io.emit('queueUpdate');
+    res.json({
+      message: `${p.nome} aguardando rechamada (ausente temporário).`,
+      patient: outRes.rows[0],
+      posicao: insertIdx + 1
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/admin/auditoria-fila — Consultar logs de alterações na fila (Gerente / Admin)
+app.get('/api/admin/auditoria-fila', requireManagerOrAdmin, async (req, res) => {
+  try {
+    await garantirColunasEscuta(pool);
+    const limit = Math.max(1, Math.min(200, parseInt(req.query?.limit, 10) || 100));
+    const r = await pool.query(
+      `SELECT l.*, p.nome AS paciente_nome_atual
+       FROM log_auditoria_fila l
+       LEFT JOIN patients p ON p.id = l.paciente_id
+       ORDER BY l.created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    res.json(r.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -2235,6 +2623,7 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       observacao_segunda_escuta,
       is_intercorrencia_acolhimento,
       horario_marcado,
+      exames_coleta,
       senha
     } = req.body;
 
@@ -2303,6 +2692,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
     };
     const ordemOdontoTransfer = calcOd.ordem_prioridade_odonto;
     const novoSortOrder = null;
+    const examesColetaTransfer = exames_coleta !== undefined
+      ? normalizarPayloadExamesColeta(exames_coleta)
+      : undefined;
 
     const result = await client.query(
       `UPDATE patients
@@ -2327,7 +2719,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
            acs_responsavel = CASE WHEN $20 THEN NULL ELSE acs_responsavel END,
            inicio_etapa = CASE WHEN $20 THEN NULL ELSE inicio_etapa END,
            tipo_profissional_destino = CASE WHEN $20 THEN NULL ELSE tipo_profissional_destino END,
+           exames_coleta = CASE WHEN $21::boolean THEN $22::jsonb ELSE exames_coleta END,
            status = 'aguardando',
+           ausente_temporario = false,
            created_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
@@ -2352,7 +2746,9 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
         prioInfo.tipo_prioridade,
         horarioMarcadoTransfer,
         ordemOdontoTransfer,
-        estadoAcol.limparCamposAcolhimento
+        estadoAcol.limparCamposAcolhimento,
+        examesColetaTransfer !== undefined,
+        examesColetaTransfer ? JSON.stringify(examesColetaTransfer) : null
       ]
     );
     const patient = result.rows[0];
@@ -4686,6 +5082,139 @@ app.post('/api/agendamentos/reverter-lote', async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao reverter lote de agendamentos:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// POST – check-in rápido em 1 clique do agendamento para a fila do setor
+app.post('/api/agendamentos/:id/enviar-fila', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await garantirColunasEscuta(client);
+    const { id } = req.params;
+    if (!req.session && !isManagerOrAdminAuthorized(req)) {
+      return res.status(401).json({ error: 'Sessão não autenticada.' });
+    }
+
+    await client.query('BEGIN');
+    const agRes = await client.query('SELECT * FROM agendamentos WHERE id = $1 FOR UPDATE', [id]);
+    if (agRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Agendamento não encontrado' });
+    }
+    const ag = agRes.rows[0];
+
+    if (ag.patient_fila_id) {
+      const existRes = await client.query(
+        `SELECT id, setor, status FROM patients WHERE id = $1 AND status <> 'desistencia'`,
+        [ag.patient_fila_id]
+      );
+      if (existRes.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `${ag.nome} já foi enviado(a) para a fila (${existRes.rows[0].setor}).`
+        });
+      }
+    }
+
+    const tipoNorm = String(ag.tipo_atendimento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const profNorm = String(ag.profissional || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    let setorDest = req.body?.setor || 'Médico';
+    let tipoAtendDest = ag.tipo_atendimento || 'Consulta';
+    let profDest = ag.profissional || null;
+    let examesColeta = null;
+
+    if (!req.body?.setor) {
+      if (tipoNorm.includes('coleta')) {
+        setorDest = 'Téc. Enfermagem';
+        tipoAtendDest = 'Coleta';
+        if (!profDest) profDest = 'Cintia';
+        const codigos = extrairCodigosExamesDeTexto(ag.checklist_exames || '');
+        if (codigos.length > 0) {
+          examesColeta = normalizarPayloadExamesColeta({ exames: codigos });
+        }
+      } else if (tipoNorm.includes('odont') || profNorm.includes('juliana')) {
+        setorDest = 'Odontologia';
+        tipoAtendDest = 'Consulta';
+        if (!profDest) profDest = 'Dra. Juliana Cavalcante';
+      } else if (
+        tipoNorm.includes('enferm') ||
+        tipoNorm.includes('pre-natal') ||
+        tipoNorm.includes('prenatal') ||
+        tipoNorm.includes('puericultura') ||
+        profNorm.includes('mariana') ||
+        profNorm.includes('jorge') ||
+        profNorm.includes('lucelia')
+      ) {
+        setorDest = 'Enfermagem';
+      } else if (tipoNorm === 'exame') {
+        setorDest = 'Téc. Enfermagem';
+        tipoAtendDest = 'Procedimento';
+      }
+    }
+
+    if (req.body?.exames_coleta) {
+      examesColeta = normalizarPayloadExamesColeta(req.body.exames_coleta) || examesColeta;
+    }
+
+    const horarioChegada = new Date().toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit'
+    });
+    const horarioMarcado = SETORES_HORARIO_MARCADO.includes(setorDest)
+      ? normalizarHorarioMarcado(ag.horario)
+      : null;
+
+    const pInsert = await client.query(
+      `INSERT INTO patients (
+         nome, setor, horario, status, prioridade, tipo_prioridade, tipo_atendimento,
+         profissional, equipe_paciente, setor_destino, profissional_destino,
+         horario_marcado, presenca_confirmada, motivo_primeira_escuta, queixa,
+         exames_coleta, updated_at
+       )
+       VALUES ($1, $2, $3, 'aguardando', 'geral', NULL, $4, $5, $6, $2, $5, $7, true, $8, $8, $9, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [
+        ag.nome,
+        setorDest,
+        horarioChegada,
+        tipoAtendDest,
+        profDest,
+        ag.equipe || null,
+        horarioMarcado,
+        ag.observacoes ? String(ag.observacoes).trim() : null,
+        examesColeta ? JSON.stringify(examesColeta) : null
+      ]
+    );
+    const novoPaciente = pInsert.rows[0];
+    await reordenarFilaSetor(client, setorDest);
+
+    const agStatusNovo = tipoNorm.includes('coleta') ? 'realizado' : 'confirmado';
+    const agUpd = await client.query(
+      `UPDATE agendamentos SET status = $2, patient_fila_id = $3 WHERE id = $1 RETURNING *`,
+      [id, agStatusNovo, novoPaciente.id]
+    );
+
+    await registrarAuditoriaFila(client, req, {
+      pacienteId: novoPaciente.id,
+      acao: 'checkin_agendamento',
+      setor: setorDest,
+      valorAnterior: `Agendamento #${ag.id} (${ag.status})`,
+      valorNovo: `Fila ${setorDest}${profDest ? ' · ' + profDest : ''}`
+    });
+
+    await client.query('COMMIT');
+    io.emit('queueUpdate');
+    res.status(201).json({
+      ok: true,
+      patient: novoPaciente,
+      agendamento: agUpd.rows[0],
+      resumoTubos: calcularResumoTubosColeta(examesColeta)
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
     res.status(500).json({ error: error.message });
   } finally {
     client.release();

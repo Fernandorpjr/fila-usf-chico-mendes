@@ -2781,6 +2781,20 @@
                   <button type="button" class="motivo-chip" style="background:#fff;border-color:#f9a8d4;color:#9d174d;" onclick="definirHorarioMarcadoRapido('15:00')">⏰ 15:00</button>
                 </div>
               </div>
+              <div id="recepcao-coleta-tubos-box" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:#f0fdfa;border:1.5px solid #5eead4;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                  <span style="font-size:11.5px;font-weight:900;color:#0f766e;">🧪 Tubos de Coleta (Téc. Enfermagem · Opcional)</span>
+                  <button type="button" class="btn btn-sm" style="background:#0f766e;color:#fff;padding:5px 10px;font-size:11.5px;border-radius:8px;" onclick="abrirModalTubosColetaContexto('recepcao')">🧪 Selecionar Exames / Tubos</button>
+                </div>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
+                  <button type="button" class="motivo-chip" style="background:#fff;border-color:#99f6e4;color:#0f766e;" onclick="aplicarPerfilColetaRapido('recepcao','rotina')">⚡ Rotina</button>
+                  <button type="button" class="motivo-chip" style="background:#fff;border-color:#99f6e4;color:#0f766e;" onclick="aplicarPerfilColetaRapido('recepcao','hiperdia')">❤️ Hiperdia</button>
+                  <button type="button" class="motivo-chip" style="background:#fff;border-color:#99f6e4;color:#0f766e;" onclick="aplicarPerfilColetaRapido('recepcao','pre_natal')">🤰 Pré-Natal</button>
+                  <button type="button" class="motivo-chip" style="background:#fff;border-color:#99f6e4;color:#0f766e;" onclick="aplicarPerfilColetaRapido('recepcao','ist_sorologias')">🛡️ IST / Sorologias</button>
+                  <button type="button" class="motivo-chip" style="background:#fff;border-color:#cbd5e1;color:#64748b;" onclick="limparTubosColetaContexto('recepcao')">Limpar</button>
+                </div>
+                <div id="recepcao-coleta-tubos-resumo" style="font-size:11.5px;color:#334155;font-weight:700;">Nenhum tubo selecionado (pode preencher na recepção ou direto na sala de coleta).</div>
+              </div>
               <div id="recepcao-interc-alerta"></div>
               <div id="recepcao-previa-receita-bar" class="recepcao-previa-bar">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -4492,9 +4506,22 @@
     </div>
     <div class="form-group" id="transfer-tipo-atendimento-grupo" style="display:none; margin-top:16px; margin-bottom:0;">
       <label style="color:var(--gray-600);">Tipo de Atendimento</label>
-      <select id="transfer-tipo-atendimento">
+      <select id="transfer-tipo-atendimento" onchange="atualizarVisibilidadeTubosTransfer()">
         <!-- Preenchido via JS -->
       </select>
+    </div>
+    <div id="transfer-coleta-tubos-box" style="display:none;margin-top:12px;padding:10px 12px;border-radius:10px;background:#f0fdfa;border:1.5px solid #5eead4;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <span style="font-size:11.5px;font-weight:900;color:#0f766e;">🧪 Tubos para Coleta</span>
+        <button type="button" class="btn btn-sm" style="background:#0f766e;color:#fff;padding:4px 10px;font-size:11px;border-radius:8px;" onclick="abrirModalTubosColetaContexto('transfer')">🧪 Selecionar Tubos</button>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
+        <button type="button" class="motivo-chip" style="background:#fff;border-color:#99f6e4;color:#0f766e;" onclick="aplicarPerfilColetaRapido('transfer','rotina')">⚡ Rotina</button>
+        <button type="button" class="motivo-chip" style="background:#fff;border-color:#99f6e4;color:#0f766e;" onclick="aplicarPerfilColetaRapido('transfer','hiperdia')">❤️ Hiperdia</button>
+        <button type="button" class="motivo-chip" style="background:#fff;border-color:#99f6e4;color:#0f766e;" onclick="aplicarPerfilColetaRapido('transfer','pre_natal')">🤰 Pré-Natal</button>
+        <button type="button" class="motivo-chip" style="background:#fff;border-color:#99f6e4;color:#0f766e;" onclick="aplicarPerfilColetaRapido('transfer','ist_sorologias')">🛡️ IST</button>
+      </div>
+      <div id="transfer-coleta-tubos-resumo" style="font-size:11.5px;color:#334155;font-weight:700;">Nenhum tubo selecionado.</div>
     </div>
     <div class="form-group" id="transfer-profissional-grupo" style="display:none; margin-top:16px; margin-bottom:0;">
       <label style="color:var(--gray-600);">Profissional</label>
@@ -4540,9 +4567,141 @@
   </div>
 </div>
 
+<!-- Modal: Editar Nome do Paciente na Fila (sem prompt nativo) -->
+<div class="reorder-modal-overlay" id="rename-patient-modal" onclick="if(event.target===this)fecharModalEditarNomeFila()">
+  <div class="reorder-modal">
+    <h3>✏️ Editar Nome do Paciente</h3>
+    <div class="patient-badge">
+      <span style="font-size:20px;">👤</span>
+      <span id="rename-patient-atual">—</span>
+    </div>
+    <input type="hidden" id="rename-patient-id">
+    <div class="form-group" style="margin-bottom:14px;">
+      <label style="color:var(--gray-600);">Nome Completo Corrigido <span style="color:var(--red);">*</span></label>
+      <input type="text" id="rename-patient-input" maxlength="120" placeholder="Digite o nome completo..." style="width:100%;padding:12px 14px;border:2px solid var(--gray-200);border-radius:10px;font-size:15px;font-weight:700;color:#0f172a;">
+    </div>
+    <div class="form-group" style="margin-bottom:18px;">
+      <label style="color:var(--gray-600);">Motivo da Correção (opcional · log)</label>
+      <input type="text" id="rename-patient-motivo" maxlength="160" placeholder="Ex: Erro de digitação na entrada" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;font-weight:600;">
+    </div>
+    <div class="reorder-modal-actions">
+      <button type="button" id="rename-patient-btn-save" class="btn btn-primary" onclick="confirmarEditarNomeFila()">💾 Salvar Nome</button>
+      <button type="button" class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalEditarNomeFila()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Alterar / Acrescentar Prioridade na Fila -->
+<div class="reorder-modal-overlay" id="priority-patient-modal" onclick="if(event.target===this)fecharModalPrioridadeFila()">
+  <div class="reorder-modal" style="max-width:520px;">
+    <h3>⭐ Alterar Prioridade na Fila</h3>
+    <div class="patient-badge">
+      <span style="font-size:20px;">👤</span>
+      <span id="prio-modal-patient-name">—</span>
+    </div>
+    <input type="hidden" id="prio-modal-patient-id">
+    <input type="hidden" id="prio-modal-rank-antes" value="99">
+    <div style="display:grid;grid-template-columns:1fr 110px;gap:10px;margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label style="color:var(--gray-600);">Classificação</label>
+        <select id="prio-modal-tipo" onchange="onPrioModalTipoChange()">
+          <option value="geral">👤 Geral (Sem prioridade legal)</option>
+          <option value="prioritario">⭐ Prioritário (Lei nº 10.048/2000)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label style="color:var(--gray-600);">Idade (opc.)</label>
+        <input type="number" id="prio-modal-idade" min="0" max="120" placeholder="Ex: 65" oninput="onPrioModalInputChange()" style="margin-bottom:0;">
+      </div>
+    </div>
+    <div class="form-group" id="prio-modal-categoria-wrap" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);">Categoria Prioritária (1º a 10º)</label>
+      <select id="prio-modal-categoria" onchange="onPrioModalInputChange()">
+        <option value="1. Idoso 80+ (Prioridade Especial)">1º Idosos com 80 anos ou mais – prioridade especial</option>
+        <option value="2. Pessoa com Deficiência (PCD)">2º Pessoas com deficiência – incluindo cadeirantes</option>
+        <option value="3. Pessoa com TEA">3º Pessoas com TEA (Autismo)</option>
+        <option value="4. Gestante">4º Gestantes</option>
+        <option value="5. Lactante">5º Lactantes</option>
+        <option value="6. Criança de Colo (< 2 anos)">6º Pessoas acompanhadas de criança de colo (&lt; 2 anos)</option>
+        <option value="7. Mobilidade Reduzida">7º Pessoas com mobilidade reduzida</option>
+        <option value="8. Obesidade">8º Pessoas com obesidade</option>
+        <option value="9. Idoso 60+">9º Demais pessoas idosas (60 anos ou mais)</option>
+        <option value="10. Doador de Sangue">10º Doadores de sangue</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;margin-bottom:6px;color:var(--gray-600);">Condições Especiais (opcional)</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;" id="prio-modal-condicoes">
+        <label style="display:flex;align-items:center;gap:5px;padding:5px 9px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;"><input type="checkbox" value="hipertenso" onchange="onPrioModalInputChange()"> 💙 HAS</label>
+        <label style="display:flex;align-items:center;gap:5px;padding:5px 9px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;"><input type="checkbox" value="diabetico" onchange="onPrioModalInputChange()"> 🧡 DM</label>
+        <label style="display:flex;align-items:center;gap:5px;padding:5px 9px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;"><input type="checkbox" value="gestante" onchange="onPrioModalInputChange()"> 💜 Gestante</label>
+        <label style="display:flex;align-items:center;gap:5px;padding:5px 9px;background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;"><input type="checkbox" value="crianca_colo" onchange="onPrioModalInputChange()"> 👶 Criança de Colo</label>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gray-600);">Observação / Motivo da Alteração</label>
+      <input type="text" id="prio-modal-motivo" maxlength="180" placeholder="Ex: Paciente apresentou documento / gestação na triagem" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;font-weight:600;">
+    </div>
+    <div id="prio-modal-senha-wrap" style="display:none;margin-bottom:14px;padding:10px 12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;">
+      <label style="color:#991b1b;font-size:11.5px;display:block;margin-bottom:6px;">🔒 Remover ou reduzir prioridade exige senha de Gerente/Admin:</label>
+      <input type="password" id="prio-modal-senha" placeholder="Digite a senha de Gerente ou Admin" style="width:100%;padding:10px 12px;border:1.5px solid #fca5a5;border-radius:8px;font-size:13.5px;font-weight:700;background:#fff;">
+    </div>
+    <p style="font-size:11.5px;color:#475569;margin-bottom:14px;line-height:1.45;">
+      A fila do setor será <strong>reordenada automaticamente</strong> pela Lei nº 10.048/2000 e a alteração ficará registrada em auditoria.
+    </p>
+    <div class="reorder-modal-actions">
+      <button type="button" id="prio-modal-btn-save" class="btn btn-primary" onclick="confirmarAlterarPrioridadeFila()">⭐ Salvar Prioridade</button>
+      <button type="button" class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalPrioridadeFila()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Tubos e Exames de Coleta (Téc. Enfermagem) -->
+<div class="reorder-modal-overlay" id="tubos-coleta-modal" onclick="if(event.target===this)fecharModalTubosColeta()">
+  <div class="reorder-modal" style="max-width:740px;max-height:88vh;display:flex;flex-direction:column;padding:22px 24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
+      <h3 style="margin:0;">🧪 Tubos de Coleta — Laboratório Recife</h3>
+      <button type="button" class="btn btn-sm" style="background:#f1f5f9;color:#334155;" onclick="fecharModalTubosColeta()">✕</button>
+    </div>
+    <div id="tubos-modal-subtitle" style="font-size:12.5px;color:#475569;font-weight:700;margin-bottom:10px;">Marque os perfis, exames ou diretamente a quantidade de cada tubo (oculto no Painel TV).</div>
+
+    <div style="overflow-y:auto;padding-right:4px;flex:1;">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#0f766e;margin-bottom:5px;">Perfis Rápidos (1 clique)</div>
+        <div id="tubos-modal-perfis" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1e3a8a;margin-bottom:5px;">Seleção Direta por Tubo / Coletor (Recepção ou Técnico)</div>
+        <div id="tubos-modal-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:8px;"></div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+          <span style="font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;">Exames do Receituário Oficial (calcula tubos automaticamente)</span>
+          <input type="text" id="tubos-modal-busca" placeholder="🔎 Filtrar exame (ex: Glicose, TSH, VDRL)..." oninput="renderExamesChipsModalTubos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1.5px solid #cbd5e1;width:240px;">
+        </div>
+        <div id="tubos-modal-exames" style="display:flex;flex-wrap:wrap;gap:5px;max-height:165px;overflow-y:auto;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;padding-top:10px;border-top:2px solid #e2e8f0;">
+      <div id="tubos-modal-preview" style="margin-bottom:10px;min-height:30px;"></div>
+      <div class="reorder-modal-actions">
+        <button type="button" id="tubos-modal-btn-save" class="btn btn-primary" onclick="confirmarModalTubosColeta()">💾 Aplicar Tubos</button>
+        <button type="button" class="btn" style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;flex:0.6;" onclick="limparTudoModalTubos()">Limpar Tudo</button>
+        <button type="button" class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);flex:0.6;" onclick="fecharModalTubosColeta()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Floating Context Menu -->
 <div class="ctx-menu" id="ctx-menu" role="menu">
   <div class="ctx-menu-header" id="ctx-menu-patient-label">Paciente</div>
+  <button class="ctx-menu-item" onclick="ctxRenamePatient()">✏️ Editar Nome...</button>
+  <button class="ctx-menu-item" onclick="ctxEditPriority()">⭐ Alterar Prioridade...</button>
+  <div class="ctx-menu-divider"></div>
   <button class="ctx-menu-item" onclick="ctxMoveToTop()">🔝 Mover para o Topo (Emergência)</button>
   <button class="ctx-menu-item" onclick="ctxMoveToBottom()">⬇️ Mover para o Fim</button>
   <button class="ctx-menu-item" onclick="ctxOpenPositionModal()">🔢 Ir para Posição...</button>
@@ -5170,6 +5329,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="exames-tubos.js?v=1.0"></script>
 <script src="historico.js?v=5.1"></script>
 <script src="dispositivos.js?v=5.3"></script>
 <script src="receitas-previa.js?v=2.3"></script>

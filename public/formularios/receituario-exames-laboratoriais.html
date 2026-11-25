@@ -258,6 +258,7 @@
   </div>
 </div>
 </div>
+<script src="../exames-tubos.js"></script>
 <script>
 (function(){
   var EMIT_KEY='usf_form_emitente_v1';
@@ -343,10 +344,16 @@
   };
 
   function normExLab(str){
+    if (window.USFExamesTubos && typeof window.USFExamesTubos.normExLab === 'function') {
+      return window.USFExamesTubos.normExLab(str);
+    }
     return String(str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
   }
 
-  var MAPA_EXAMES_LAB = [
+  // Reutiliza o catálogo compartilhado (public/exames-tubos.js) mantendo fallback local caso aberto offline isolado
+  var MAPA_EXAMES_LAB = (window.USFExamesTubos && Array.isArray(window.USFExamesTubos.MAPA_EXAMES_LAB))
+    ? window.USFExamesTubos.MAPA_EXAMES_LAB
+    : [
     { match: /\bHEMOGLOBINA GLICOSILADA\b|\bHEMOGLOBINA GLICADA\b|\bHBA1C\b|\bHBGL\b/, label: 'HB.GLIC.(HBGL)' },
     { match: /\bGLICOSE POS[\s-]?PRANDIAL\b|\bGLICEMIA POS[\s-]?PRANDIAL\b/, label: 'GLICOSEPP(GPP)' },
     { match: /\bDOSAGEM DE GLICOSE\b|\bGLICEMIA DE JEJUM\b|\bGLICOSE\b/, label: 'GLICOSE(GLC)' },

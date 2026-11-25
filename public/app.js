@@ -1158,6 +1158,9 @@ document.addEventListener('keydown', (e) => {
     closeContextMenu();
     closeTransferModal();
     closePositionModal();
+    if (typeof fecharModalEditarNomeFila === 'function') fecharModalEditarNomeFila();
+    if (typeof fecharModalPrioridadeFila === 'function') fecharModalPrioridadeFila();
+    if (typeof fecharModalTubosColeta === 'function') fecharModalTubosColeta();
   }
 });
 function handleOutsideClick(e) {
@@ -1288,6 +1291,13 @@ function ctxMoveToBottom() { closeContextMenu(); moveToBottom(_ctxPatientId, _ct
 function ctxOpenPositionModal() { closeContextMenu(); openPositionModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
 function ctxTransfer() { closeContextMenu(); isPublicTransfer = false; openTransferModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
 function ctxRemove() { closeContextMenu(); removePatient(_ctxPatientId, _ctxPatientNome); }
+function ctxRenamePatient() { closeContextMenu(); abrirModalEditarNomeFila(_ctxPatientId, _ctxPatientNome); }
+function ctxEditPriority() {
+  closeContextMenu();
+  const p = encontrarPacienteEmCachePorId(_ctxPatientId);
+  if (p) abrirModalPrioridadeFila(p);
+  else abrirModalPrioridadeFila({ id: _ctxPatientId, nome: _ctxPatientNome, setor: _ctxPatientSetor });
+}
 
 // --- Modal de Posição Numérica ---
 function openPositionModal(id, nome, setor) {
@@ -1360,6 +1370,8 @@ function openTransferModal(id, nome, setor) {
   if (transferHmInput) transferHmInput.value = '';
   document.getElementById('transfer-tipo-atendimento').value = '';
   document.getElementById('transfer-profissional').value = '';
+  _examesColetaTransfer = null;
+  if (typeof atualizarVisibilidadeTubosTransfer === 'function') atualizarVisibilidadeTubosTransfer();
 
   document.getElementById('transfer-modal').classList.add('show');
 }
@@ -1437,6 +1449,7 @@ function toggleTransferTipoAtendimento() {
   } else {
     profGrupo.style.display = 'none';
   }
+  if (typeof atualizarVisibilidadeTubosTransfer === 'function') atualizarVisibilidadeTubosTransfer();
 }
 
 function closeTransferModal() {
@@ -1501,7 +1514,14 @@ async function confirmTransfer() {
       const r = await fetch(`${API_URL}/patients/${id}/transfer`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novoSetor, novoTipoAtendimento, novoProfissional, horario_marcado: horarioMarcadoTransfer, senha: senhaUsada })
+        body: JSON.stringify({
+          novoSetor,
+          novoTipoAtendimento,
+          novoProfissional,
+          horario_marcado: horarioMarcadoTransfer,
+          exames_coleta: (novoSetor === 'Téc. Enfermagem' && _examesColetaTransfer) ? _examesColetaTransfer : undefined,
+          senha: senhaUsada
+        })
       });
       if (r.status === 403) { showToast('❌ Permissão negada!', true); return; }
       if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao transferir!', true); return; }
@@ -1705,6 +1725,7 @@ function verificarSubmodoOdontoRecepcao() {
   }
   if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
   if (typeof atualizarBotaoPreviaReceitaRecepcao === 'function') atualizarBotaoPreviaReceitaRecepcao();
+  if (typeof atualizarVisibilidadeTubosRecepcao === 'function') atualizarVisibilidadeTubosRecepcao();
 }
 
 function selecionarEquipeRecepcao(equipe) {
@@ -1743,6 +1764,7 @@ function definirHorarioMarcadoRapido(hora) {
   if (inp) inp.value = hora || '';
   if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
   if (typeof atualizarBotaoPreviaReceitaRecepcao === 'function') atualizarBotaoPreviaReceitaRecepcao();
+  if (typeof atualizarVisibilidadeTubosRecepcao === 'function') atualizarVisibilidadeTubosRecepcao();
 }
 
 function atualizarOpcoesPrioridadePorSetor(setor) {
@@ -1846,6 +1868,7 @@ function toggleTipoAtendimento() {
   }
   if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') atualizarAlertaIntercorrenciaRecepcao();
   if (typeof atualizarBotaoPreviaReceitaRecepcao === 'function') atualizarBotaoPreviaReceitaRecepcao();
+  if (typeof atualizarVisibilidadeTubosRecepcao === 'function') atualizarVisibilidadeTubosRecepcao();
 }
 
 // ====== HELPER: Condições Especiais ======
@@ -1953,6 +1976,7 @@ async function addPatient(btn) {
         motivo_primeira_escuta,
         queixa: motivo_primeira_escuta,
         horario_marcado,
+        exames_coleta: (nomeSetorOriginal === 'Téc. Enfermagem' && _examesColetaRecepcao) ? _examesColetaRecepcao : null,
         previa_receita: window._previaReceitaPendente || null
       })
     });
@@ -1968,6 +1992,8 @@ async function addPatient(btn) {
     document.getElementById('input-prioridade').value = 'geral';
     if (equipeInput) equipeInput.value = '';
     if (motivoInput) motivoInput.value = '';
+    _examesColetaRecepcao = null;
+    if (typeof atualizarResumoTubosBox === 'function') atualizarResumoTubosBox('recepcao');
     document.querySelectorAll('#recepcao-equipe-grid .equipe-pill-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('#recepcao-setor-quick-grid .setor-quick-btn').forEach(b => b.classList.remove('active'));
     // Reset condições checkboxes
@@ -3194,6 +3220,19 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       : '';
 
     const statusBadge = `<span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>`;
+    const ausenteBadge = (p.ausente_temporario && p.status === 'aguardando')
+      ? `<span style="display:inline-block;padding:2px 7px;border-radius:999px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:10px;font-weight:900;" title="Não respondeu à chamada anterior — clique em Rechamar quando retornar">⏸️ Ausente 1ª chamada</span>`
+      : '';
+    const tubosBloco = (!document.body.classList.contains('modo-tv') && typeof renderBadgesTubosColeta === 'function')
+      ? renderBadgesTubosColeta(p, setor)
+      : '';
+    const tubosBtn = (!document.body.classList.contains('modo-tv') && setor === 'Téc. Enfermagem')
+      ? `<button type="button" class="btn-transfer-sector" style="background:rgba(15,118,110,0.12);border-color:rgba(15,118,110,0.35);color:#0f766e;" onclick="event.stopPropagation();abrirModalTubosPaciente(${p.id})" title="Definir / visualizar tubos de coleta">🧪 Tubos</button>`
+      : '';
+    const renameBtn = `<button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;line-height:1.4;">✏️</button>`;
+    const prioEditBtn = p.status !== 'atendido' && p.status !== 'desistencia'
+      ? `<button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila" style="background:${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#fef3c7':'#f8fafc'};color:${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#92400e':'#475569'};border:1px solid ${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#fcd34d':'#cbd5e1'};border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;line-height:1.4;">${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'⭐ Editar Prio':'+ ⭐ Prio'}</button>`
+      : '';
 
     const actionButtons = isManagerOrAdmin() ? `
       <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
@@ -3231,12 +3270,15 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       <td>
         <div class="fila-paciente-nome">
           <span class="nome-texto">${escapeText(p.nome)}</span>
+          ${renameBtn}
           ${prioBadge}
+          ${prioEditBtn}
         </div>
         <div class="fila-paciente-sub">
           ${equipeBadge || '<span style="font-size:11px;color:#94a3b8;font-weight:700;">Sem equipe informada</span>'}
           ${condBadges}
         </div>
+        ${tubosBloco}
         ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
       </td>
       <td>
@@ -3248,12 +3290,15 @@ function renderQueueItems(containerId, setor, filterProfissional) {
           ${tipoLabel}
           ${presencaHtml}
           ${statusBadge}
+          ${ausenteBadge}
         </div>
         ${originBadge}
       </td>
       <td style="text-align:right;">
         <div class="fila-actions-cell">
-          ${p.status === 'chamado' ? `<button class="btn-call-next" style="padding:5px 10px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente no Painel e Voz" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button>` : ''}
+          ${p.status === 'chamado' ? `<button class="btn-call-next" style="padding:5px 10px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente no Painel e Voz" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button><button type="button" style="padding:5px 9px;font-size:11.5px;border-radius:8px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:800;cursor:pointer;" title="Paciente não compareceu agora — liberar o próximo sem cancelar" onclick="event.stopPropagation();marcarAusenteTemporarioFila(${p.id},'${safeNome}')">⏸️ Ausente</button>` : ''}
+          ${(p.ausente_temporario && p.status === 'aguardando') ? `<button class="btn-call-next" style="padding:5px 9px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente que voltou" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button>` : ''}
+          ${tubosBtn}
           ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, setor) : ''}
           ${typeof renderBotoesFormulariosLinha === 'function' ? renderBotoesFormulariosLinha(p, setor) : ''}
           ${radarBtn}
@@ -3375,6 +3420,17 @@ function updateMiniQueues() {
         : '';
 
       const statusBadge = `<span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>`;
+      const ausenteBadgeMini = (p.ausente_temporario && p.status === 'aguardando')
+        ? `<span style="display:inline-block;padding:2px 6px;border-radius:999px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:10px;font-weight:900;">⏸️ Ausente</span>`
+        : '';
+      const tubosBlocoMini = (!document.body.classList.contains('modo-tv') && typeof renderBadgesTubosColeta === 'function')
+        ? renderBadgesTubosColeta(p, s)
+        : '';
+      const tubosBtnMini = (!document.body.classList.contains('modo-tv') && s === 'Téc. Enfermagem')
+        ? `<button type="button" class="btn-transfer-sector" style="background:rgba(15,118,110,0.12);border-color:rgba(15,118,110,0.35);color:#0f766e;" onclick="event.stopPropagation();abrirModalTubosPaciente(${p.id})" title="Definir tubos de coleta">🧪 Tubos</button>`
+        : '';
+      const renameBtnMini = `<button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;line-height:1.4;">✏️</button>`;
+      const prioEditBtnMini = `<button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila" style="background:${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#fef3c7':'#f8fafc'};color:${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#92400e':'#475569'};border:1px solid ${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#fcd34d':'#cbd5e1'};border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;line-height:1.4;">${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'⭐ Editar':'+ ⭐'}</button>`;
 
       const rowCls = [
         p.status === 'chamado' ? 'calling' : '',
@@ -3396,12 +3452,15 @@ function updateMiniQueues() {
         <td>
           <div class="fila-paciente-nome">
             <span class="nome-texto">${escapeText(p.nome)}</span>
+            ${renameBtnMini}
             ${prioBadge}
+            ${prioEditBtnMini}
           </div>
           <div class="fila-paciente-sub">
             ${equipeBadge || '<span style="font-size:11px;color:#94a3b8;font-weight:700;">Sem equipe informada</span>'}
             ${condBadges}
           </div>
+          ${tubosBlocoMini}
           ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
         </td>
         <td>
@@ -3413,12 +3472,14 @@ function updateMiniQueues() {
             ${tipoLabel}
             ${presencaHtml}
             ${statusBadge}
+            ${ausenteBadgeMini}
           </div>
           ${originBadge}
         </td>
         <td style="text-align:right;">
           <div class="fila-actions-cell">
             ${presencaBtn}
+            ${tubosBtnMini}
             ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, s) : ''}
             ${radarBtn}
             ${transferBtn}
@@ -5511,8 +5572,12 @@ function renderAgendamentos(list) {
     const statusCls = a.status.replace(/\s+/g,'_');
     
     let extraBtns = '';
+    if (['pendente', 'lembrete_enviado', 'confirmado', 'reagendado'].includes(a.status)) {
+      const nomeSafeAg = String(a.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      extraBtns += `<button onclick="enviarAgendamentoParaFila(${a.id},'${nomeSafeAg}',this)" title="Paciente chegou — enviar direto para a fila do setor" style="background:linear-gradient(135deg,#0f766e,#0d9488);color:white;padding:4px 8px;font-size:11px;font-weight:800;border:none;border-radius:6px;cursor:pointer;">🏥 Enviar p/ Fila</button>`;
+    }
     if (a.tipo_atendimento === 'Coleta de Sangue' && ['pendente', 'lembrete_enviado', 'confirmado'].includes(a.status)) {
-      extraBtns = `
+      extraBtns += `
         <button onclick="updateAgendStatus(${a.id},'realizado')" title="Compareceu (Realizado)" style="background:var(--green);color:white;padding:2px 6px;font-size:11px;">✅ Compareceu</button>
         <button onclick="updateAgendStatus(${a.id},'faltou')" title="Faltou" style="background:var(--red);color:white;padding:2px 6px;font-size:11px;">❌ Faltou</button>
       `;
@@ -6718,7 +6783,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
           ${nextBadge}${callingBadge}
         </div>
       </div>
-      <div class="fila-paciente-nome" style="font-size:15px;">${escapeText(p.nome)} ${prioBadge}</div>
+      <div class="fila-paciente-nome" style="font-size:15px;">${escapeText(p.nome)} <button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;">✏️</button> ${prioBadge} <button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;">⭐</button></div>
       <div class="fila-paciente-sub" style="margin-top:4px;">
         ${equipeBadge}
         ${riscoBadge}
@@ -6774,22 +6839,9 @@ async function confirmarIniciarEscuta() {
   } catch (e) { showToast(e.message || 'Erro ao iniciar escuta', true); }
 }
 
-// ====== EDITAR NOME DO PACIENTE (Acolhimento) ======
-async function editarNomeAcolhimento(id, nomeAtual) {
-  if (!isManagerOrAdmin()) { showToast('🔒 Apenas gerentes ou administradores podem editar nomes!', true); return; }
-  const novoNome = prompt(`✏️ Editar Nome do Paciente\n\nNome atual: "${nomeAtual}"\n\nDigite o novo nome:`, nomeAtual);
-  if (!novoNome || novoNome.trim() === nomeAtual) return;
-  try {
-    const r = await fetch(`${API_URL}/patients/${id}/rename`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ novoNome: novoNome.trim(), senha: adminPassword })
-    });
-    if (r.status === 403) { showToast('❌ Senha administrativa inválida!', true); return; }
-    if (!r.ok) { const d = await r.json(); showToast(d.error || 'Erro ao editar nome!', true); return; }
-    showToast(`✅ Nome alterado para "${novoNome.trim()}"!`);
-    loadAcolhimentoFluxo(); loadQueues();
-  } catch { showToast('Erro ao editar nome!', true); }
+// ====== EDITAR NOME DO PACIENTE (Modal limpo, disponível para equipe) ======
+function editarNomeAcolhimento(id, nomeAtual) {
+  abrirModalEditarNomeFila(id, nomeAtual);
 }
 
 // ====== DIRECIONAR PARA RECEPÇÃO FÍSICA (Indicador de Agendado) ======
@@ -7573,7 +7625,7 @@ function renderAcsEscutaScreen() {
                     <div style="margin-top:3px;"><span class="acol-tempo-badge">⏱ ${tempoMin}m</span> ${waitBadge}</div>
                   </td>
                   <td>
-                    <div class="fila-paciente-nome">${escapeText(p.nome)} ${prioBadge}</div>
+                    <div class="fila-paciente-nome">${escapeText(p.nome)} <button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;">✏️</button> ${prioBadge} <button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;">⭐</button></div>
                     <div class="fila-paciente-sub">${equipeBadge} ${riscoBadge} ${condBadges}</div>
                     ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
                   </td>
@@ -7796,7 +7848,7 @@ function renderSegundaEscutaScreen() {
           <div style="margin-top:3px;"><span class="acol-tempo-badge">⏱ ${tempoMin}m</span> ${waitBadge}</div>
         </td>
         <td>
-          <div class="fila-paciente-nome">${escapeText(p.nome)} ${prioBadge}</div>
+          <div class="fila-paciente-nome">${escapeText(p.nome)} <button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;">✏️</button> ${prioBadge} <button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;">⭐</button></div>
           <div class="fila-paciente-sub">${equipeBadge} ${riscoBadge} ${condBadges}</div>
           ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
         </td>
@@ -9862,4 +9914,552 @@ function alternarAtivoMotivoBuscaAtivaAdmin(motivo) {
       showToast('Erro de conexão!', true);
     }
   });
+}
+
+// ============================================================================
+// BLOCO 3 — EDITAR NOME, PRIORIDADE NA FILA, TUBOS COLETA, AUSENTE E CHECK-IN
+// ============================================================================
+
+let _examesColetaRecepcao = null;
+let _examesColetaTransfer = null;
+let _tubosModalState = {
+  contexto: 'recepcao', // 'recepcao' | 'transfer' | 'patient'
+  patientId: null,
+  exames: [],
+  tubosManuais: {}, // { grupoId: qtd }
+  perfis: []
+};
+
+function encontrarPacienteEmCachePorId(id) {
+  const numId = Number(id);
+  for (const s of SETORES) {
+    const found = (queues[s] || []).find(p => Number(p.id) === numId);
+    if (found) return found;
+  }
+  if (typeof acolhimentoFluxo === 'object' && acolhimentoFluxo) {
+    for (const et of ['recepcao', 'primeira_escuta', 'segunda_escuta']) {
+      const found = (acolhimentoFluxo[et] || []).find(p => Number(p.id) === numId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// --- 1) EDITAR NOME DO PACIENTE NA FILA ---
+function abrirModalEditarNomeFila(id, nomeAtual) {
+  const modal = document.getElementById('rename-patient-modal');
+  if (!modal) return;
+  const p = encontrarPacienteEmCachePorId(id);
+  const nomeReal = p?.nome || nomeAtual || '';
+  document.getElementById('rename-patient-id').value = id;
+  document.getElementById('rename-patient-atual').textContent = nomeReal;
+  const inp = document.getElementById('rename-patient-input');
+  inp.value = nomeReal;
+  const motInp = document.getElementById('rename-patient-motivo');
+  if (motInp) motInp.value = '';
+  modal.classList.add('show');
+  setTimeout(() => { inp.focus(); inp.select(); }, 80);
+}
+
+function fecharModalEditarNomeFila() {
+  document.getElementById('rename-patient-modal')?.classList.remove('show');
+}
+
+async function confirmarEditarNomeFila() {
+  const id = document.getElementById('rename-patient-id')?.value;
+  const novoNome = (document.getElementById('rename-patient-input')?.value || '').trim();
+  const motivo = (document.getElementById('rename-patient-motivo')?.value || '').trim();
+  const btn = document.getElementById('rename-patient-btn-save');
+
+  if (!id || novoNome.length < 2) {
+    showToast('Digite o nome completo corrigido (mínimo 2 letras).', true);
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  try {
+    const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/rename`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ novoNome, motivo: motivo || null })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      throw new Error(d.error || 'Erro ao atualizar nome!');
+    }
+    fecharModalEditarNomeFila();
+    showToast(`✅ Nome corrigido para "${novoNome}"!`);
+    await Promise.all([
+      loadQueues(),
+      typeof loadAcolhimentoFluxo === 'function' ? loadAcolhimentoFluxo() : Promise.resolve(),
+      typeof loadHistory === 'function' ? loadHistory() : Promise.resolve()
+    ]);
+  } catch (err) {
+    showToast(err.message || 'Erro ao editar nome!', true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar Nome'; }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const rInp = document.getElementById('rename-patient-input');
+  if (rInp) rInp.addEventListener('keydown', e => { if (e.key === 'Enter') confirmarEditarNomeFila(); });
+});
+
+// --- 2) ALTERAR / ACRESCENTAR PRIORIDADE NA FILA ---
+function calcularRankPrevioFront(prioridadeVal, categoriaVal, idadeVal, condsArr) {
+  const id = idadeVal !== '' && idadeVal !== null && idadeVal !== undefined ? Number(idadeVal) : null;
+  const condStr = (condsArr || []).join(',').toLowerCase();
+  const catStr = String(categoriaVal || '').toLowerCase();
+  if ((id !== null && !isNaN(id) && id >= 80) || catStr.includes('1.') || catStr.includes('80+')) return 1;
+  if (catStr.includes('2.') || catStr.includes('pcd') || catStr.includes('defic')) return 2;
+  if (catStr.includes('3.') || catStr.includes('tea')) return 3;
+  if (catStr.includes('4.') || catStr.includes('gestant') || condStr.includes('gestante')) return 4;
+  if (catStr.includes('5.') || catStr.includes('lactant')) return 5;
+  if ((id !== null && !isNaN(id) && id === 0) || catStr.includes('6.') || catStr.includes('colo') || condStr.includes('crianca_colo')) return 6;
+  if (catStr.includes('7.') || catStr.includes('mobilid')) return 7;
+  if (catStr.includes('8.') || catStr.includes('obesid')) return 8;
+  if ((id !== null && !isNaN(id) && id >= 60) || catStr.includes('9.') || catStr.includes('60+')) return 9;
+  if (catStr.includes('10.') || catStr.includes('doador')) return 10;
+  return prioridadeVal === 'prioritario' ? 9 : 99;
+}
+
+function abrirModalPrioridadePorId(id) {
+  const p = encontrarPacienteEmCachePorId(id);
+  if (!p) {
+    showToast('Paciente não encontrado na lista atual.', true);
+    return;
+  }
+  abrirModalPrioridadeFila(p);
+}
+
+function abrirModalPrioridadeFila(p) {
+  const modal = document.getElementById('priority-patient-modal');
+  if (!modal || !p) return;
+  document.getElementById('prio-modal-patient-id').value = p.id;
+  document.getElementById('prio-modal-patient-name').textContent = `${p.nome} (${p.setor || 'Fila'})`;
+
+  const rankAntes = Number(
+    p.ordem_prioridade_odonto ||
+    (Number(p.nivel_prioridade) === 1 ? 1 : (p.prioridade === 'prioritario' || Number(p.nivel_prioridade) === 2 ? 9 : 99))
+  );
+  document.getElementById('prio-modal-rank-antes').value = String(rankAntes);
+
+  const ehPrio = p.prioridade === 'prioritario' || Number(p.nivel_prioridade) <= 2;
+  document.getElementById('prio-modal-tipo').value = ehPrio ? 'prioritario' : 'geral';
+  document.getElementById('prio-modal-idade').value = (p.idade !== null && p.idade !== undefined) ? String(p.idade) : '';
+
+  const selCat = document.getElementById('prio-modal-categoria');
+  if (p.tipo_prioridade && [...selCat.options].some(o => o.value === p.tipo_prioridade)) {
+    selCat.value = p.tipo_prioridade;
+  } else {
+    selCat.value = '9. Idoso 60+';
+  }
+  setCondicoesCheckboxes('prio-modal-condicoes', p.condicoes_especiais || null);
+  document.getElementById('prio-modal-motivo').value = '';
+  const senhaInp = document.getElementById('prio-modal-senha');
+  if (senhaInp) senhaInp.value = '';
+
+  onPrioModalTipoChange();
+  modal.classList.add('show');
+}
+
+function fecharModalPrioridadeFila() {
+  document.getElementById('priority-patient-modal')?.classList.remove('show');
+}
+
+function onPrioModalTipoChange() {
+  const tipo = document.getElementById('prio-modal-tipo')?.value || 'geral';
+  const wrapCat = document.getElementById('prio-modal-categoria-wrap');
+  if (wrapCat) wrapCat.style.display = tipo === 'prioritario' ? 'block' : 'none';
+  onPrioModalInputChange();
+}
+
+function onPrioModalInputChange() {
+  const rankAntes = Number(document.getElementById('prio-modal-rank-antes')?.value || 99);
+  const tipo = document.getElementById('prio-modal-tipo')?.value || 'geral';
+  const cat = tipo === 'prioritario' ? document.getElementById('prio-modal-categoria')?.value : '';
+  const idadeVal = document.getElementById('prio-modal-idade')?.value;
+  const conds = [...document.querySelectorAll('#prio-modal-condicoes input[type="checkbox"]:checked')].map(c => c.value);
+  const rankNovo = calcularRankPrevioFront(tipo, cat, idadeVal, conds);
+
+  const senhaWrap = document.getElementById('prio-modal-senha-wrap');
+  if (senhaWrap) {
+    const vaiRebaixar = rankNovo > rankAntes;
+    senhaWrap.style.display = (vaiRebaixar && !isManagerOrAdmin()) ? 'block' : 'none';
+  }
+}
+
+async function confirmarAlterarPrioridadeFila() {
+  const id = document.getElementById('prio-modal-patient-id')?.value;
+  const prioridade = document.getElementById('prio-modal-tipo')?.value || 'geral';
+  const tipo_prioridade = prioridade === 'prioritario' ? document.getElementById('prio-modal-categoria')?.value : null;
+  const idadeRaw = (document.getElementById('prio-modal-idade')?.value || '').trim();
+  const idade = idadeRaw === '' ? null : Number(idadeRaw);
+  const condicoes_especiais = getCondicoesFromContainer('prio-modal-condicoes');
+  const motivo = (document.getElementById('prio-modal-motivo')?.value || '').trim();
+  const senhaDigitada = (document.getElementById('prio-modal-senha')?.value || '').trim();
+  const senha = senhaDigitada || adminPassword || '';
+  const btn = document.getElementById('prio-modal-btn-save');
+
+  if (idade !== null && (!Number.isInteger(idade) || idade < 0 || idade > 120)) {
+    showToast('Idade inválida (informe de 0 a 120 ou deixe em branco).', true);
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Atualizando...'; }
+  try {
+    const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/prioridade`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prioridade, tipo_prioridade, idade, condicoes_especiais, motivo: motivo || null, senha })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 403 && d.requiresManagerPassword) {
+      const wrap = document.getElementById('prio-modal-senha-wrap');
+      if (wrap) wrap.style.display = 'block';
+      document.getElementById('prio-modal-senha')?.focus();
+      throw new Error(d.error || 'Senha de Gerente ou Administrador obrigatória para remover prioridade.');
+    }
+    if (!r.ok) throw new Error(d.error || 'Erro ao alterar prioridade!');
+
+    fecharModalPrioridadeFila();
+    showToast('⭐ Prioridade atualizada e fila reordenada!');
+    await Promise.all([
+      loadQueues(),
+      typeof loadAcolhimentoFluxo === 'function' ? loadAcolhimentoFluxo() : Promise.resolve()
+    ]);
+  } catch (err) {
+    showToast(err.message || 'Erro ao atualizar prioridade!', true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⭐ Salvar Prioridade'; }
+  }
+}
+
+// --- 3) TUBOS DE COLETA NO TÉC. ENFERMAGEM (LGPD: NUNCA NA TV) ---
+function gerarHtmlPillsTubos(examesColetaPayload, compacto = true) {
+  if (!window.USFExamesTubos) return '';
+  const res = window.USFExamesTubos.calcularResumoTubosColeta(examesColetaPayload);
+  if (!res || (res.tubos.length === 0 && res.coletores.length === 0)) return '';
+
+  const pillsTubos = res.tubos.map(t => {
+    const title = `${t.nome} (${t.quantidade}x) — ${t.detalhe || t.nomeCurto}`;
+    return `<span title="${escapeText(title)}" style="display:inline-flex;align-items:center;gap:4px;padding:${compacto ? '2px 7px' : '4px 9px'};border-radius:999px;background:${t.corHex};color:${t.corTexto};border:1px solid ${t.corBorda};font-size:${compacto ? '10.5px' : '11.5px'};font-weight:900;box-shadow:0 1px 2px rgba(0,0,0,0.12);white-space:nowrap;">🧪 ${t.quantidade}× ${escapeText(t.nomeCurto)}</span>`;
+  }).join('');
+
+  const pillsCol = res.coletores.map(c => {
+    const title = `${c.nome} — ${c.detalhe || c.nomeCurto}`;
+    return `<span title="${escapeText(title)}" style="display:inline-flex;align-items:center;gap:3px;padding:${compacto ? '2px 7px' : '4px 9px'};border-radius:999px;background:${c.corFundoSuave};color:${c.corTextoSuave};border:1px solid ${c.corBorda};font-size:${compacto ? '10px' : '11px'};font-weight:800;white-space:nowrap;">🫙 ${escapeText(c.nomeCurto)}</span>`;
+  }).join('');
+
+  const totalLabel = res.totalTubos > 0
+    ? `<span style="font-size:10.5px;font-weight:900;color:#0f766e;margin-left:2px;">Total: ${res.totalTubos} ${res.totalTubos === 1 ? 'tubo' : 'tubos'}</span>`
+    : '';
+
+  return `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${pillsTubos}${pillsCol}${totalLabel}</div>`;
+}
+
+function renderBadgesTubosColeta(p, setor) {
+  if (document.body.classList.contains('modo-tv')) return '';
+  if (setor !== 'Téc. Enfermagem' && !p?.exames_coleta) return '';
+  const inner = gerarHtmlPillsTubos(p?.exames_coleta, true);
+  if (!inner) return '';
+  return `<div style="margin-top:5px;padding:5px 7px;border-radius:8px;background:#f0fdfa;border:1px solid #99f6e4;" onclick="event.stopPropagation();">${inner}</div>`;
+}
+
+function atualizarVisibilidadeTubosRecepcao() {
+  const setor = document.getElementById('input-setor')?.value || '';
+  const tipo = document.getElementById('input-tipo-atendimento')?.value || '';
+  const box = document.getElementById('recepcao-coleta-tubos-box');
+  if (!box) return;
+  const mostrar = setor === 'Téc. Enfermagem' && tipo === 'Coleta';
+  box.style.display = mostrar ? 'block' : 'none';
+  if (mostrar) atualizarResumoTubosBox('recepcao');
+}
+
+function atualizarVisibilidadeTubosTransfer() {
+  const setor = document.getElementById('transfer-setor-destino')?.value || '';
+  const tipo = document.getElementById('transfer-tipo-atendimento')?.value || '';
+  const box = document.getElementById('transfer-coleta-tubos-box');
+  if (!box) return;
+  const mostrar = setor === 'Téc. Enfermagem' && tipo === 'Coleta';
+  box.style.display = mostrar ? 'block' : 'none';
+  if (mostrar) atualizarResumoTubosBox('transfer');
+}
+
+function atualizarResumoTubosBox(contexto) {
+  const payload = contexto === 'transfer' ? _examesColetaTransfer : _examesColetaRecepcao;
+  const el = document.getElementById(contexto === 'transfer' ? 'transfer-coleta-tubos-resumo' : 'recepcao-coleta-tubos-resumo');
+  if (!el) return;
+  const pills = gerarHtmlPillsTubos(payload, true);
+  el.innerHTML = pills || 'Nenhum tubo selecionado (opcional — o técnico pode pré-etiquetar assim que informado).';
+}
+
+function aplicarPerfilColetaRapido(contexto, perfilId) {
+  if (!window.USFExamesTubos) return;
+  const perfil = window.USFExamesTubos.PERFIS_RAPIDOS_COLETA.find(pr => pr.id === perfilId);
+  if (!perfil) return;
+  const atual = contexto === 'transfer' ? _examesColetaTransfer : _examesColetaRecepcao;
+  const exSet = new Set(atual?.exames || []);
+  perfil.exames.forEach(e => exSet.add(e));
+  const perfSet = new Set(atual?.perfis || []);
+  perfSet.add(perfilId);
+  const novo = window.USFExamesTubos.normalizarPayloadExamesColeta({
+    perfis: Array.from(perfSet),
+    exames: Array.from(exSet),
+    tubos_manuais: atual?.tubos_manuais || []
+  });
+  if (contexto === 'transfer') _examesColetaTransfer = novo;
+  else _examesColetaRecepcao = novo;
+  atualizarResumoTubosBox(contexto);
+  showToast(`🧪 Perfil "${perfil.nome}" aplicado!`);
+}
+
+function limparTubosColetaContexto(contexto) {
+  if (contexto === 'transfer') _examesColetaTransfer = null;
+  else _examesColetaRecepcao = null;
+  atualizarResumoTubosBox(contexto);
+}
+
+function abrirModalTubosColetaContexto(contexto) {
+  const src = contexto === 'transfer' ? _examesColetaTransfer : _examesColetaRecepcao;
+  carregarEstadoNoModalTubos(contexto, null, src, contexto === 'transfer' ? 'Selecionar tubos para encaminhamento' : 'Selecionar tubos na entrada da Recepção');
+}
+
+function abrirModalTubosPaciente(patientId) {
+  const p = encontrarPacienteEmCachePorId(patientId);
+  if (!p) {
+    showToast('Paciente não encontrado.', true);
+    return;
+  }
+  carregarEstadoNoModalTubos('patient', p.id, p.exames_coleta || null, `Paciente: ${p.nome} (${p.setor})`);
+}
+
+function carregarEstadoNoModalTubos(contexto, patientId, payloadRaw, subtitle) {
+  if (!window.USFExamesTubos) return;
+  const norm = window.USFExamesTubos.normalizarPayloadExamesColeta(payloadRaw);
+  const manuais = {};
+  (norm?.tubos_manuais || []).forEach(tm => {
+    manuais[tm.grupoId] = tm.quantidade;
+  });
+  _tubosModalState = {
+    contexto,
+    patientId,
+    exames: norm?.exames ? norm.exames.slice() : [],
+    tubosManuais: manuais,
+    perfis: norm?.perfis ? norm.perfis.slice() : []
+  };
+  const subEl = document.getElementById('tubos-modal-subtitle');
+  if (subEl) subEl.textContent = subtitle || '';
+  const buscaEl = document.getElementById('tubos-modal-busca');
+  if (buscaEl) buscaEl.value = '';
+  renderModalTubosColeta();
+  document.getElementById('tubos-coleta-modal')?.classList.add('show');
+}
+
+function fecharModalTubosColeta() {
+  document.getElementById('tubos-coleta-modal')?.classList.remove('show');
+}
+
+function renderModalTubosColeta() {
+  if (!window.USFExamesTubos) return;
+  const perfisEl = document.getElementById('tubos-modal-perfis');
+  if (perfisEl) {
+    perfisEl.innerHTML = window.USFExamesTubos.PERFIS_RAPIDOS_COLETA.map(pr => `
+      <button type="button" class="motivo-chip" style="background:#f0fdfa;border-color:#5eead4;color:#0f766e;" onclick="togglePerfilModalTubos('${pr.id}')">${pr.icon} ${escapeText(pr.nome)}</button>
+    `).join('');
+  }
+  renderGridTubosModal();
+  renderExamesChipsModalTubos();
+  atualizarPreviewModalTubos();
+}
+
+function togglePerfilModalTubos(perfilId) {
+  if (!window.USFExamesTubos) return;
+  const perfil = window.USFExamesTubos.PERFIS_RAPIDOS_COLETA.find(pr => pr.id === perfilId);
+  if (!perfil) return;
+  const exSet = new Set(_tubosModalState.exames);
+  perfil.exames.forEach(e => exSet.add(e));
+  _tubosModalState.exames = Array.from(exSet);
+  if (!_tubosModalState.perfis.includes(perfilId)) _tubosModalState.perfis.push(perfilId);
+  renderGridTubosModal();
+  renderExamesChipsModalTubos();
+  atualizarPreviewModalTubos();
+}
+
+function ajustarTuboManualModal(grupoId, delta) {
+  const atual = _tubosModalState.tubosManuais[grupoId] || 0;
+  const prox = Math.max(0, Math.min(5, atual + delta));
+  if (prox === 0) delete _tubosModalState.tubosManuais[grupoId];
+  else _tubosModalState.tubosManuais[grupoId] = prox;
+  renderGridTubosModal();
+  atualizarPreviewModalTubos();
+}
+
+function renderGridTubosModal() {
+  const gridEl = document.getElementById('tubos-modal-grid');
+  if (!gridEl || !window.USFExamesTubos) return;
+  const resumo = window.USFExamesTubos.calcularResumoTubosColeta({
+    exames: _tubosModalState.exames,
+    tubos_manuais: _tubosModalState.tubosManuais
+  });
+  const qtdsCalc = {};
+  [...resumo.tubos, ...resumo.coletores].forEach(item => { qtdsCalc[item.grupoId] = item.quantidade; });
+
+  gridEl.innerHTML = window.USFExamesTubos.GRUPOS_TUBOS_RECIFE.map(g => {
+    const qtd = qtdsCalc[g.id] || 0;
+    const manualQtd = _tubosModalState.tubosManuais[g.id] || 0;
+    const ativo = qtd > 0;
+    return `
+      <div style="border:1.5px solid ${ativo ? g.corBorda : '#e2e8f0'};background:${ativo ? g.corFundoSuave : '#ffffff'};border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:900;color:#0f172a;">
+            <span style="width:12px;height:12px;border-radius:50%;background:${g.corHex};border:1px solid ${g.corBorda};flex-shrink:0;"></span>
+            ${escapeText(g.nomeCurto)}
+          </span>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button type="button" onclick="ajustarTuboManualModal('${g.id}',-1)" style="width:24px;height:24px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;font-weight:900;cursor:pointer;">-</button>
+            <span style="min-width:18px;text-align:center;font-weight:900;font-size:12.5px;color:${ativo ? g.corTextoSuave : '#94a3b8'};">${qtd}</span>
+            <button type="button" onclick="ajustarTuboManualModal('${g.id}',1)" style="width:24px;height:24px;border-radius:6px;border:1px solid ${g.corBorda};background:${g.corHex};color:${g.corTexto};font-weight:900;cursor:pointer;">+</button>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#475569;font-weight:600;line-height:1.25;">${escapeText(g.subtitulo)}${manualQtd > 0 ? ' (manual)' : ''}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleExameModalTubos(labelEncoded) {
+  const label = decodeURIComponent(labelEncoded);
+  const idx = _tubosModalState.exames.indexOf(label);
+  if (idx >= 0) _tubosModalState.exames.splice(idx, 1);
+  else _tubosModalState.exames.push(label);
+  renderGridTubosModal();
+  renderExamesChipsModalTubos();
+  atualizarPreviewModalTubos();
+}
+
+function renderExamesChipsModalTubos() {
+  const box = document.getElementById('tubos-modal-exames');
+  if (!box || !window.USFExamesTubos) return;
+  const q = window.USFExamesTubos.normExLab(document.getElementById('tubos-modal-busca')?.value || '');
+  const gMap = Object.fromEntries(window.USFExamesTubos.GRUPOS_TUBOS_RECIFE.map(g => [g.id, g]));
+  const vistos = new Set();
+  const chips = [];
+
+  for (const item of window.USFExamesTubos.MAPA_EXAMES_LAB) {
+    if (vistos.has(item.label)) continue;
+    vistos.add(item.label);
+    const g = gMap[item.grupo];
+    const searchable = window.USFExamesTubos.normExLab(`${item.label} ${g?.nomeCurto || ''}`);
+    if (q && !searchable.includes(q)) continue;
+    const sel = _tubosModalState.exames.includes(item.label);
+    const bg = sel && g ? g.corHex : '#fff';
+    const fg = sel && g ? g.corTexto : '#334155';
+    const bd = sel && g ? g.corBorda : '#cbd5e1';
+    chips.push(`<button type="button" onclick="toggleExameModalTubos('${encodeURIComponent(item.label)}')" style="padding:4px 8px;border-radius:999px;border:1.5px solid ${bd};background:${bg};color:${fg};font-size:11px;font-weight:800;cursor:pointer;">${sel ? '✓ ' : ''}${escapeText(item.label)}</button>`);
+  }
+  box.innerHTML = chips.join('') || '<span style="font-size:11.5px;color:#64748b;">Nenhum exame encontrado para este filtro.</span>';
+}
+
+function atualizarPreviewModalTubos() {
+  const prevEl = document.getElementById('tubos-modal-preview');
+  if (!prevEl || !window.USFExamesTubos) return;
+  const payload = window.USFExamesTubos.normalizarPayloadExamesColeta({
+    perfis: _tubosModalState.perfis,
+    exames: _tubosModalState.exames,
+    tubos_manuais: _tubosModalState.tubosManuais
+  });
+  const html = gerarHtmlPillsTubos(payload, false);
+  prevEl.innerHTML = html || '<span style="font-size:12px;color:#64748b;font-weight:700;">Nenhum tubo selecionado ainda.</span>';
+}
+
+function limparTudoModalTubos() {
+  _tubosModalState.exames = [];
+  _tubosModalState.tubosManuais = {};
+  _tubosModalState.perfis = [];
+  renderGridTubosModal();
+  renderExamesChipsModalTubos();
+  atualizarPreviewModalTubos();
+}
+
+async function confirmarModalTubosColeta() {
+  if (!window.USFExamesTubos) return;
+  const payload = window.USFExamesTubos.normalizarPayloadExamesColeta({
+    perfis: _tubosModalState.perfis,
+    exames: _tubosModalState.exames,
+    tubos_manuais: _tubosModalState.tubosManuais
+  });
+  if (_tubosModalState.contexto === 'recepcao') {
+    _examesColetaRecepcao = payload;
+    atualizarResumoTubosBox('recepcao');
+    fecharModalTubosColeta();
+    return;
+  }
+  if (_tubosModalState.contexto === 'transfer') {
+    _examesColetaTransfer = payload;
+    atualizarResumoTubosBox('transfer');
+    fecharModalTubosColeta();
+    return;
+  }
+  if (_tubosModalState.contexto === 'patient' && _tubosModalState.patientId) {
+    const btn = document.getElementById('tubos-modal-btn-save');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+    try {
+      const r = await fetch(`${API_URL}/patients/${encodeURIComponent(_tubosModalState.patientId)}/exames-coleta`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exames_coleta: payload })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Erro ao salvar tubos!');
+      fecharModalTubosColeta();
+      showToast(d.resumo?.resumoCurto ? `🧪 Tubos salvos: ${d.resumo.resumoCurto}` : '🧪 Tubos de coleta atualizados!');
+      await loadQueues();
+    } catch (err) {
+      showToast(err.message || 'Erro ao salvar tubos!', true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Aplicar Tubos'; }
+    }
+  }
+}
+
+// --- 4) AUSENTE TEMPORÁRIO NA CHAMADA ---
+async function marcarAusenteTemporarioFila(id, nome) {
+  try {
+    const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/ausente-temporario`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo: 'Não respondeu à chamada no consultório' })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Erro ao marcar ausente temporário!');
+    showToast(`⏸️ ${nome} aguardando retorno na fila — chame o próximo paciente.`);
+    await Promise.all([loadQueues(), loadCurrentCalling()]);
+  } catch (err) {
+    showToast(err.message || 'Erro ao marcar ausência temporária!', true);
+  }
+}
+
+// --- 5) CHECK-IN EM 1 CLIQUE DOS AGENDAMENTOS ---
+async function enviarAgendamentoParaFila(agendamentoId, nome, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando...'; }
+  try {
+    const r = await fetch(`${API_URL}/agendamentos/${encodeURIComponent(agendamentoId)}/enviar-fila`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Erro ao enviar agendamento para a fila!');
+    const tubosInfo = d.resumoTubos?.resumoCurto ? ` · 🧪 ${d.resumoTubos.resumoCurto}` : '';
+    showToast(`✅ ${nome} enviado para a fila de ${d.patient?.setor || 'atendimento'}${tubosInfo}!`);
+    await Promise.all([
+      loadQueues(),
+      typeof loadAgendamentos === 'function' ? loadAgendamentos() : Promise.resolve(),
+      typeof loadColetasStats === 'function' ? loadColetasStats() : Promise.resolve()
+    ]);
+  } catch (err) {
+    showToast(err.message || 'Erro ao fazer check-in!', true);
+    if (btn) { btn.disabled = false; btn.textContent = '🏥 Enviar p/ Fila'; }
+  }
 }

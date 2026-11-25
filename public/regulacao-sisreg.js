@@ -258,6 +258,13 @@
     return {
       tipo_arquivo: 'ficha_ambulatorial',
       codigo_solicitacao: '',
+      status_documento_sisreg: '',
+      documento_devolvido: false,
+      historico_observacoes: [],
+      observacao_solicitante: '',
+      parecer_regulador: '',
+      data_devolucao_regulador: '',
+      nome_regulador: '',
       paciente_nome: '',
       paciente_cns: '',
       paciente_cpf: '',
@@ -983,6 +990,7 @@
                       <button type="button" class="btn btn-primary btn-sm" onclick="copiarObservacaoSisreg(false)">📋 Copiar Obs.</button>
                     </div>
                   </div>
+                  <div id="sr-historico-obs-box" style="display:none;margin-bottom:8px;"></div>
                   <div id="sr-obs-conferir-box" class="sisreg-conferir-box" style="display:none;"></div>
                   <textarea id="sr-observacoes" rows="4" placeholder="Condições Clínicas / Justificativa extraídas para colar no SISREG..." oninput="onCampoSisregAlterado('observacoes_revisada', this.value)"></textarea>
                   <div class="sisreg-obs-footer">
@@ -1579,7 +1587,9 @@
   function mesclarDadosSisreg(atual, novo, acumular) {
     const out = { ...atual };
     const chavesTexto = [
-      'tipo_arquivo', 'codigo_solicitacao', 'paciente_nome', 'paciente_cns', 'paciente_cpf', 'paciente_rg',
+      'tipo_arquivo', 'codigo_solicitacao', 'status_documento_sisreg',
+      'observacao_solicitante', 'parecer_regulador', 'data_devolucao_regulador', 'nome_regulador',
+      'paciente_nome', 'paciente_cns', 'paciente_cpf', 'paciente_rg',
       'paciente_dn', 'paciente_sexo', 'paciente_mae', 'paciente_telefone',
       'paciente_endereco', 'paciente_numero', 'paciente_complemento', 'paciente_bairro', 'paciente_cep', 'paciente_municipio',
       'paciente_uf', 'tipo_vaga', 'risco', 'especialidade_ou_exame',
@@ -1588,6 +1598,23 @@
     chavesTexto.forEach(k => {
       if (novo[k] && (!acumular || !out[k])) out[k] = novo[k];
     });
+    if (typeof novo.documento_devolvido === 'boolean') {
+      out.documento_devolvido = acumular ? (Boolean(out.documento_devolvido) || novo.documento_devolvido) : novo.documento_devolvido;
+    }
+    if (Array.isArray(novo.historico_observacoes)) {
+      if (!acumular || !Array.isArray(out.historico_observacoes) || out.historico_observacoes.length === 0) {
+        out.historico_observacoes = novo.historico_observacoes.slice();
+      } else {
+        const vistos = new Set(out.historico_observacoes.map(h => `${h.papel}|${h.data || ''}|${normSisregFront(h.texto)}`));
+        novo.historico_observacoes.forEach(h => {
+          const chave = `${h.papel}|${h.data || ''}|${normSisregFront(h.texto)}`;
+          if (!vistos.has(chave)) {
+            vistos.add(chave);
+            out.historico_observacoes.push(h);
+          }
+        });
+      }
+    }
     if (typeof novo.tem_assinatura_carimbo === 'boolean') {
       out.tem_assinatura_carimbo = novo.tem_assinatura_carimbo;
     }
@@ -1778,6 +1805,18 @@
     _copilotoState.dados[campo] = valor;
     if (campo === 'observacoes_revisada') {
       _copilotoState.verOriginal = false;
+      const histParseado = parsearHistoricoObsTextoFront(valor);
+      if (histParseado && histParseado.historico.length > 0) {
+        _copilotoState.dados.historico_observacoes = histParseado.historico;
+        if (histParseado.observacao_solicitante) _copilotoState.dados.observacao_solicitante = histParseado.observacao_solicitante;
+        if (histParseado.parecer_regulador) _copilotoState.dados.parecer_regulador = histParseado.parecer_regulador;
+        if (histParseado.data_devolucao_regulador) _copilotoState.dados.data_devolucao_regulador = histParseado.data_devolucao_regulador;
+        if (histParseado.nome_regulador) _copilotoState.dados.nome_regulador = histParseado.nome_regulador;
+        if (histParseado.documento_devolvido) {
+          _copilotoState.dados.documento_devolvido = true;
+          if (!_copilotoState.dados.status_documento_sisreg) _copilotoState.dados.status_documento_sisreg = 'DEVOLVIDO';
+        }
+      }
     }
     if (campo === 'especialidade_ou_exame' || campo === 'paciente_dn' || campo === 'tipo_vaga') {
       rebuscarProcedimentosCopiloto();
@@ -1983,8 +2022,145 @@
     copiarTextoSisreg(obsTxt, 'Observações Clínicas');
   }
 
+  function parsearHistoricoObsTextoFront(textoRaw) {
+    const texto = String(textoRaw || '').trim();
+    if (!texto || !/(?:solicitante|regulador)\s*:/i.test(texto)) return null;
+    const marcadorRe = /(?:^|[\n\r])\s*(?:[-•*]\s*)?((?:operador\s+|unidade\s+|profissional\s+|medico\s+|médico\s+)?solicitante|(?:medico\s+|médico\s+)?regulador(?:\(a\))?|central\s+de\s+regulac[aã]o|central\s+regulador[a]?)\s*:/gi;
+    const matches = [];
+    let m;
+    while ((m = marcadorRe.exec(texto)) !== null) {
+      matches.push({ labelRaw: m[1], startMatch: m.index, afterColon: m.index + m[0].length });
+    }
+    if (!matches.length) return null;
+
+    const historico = [];
+    for (let i = 0; i < matches.length; i++) {
+      const cur = matches[i];
+      const end = i + 1 < matches.length ? matches[i + 1].startMatch : texto.length;
+      const body = texto.slice(cur.afterColon, end).trim();
+      const papel = normSisregFront(cur.labelRaw).includes('regulador') ? 'regulador' : 'solicitante';
+      let data = null;
+      let autor = null;
+      let txtLimpo = body;
+      const dm = body.match(/\bdata(?:\s+da\s+(?:analise|análise|devolucao|devolução|observacao|observação|solicitacao|solicitação))?\s*:\s*(\d{2}\/\d{2}\/\d{4}(?:\s+(?:às\s+|as\s+)?\d{2}:\d{2}(?::\d{2})?)?)/i);
+      if (dm) {
+        data = dm[1].trim();
+        const antes = body.slice(0, dm.index).replace(/^[\s\-–:|]+|[\s\-–:|]+$/g, '').trim();
+        const depois = body.slice(dm.index + dm[0].length).replace(/^[\s\-–:|]+|[\s\-–:|]+$/g, '').trim();
+        if (antes && depois) {
+          if (antes.length <= 65 && !/[.;!?]/.test(antes) && antes.split(/\s+/).length <= 6) {
+            autor = antes;
+            txtLimpo = depois;
+          } else {
+            txtLimpo = `${antes} ${depois}`.trim();
+          }
+        } else {
+          txtLimpo = antes || depois || '';
+        }
+      }
+      txtLimpo = txtLimpo.replace(/^(?:observa[çc][ãa]o|observa[çc][õo]es|justificativa|parecer|motivo)\s*:\s*/i, '').replace(/\s+/g, ' ').trim();
+      if (txtLimpo || data || autor) historico.push({ papel, autor, data, texto: txtLimpo });
+    }
+    const sol = historico.filter(h => h.papel === 'solicitante' && h.texto).map(h => h.texto).join('\n');
+    const regs = historico.filter(h => h.papel === 'regulador');
+    const ultReg = regs[regs.length - 1] || null;
+    const parecer = ultReg ? ultReg.texto : '';
+    const parecerEhSoAut = /^(autorizad[oa]|agendad[oa]|aprovad[oa]|deferid[oa])\.?$/i.test(normSisregFront(parecer));
+    return {
+      historico,
+      observacao_solicitante: sol,
+      parecer_regulador: parecer,
+      data_devolucao_regulador: ultReg ? (ultReg.data || '') : '',
+      nome_regulador: ultReg ? (ultReg.autor || '') : '',
+      documento_devolvido: Boolean((parecer && !parecerEhSoAut) || /\bdevolvid[oa]\b/i.test(normSisregFront(texto)))
+    };
+  }
+
+  function usarObsSolicitanteNoCampoSisreg() {
+    const d = _copilotoState.dados;
+    const txt = (d.observacao_solicitante || '').trim();
+    if (!txt) return;
+    const ta = document.getElementById('sr-observacoes');
+    if (ta) ta.value = formatarObservacaoFront(txt, _copilotoState.semAcentoMaiusculo);
+    d.observacoes_revisada = txt;
+    _copilotoState.verOriginal = false;
+    atualizarDestaqueConferirObsSisreg();
+    if (typeof showToast === 'function') showToast('📝 Observação do Solicitante aplicada no campo de cópia!');
+  }
+
+  function copiarParecerReguladorSisreg() {
+    const d = _copilotoState.dados;
+    const txt = [
+      d.data_devolucao_regulador ? `Data: ${d.data_devolucao_regulador}` : '',
+      d.nome_regulador ? `Regulador: ${d.nome_regulador}` : '',
+      d.parecer_regulador || ''
+    ].filter(Boolean).join(' · ');
+    copiarTextoSisreg(txt, 'Parecer do Regulador');
+  }
+
+  function renderHistoricoObservacoesSisreg() {
+    const box = document.getElementById('sr-historico-obs-box');
+    if (!box) return;
+    const d = _copilotoState.dados || {};
+    const hist = Array.isArray(d.historico_observacoes) ? d.historico_observacoes.slice() : [];
+    if (hist.length === 0 && !d.parecer_regulador && !d.observacao_solicitante && !d.documento_devolvido) {
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+
+    if (d.observacao_solicitante && !hist.some(h => h.papel === 'solicitante')) {
+      hist.unshift({ papel: 'solicitante', autor: d.medico_solicitante || '', data: d.data_solicitacao || '', texto: d.observacao_solicitante });
+    }
+    if (d.parecer_regulador && !hist.some(h => h.papel === 'regulador')) {
+      hist.push({ papel: 'regulador', autor: d.nome_regulador || '', data: d.data_devolucao_regulador || '', texto: d.parecer_regulador });
+    }
+
+    const statusBadge = d.documento_devolvido
+      ? `<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:900;">↩️ DOCUMENTO DEVOLVIDO</span>`
+      : `<span style="background:#dcfce7;color:#166534;border:1px solid #86efac;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:900;">✅ ${escSisreg(d.status_documento_sisreg || 'Sem devolução do Regulador')}</span>`;
+
+    const cardsHtml = hist.map(item => {
+      const isReg = item.papel === 'regulador';
+      const bg = isReg ? '#fef2f2' : '#f8fafc';
+      const bd = isReg ? '#fca5a5' : '#cbd5e1';
+      const titleColor = isReg ? '#991b1b' : '#1e3a8a';
+      const roleLabel = isReg ? '🏛️ Regulador (Devolução / Parecer)' : '🩺 Solicitante';
+      const metaParts = [];
+      if (item.autor) metaParts.push(`<span>👤 ${escSisreg(item.autor)}</span>`);
+      if (item.data) metaParts.push(`<span>📅 Data: <strong>${escSisreg(item.data)}</strong></span>`);
+      const actionBtn = isReg
+        ? `<button type="button" class="sisreg-mini-link" style="border-color:#fca5a5;color:#991b1b;" onclick="copiarParecerReguladorSisreg()">📋 Copiar</button>`
+        : `<button type="button" class="sisreg-mini-link" onclick="usarObsSolicitanteNoCampoSisreg()">⬇️ Usar abaixo</button>`;
+      return `
+        <div style="background:${bg};border:1.5px solid ${bd};border-radius:9px;padding:8px 10px;margin-top:6px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="font-size:11.5px;font-weight:900;color:${titleColor};">${roleLabel}</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:#475569;font-weight:700;">
+              ${metaParts.join('')}
+              ${actionBtn}
+            </div>
+          </div>
+          <div style="font-size:12px;color:#0f172a;font-weight:600;line-height:1.45;white-space:pre-wrap;">${escSisreg(item.texto || '—')}</div>
+        </div>
+      `;
+    }).join('');
+
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div style="background:#ffffff;border:1.5px solid ${d.documento_devolvido ? '#f87171' : '#bfdbfe'};border-radius:10px;padding:8px 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:11.5px;font-weight:900;color:#0f172a;">🗂️ Histórico de Observações (SISREG III)</span>
+          ${statusBadge}
+        </div>
+        ${cardsHtml}
+      </div>
+    `;
+  }
+
   function atualizarValidacoesAoVivoCopiloto() {
     atualizarDestaqueConferirObsSisreg();
+    renderHistoricoObservacoesSisreg();
     const d = _copilotoState.dados;
     const cnsInfo = validarCnsFront(d.paciente_cns);
     const telInfo = validarTelefoneFront(d.paciente_telefone);
@@ -2036,6 +2212,27 @@
     const alertsBox = document.getElementById('sisreg-alertas-dinamicos');
     if (alertsBox) {
       const banners = [];
+      if (d.documento_devolvido) {
+        const dataDevTxt = d.data_devolucao_regulador ? ` · 📅 Data: <strong>${escSisreg(d.data_devolucao_regulador)}</strong>` : '';
+        const nomeRegTxt = d.nome_regulador ? ` (${escSisreg(d.nome_regulador)})` : '';
+        const parecerTxt = d.parecer_regulador
+          ? `<div style="margin-top:4px;font-size:12px;color:#7f1d1d;"><strong>🏛️ Regulador${nomeRegTxt}:</strong> ${escSisreg(d.parecer_regulador)}</div>`
+          : '';
+        banners.push(`
+          <div class="sisreg-alert-banner danger" style="align-items:flex-start;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;flex-wrap:wrap;">
+              <div>
+                <strong>↩️ DOCUMENTO DEVOLVIDO NO SISREG III</strong>${dataDevTxt}
+                ${parecerTxt}
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${d.parecer_regulador ? `<button type="button" class="btn btn-sm" style="background:#fff;color:#991b1b;border:1px solid #fca5a5;font-weight:800;" onclick="copiarParecerReguladorSisreg()">📋 Copiar Parecer</button>` : ''}
+                <button type="button" class="btn btn-sm" style="background:#dc2626;color:#fff;font-weight:900;white-space:nowrap;" onclick="preencherDevolucaoDaFichaAtual()">↩️ Direcionar Devolução</button>
+              </div>
+            </div>
+          </div>
+        `);
+      }
       if (endInfo.status === 'fora_recife') {
         banners.push(`
           <div class="sisreg-alert-banner danger">
@@ -2308,6 +2505,13 @@
           hipotese_diagnostica: ext.hipotese_diagnostica || '',
           cid10: ext.cid10 || '',
           medico_solicitante: pr.medico_emitente || '',
+          status_documento_sisreg: ext.status_documento_sisreg || '',
+          documento_devolvido: Boolean(ext.documento_devolvido),
+          historico_observacoes: Array.isArray(ext.historico_observacoes) ? ext.historico_observacoes : [],
+          observacao_solicitante: ext.observacao_solicitante || '',
+          parecer_regulador: ext.parecer_regulador || '',
+          data_devolucao_regulador: ext.data_devolucao_regulador || '',
+          nome_regulador: ext.nome_regulador || '',
           observacoes_original: ext.justificativa || pr.observacoes || '',
           observacoes_revisada: ext.observacoes_revisada || ext.justificativa || pr.observacoes || '',
           alertas_digitacao: Array.isArray(ext.alertas_digitacao) ? ext.alertas_digitacao : []
@@ -2360,6 +2564,13 @@
         cid10: d.cid10 || null,
         justificativa: d.observacoes_original || d.observacoes_revisada || null,
         observacoes_revisada: d.observacoes_revisada || null,
+        status_documento_sisreg: d.status_documento_sisreg || null,
+        documento_devolvido: Boolean(d.documento_devolvido),
+        historico_observacoes: Array.isArray(d.historico_observacoes) ? d.historico_observacoes : [],
+        observacao_solicitante: d.observacao_solicitante || null,
+        parecer_regulador: d.parecer_regulador || null,
+        data_devolucao_regulador: d.data_devolucao_regulador || null,
+        nome_regulador: d.nome_regulador || null,
         alertas_digitacao: Array.isArray(d.alertas_digitacao) ? d.alertas_digitacao : [],
         paciente_cpf: d.paciente_cpf || null,
         paciente_rg: d.paciente_rg || null,
@@ -2522,13 +2733,20 @@
       bairro: d.paciente_bairro
     });
     const motEl = document.getElementById('dev-motivo');
-    const ehProblemaCadastro = endInfo.status === 'fora_recife' || !d.paciente_telefone;
+    const parecerNorm = normTxtDev(d.parecer_regulador || '');
+    const ehProblemaCadastro = endInfo.status === 'fora_recife' || !d.paciente_telefone || /enderec|municip|fora de recife|telefone|cns|cadastro/.test(parecerNorm);
     if (motEl) {
-      motEl.value = endInfo.status === 'fora_recife'
-        ? 'Endereço de outra cidade (fora de Recife) / Cadastro'
-        : (!d.paciente_telefone
-          ? 'Telefone / CNS / dados cadastrais desatualizados'
-          : 'Erro de digitação / texto clínico / CID');
+      if (endInfo.status === 'fora_recife' || /enderec|municip|fora de recife/.test(parecerNorm)) {
+        motEl.value = 'Endereço de outra cidade (fora de Recife) / Cadastro';
+      } else if (/telefone|cns|cadastro/.test(parecerNorm) || !d.paciente_telefone) {
+        motEl.value = 'Telefone / CNS / dados cadastrais desatualizados';
+      } else if (/justificativa|exame previo|evolucao|resultado|laudo|clinica/.test(parecerNorm)) {
+        motEl.value = 'Falta justificativa clínica / exame prévio';
+      } else if (/procedimento|faixa etaria|codigo|especialidade/.test(parecerNorm)) {
+        motEl.value = 'Procedimento incorreto / faixa etária';
+      } else {
+        motEl.value = 'Erro de digitação / texto clínico / CID';
+      }
     }
     const setorAuto = ehProblemaCadastro
       ? 'ACS'
@@ -2536,7 +2754,10 @@
     const setorEl = document.getElementById('dev-setor-destino');
     if (setorEl) setorEl.value = setorAuto;
     popularSelectProfissionaisDevolucao(setorAuto, d.medico_solicitante || '');
-    set('dev-obs', endInfo.status === 'fora_recife' ? (endInfo.alerta || '') : (d.alertas_digitacao?.join('; ') || ''));
+    const obsDevolucaoAuto = d.parecer_regulador
+      ? `${d.data_devolucao_regulador ? `[Data: ${d.data_devolucao_regulador}] ` : ''}${d.parecer_regulador}`
+      : (endInfo.status === 'fora_recife' ? (endInfo.alerta || '') : (d.alertas_digitacao?.join('; ') || ''));
+    set('dev-obs', obsDevolucaoAuto);
 
     // Preencher detalhes estruturados da ficha
     const endFull = [d.paciente_endereco, d.paciente_bairro, d.paciente_municipio, d.paciente_uf, d.paciente_cep]
@@ -2545,10 +2766,10 @@
     set('dev-det-dn', d.paciente_dn || '');
     set('dev-det-endereco', endFull);
     set('dev-det-cid', d.cid10 || '');
-    set('dev-det-just', d.observacoes_revisada || d.observacoes_original || '');
-    set('dev-det-motivo-central', '');
+    set('dev-det-just', d.observacao_solicitante || d.observacoes_revisada || d.observacoes_original || '');
+    set('dev-det-motivo-central', d.parecer_regulador ? `${d.data_devolucao_regulador ? `Regulador (${d.data_devolucao_regulador}): ` : 'Regulador: '}${d.parecer_regulador}` : '');
     const detBox = document.getElementById('dev-detalhes-box');
-    if (detBox && (d.paciente_cns || endFull || d.cid10 || d.observacoes_revisada)) {
+    if (detBox && (d.paciente_cns || endFull || d.cid10 || d.observacoes_revisada || d.parecer_regulador)) {
       detBox.open = true;
     }
 
@@ -4331,6 +4552,8 @@
   window.copiarTelefoneSoDigitos = copiarTelefoneSoDigitos;
   window.copiarCampoSisreg = copiarCampoSisreg;
   window.copiarObservacaoSisreg = copiarObservacaoSisreg;
+  window.usarObsSolicitanteNoCampoSisreg = usarObsSolicitanteNoCampoSisreg;
+  window.copiarParecerReguladorSisreg = copiarParecerReguladorSisreg;
   window.copiarObsModalMedicoSisreg = copiarObsModalMedicoSisreg;
   window.focarTrechoConferirSisreg = focarTrechoConferirSisreg;
   window.removerMarcacoesConferirSisreg = removerMarcacoesConferirSisreg;
