@@ -407,6 +407,8 @@
   .painel-screen.painel-alto-contraste .painel-fids-time { font-size: 19px; background: #1e293b; color: #fde047; }
 
   .painel-footer-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 12px 18px; background: rgba(7, 20, 58, 0.85); border: 1px solid rgba(147, 197, 253, 0.2); border-radius: 14px; }
+  .tv-silencio-banner { display: none; align-items: center; justify-content: center; gap: 14px; padding: 14px 22px; margin-bottom: 14px; border-radius: 14px; background: linear-gradient(135deg, #b45309, #d97706); border: 2.5px solid #fde047; color: #fff; font-size: clamp(18px, 2vw, 26px); font-weight: 900; text-align: center; box-shadow: 0 8px 26px rgba(217, 119, 6, 0.45); animation: fadeIn 0.25s ease-out; }
+  .tv-silencio-banner.visible { display: flex; }
   .painel-ticker-msg { font-size: 13px; font-weight: 700; color: #cbd5e1; }
   .painel-controls-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   @media (max-width: 1024px) {
@@ -2556,10 +2558,18 @@
         <option value="soft">✨ Campainha Suave</option>
         <option value="none">🔇 Sem Jingle</option>
       </select>
+      <select id="select-tratamento-voz" class="select-voz-admin" onchange="alterarTratamentoVoz(this.value, true)" title="Escolher como a TV inicia a chamada por voz (Paciente, Usuário ou Atenção)">
+        <option value="por_setor">🗣️ Por Setor (Paciente / Usuário)</option>
+        <option value="usuario">🗣️ Usuário (Todos os setores)</option>
+        <option value="paciente">🗣️ Paciente (Todos os setores)</option>
+        <option value="atencao">📢 Atenção, Nome (Direto)</option>
+        <option value="atencao_setor">📢 Atenção + Paciente/Usuário</option>
+      </select>
     </div>
     <div class="admin-toolbar-divider admin-strict-only"></div>
     <div class="admin-toolbar-group">
       <span class="admin-toolbar-label">Gestão</span>
+      <button type="button" id="btn-pedir-silencio-admin" class="btn-reset manager-or-admin-tab" style="display:none;background:rgba(217,119,6,0.28);border-color:rgba(251,191,36,0.7);color:#fef3c7;" onclick="solicitarSilencioSalaEspera(this)" title="Emitir aviso sonoro e visual pedindo silêncio na sala de espera da TV">🤫 Pedir Silêncio</button>
       <button type="button" class="btn-reset manager-or-admin-tab" style="display:none;background:rgba(245,158,11,0.22);border-color:rgba(251,191,36,0.6);color:#fef3c7;" onclick="abrirModalContingenciaOffline('contingencia')" title="Abrir Segunda Tela Administrativa para imprimir Folha de Contingência da fila atual">
         🖨️ Contingência / Imprimir Fila <span id="contingencia-offline-badge" style="display:none;background:#dc2626;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;margin-left:3px;">0</span>
       </button>
@@ -2633,6 +2643,9 @@
             </button>
             <button type="button" class="pec-form-btn" style="padding:7px 11px;" onclick="abrirDeclaracaoResidenciaRecepcao(false)" title="Imprimir Declaração de Residência (ACS)">
               🏠 Decl. Residência (ACS)
+            </button>
+            <button type="button" class="pec-form-btn" style="padding:7px 11px;background:#fef3c7;border-color:#f59e0b;color:#92400e;" onclick="solicitarSilencioSalaEspera(this)" title="Enviar aviso sonoro e banner na TV pedindo silêncio na sala de espera">
+              🤫 Pedir Silêncio na TV
             </button>
           </div>
         </div>
@@ -3346,6 +3359,10 @@
         </div>
       </div>
 
+      <div id="tv-silencio-banner" class="tv-silencio-banner" role="alert" aria-live="assertive">
+        <span>🤫 Atenção: pedimos silêncio na sala de espera para que todos possam ouvir as chamadas com clareza.</span>
+      </div>
+
       <!-- Grade Principal 2 Colunas -->
       <div class="painel-board-grid">
         <!-- Esquerda: Chamada Atual -->
@@ -3379,6 +3396,7 @@
           <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:1.5px solid rgba(255,255,255,0.25);border-radius:10px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;">🔁 Repetir Última</button>
           <button id="btn-painel-fullscreen" class="btn-3d" onclick="togglePainelFullscreen()" style="background:rgba(56,189,248,0.18);color:#e0f2fe;border:1.5px solid rgba(56,189,248,0.45);border-radius:10px;padding:10px 16px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;" title="Abrir ou sair da Tela Cheia na TV">⛶ Tela Cheia</button>
           <button id="btn-painel-contraste" class="btn-3d" onclick="togglePainelAltoContraste()" style="background:rgba(253,224,71,0.16);color:#fef08a;border:1.5px solid rgba(253,224,71,0.5);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;" title="Alternar Alto Contraste e Fonte Ampliada para leitura a distância">👁️ Alto Contraste</button>
+          <button type="button" class="btn-3d" onclick="solicitarSilencioSalaEspera(this)" style="background:rgba(217,119,6,0.3);color:#fef3c7;border:1.5px solid rgba(251,191,36,0.65);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;" title="Tocar aviso pedindo silêncio na sala de espera">🤫 Pedir Silêncio</button>
           <div class="admin-only" style="align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:6px 10px;">
             <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.9);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">
               <option value="feminina_br">🇧🇷👩 Francisca (Feminina Padrão)</option>
@@ -3396,6 +3414,13 @@
               <option value="natal">🎄 Natalino (Jingle Bells)</option>
               <option value="soft">✨ Campainha Suave</option>
               <option value="none">🔇 Sem Jingle</option>
+            </select>
+            <select id="select-tratamento-voz-painel" onchange="alterarTratamentoVoz(this.value, true)" style="background:rgba(15,23,42,0.9);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;" title="Escolher como a TV inicia a chamada por voz">
+              <option value="por_setor">🗣️ Por Setor (Paciente/Usuário)</option>
+              <option value="usuario">🗣️ Usuário (Todos)</option>
+              <option value="paciente">🗣️ Paciente (Todos)</option>
+              <option value="atencao">📢 Atenção, Nome</option>
+              <option value="atencao_setor">📢 Atenção + Paciente/Usuário</option>
             </select>
             <button type="button" onclick="testarJingleSistema()" style="background:rgba(245,158,11,0.3);color:#fff;border:1px solid rgba(245,158,11,0.6);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">🎵 Testar Jingle</button>
           </div>

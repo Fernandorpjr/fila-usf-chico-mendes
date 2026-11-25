@@ -575,6 +575,7 @@ function checkExpediente() {
     // Dentro do expediente → esconder overlay + garantir polling ativo
     if (offEl) offEl.classList.add('hidden');
     if (typeof ensureAudioContextResumed === 'function') ensureAudioContextResumed();
+    if (typeof carregarJinglePreferido === 'function') carregarJinglePreferido();
     if (!pollingTimer1) resumeAllPolling(); // só retoma se estava parado
   }
 }
@@ -2251,6 +2252,14 @@ function alterarVozPreferida(novaVoz, tocarTeste = false) {
   vozPreferida = novaVoz || 'feminina_br';
   try { localStorage.setItem('usf_voz_preferida', vozPreferida); } catch (e) {}
   sincronizarSeletoresVoz();
+  if ((typeof isManagerOrAdmin === 'function' && isManagerOrAdmin()) || adminPassword) {
+    fetch(`${API_URL}/config/jingle`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senha: adminPassword || undefined, voz: vozPreferida })
+    }).catch(() => {});
+  }
   const labelMap = {
     feminina_br: '🇧🇷👩 Francisca (Feminina Padrão)',
     elza_br: '🇧🇷👩‍🦳 Elza (Feminina mais Madura)',
@@ -2441,17 +2450,33 @@ document.addEventListener('DOMContentLoaded', aplicarPainelAltoContrasteInicial)
 let speechQueue = [];
 let isSpeaking = false;
 
-// ====== JINGLE CONFIGURÁVEL DE CHAMADA ======
+// ====== JINGLE E TRATAMENTO DE VOZ CONFIGURÁVEIS DE CHAMADA ======
 let jinglePreferido = 'classic';
 try {
   const savedJ = localStorage.getItem('usf_jingle_chamada');
   if (savedJ) jinglePreferido = savedJ;
 } catch (e) {}
 
+const TRATAMENTOS_VOZ_VALIDOS = ['por_setor', 'usuario', 'paciente', 'atencao', 'atencao_setor'];
+let tratamentoVozPreferido = 'por_setor';
+try {
+  const savedT = localStorage.getItem('usf_tratamento_voz');
+  if (savedT && TRATAMENTOS_VOZ_VALIDOS.includes(savedT)) tratamentoVozPreferido = savedT;
+} catch (e) {}
+
 function sincronizarSeletoresJingle() {
   ['select-jingle-sistema', 'select-jingle-painel'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = jinglePreferido;
+  });
+}
+
+function sincronizarSeletoresTratamentoVoz() {
+  ['select-tratamento-voz', 'select-tratamento-voz-painel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value !== tratamentoVozPreferido) {
+      el.value = tratamentoVozPreferido;
+    }
   });
 }
 
@@ -2465,6 +2490,16 @@ async function carregarJinglePreferido() {
       try { localStorage.setItem('usf_jingle_chamada', jinglePreferido); } catch (e) {}
       sincronizarSeletoresJingle();
     }
+    if (d && d.tratamento_voz && TRATAMENTOS_VOZ_VALIDOS.includes(d.tratamento_voz)) {
+      tratamentoVozPreferido = d.tratamento_voz;
+      try { localStorage.setItem('usf_tratamento_voz', tratamentoVozPreferido); } catch (e) {}
+      sincronizarSeletoresTratamentoVoz();
+    }
+    if (d && d.voz) {
+      vozPreferida = d.voz;
+      try { localStorage.setItem('usf_voz_preferida', vozPreferida); } catch (e) {}
+      if (typeof sincronizarSeletoresVoz === 'function') sincronizarSeletoresVoz();
+    }
   } catch (_) {}
 }
 
@@ -2472,16 +2507,43 @@ async function alterarJinglePreferido(novoJingle, testar = true) {
   jinglePreferido = novoJingle || 'classic';
   try { localStorage.setItem('usf_jingle_chamada', jinglePreferido); } catch (e) {}
   sincronizarSeletoresJingle();
-  if (adminPassword) {
+  if ((typeof isManagerOrAdmin === 'function' && isManagerOrAdmin()) || adminPassword) {
     fetch(`${API_URL}/config/jingle`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senha: adminPassword, jingle: jinglePreferido })
+      body: JSON.stringify({ senha: adminPassword || undefined, jingle: jinglePreferido })
     }).catch(() => {});
   }
   if (testar) {
     await playChime();
     showToast('🎵 Jingle atualizado!');
+  }
+}
+
+async function alterarTratamentoVoz(novoModo, testar = true) {
+  tratamentoVozPreferido = TRATAMENTOS_VOZ_VALIDOS.includes(novoModo) ? novoModo : 'por_setor';
+  try { localStorage.setItem('usf_tratamento_voz', tratamentoVozPreferido); } catch (e) {}
+  sincronizarSeletoresTratamentoVoz();
+  if ((typeof isManagerOrAdmin === 'function' && isManagerOrAdmin()) || adminPassword) {
+    fetch(`${API_URL}/config/jingle`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senha: adminPassword || undefined, tratamento_voz: tratamentoVozPreferido })
+    }).catch(() => {});
+  }
+  const labels = {
+    por_setor: 'Por Setor (Paciente no consultório / Usuário nos demais)',
+    usuario: 'Usuário em todos os setores',
+    paciente: 'Paciente em todos os setores',
+    atencao: 'Atenção direto pelo nome',
+    atencao_setor: 'Atenção + Paciente/Usuário por setor'
+  };
+  showToast(`🗣️ Chamada: ${labels[tratamentoVozPreferido] || tratamentoVozPreferido}`);
+  if (testar) {
+    unlockAudio(true);
+    speakViaSynthesis('Maria da Silva', 'Médico', 'Consultório 2 - Dra. Mirela Mota');
   }
 }
 
@@ -2492,6 +2554,7 @@ async function testarJingleSistema() {
 
 document.addEventListener('DOMContentLoaded', () => {
   sincronizarSeletoresJingle();
+  sincronizarSeletoresTratamentoVoz();
   carregarJinglePreferido();
 });
 
@@ -2746,7 +2809,11 @@ async function processSpeechQueue() {
     while (speechQueue.length > 0 && !isMuted) {
       const item = speechQueue.shift();
       if (!item || !item.texto) continue;
-      await playChime();
+      if (item.customChime === 'silence' && typeof playSilenceAttentionChime === 'function') {
+        await playSilenceAttentionChime();
+      } else {
+        await playChime();
+      }
       await speakTextWithBrazilianVoice(item.texto);
       if (speechQueue.length > 0) {
         await new Promise(r => setTimeout(r, 450));
@@ -2768,6 +2835,29 @@ function formatarTextoVozClinica(texto) {
     .replace(/\s+-\s+/g, ', com ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function resolverPrefixoTratamentoVoz(nomeFalado, setor, modoForcado) {
+  const modo = modoForcado || (typeof tratamentoVozPreferido !== 'undefined' ? tratamentoVozPreferido : 'por_setor');
+  const setorNorm = String(setor || '').trim();
+  const isSetorClinico = ['Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'].includes(setorNorm);
+  const substantivoSetor = isSetorClinico ? 'paciente' : 'usuário';
+  const substantivoCap = isSetorClinico ? 'Paciente' : 'Usuário';
+
+  if (modo === 'usuario') {
+    return { prefixo: `Usuário ${nomeFalado}`, usaPontoSaudacao: false };
+  }
+  if (modo === 'paciente') {
+    return { prefixo: `Paciente ${nomeFalado}`, usaPontoSaudacao: false };
+  }
+  if (modo === 'atencao') {
+    return { prefixo: `Atenção, ${nomeFalado}`, usaPontoSaudacao: true };
+  }
+  if (modo === 'atencao_setor') {
+    return { prefixo: `Atenção, ${substantivoSetor} ${nomeFalado}`, usaPontoSaudacao: true };
+  }
+  // Padrão ('por_setor'): Paciente para consultórios/coleta, Usuário para demais atendimentos
+  return { prefixo: `${substantivoCap} ${nomeFalado}`, usaPontoSaudacao: false };
 }
 
 function speakViaSynthesis(nome, setor, medico) {
@@ -2804,9 +2894,104 @@ function speakViaSynthesis(nome, setor, medico) {
     destinoTexto = medicoLimpo ? `ao ${medicoLimpo}` : `à ${setorLimpo}`;
   }
 
-  const texto = `${saudacao}. Atenção, ${nomeFalado}. Por favor, dirija-se ${destinoTexto}.`;
+  const { prefixo, usaPontoSaudacao } = resolverPrefixoTratamentoVoz(nomeFalado, setor);
+  const texto = usaPontoSaudacao
+    ? `${saudacao}. ${prefixo}, dirija-se ${destinoTexto}.`
+    : `${saudacao}, ${prefixo}, dirija-se ${destinoTexto}.`;
   speechQueue.push({ texto });
   processSpeechQueue();
+}
+
+const AVISO_SILENCIO_TOKEN = '__AVISO_SILENCIO__';
+let _silencioBannerTimer = null;
+let _ultimoAvisoSilencioTs = 0;
+
+function playSilenceAttentionChime() {
+  return new Promise((resolve) => {
+    if (isMuted) return resolve();
+    try {
+      const ctx = getSharedAudioContext();
+      if (!ctx) return resolve();
+      const disparar = () => {
+        try {
+          // Campainha dupla firme e respeitosa para chamar atenção antes do pedido de silêncio
+          tocarNotaWebAudio(ctx, 659.25, 0.00, 0.30, 'triangle', 0.25);
+          tocarNotaWebAudio(ctx, 880.00, 0.18, 0.35, 'triangle', 0.27);
+          tocarNotaWebAudio(ctx, 659.25, 0.55, 0.30, 'triangle', 0.25);
+          tocarNotaWebAudio(ctx, 987.77, 0.73, 0.55, 'sine', 0.28);
+          setTimeout(resolve, 1300);
+        } catch (_) {
+          resolve();
+        }
+      };
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(disparar).catch(() => disparar());
+      } else {
+        disparar();
+      }
+    } catch (_) {
+      resolve();
+    }
+  });
+}
+
+function mostrarBannerSilencioTV() {
+  const banner = document.getElementById('tv-silencio-banner');
+  if (!banner) return;
+  banner.classList.add('visible');
+  if (_silencioBannerTimer) clearTimeout(_silencioBannerTimer);
+  _silencioBannerTimer = setTimeout(() => {
+    banner.classList.remove('visible');
+  }, 14000);
+}
+
+function executarAvisoSilencioLocal() {
+  mostrarBannerSilencioTV();
+  if (isMuted) return;
+  speechQueue.push({
+    customChime: 'silence',
+    texto: 'Atenção, senhores usuários e pacientes. Pedimos a gentileza de manter o silêncio na sala de espera para que todos possam ouvir as chamadas com clareza. A equipe da U S F Chico Mendes agradece.'
+  });
+  processSpeechQueue();
+}
+
+async function solicitarSilencioSalaEspera(btnElement) {
+  const agora = Date.now();
+  if (agora - _ultimoAvisoSilencioTs < 8000) {
+    showToast('⏳ Aviso de silêncio acabou de ser enviado. Aguarde alguns segundos.', true);
+    return;
+  }
+  _ultimoAvisoSilencioTs = agora;
+  unlockAudio(true);
+
+  if (btnElement) {
+    btnElement.disabled = true;
+    setTimeout(() => { btnElement.disabled = false; }, 8000);
+  }
+
+  const painelAtivo = document.getElementById('screen-painel')?.classList.contains('active');
+  if (isModoTV() || painelAtivo) {
+    executarAvisoSilencioLocal();
+  }
+
+  try {
+    const r = await fetch(`${API_URL}/voice-call`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: AVISO_SILENCIO_TOKEN,
+        setor: 'Recepção',
+        destino: 'Sala de Espera'
+      })
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    showToast('🤫 Pedido de silêncio enviado para a TV!');
+  } catch (err) {
+    console.warn('Falha ao enviar pedido de silêncio remoto:', err?.message || err);
+    if (!isModoTV() && !painelAtivo) {
+      showToast('❌ Não foi possível enviar o aviso à TV. Verifique a conexão.', true);
+    }
+  }
 }
 
 function getRealCallsFromHistory() {
@@ -9170,14 +9355,19 @@ function chamarPacienteVoz(nome) {
 async function loadPendingVoiceCalls() {
   const params = new URLSearchParams(window.location.search);
   const isTv = params.get('modo') === 'tv';
-  if (!isTv) return; // Apenas executa a chamada na tela de TV
-  
+  const painelAtivo = document.getElementById('screen-painel')?.classList.contains('active');
+  if (!isTv && !painelAtivo) return; // Apenas executa a chamada na tela de TV
+
   try {
     const r = await fetch(`${API_URL}/voice-call/pending`);
     if (!r.ok) return;
     const calls = await r.json();
     for (const call of calls) {
-      speakViaSynthesis(call.nome, call.setor, call.destino);
+      if (call.nome === AVISO_SILENCIO_TOKEN) {
+        executarAvisoSilencioLocal();
+      } else {
+        speakViaSynthesis(call.nome, call.setor, call.destino);
+      }
       await fetch(`${API_URL}/voice-call/${call.id}/ack`, { method: 'POST' });
     }
   } catch (e) {

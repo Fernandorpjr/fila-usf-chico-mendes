@@ -56,15 +56,16 @@ test('Bloco 4 UI/UX: define .modal-overlay, .btn-outline, foco acessível, #toas
   assert.equal(painelSlice.includes('!isGateAuthenticated && isModoTV()'), true);
 });
 
-test('Bloco 4 Voz da TV: expande Dr./Dra./Téc. Enfermagem e formata chamada respeitosa no fuso Recife', () => {
+test('Bloco 4 Voz da TV: suporta modos Paciente/Usuário/Por Setor/Atenção e aviso Pedir Silêncio', () => {
   const voiceSlice = extractSlice(
     appSrc,
     'function formatarTextoVozClinica(',
-    'function getRealCallsFromHistory()'
+    'const AVISO_SILENCIO_TOKEN'
   );
   const spoken = [];
   const ctx = {
     isMuted: false,
+    tratamentoVozPreferido: 'por_setor',
     Date,
     getDayAndHourRecife: () => ({ day: 3, hour: 9 }),
     speechQueue: spoken,
@@ -72,16 +73,66 @@ test('Bloco 4 Voz da TV: expande Dr./Dra./Téc. Enfermagem e formata chamada res
   };
   vm.runInNewContext(voiceSlice, ctx);
 
+  // 1) Padrão 'por_setor': Paciente p/ clínicos, Usuário p/ Farmácia/Regulação/Acolhimento/Agendamento
   ctx.speakViaSynthesis('Maria da Silva', 'Médico', 'Consultório 2 - Dra. Mirela Mota');
-  assert.equal(spoken.length, 1);
+  ctx.speakViaSynthesis('João Santos', 'Téc. Enfermagem', '');
+  ctx.speakViaSynthesis('Ana Paula', 'Farmácia', 'Farmácia');
+
   assert.equal(
     spoken[0].texto,
-    'Bom dia. Atenção, Maria da Silva. Por favor, dirija-se ao Consultório 2, com Doutora Mirela Mota.'
+    'Bom dia, Paciente Maria da Silva, dirija-se ao Consultório 2, com Doutora Mirela Mota.'
   );
-
-  ctx.speakViaSynthesis('João Santos', 'Téc. Enfermagem', '');
   assert.equal(
     spoken[1].texto,
-    'Bom dia. Atenção, João Santos. Por favor, dirija-se à Técnico de Enfermagem.'
+    'Bom dia, Paciente João Santos, dirija-se à Técnico de Enfermagem.'
   );
+  assert.equal(
+    spoken[2].texto,
+    'Bom dia, Usuário Ana Paula, dirija-se ao Farmácia.'
+  );
+
+  // 2) Modo 'usuario' em todos os setores
+  ctx.tratamentoVozPreferido = 'usuario';
+  ctx.speakViaSynthesis('Maria da Silva', 'Médico', 'Consultório 2 - Dra. Mirela Mota');
+  assert.equal(
+    spoken[3].texto,
+    'Bom dia, Usuário Maria da Silva, dirija-se ao Consultório 2, com Doutora Mirela Mota.'
+  );
+
+  // 3) Modo 'paciente' em todos os setores
+  ctx.tratamentoVozPreferido = 'paciente';
+  ctx.speakViaSynthesis('Ana Paula', 'Farmácia', 'Farmácia');
+  assert.equal(
+    spoken[4].texto,
+    'Bom dia, Paciente Ana Paula, dirija-se ao Farmácia.'
+  );
+
+  // 4) Modo 'atencao' direto
+  ctx.tratamentoVozPreferido = 'atencao';
+  ctx.speakViaSynthesis('Maria da Silva', 'Médico', 'Consultório 2 - Dra. Mirela Mota');
+  assert.equal(
+    spoken[5].texto,
+    'Bom dia. Atenção, Maria da Silva, dirija-se ao Consultório 2, com Doutora Mirela Mota.'
+  );
+
+  // 5) Modo 'atencao_setor'
+  ctx.tratamentoVozPreferido = 'atencao_setor';
+  ctx.speakViaSynthesis('Maria da Silva', 'Médico', 'Consultório 2 - Dra. Mirela Mota');
+  ctx.speakViaSynthesis('Ana Paula', 'Farmácia', 'Farmácia');
+  assert.equal(
+    spoken[6].texto,
+    'Bom dia. Atenção, paciente Maria da Silva, dirija-se ao Consultório 2, com Doutora Mirela Mota.'
+  );
+  assert.equal(
+    spoken[7].texto,
+    'Bom dia. Atenção, usuário Ana Paula, dirija-se ao Farmácia.'
+  );
+
+  // Controles de seletor + botão e banner de Pedir Silêncio na UI e JS
+  assert.equal(indexHtml.includes('id="select-tratamento-voz"'), true);
+  assert.equal(indexHtml.includes('id="select-tratamento-voz-painel"'), true);
+  assert.equal(indexHtml.includes('id="tv-silencio-banner"'), true);
+  assert.equal(indexHtml.includes('solicitarSilencioSalaEspera(this)'), true);
+  assert.equal(appSrc.includes('executarAvisoSilencioLocal'), true);
+  assert.equal(appSrc.includes('__AVISO_SILENCIO__'), true);
 });

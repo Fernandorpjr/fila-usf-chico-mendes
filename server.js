@@ -1400,31 +1400,84 @@ app.post('/api/config/mutirao-hoje', async (req, res) => {
   }
 });
 
-// Jingle de chamada compartilhado entre todas as estações e TVs
+// Configurações de áudio e voz da TV compartilhadas entre todas as estações e TVs
 app.get('/api/config/jingle', async (req, res) => {
   try {
-    const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'jingle_chamada'`);
-    res.json({ jingle: r.rows[0]?.valor || 'classic' });
+    const r = await pool.query(
+      `SELECT chave, valor FROM configuracoes WHERE chave IN ('jingle_chamada', 'tratamento_voz', 'voz_preferida')`
+    );
+    const map = {};
+    for (const row of r.rows) {
+      map[row.chave] = row.valor;
+    }
+    res.json({
+      jingle: map.jingle_chamada || 'classic',
+      tratamento_voz: map.tratamento_voz || 'por_setor',
+      voz: map.voz_preferida || 'feminina_br'
+    });
   } catch (err) {
-    res.json({ jingle: 'classic' });
+    res.json({
+      jingle: 'classic',
+      tratamento_voz: 'por_setor',
+      voz: 'feminina_br'
+    });
   }
 });
 
 app.post('/api/config/jingle', async (req, res) => {
   try {
     const senha = req.body?.senha || req.headers['x-admin-password'];
-    if (!isValidAdminPass(senha)) {
+    if (!isManagerOrAdminAuthorized(req) && !isValidAdminPass(senha)) {
       return res.status(401).json({ error: 'Senha de administrador inválida.' });
     }
-    const permitidos = ['classic', 'airport', 'natal', 'soft', 'none'];
-    const jingle = permitidos.includes(req.body?.jingle) ? req.body.jingle : 'classic';
-    await pool.query(
-      `INSERT INTO configuracoes (chave, valor)
-       VALUES ('jingle_chamada', $1)
-       ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
-      [jingle]
+    const permitidosJingle = ['classic', 'airport', 'natal', 'soft', 'none'];
+    const permitidosTratamento = ['por_setor', 'usuario', 'paciente', 'atencao', 'atencao_setor'];
+    const permitidasVozes = [
+      'feminina_br', 'elza_br', 'brenda_br', 'thalita_br',
+      'masculina_br', 'donato_br', 'humberto_br', 'sistema_padrao'
+    ];
+
+    const upserts = [];
+    let jingleAtualizado = null;
+    let tratamentoAtualizado = null;
+    let vozAtualizada = null;
+
+    if (req.body?.jingle !== undefined) {
+      jingleAtualizado = permitidosJingle.includes(req.body.jingle) ? req.body.jingle : 'classic';
+      upserts.push(['jingle_chamada', jingleAtualizado]);
+    }
+    if (req.body?.tratamento_voz !== undefined) {
+      tratamentoAtualizado = permitidosTratamento.includes(req.body.tratamento_voz)
+        ? req.body.tratamento_voz
+        : 'por_setor';
+      upserts.push(['tratamento_voz', tratamentoAtualizado]);
+    }
+    if (req.body?.voz !== undefined) {
+      vozAtualizada = permitidasVozes.includes(req.body.voz) ? req.body.voz : 'feminina_br';
+      upserts.push(['voz_preferida', vozAtualizada]);
+    }
+
+    for (const [chave, valor] of upserts) {
+      await pool.query(
+        `INSERT INTO configuracoes (chave, valor)
+         VALUES ($1, $2)
+         ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+        [chave, valor]
+      );
+    }
+
+    const r = await pool.query(
+      `SELECT chave, valor FROM configuracoes WHERE chave IN ('jingle_chamada', 'tratamento_voz', 'voz_preferida')`
     );
-    res.json({ success: true, jingle });
+    const map = {};
+    for (const row of r.rows) map[row.chave] = row.valor;
+
+    res.json({
+      success: true,
+      jingle: map.jingle_chamada || jingleAtualizado || 'classic',
+      tratamento_voz: map.tratamento_voz || tratamentoAtualizado || 'por_setor',
+      voz: map.voz_preferida || vozAtualizada || 'feminina_br'
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
