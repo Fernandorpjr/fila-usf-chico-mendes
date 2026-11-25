@@ -1,10 +1,10 @@
 {
   "functions": {
     "api/**/*": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "server.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     }
   },
   "crons": [

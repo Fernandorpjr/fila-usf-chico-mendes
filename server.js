@@ -7,6 +7,7 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const path = require('path');
 const http = require('http');
+const crypto = require('crypto');
 const app = express();
 const server = http.createServer(app);
 
@@ -253,15 +254,59 @@ async function anexarBuscaAtivaDetalhes(rows, dbPool) {
 // Middleware
 app.use(cors(buildCorsOptions()));
 app.use(securityHeadersMiddleware);
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ limit: '5mb', extended: true }));
+app.use(express.json({ limit: '4.4mb' }));
+app.use(express.urlencoded({ limit: '4.4mb', extended: true }));
 app.use(express.static('public'));
 
+function responderJsonComEtag(req, res, payload) {
+  const body = JSON.stringify(payload);
+  const hash = crypto.createHash('sha1').update(body).digest('hex').slice(0, 16);
+  const etag = `W/"${Buffer.byteLength(body).toString(16)}-${hash}"`;
+  res.set('Cache-Control', 'private, no-cache, must-revalidate');
+  res.set('Surrogate-Control', 'no-store');
+  res.removeHeader('Pragma');
+  res.removeHeader('Expires');
+  res.set('ETag', etag);
+
+  const inm = req.headers['if-none-match'];
+  if (inm) {
+    const tags = String(inm).split(',').map(s => s.trim());
+    if (tags.includes(etag) || tags.includes('*')) {
+      return res.status(304).end();
+    }
+  }
+  return res.type('application/json; charset=utf-8').send(body);
+}
+
 // === BLOQUEIO POR HORÁRIO (06:00 - 20:00 America/Recife | Seg-Sex, Mutirão ou Hora Extra temporária) ===
-const _mutiraoServerCache = { data: '', extraAteIso: '', extraAteMs: 0, checkedAt: 0 };
+const EXPEDIENTE_EXTRA_PADRAO_ATE_ISO = '2026-11-25T23:00:00.000Z';
+function aplicarPisoExpedienteExtra(extraAteIsoRaw, nowMs = Date.now()) {
+  const isoStr = extraAteIsoRaw ? String(extraAteIsoRaw).trim() : '';
+  const dbMs = isoStr ? Date.parse(isoStr) : 0;
+  const dbValidMs = Number.isFinite(dbMs) && dbMs > 0 ? dbMs : 0;
+  const pisoMs = Date.parse(EXPEDIENTE_EXTRA_PADRAO_ATE_ISO);
+  if (Number.isFinite(pisoMs) && nowMs < pisoMs && dbValidMs < pisoMs) {
+    return { extraAteIso: EXPEDIENTE_EXTRA_PADRAO_ATE_ISO, extraAteMs: pisoMs };
+  }
+  return {
+    extraAteIso: dbValidMs > 0 ? isoStr : '',
+    extraAteMs: dbValidMs
+  };
+}
+
+const _pisoInicialExp = aplicarPisoExpedienteExtra('');
+const _mutiraoServerCache = {
+  data: '',
+  extraAteIso: _pisoInicialExp.extraAteIso,
+  extraAteMs: _pisoInicialExp.extraAteMs,
+  checkedAt: 0
+};
 async function getExpedienteConfigServer() {
   const now = Date.now();
   if (now - _mutiraoServerCache.checkedAt < 30000) {
+    const piso = aplicarPisoExpedienteExtra(_mutiraoServerCache.extraAteIso, now);
+    _mutiraoServerCache.extraAteIso = piso.extraAteIso;
+    _mutiraoServerCache.extraAteMs = piso.extraAteMs;
     return _mutiraoServerCache;
   }
   try {
@@ -274,13 +319,15 @@ async function getExpedienteConfigServer() {
       if (row.chave === 'mutirao_data_liberada') mutiraoData = row.valor || '';
       if (row.chave === 'expediente_extra_ate') extraAteIso = row.valor || '';
     }
-    const parsedExtra = extraAteIso ? Date.parse(extraAteIso) : 0;
+    const piso = aplicarPisoExpedienteExtra(extraAteIso, now);
     _mutiraoServerCache.data = mutiraoData;
-    _mutiraoServerCache.extraAteIso = extraAteIso;
-    _mutiraoServerCache.extraAteMs = Number.isFinite(parsedExtra) ? parsedExtra : 0;
+    _mutiraoServerCache.extraAteIso = piso.extraAteIso;
+    _mutiraoServerCache.extraAteMs = piso.extraAteMs;
     _mutiraoServerCache.checkedAt = now;
   } catch {
-    // mantém estado cacheado em erro transitório
+    const piso = aplicarPisoExpedienteExtra(_mutiraoServerCache.extraAteIso, now);
+    _mutiraoServerCache.extraAteIso = piso.extraAteIso;
+    _mutiraoServerCache.extraAteMs = piso.extraAteMs;
   }
   return _mutiraoServerCache;
 }
@@ -385,7 +432,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
   max: 3, // Allow a few connections for concurrent requests
   idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 15000 // 15s para acomodar cold start do Neon.tech (free tier)
+  connectionTimeoutMillis: 15000, // 15s para acomodar cold start do Neon.tech (free tier)
+  allowExitOnIdle: true
 });
 
 // Setores válidos
@@ -394,9 +442,23 @@ const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermag
 // Canais de chat válidos
 const CANAIS_CHAT = ['geral', 'recepcao', 'acolhimento', 'acs', 'medico', 'enfermagem', 'odontologia', 'farmacia', 'regulacao', 'gerencia'];
 
+const DB_SCHEMA_VERSION = '2026-11-25-bloco2-v1';
+
 // Create tables on startup
 async function initDB() {
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS configuracoes (
+        chave TEXT PRIMARY KEY,
+        valor TEXT NOT NULL
+      )
+    `);
+    const verRes = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'db_schema_version'`);
+    if (verRes.rows[0]?.valor === DB_SCHEMA_VERSION) {
+      _colunasEscutaGarantidas = true;
+      return;
+    }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS patients (
         id SERIAL PRIMARY KEY,
@@ -879,6 +941,19 @@ async function initDB() {
     await garantirColunasEscuta(pool);
     // ====== FIM FLUXO 1ª & 2ª ESCUTA ======
 
+    // Índices compostos para consultas frequentes de fila, TV e chat
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_patients_setor_status ON patients (setor, status)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_patients_status_created ON patients (status, created_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_call_history_created_at ON call_history (created_at DESC)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_channels_canal_id ON chat_channels (canal, id DESC)`);
+
+    await pool.query(
+      `INSERT INTO configuracoes (chave, valor)
+       VALUES ('db_schema_version', $1)
+       ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+      [DB_SCHEMA_VERSION]
+    );
+
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao inicializar banco de dados:', error.message);
@@ -1199,16 +1274,16 @@ app.get('/api/config/mutirao-hoje', async (req, res) => {
       `SELECT chave, valor FROM configuracoes WHERE chave IN ('mutirao_data_liberada', 'expediente_extra_ate')`
     );
     let data = '';
-    let extraAteIso = '';
+    let extraAteIsoRaw = '';
     for (const row of r.rows || []) {
       if (row.chave === 'mutirao_data_liberada') data = row.valor || '';
-      if (row.chave === 'expediente_extra_ate') extraAteIso = row.valor || '';
+      if (row.chave === 'expediente_extra_ate') extraAteIsoRaw = row.valor || '';
     }
-    const extraAteMs = extraAteIso ? Date.parse(extraAteIso) : 0;
-    const extraAtivo = Boolean(Number.isFinite(extraAteMs) && extraAteMs > Date.now());
+    const { extraAteIso, extraAteMs } = aplicarPisoExpedienteExtra(extraAteIsoRaw);
+    const extraAtivo = Boolean(extraAteMs && extraAteMs > Date.now());
     _mutiraoServerCache.data = data;
     _mutiraoServerCache.extraAteIso = extraAteIso;
-    _mutiraoServerCache.extraAteMs = Number.isFinite(extraAteMs) ? extraAteMs : 0;
+    _mutiraoServerCache.extraAteMs = extraAteMs;
     _mutiraoServerCache.checkedAt = Date.now();
     res.json({
       liberado: data === hoje,
@@ -1308,22 +1383,25 @@ app.post('/api/config/jingle', async (req, res) => {
 });
 
 // Pausa global do atendimento compartilhada entre todos os computadores e TVs
+function parseStatusPausaRaw(raw) {
+  if (!raw || raw === 'false') return { pausado: false, motivo: null, pausado_em: null };
+  if (raw === 'true') return { pausado: true, motivo: null, pausado_em: null };
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      pausado: Boolean(parsed.pausado),
+      motivo: parsed.motivo || null,
+      pausado_em: parsed.pausado_em || null
+    };
+  } catch {
+    return { pausado: raw === 'true', motivo: null, pausado_em: null };
+  }
+}
+
 async function getStatusPausaServer() {
   try {
     const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'sistema_pausado'`);
-    const raw = r.rows[0]?.valor || '';
-    if (!raw || raw === 'false') return { pausado: false, motivo: null, pausado_em: null };
-    if (raw === 'true') return { pausado: true, motivo: null, pausado_em: null };
-    try {
-      const parsed = JSON.parse(raw);
-      return {
-        pausado: Boolean(parsed.pausado),
-        motivo: parsed.motivo || null,
-        pausado_em: parsed.pausado_em || null
-      };
-    } catch {
-      return { pausado: raw === 'true', motivo: null, pausado_em: null };
-    }
+    return parseStatusPausaRaw(r.rows[0]?.valor || '');
   } catch {
     return { pausado: false, motivo: null, pausado_em: null };
   }
@@ -1400,13 +1478,21 @@ async function reordenarFilaSetor(db, setor = 'Odontologia') {
   if (res.rows.length === 0) return;
 
   const rows = sortQueueRows(res.rows, setor);
-
+  const ids = [];
+  const ords = [];
+  const ranks = [];
   for (let i = 0; i < rows.length; i++) {
-    await db.query(
-      'UPDATE patients SET sort_order = $1, ordem_prioridade_odonto = $2 WHERE id = $3',
-      [i + 1, rows[i].rank, rows[i].id]
-    );
+    ids.push(Number(rows[i].id));
+    ords.push(i + 1);
+    ranks.push(Number(rows[i].rank));
   }
+  await db.query(
+    `UPDATE patients AS p
+     SET sort_order = u.ord, ordem_prioridade_odonto = u.rk
+     FROM unnest($1::int[], $2::int[], $3::smallint[]) AS u(id, ord, rk)
+     WHERE p.id = u.id`,
+    [ids, ords, ranks]
+  );
 }
 
 async function reordenarFilaOdontologia(db) {
@@ -1464,10 +1550,15 @@ async function fixarPrioritarioNoTopoDaFila(db, patient, { fixarPrimeiroDireto =
   const novaOrdem = [...outros];
   novaOrdem.splice(insertIdx, 0, { id: patient.id, nivel_prioridade: meuNivel, prioridade: 'prioritario' });
 
-  for (let i = 0; i < novaOrdem.length; i++) {
+  if (novaOrdem.length > 0) {
+    const ids = novaOrdem.map(item => Number(item.id));
+    const ords = novaOrdem.map((_, idx) => idx + 1);
     await db.query(
-      'UPDATE patients SET sort_order = $1 WHERE id = $2',
-      [i + 1, novaOrdem[i].id]
+      `UPDATE patients AS p
+       SET sort_order = u.ord
+       FROM unnest($1::int[], $2::int[]) AS u(id, ord)
+       WHERE p.id = u.id`,
+      [ids, ords]
     );
   }
   patient.sort_order = insertIdx + 1;
@@ -1505,7 +1596,7 @@ app.get('/api/queues', async (req, res) => {
       }
     });
 
-    res.json(queues);
+    responderJsonComEtag(req, res, queues);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -2209,11 +2300,15 @@ app.put('/api/patients/:id/reorder', async (req, res) => {
     const targetIdx = Math.min(pos - 1, ids.length);
     ids.splice(targetIdx, 0, parseInt(id));
 
-    // Reatribui sort_order sequencial para toda a fila
-    for (let i = 0; i < ids.length; i++) {
+    // Reatribui sort_order sequencial para toda a fila em lote único
+    if (ids.length > 0) {
+      const ords = ids.map((_, idx) => idx + 1);
       await client.query(
-        'UPDATE patients SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-        [i + 1, ids[i]]
+        `UPDATE patients AS p
+         SET sort_order = u.ord, updated_at = CURRENT_TIMESTAMP
+         FROM unnest($1::int[], $2::int[]) AS u(id, ord)
+         WHERE p.id = u.id`,
+        [ids.map(Number), ords]
       );
     }
 
@@ -2874,7 +2969,7 @@ app.get('/api/history', async (req, res) => {
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
        ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`
     );
-    res.json(result.rows);
+    responderJsonComEtag(req, res, result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -2891,7 +2986,7 @@ app.get('/api/tv/history', async (req, res) => {
        ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC
        LIMIT 30`
     );
-    res.json(result.rows);
+    responderJsonComEtag(req, res, result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -3023,43 +3118,57 @@ app.get('/api/attended', async (req, res) => {
   }
 });
 
-// Get current calling
+// Get current calling (consulta única consolidada para TV e polling principal)
 app.get('/api/current-calling', async (req, res) => {
   try {
     const current = {};
-    SETORES.forEach(s => current[s] = null);
+    SETORES.forEach(s => { current[s] = null; });
 
-    for (const setor of SETORES) {
-      const result = await pool.query(
-        `SELECT id, nome, setor, horario, status, medico, consultorio, profissional,
-                prioridade, tipo_prioridade, tipo_atendimento, etapa_fluxo, created_at, updated_at
-         FROM patients WHERE setor = $1 AND status = 'chamado'`,
-        [setor]
-      );
-      if (result.rows.length > 0) current[setor] = result.rows[0];
+    const r = await pool.query(
+      `WITH chamando AS (
+         SELECT DISTINCT ON (setor)
+           id, nome, setor, horario, status, medico, consultorio, profissional,
+           prioridade, tipo_prioridade, tipo_atendimento, etapa_fluxo, created_at, updated_at
+         FROM patients
+         WHERE setor = ANY($1::text[]) AND status = 'chamado'
+         ORDER BY setor, updated_at DESC NULLS LAST, id DESC
+       ),
+       atend AS (
+         SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor)::int AS cnt
+         FROM call_history
+         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+           AND ${SQL_ONLY_REAL_ATTEND}
+       ),
+       desist AS (
+         SELECT COUNT(*)::int AS cnt
+         FROM patients
+         WHERE status = 'desistencia'
+           AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       ),
+       pausa AS (
+         SELECT valor FROM configuracoes WHERE chave = 'sistema_pausado' LIMIT 1
+       )
+       SELECT
+         COALESCE((SELECT json_agg(chamando) FROM chamando), '[]'::json) AS chamando_rows,
+         (SELECT cnt FROM atend) AS total_atendidos,
+         (SELECT cnt FROM desist) AS total_desistencias,
+         (SELECT valor FROM pausa) AS pausa_raw`,
+      [SETORES]
+    );
+
+    const row = r.rows[0] || {};
+    const chamandoRows = Array.isArray(row.chamando_rows) ? row.chamando_rows : [];
+    for (const p of chamandoRows) {
+      if (p && p.setor && Object.prototype.hasOwnProperty.call(current, p.setor)) {
+        current[p.setor] = p;
+      }
     }
+    const pausaStatus = parseStatusPausaRaw(row.pausa_raw || '');
 
-    // Contar atendidos HOJE (1 por paciente/setor, sem duplicar rechamada nem transferência)
-    const countResult = await pool.query(
-      `SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor) FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-         AND ${SQL_ONLY_REAL_ATTEND}`
-    );
-    const totalAtendidos = parseInt(countResult.rows[0].count, 10);
-
-    // Contar desistências HOJE
-    const desistResult = await pool.query(
-      `SELECT COUNT(*) FROM patients
-       WHERE status = 'desistencia'
-       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
-    );
-    const totalDesistencias = parseInt(desistResult.rows[0].count, 10);
-    const pausaStatus = await getStatusPausaServer();
-
-    res.json({
+    responderJsonComEtag(req, res, {
       current,
-      totalAtendidos,
-      totalDesistencias,
+      totalAtendidos: parseInt(row.total_atendidos, 10) || 0,
+      totalDesistencias: parseInt(row.total_desistencias, 10) || 0,
       sistemaPausado: pausaStatus.pausado,
       pausaMotivo: pausaStatus.motivo
     });
@@ -3539,32 +3648,87 @@ app.post('/api/chat/read', async (req, res) => {
   }
 });
 
-// GET não lidas por setor
+// GET não lidas por setor (consulta SQL única em lote)
 app.get('/api/chat/unread/:setor', async (req, res) => {
   try {
     const { setor } = req.params;
     const unread = {};
-    for (const canal of CANAIS_CHAT) {
-      // Total messages in canal
-      const totalResult = await pool.query(
-        'SELECT COALESCE(MAX(id), 0) as max_id FROM chat_channels WHERE canal = $1',
-        [canal]
-      );
-      const maxId = totalResult.rows[0].max_id;
-      // Last read by this setor
-      const readResult = await pool.query(
-        'SELECT last_read_id FROM chat_leituras WHERE canal = $1 AND setor = $2',
-        [canal, setor]
-      );
-      const lastRead = readResult.rows.length > 0 ? readResult.rows[0].last_read_id : 0;
-      // Count unread
-      const countResult = await pool.query(
-        'SELECT COUNT(*) as cnt FROM chat_channels WHERE canal = $1 AND id > $2',
-        [canal, lastRead]
-      );
-      unread[canal] = parseInt(countResult.rows[0].cnt);
+    CANAIS_CHAT.forEach(c => { unread[c] = 0; });
+
+    const r = await pool.query(
+      `SELECT c.canal, COUNT(m.id)::int AS cnt
+       FROM unnest($1::text[]) AS c(canal)
+       LEFT JOIN chat_leituras l ON l.canal = c.canal AND l.setor = $2
+       LEFT JOIN chat_channels m ON m.canal = c.canal AND m.id > COALESCE(l.last_read_id, 0)
+       GROUP BY c.canal`,
+      [CANAIS_CHAT, setor]
+    );
+    for (const row of r.rows) {
+      if (Object.prototype.hasOwnProperty.call(unread, row.canal)) {
+        unread[row.canal] = parseInt(row.cnt, 10) || 0;
+      }
     }
-    res.json(unread);
+    responderJsonComEtag(req, res, unread);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET resumo leve de todos os canais (não lidas + metadados da última mensagem, sem anexo_base64)
+app.get('/api/chat/resumo/:setor', async (req, res) => {
+  try {
+    const { setor } = req.params;
+    const unread = {};
+    const latest = {};
+    CANAIS_CHAT.forEach(c => { unread[c] = 0; latest[c] = null; });
+
+    const r = await pool.query(
+      `WITH canais AS (
+         SELECT unnest($1::text[]) AS canal
+       ),
+       contagem AS (
+         SELECT c.canal, COUNT(m.id)::int AS cnt
+         FROM canais c
+         LEFT JOIN chat_leituras l ON l.canal = c.canal AND l.setor = $2
+         LEFT JOIN chat_channels m ON m.canal = c.canal AND m.id > COALESCE(l.last_read_id, 0)
+         GROUP BY c.canal
+       ),
+       ultimas AS (
+         SELECT DISTINCT ON (canal)
+           canal, id, autor, LEFT(COALESCE(texto, ''), 240) AS texto, urgente, anexo_nome, created_at
+         FROM chat_channels
+         WHERE canal = ANY($1::text[])
+         ORDER BY canal, id DESC
+       )
+       SELECT
+         c.canal,
+         COALESCE(ct.cnt, 0)::int AS unread,
+         u.id AS last_id,
+         u.autor AS last_autor,
+         u.texto AS last_texto,
+         u.urgente AS last_urgente,
+         u.anexo_nome AS last_anexo_nome,
+         u.created_at AS last_created_at
+       FROM canais c
+       LEFT JOIN contagem ct ON ct.canal = c.canal
+       LEFT JOIN ultimas u ON u.canal = c.canal`,
+      [CANAIS_CHAT, setor]
+    );
+
+    for (const row of r.rows) {
+      if (!Object.prototype.hasOwnProperty.call(unread, row.canal)) continue;
+      unread[row.canal] = parseInt(row.unread, 10) || 0;
+      latest[row.canal] = row.last_id ? {
+        id: row.last_id,
+        autor: row.last_autor,
+        texto: row.last_texto || '',
+        urgente: Boolean(row.last_urgente),
+        anexo_nome: row.last_anexo_nome || null,
+        created_at: row.last_created_at
+      } : null;
+    }
+
+    responderJsonComEtag(req, res, { unread, latest });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -4205,7 +4369,6 @@ app.post('/api/voice-call/:id/ack', async (req, res) => {
 // ====== FIM MELHORIA 4 ======
 
 // ====== VOZ NEURAL BRASILEIRA (TTS SERVER-SIDE COM CACHE + FALLBACK) ======
-const crypto = require('crypto');
 let googleTTS = null;
 try { googleTTS = require('google-tts-api'); } catch (e) {}
 let WebSocketLib = null;
@@ -5314,7 +5477,7 @@ app.get('/api/acolhimento/fluxo', async (req, res) => {
       const etapa = agruparEtapaAcolhimento(p.etapa_fluxo);
       grouped[etapa].push(p);
     });
-    res.json(grouped);
+    responderJsonComEtag(req, res, grouped);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

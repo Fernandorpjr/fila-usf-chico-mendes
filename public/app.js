@@ -392,6 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Enter') tentarEntrar();
     });
   }
+  atualizarBotaoMutirao();
   checkGateSession();
 });
 /* === FIM MELHORIA A: PORTÃO DE ENTRADA === */
@@ -399,12 +400,13 @@ document.addEventListener('DOMContentLoaded', () => {
 /* === MELHORIA F: TRAVA DE EXPEDIENTE E PAUSA MANUAL === */
 
 // --- Estado global de pausa e referências aos intervalos controlados ---
+const EXPEDIENTE_EXTRA_HOJE_ATE_MS = Date.parse('2026-11-25T20:00:00-03:00');
 let isPausado = false;
 let intervalChat = null;   // referência ao setInterval do chat (~linha 2422)
 let intervalAgend = null;  // referência ao setInterval de agendamentos (~linha 2447)
 let intervalCheckPausa = null;
 let _mutiraoLiberadoData = '';
-let _expedienteExtraAteMs = 0;
+let _expedienteExtraAteMs = Date.now() < EXPEDIENTE_EXTRA_HOJE_ATE_MS ? EXPEDIENTE_EXTRA_HOJE_ATE_MS : 0;
 
 function getDataHojeRecife() {
   try {
@@ -484,7 +486,8 @@ async function carregarStatusMutiraoHoje() {
     const data = await res.json();
     _mutiraoLiberadoData = data.liberado ? (data.hoje || getDataHojeRecife()) : '';
     const parsedExtra = data.extra_ativo && data.extra_ate ? Date.parse(data.extra_ate) : 0;
-    _expedienteExtraAteMs = Number.isFinite(parsedExtra) ? parsedExtra : 0;
+    const pisoExtraHoje = Date.now() < EXPEDIENTE_EXTRA_HOJE_ATE_MS ? EXPEDIENTE_EXTRA_HOJE_ATE_MS : 0;
+    _expedienteExtraAteMs = Math.max(Number.isFinite(parsedExtra) ? parsedExtra : 0, pisoExtraHoje);
     atualizarBotaoMutirao();
     checkExpediente();
   } catch (_) {}
@@ -4256,8 +4259,15 @@ function toggleChatPanel() {
     }
     markCanalAsRead(activeCanal);
     registerPresenca();
-    renderCanalList();
-    renderChannelChat(true);
+    if (!_chatLoadedCanais[activeCanal]) {
+      loadChannelMessages(activeCanal, { silentNotify: true }).then(() => {
+        renderChannelChat(true);
+        renderCanalList();
+      });
+    } else {
+      renderCanalList();
+      renderChannelChat(true);
+    }
     updateChatBadge();
     loadChatPin(activeCanal);
     setTimeout(() => {
@@ -4284,6 +4294,10 @@ function updateChatBadge() {
 let activeCanal = 'geral';
 let channelMessages = {};
 let channelUnread = {};
+let channelLatestPreview = {};
+let _chatLoadedCanais = {};
+let _chatLastSeenIdByCanal = {};
+let _chatSummaryBootstrapped = false;
 let chatUrgent = false;
 let typingTimeout = null;
 CANAIS.forEach(c => { channelMessages[c.id] = []; channelUnread[c.id] = 0; });
@@ -4464,7 +4478,7 @@ function renderCanalList() {
     const unreadCls = unread > 0 ? ' has-unread' : '';
     const presenceDot = getPresenceDot(c.id);
     const msgs = channelMessages[c.id] || [];
-    const last = msgs.length ? msgs[msgs.length - 1] : null;
+    const last = msgs.length ? msgs[msgs.length - 1] : (channelLatestPreview[c.id] || null);
     const previewTxt = last
       ? escapeText(`${last.autor}: ${(last.texto || (last.anexo_nome ? '📎 ' + last.anexo_nome : '')).replace(/\n/g, ' ')}`)
       : escapeText(c.desc);
@@ -4499,8 +4513,8 @@ function switchCanal(canalId) {
   }
 
   // Carregar mensagens do canal se ainda não estiverem em memória
-  if (!channelMessages[canalId] || channelMessages[canalId].length === 0) {
-    loadChannelMessages(canalId).then(() => {
+  if (!_chatLoadedCanais[canalId] || !channelMessages[canalId] || channelMessages[canalId].length === 0) {
+    loadChannelMessages(canalId, { silentNotify: true }).then(() => {
       renderChannelChat(true);
       markCanalAsRead(canalId);
       updateChatBadge();
@@ -4552,50 +4566,100 @@ function abrirChatNotificacao() {
   switchCanal(targetCanal);
 }
 
-async function loadChannelMessages(canalId) {
-  try { 
-    const r = await fetch(`${API_URL}/chat/canais/${canalId}`); 
-    const newMsgs = await r.json();
-    
-    const oldMsgs = channelMessages[canalId];
-    if (oldMsgs && newMsgs.length > 0) {
-      const oldLast = oldMsgs.length > 0 ? oldMsgs[oldMsgs.length - 1] : null;
-      const newLast = newMsgs[newMsgs.length - 1];
-      
-      // Se houver uma nova mensagem
-      if (!oldLast || newLast.id > oldLast.id) {
-        const { setor: meuSetor, nome: meuNome, autor: meuIdentificador } = obterIdentificacaoRemetenteChat();
+function notificarNovaMensagemChat(canalId, newLast) {
+  if (!newLast) return;
+  const { setor: meuSetor, nome: meuNome, autor: meuIdentificador } = obterIdentificacaoRemetenteChat();
+  if (newLast.autor === meuIdentificador || newLast.autor === meuSetor || (meuNome && newLast.autor === meuNome)) {
+    return;
+  }
+  playChatSound();
+  if (newLast.urgente) {
+    const fab = document.getElementById('chat-fab');
+    if (fab && !chatPanelOpen) fab.classList.add('chat-fab-urgent');
+  }
+  if (!chatPanelOpen || activeCanal !== canalId) {
+    mostrarNotificacaoChatPopup(canalId, newLast);
+    if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+      const canalNome = (CANAIS.find(c => c.id === canalId)?.nome || canalId);
+      const corpo = newLast.texto || (newLast.anexo_nome ? `📎 ${newLast.anexo_nome}` : 'Nova mensagem');
+      const n = new Notification(`${newLast.urgente ? '🚨 URGENTE - ' : ''}${newLast.autor} (${canalNome})`, { body: corpo });
+      n.onclick = () => { window.focus(); abrirChatNotificacao(); n.close(); };
+    }
+  }
+}
 
-        // Só toca o som e alerta se a mensagem não foi enviada por mim
-        if (newLast.autor !== meuIdentificador && newLast.autor !== meuSetor && (!meuNome || newLast.autor !== meuNome)) {
-          playChatSound();
-          if (newLast.urgente) {
-            const fab = document.getElementById('chat-fab');
-            if (fab && !chatPanelOpen) fab.classList.add('chat-fab-urgent');
-          }
-          if (!chatPanelOpen || activeCanal !== canalId) {
-            mostrarNotificacaoChatPopup(canalId, newLast);
-            if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-              const canalNome = (CANAIS.find(c => c.id === canalId)?.nome || canalId);
-              const corpo = newLast.texto || (newLast.anexo_nome ? `📎 ${newLast.anexo_nome}` : 'Nova mensagem');
-              const n = new Notification(`${newLast.urgente ? '🚨 URGENTE - ' : ''}${newLast.autor} (${canalNome})`, { body: corpo });
-              n.onclick = () => { window.focus(); abrirChatNotificacao(); n.close(); };
-            }
-          }
-        }
+async function loadChannelMessages(canalId, opts = {}) {
+  const { silentNotify = false } = opts;
+  try {
+    const r = await fetch(`${API_URL}/chat/canais/${canalId}`);
+    if (!r.ok) return;
+    const newMsgs = await r.json();
+
+    const oldMsgs = channelMessages[canalId];
+    if (Array.isArray(newMsgs) && newMsgs.length > 0) {
+      const oldLast = oldMsgs && oldMsgs.length > 0 ? oldMsgs[oldMsgs.length - 1] : null;
+      const newLast = newMsgs[newMsgs.length - 1];
+      _chatLastSeenIdByCanal[canalId] = Math.max(_chatLastSeenIdByCanal[canalId] || 0, Number(newLast.id) || 0);
+      channelLatestPreview[canalId] = newLast;
+      if (!silentNotify && _chatLoadedCanais[canalId] && (!oldLast || newLast.id > oldLast.id)) {
+        notificarNovaMensagemChat(canalId, newLast);
       }
     }
-    
-    channelMessages[canalId] = newMsgs; 
-  } catch(e) { console.error(e); }
+
+    _chatLoadedCanais[canalId] = true;
+    channelMessages[canalId] = Array.isArray(newMsgs) ? newMsgs : [];
+  } catch (e) { console.error(e); }
 }
 
 async function loadAllChannels() {
-  await Promise.all(getVisibleCanais().map(c => loadChannelMessages(c.id)));
-  renderChannelChat();
-  // Load unread counts
   const setor = obterIdentificacaoRemetenteChat().setor || 'Recepção';
-  try { const r = await fetch(`${API_URL}/chat/unread/${encodeURIComponent(setor)}`); const d = await r.json(); Object.keys(d).forEach(k => { channelUnread[k] = d[k]; }); } catch(e){}
+  try {
+    const r = await fetch(`${API_URL}/chat/resumo/${encodeURIComponent(setor)}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    const unreadMap = (data && data.unread) || {};
+    const latestMap = (data && data.latest) || {};
+
+    Object.keys(unreadMap).forEach(k => { channelUnread[k] = unreadMap[k]; });
+    channelLatestPreview = latestMap;
+
+    const visibleIds = getVisibleCanais().map(c => c.id);
+    const canalsToFetch = [];
+
+    if (!_chatSummaryBootstrapped) {
+      visibleIds.forEach(canalId => {
+        const info = latestMap[canalId];
+        _chatLastSeenIdByCanal[canalId] = info && info.id ? Number(info.id) : 0;
+      });
+      _chatSummaryBootstrapped = true;
+      if (chatPanelOpen && activeCanal && !_chatLoadedCanais[activeCanal]) {
+        canalsToFetch.push(activeCanal);
+      }
+    } else {
+      for (const canalId of visibleIds) {
+        const info = latestMap[canalId];
+        const infoId = info && info.id ? Number(info.id) : 0;
+        const prevId = _chatLastSeenIdByCanal[canalId] || 0;
+        if (info && infoId > prevId) {
+          _chatLastSeenIdByCanal[canalId] = infoId;
+          notificarNovaMensagemChat(canalId, info);
+          if ((chatPanelOpen && activeCanal === canalId) || _chatLoadedCanais[canalId]) {
+            canalsToFetch.push(canalId);
+          }
+        }
+      }
+      if (chatPanelOpen && activeCanal && !_chatLoadedCanais[activeCanal] && !canalsToFetch.includes(activeCanal)) {
+        canalsToFetch.push(activeCanal);
+      }
+    }
+
+    if (canalsToFetch.length > 0) {
+      await Promise.all(canalsToFetch.map(cid => loadChannelMessages(cid, { silentNotify: true })));
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  renderChannelChat();
   renderCanalList();
   updateChatBadge();
 }
@@ -4893,6 +4957,9 @@ async function sendChatChannelMessage() {
       if (!channelMessages[activeCanal].some(m => m.id === msg.id)) {
         channelMessages[activeCanal].push(msg);
       }
+      _chatLoadedCanais[activeCanal] = true;
+      _chatLastSeenIdByCanal[activeCanal] = Math.max(_chatLastSeenIdByCanal[activeCanal] || 0, Number(msg.id) || 0);
+      channelLatestPreview[activeCanal] = msg;
       renderChannelChat(true);
       renderCanalList();
       setTimeout(() => { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }, 50);
