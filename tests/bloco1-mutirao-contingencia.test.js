@@ -148,7 +148,7 @@ test('Contingência Offline: ofusca espelho local, remove dados clínicos (LGPD)
     'function renderModalContingenciaOffline('
   ) + '\n' + extractSlice(
     appSrc,
-    'function gerarHtmlFolhaContingencia(',
+    'function gerarCorpoFolhaContingencia(',
     'window.addEventListener(\'online\''
   );
 

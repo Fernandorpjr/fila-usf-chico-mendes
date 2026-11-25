@@ -2411,6 +2411,33 @@ function togglePainelFullscreen() {
 
 document.addEventListener('fullscreenchange', updatePainelFullscreenBtn);
 
+function atualizarBotaoPainelAltoContraste(ativo) {
+  const btn = document.getElementById('btn-painel-contraste');
+  if (!btn) return;
+  btn.textContent = ativo ? '👁️ Contraste Normal' : '👁️ Alto Contraste';
+  btn.style.background = ativo ? '#fde047' : 'rgba(253,224,71,0.16)';
+  btn.style.color = ativo ? '#09152f' : '#fef08a';
+}
+
+function togglePainelAltoContraste() {
+  const painel = document.querySelector('#screen-painel .painel-screen');
+  if (!painel) return;
+  const ativo = painel.classList.toggle('painel-alto-contraste');
+  try { localStorage.setItem('usf_tv_alto_contraste', ativo ? '1' : '0'); } catch (_) {}
+  atualizarBotaoPainelAltoContraste(ativo);
+  showToast(ativo ? '👁️ Painel em Alto Contraste (Baixa Visão) ativado.' : '📺 Contraste padrão do painel restaurado.');
+}
+
+function aplicarPainelAltoContrasteInicial() {
+  const painel = document.querySelector('#screen-painel .painel-screen');
+  if (!painel) return;
+  let ativo = false;
+  try { ativo = localStorage.getItem('usf_tv_alto_contraste') === '1'; } catch (_) {}
+  painel.classList.toggle('painel-alto-contraste', ativo);
+  atualizarBotaoPainelAltoContraste(ativo);
+}
+document.addEventListener('DOMContentLoaded', aplicarPainelAltoContrasteInicial);
+
 let speechQueue = [];
 let isSpeaking = false;
 
@@ -2732,46 +2759,52 @@ async function processSpeechQueue() {
   }
 }
 
+function formatarTextoVozClinica(texto) {
+  return String(texto || '')
+    .replace(/\bDra\.?\s+/gi, 'Doutora ')
+    .replace(/\bDr\.?\s+/gi, 'Doutor ')
+    .replace(/\bT[ée]c\.?\s*Enfermagem\b/gi, 'Técnico de Enfermagem')
+    .replace(/\bEnf\.?\s+/gi, 'Enfermeira ')
+    .replace(/\s+-\s+/g, ', com ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function speakViaSynthesis(nome, setor, medico) {
   if (isMuted) return;
 
-  const h = new Date().getHours();
+  let h = new Date().getHours();
+  try { h = getDayAndHourRecife(new Date()).hour; } catch (_) {}
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  const nomeFalado = formatarTextoVozClinica(nome);
+  const medicoLimpo = formatarTextoVozClinica(medico || '');
+  const setorLimpo = formatarTextoVozClinica(setor || '');
 
-  let texto = '';
+  let destinoTexto = '';
   if (medico && medico.startsWith('1ª Escuta')) {
-    let parts = medico.split('-');
-    if (parts.length > 1 && parts[1].trim() !== '') {
-      texto = `${saudacao}. Usuário ${nome}, dirija-se à primeira escuta com ${parts[1].trim()}.`;
-    } else {
-      texto = `${saudacao}. Usuário ${nome}, dirija-se à primeira escuta.`;
-    }
+    const parts = String(medico).split('-');
+    const profParte = parts.length > 1 ? formatarTextoVozClinica(parts.slice(1).join('-')) : '';
+    destinoTexto = profParte ? `à primeira escuta, com ${profParte}` : 'à primeira escuta';
   } else if (medico && (medico.startsWith('2ª Escuta') || /se dirija.*2ª escuta|se dirija.*segunda escuta/i.test(medico))) {
-    let parts = medico.split('-');
-    const profParte = parts.length > 1 ? parts.slice(1).join('-').trim() : '';
-    const semDesignacao = !profParte || /sem designa|se dirija|2ª escuta|segunda escuta/i.test(profParte);
-    if (!semDesignacao) {
-      texto = `${saudacao}. Usuário ${nome}, dirija-se à segunda escuta com ${profParte}.`;
-    } else {
-      texto = `${saudacao}. Usuário ${nome}, se dirija à segunda escuta.`;
-    }
+    const parts = String(medico).split('-');
+    const profRaw = parts.length > 1 ? parts.slice(1).join('-').trim() : '';
+    const semDesignacao = !profRaw || /sem designa|se dirija|2ª escuta|segunda escuta/i.test(profRaw);
+    destinoTexto = !semDesignacao
+      ? `à segunda escuta, com ${formatarTextoVozClinica(profRaw)}`
+      : 'à segunda escuta';
   } else if (setor === 'Odontologia') {
-    let destOdonto = 'Consultório Odontológico';
-    if (medico) {
-      const parts = String(medico).split('-');
-      const profOdonto = parts.length > 1 ? parts.slice(1).join('-').trim() : '';
-      destOdonto = profOdonto ? `Consultório Odontológico, com ${profOdonto}` : 'Consultório Odontológico';
-    }
-    texto = `${saudacao}. Usuário ${nome}, dirija-se ao ${destOdonto}.`;
+    const parts = medico ? String(medico).split('-') : [];
+    const profOdonto = parts.length > 1 ? formatarTextoVozClinica(parts.slice(1).join('-')) : '';
+    destinoTexto = profOdonto ? `ao Consultório Odontológico, com ${profOdonto}` : 'ao Consultório Odontológico';
   } else if (setor === 'Acolhimento' && !medico) {
-    texto = `${saudacao}. Usuário ${nome}, dirija-se ao Acolhimento.`;
+    destinoTexto = 'ao Acolhimento';
   } else if (setor === 'Agendamento') {
-    texto = `${saudacao}. Usuário ${nome}, dirija-se à Sala de Agendamento.`;
+    destinoTexto = 'à Sala de Agendamento';
   } else {
-    const destino = medico ? `ao ${medico}` : `à ${setor}`;
-    texto = `${saudacao}. Usuário ${nome}, dirija-se ${destino}.`;
+    destinoTexto = medicoLimpo ? `ao ${medicoLimpo}` : `à ${setorLimpo}`;
   }
 
+  const texto = `${saudacao}. Atenção, ${nomeFalado}. Por favor, dirija-se ${destinoTexto}.`;
   speechQueue.push({ texto });
   processSpeechQueue();
 }
@@ -3278,11 +3311,16 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
     `;
 
+    const nivelCls = Number(p.nivel_prioridade) === 1
+      ? 'row-prio-nivel1'
+      : ((Number(p.nivel_prioridade) === 2 || p.prioridade === 'prioritario') ? 'row-prio-nivel2' : '');
+
     const rowCls = [
       'queue-item',
       p.status === 'chamado' ? 'calling' : '',
       isNextUp ? 'row-next-up' : '',
-      isInterc ? 'row-intercorrencia' : ''
+      isInterc ? 'row-intercorrencia' : '',
+      nivelCls
     ].filter(Boolean).join(' ');
 
     return `<tr class="${rowCls}" data-id="${p.id}" data-draggable="${isManagerOrAdmin() && p.status === 'aguardando'}">
@@ -3690,12 +3728,13 @@ function updatePainel() {
       const safePainelNomeJs = escapeText(String(p.nome || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const safePainelSetorJs = escapeText(String(p.setor || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const safePainelMedJs = escapeText(String(p.medico || '')).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const ocultarBotaoVozTv = !isGateAuthenticated && isModoTV();
       return `<div class="painel-fids-row ${i === 0 ? 'is-latest' : ''}">
       <div class="painel-fids-time">${escapeText(horaExibida)}</div>
       <div class="painel-fids-name">${escapeText(p.nome)}${prioBadge}</div>
       <div class="painel-fids-dest">${escapeText(destino)}${profText ? `<small>${escapeText(profText)}</small>` : ''}</div>
       <div style="text-align:center;">
-        <button class="btn btn-ghost" onclick="speakViaSynthesis('${safePainelNomeJs}','${safePainelSetorJs}','${safePainelMedJs}')" style="padding:5px 8px;font-size:13px;border-radius:8px;" title="Chamar novamente">🔊</button>
+        ${ocultarBotaoVozTv ? '' : `<button class="btn btn-ghost" onclick="speakViaSynthesis('${safePainelNomeJs}','${safePainelSetorJs}','${safePainelMedJs}')" style="padding:5px 8px;font-size:13px;border-radius:8px;" title="Chamar novamente">🔊</button>`}
       </div>
     </div>`;
   }).join('');
@@ -10712,30 +10751,63 @@ async function enviarAgendamentoParaFila(agendamentoId, nome, btn) {
 // ============================================================================
 // GESTÃO DINÂMICA DE EQUIPE / MUTIRÃO + CONTINGÊNCIA OFFLINE (BLOCO 1 & EXTRA)
 // ============================================================================
+let _abaSegundaTelaAdminAtual = 'contingencia';
+
+async function alternarAbaSegundaTelaAdmin(aba = 'contingencia') {
+  _abaSegundaTelaAdminAtual = aba === 'equipe' ? 'equipe' : 'contingencia';
+  const paneCont = document.getElementById('seg-pane-contingencia');
+  const paneEq = document.getElementById('seg-pane-equipe');
+  const btnCont = document.getElementById('seg-tab-btn-contingencia');
+  const btnEq = document.getElementById('seg-tab-btn-equipe');
+  const btnImprimirTop = document.getElementById('btn-seg-tela-imprimir');
+
+  if (paneCont) paneCont.style.display = _abaSegundaTelaAdminAtual === 'contingencia' ? 'flex' : 'none';
+  if (paneEq) paneEq.style.display = _abaSegundaTelaAdminAtual === 'equipe' ? 'flex' : 'none';
+  if (btnCont) btnCont.classList.toggle('active', _abaSegundaTelaAdminAtual === 'contingencia');
+  if (btnEq) btnEq.classList.toggle('active', _abaSegundaTelaAdminAtual === 'equipe');
+  if (btnImprimirTop) btnImprimirTop.style.display = _abaSegundaTelaAdminAtual === 'contingencia' ? 'inline-flex' : 'none';
+
+  if (_abaSegundaTelaAdminAtual === 'equipe') {
+    const chk = document.getElementById('chk-preview-mutirao-profs');
+    try {
+      if (chk) chk.checked = localStorage.getItem('usf_preview_mutirao_profs') === '1';
+    } catch (_) {}
+    const statusEl = document.getElementById('mutirao-contexto-status');
+    if (statusEl) {
+      statusEl.textContent = isContextoMutiraoAtivoFront()
+        ? '🟢 Modo Mutirão ATIVO agora nas filas'
+        : '⚪ Modo Semana (Seg–Sex): plantonistas de Mutirão ocultos';
+    }
+    const lista = await carregarProfissionaisCache(true);
+    renderListaEquipeMutirao(lista || _listaProfissionaisCadastro);
+  } else {
+    renderModalContingenciaOffline();
+    renderPreviewFolhaContingencia();
+  }
+}
+
 async function abrirModalEquipeMutirao() {
   if (!isManagerOrAdmin()) {
     showToast('🔒 Ação restrita à Gerência ou Administração.', true);
     return;
   }
-  const modal = document.getElementById('modal-equipe-mutirao');
-  if (!modal) return;
-  modal.classList.add('show');
-  const chk = document.getElementById('chk-preview-mutirao-profs');
-  try {
-    if (chk) chk.checked = localStorage.getItem('usf_preview_mutirao_profs') === '1';
-  } catch (_) {}
-  const statusEl = document.getElementById('mutirao-contexto-status');
-  if (statusEl) {
-    statusEl.textContent = isContextoMutiraoAtivoFront()
-      ? '🟢 Modo Mutirão ATIVO agora nas filas'
-      : '⚪ Modo Semana (Seg–Sex): plantonistas de Mutirão ficam ocultos';
-  }
-  const lista = await carregarProfissionaisCache(true);
-  renderListaEquipeMutirao(lista || _listaProfissionaisCadastro);
+  await abrirModalContingenciaOffline('equipe');
 }
 
 function fecharModalEquipeMutirao() {
-  document.getElementById('modal-equipe-mutirao')?.classList.remove('show');
+  fecharModalContingenciaOffline();
+}
+
+function sugerirCargoPorSetorEquipe(setor) {
+  const inp = document.getElementById('eq-novo-profissao');
+  if (!inp) return;
+  const mapPlaceholder = {
+    'Enfermagem': 'Enfermeira – Estratégia Saúde da Família',
+    'Médico': 'Médico – Estratégia Saúde da Família',
+    'Odontologia': 'Cirurgiã-Dentista – Estratégia Saúde da Família',
+    'Téc. Enfermagem': 'Técnico(a) de Enfermagem'
+  };
+  inp.placeholder = mapPlaceholder[setor] || 'Cargo / Conselho (opc.)';
 }
 
 function togglePreviewMutiraoProfissionais(checked) {
@@ -10757,7 +10829,7 @@ function renderListaEquipeMutirao(lista) {
   if (!el) return;
   const rows = Array.isArray(lista) ? lista : [];
   if (rows.length === 0) {
-    el.innerHTML = '<div style="padding:14px;text-align:center;color:var(--gray-500);">Nenhum profissional cadastrado.</div>';
+    el.innerHTML = '<div style="padding:18px;text-align:center;color:var(--gray-500);background:#fff;border-radius:12px;">Nenhum profissional cadastrado.</div>';
     return;
   }
   const regimeBadge = {
@@ -10765,31 +10837,51 @@ function renderListaEquipeMutirao(lista) {
     mutirao: { bg: '#fef3c7', fg: '#92400e', label: '🗓️ Só Mutirão (Sábado)' },
     substituto: { bg: '#f3e8ff', fg: '#6b21a8', label: '🔄 Substituto' }
   };
-  el.innerHTML = rows.map(p => {
-    const rb = regimeBadge[p.regime] || regimeBadge.fixo;
-    const opacity = p.ativo === false ? 'opacity:0.55;background:#f8fafc;' : 'background:#fff;';
-    const nomeEsc = escapeText(p.nome || '');
-    const nomeJs = String(p.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    return `<div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;${opacity}">
-      <div style="min-width:210px;flex:1;">
-        <div style="font-weight:800;font-size:13.5px;color:#0f172a;">
-          ${nomeEsc}
-          <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;background:${rb.bg};color:${rb.fg};">${rb.label}</span>
-          ${p.ativo === false ? '<span style="margin-left:4px;font-size:10.5px;color:#b91c1c;font-weight:800;">(Inativo)</span>' : ''}
+  const grupos = [
+    { setor: 'Médico', titulo: '🩺 Médico' },
+    { setor: 'Enfermagem', titulo: '👩‍⚕️ Enfermagem' },
+    { setor: 'Odontologia', titulo: '🦷 Odontologia' },
+    { setor: 'Téc. Enfermagem', titulo: '🩹 Téc. Enfermagem' }
+  ];
+  const extras = rows.filter(p => !grupos.some(g => g.setor === p.setor));
+  if (extras.length > 0) grupos.push({ setor: '__OUTROS__', titulo: '👥 Outros' });
+
+  el.innerHTML = grupos.map(g => {
+    const itens = g.setor === '__OUTROS__'
+      ? extras
+      : rows.filter(p => (p.setor || 'Médico') === g.setor);
+    if (itens.length === 0) return '';
+    const cardsHtml = itens.map(p => {
+      const rb = regimeBadge[p.regime] || regimeBadge.fixo;
+      const opacity = p.ativo === false ? 'opacity:0.55;background:#f8fafc;' : 'background:#fff;';
+      const nomeEsc = escapeText(p.nome || '');
+      const nomeJs = String(p.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return `<div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;${opacity}">
+        <div style="min-width:210px;flex:1;">
+          <div style="font-weight:800;font-size:13.5px;color:#0f172a;">
+            ${nomeEsc}
+            <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;background:${rb.bg};color:${rb.fg};">${rb.label}</span>
+            ${p.ativo === false ? '<span style="margin-left:4px;font-size:10.5px;color:#b91c1c;font-weight:800;">(Inativo)</span>' : ''}
+          </div>
+          ${p.profissao ? `<div style="font-size:11.5px;color:#475569;margin-top:2px;">${escapeText(p.profissao)}</div>` : ''}
         </div>
-        <div style="font-size:11.5px;color:#475569;margin-top:2px;">
-          <strong>Setor:</strong> ${escapeText(p.setor || 'Médico')} ${p.profissao ? `· ${escapeText(p.profissao)}` : ''}
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <select onchange="alternarRegimeProfissionalMutirao(${Number(p.id)}, this.value)" style="padding:5px 8px;font-size:11.5px;border-radius:7px;border:1px solid #cbd5e1;" title="Regime de exibição nas filas">
+            <option value="fixo"${p.regime === 'fixo' ? ' selected' : ''}>Fixo (Seg–Sex)</option>
+            <option value="mutirao"${p.regime === 'mutirao' ? ' selected' : ''}>Só Mutirão (Sábado)</option>
+            <option value="substituto"${p.regime === 'substituto' ? ' selected' : ''}>Substituto</option>
+          </select>
+          <button type="button" class="btn btn-outline btn-sm" style="padding:5px 9px;font-size:11.5px;min-height:30px;" onclick="alternarAtivoProfissionalMutirao(${Number(p.id)}, ${p.ativo === false ? 'true' : 'false'})">${p.ativo === false ? '✅ Reativar' : '⏸️ Desativar'}</button>
+          <button type="button" class="btn btn-outline btn-sm" style="padding:5px 9px;font-size:11.5px;min-height:30px;color:#b91c1c;border-color:#fca5a5;" onclick="excluirProfissionalMutirao(${Number(p.id)}, '${nomeJs}')">🗑️</button>
         </div>
+      </div>`;
+    }).join('');
+    return `<div style="background:#ffffff;border:1.5px solid #cbd5e1;border-radius:12px;padding:12px;">
+      <div style="font-size:13px;font-weight:900;color:#0f172a;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+        <span>${g.titulo}</span>
+        <span style="font-size:11px;background:#e2e8f0;color:#334155;padding:2px 8px;border-radius:999px;">${itens.length} profissional(is)</span>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <select onchange="alternarRegimeProfissionalMutirao(${Number(p.id)}, this.value)" style="padding:5px 8px;font-size:11.5px;border-radius:7px;border:1px solid #cbd5e1;" title="Regime de exibição nas filas">
-          <option value="fixo"${p.regime === 'fixo' ? ' selected' : ''}>Fixo (Seg–Sex)</option>
-          <option value="mutirao"${p.regime === 'mutirao' ? ' selected' : ''}>Só Mutirão (Sábado)</option>
-          <option value="substituto"${p.regime === 'substituto' ? ' selected' : ''}>Substituto</option>
-        </select>
-        <button type="button" class="btn btn-outline btn-sm" style="padding:5px 9px;font-size:11.5px;" onclick="alternarAtivoProfissionalMutirao(${Number(p.id)}, ${p.ativo === false ? 'true' : 'false'})">${p.ativo === false ? '✅ Reativar' : '⏸️ Desativar'}</button>
-        <button type="button" class="btn btn-outline btn-sm" style="padding:5px 9px;font-size:11.5px;color:#b91c1c;border-color:#fca5a5;" onclick="excluirProfissionalMutirao(${Number(p.id)}, '${nomeJs}')">🗑️</button>
-      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">${cardsHtml}</div>
     </div>`;
   }).join('');
 }
@@ -11199,21 +11291,33 @@ function renderModalContingenciaOffline() {
   }
 }
 
-function abrirModalContingenciaOffline() {
+async function abrirModalContingenciaOffline(abaInicial = 'contingencia') {
   const modal = document.getElementById('modal-contingencia-offline');
   if (!modal) return;
-  renderModalContingenciaOffline();
   modal.classList.add('show');
+  await alternarAbaSegundaTelaAdmin(abaInicial || 'contingencia');
 }
 
 function fecharModalContingenciaOffline() {
   document.getElementById('modal-contingencia-offline')?.classList.remove('show');
 }
 
-function gerarHtmlFolhaContingencia(snapshot = {}) {
+function renderPreviewFolhaContingencia() {
+  const previewEl = document.getElementById('contingencia-paper-preview');
+  if (!previewEl) return;
+  const filtro = document.getElementById('contingencia-filtro-setor')?.value || 'TODOS';
+  const bodyHtml = gerarCorpoFolhaContingencia({ queues }, filtro);
+  previewEl.innerHTML = bodyHtml;
+}
+
+function gerarCorpoFolhaContingencia(snapshot = {}, filtroSetor = 'TODOS') {
   const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' });
   const queuesData = snapshot.queues || queues || {};
-  const setoresHtml = SETORES.map(setor => {
+  const setoresFiltrados = (filtroSetor && filtroSetor !== 'TODOS' && SETORES.includes(filtroSetor))
+    ? [filtroSetor]
+    : SETORES;
+
+  const setoresHtml = setoresFiltrados.map(setor => {
     const lista = Array.isArray(queuesData[setor]) ? queuesData[setor] : [];
     const linhas = lista.length === 0
       ? '<tr><td colspan="6" style="color:#64748b;font-style:italic;padding:6px;">Nenhum paciente aguardando neste setor.</td></tr>'
@@ -11234,7 +11338,7 @@ function gerarHtmlFolhaContingencia(snapshot = {}) {
           </tr>`;
         }).join('');
     return `<section style="margin-bottom:14px;page-break-inside:avoid;">
-      <h3 style="margin:0 0 6px;padding:4px 8px;background:#e2e8f0;font-size:13px;border-left:4px solid #0f172a;">${escapeText(setor)} (${lista.length})</h3>
+      <h3 style="margin:0 0 6px;padding:4px 8px;background:#e2e8f0;font-size:13px;border-left:4px solid #0f172a;color:#0f172a;">${escapeText(setor)} (${lista.length})</h3>
       <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
         <thead><tr style="background:#f8fafc;">
           <th style="width:28px;">#</th><th>Paciente</th><th>Profissional / Etapa</th><th>Prioridade</th><th>Horário</th><th>Controle Manual</th>
@@ -11248,34 +11352,65 @@ function gerarHtmlFolhaContingencia(snapshot = {}) {
     `<tr><td style="height:22px;text-align:center;">+${i + 1}</td><td></td><td></td><td>☐ Geral ☐ Prio</td><td></td><td>☐ Chamado ☐ Atendido</td></tr>`
   ).join('');
 
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-    <title>Folha de Contingência — USF Chico Mendes</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 14px; color: #0f172a; }
-      h1 { font-size: 16px; margin: 0 0 4px; }
-      .meta { font-size: 11.5px; color: #475569; margin-bottom: 12px; border-bottom: 2px solid #0f172a; padding-bottom: 6px; }
-      table, th, td { border: 1px solid #94a3b8; }
-      th, td { padding: 4px 6px; text-align: left; }
-      @media print { .no-print { display: none; } }
-    </style></head><body>
+  return `
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h1>🏥 USF Chico Mendes — Folha de Contingência de Filas</h1>
-      <button class="no-print" onclick="window.print()" style="padding:6px 12px;font-weight:700;cursor:pointer;">🖨️ Imprimir</button>
+      <h1 style="font-size:16px;margin:0 0 4px;color:#0f172a;">🏥 USF Chico Mendes — Folha de Contingência de Filas</h1>
     </div>
-    <div class="meta">Gerado em: ${escapeText(agora)} · Uso exclusivo da equipe em queda de internet (sem dados clínicos sensíveis).</div>
+    <div style="font-size:11.5px;color:#475569;margin-bottom:12px;border-bottom:2px solid #0f172a;padding-bottom:6px;">
+      Gerado em: ${escapeText(agora)} · Filtro: <strong>${escapeText(filtroSetor === 'TODOS' ? 'Todos os Setores' : filtroSetor)}</strong> · Uso exclusivo da equipe (sem dados clínicos sensíveis).
+    </div>
     ${setoresHtml}
     <section style="margin-top:14px;page-break-inside:avoid;">
-      <h3 style="margin:0 0 6px;font-size:13px;">📝 Novos Pacientes Recebidos Durante Queda de Internet</h3>
+      <h3 style="margin:0 0 6px;font-size:13px;color:#0f172a;">📝 Novos Pacientes Recebidos Durante Queda de Internet</h3>
       <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
         <thead><tr style="background:#f8fafc;"><th style="width:28px;">#</th><th>Nome Completo</th><th>Setor / Profissional</th><th>Prioridade</th><th>Chegada</th><th>Situação</th></tr></thead>
         <tbody>${linhasEmBranco}</tbody>
       </table>
-    </section>
-  </body></html>`;
+    </section>`;
+}
+
+function gerarHtmlFolhaContingencia(snapshot = {}, filtroSetor = 'TODOS') {
+  const corpoHtml = gerarCorpoFolhaContingencia(snapshot, filtroSetor);
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+    <title>Folha de Contingência — USF Chico Mendes</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 14px; color: #0f172a; }
+      table, th, td { border: 1px solid #94a3b8; }
+      th, td { padding: 4px 6px; text-align: left; }
+      @media print { .no-print { display: none; } }
+    </style></head><body>${corpoHtml}</body></html>`;
 }
 
 function imprimirFolhaContingenciaFila() {
-  const html = gerarHtmlFolhaContingencia({ queues });
+  const filtro = document.getElementById('contingencia-filtro-setor')?.value || 'TODOS';
+  const html = gerarHtmlFolhaContingencia({ queues }, filtro);
+  try {
+    let frame = document.getElementById('usf-print-contingencia-frame');
+    if (frame) frame.remove();
+    frame = document.createElement('iframe');
+    frame.id = 'usf-print-contingencia-frame';
+    frame.style.position = 'fixed';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.style.opacity = '0';
+    frame.style.pointerEvents = 'none';
+    document.body.appendChild(frame);
+    const fDoc = frame.contentDocument || frame.contentWindow?.document;
+    if (fDoc && frame.contentWindow) {
+      fDoc.open();
+      fDoc.write(html);
+      fDoc.close();
+      setTimeout(() => {
+        try {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        } catch (_) {}
+      }, 220);
+      return;
+    }
+  } catch (_) {}
+
   const win = window.open('', '_blank', 'width=960,height=740');
   if (!win) {
     showToast('⚠️ Permita pop-ups no navegador para imprimir a folha de contingência.', true);
@@ -11295,4 +11430,38 @@ window.addEventListener('offline', () => {
 });
 document.addEventListener('DOMContentLoaded', () => {
   atualizarBadgeContingenciaOffline();
+  const screenRec = document.getElementById('screen-recepcao');
+  if (screenRec) {
+    screenRec.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        const btn = screenRec.querySelector('.direto-only-submit button, #recepcao-col-escuta1 button[onclick*="addPatient"]');
+        addPatient(btn);
+      }
+    });
+  }
+  ['input-nome', 'input-idade'].forEach(inpId => {
+    const inp = document.getElementById(inpId);
+    if (inp) {
+      inp.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const dd = document.getElementById('autocomplete-sugestoes');
+        const ddVisivel = dd && dd.style.display !== 'none';
+        if (ddVisivel && dd.querySelector('.autocomplete-item.active')) return;
+        const setorAtual = document.getElementById('input-setor')?.value;
+        if (setorAtual && typeof addPatient === 'function') {
+          e.preventDefault();
+          const btn = document.querySelector('#screen-recepcao .direto-only-submit button');
+          addPatient(btn);
+        }
+      });
+    }
+  });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('modal-contingencia-offline')?.classList.contains('show')) {
+      fecharModalContingenciaOffline();
+    }
+  }
 });
