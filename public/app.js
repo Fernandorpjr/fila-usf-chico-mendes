@@ -779,7 +779,7 @@ const SECTOR_CONFIG = {
   'Médico': { icon: '🩺', color: 'var(--orange)', colorDark: 'var(--orange-dark)', btnClass: 'btn-orange', tagClass: 'tag-medico', key: 'medico',
     profissionais: ['Dr. Israel Christian', 'Dr. Joene Halan', 'Dra. Mirela Mota'], defaultConsultorios: ['1','2','3'] },
   'Enfermagem': { icon: '👩‍⚕️', color: 'var(--teal)', colorDark: 'var(--teal-dark)', btnClass: 'btn-teal', tagClass: 'tag-enfermagem', key: 'enfermagem',
-    profissionais: ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu'], defaultConsultorios: ['4','5','6'] },
+    profissionais: ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu', 'Renata Célia'], defaultConsultorios: ['4','5','6'] },
   'Odontologia': { icon: '🦷', color: 'var(--pink)', colorDark: 'var(--pink-dark)', btnClass: 'btn-pink', tagClass: 'tag-odontologia', key: 'odontologia',
     profissionais: ['Dra. Juliana Cavalcante'], defaultConsultorios: ['Odontológico'] },
   'Téc. Enfermagem': { icon: '🩹', color: '#0097a7', colorDark: '#006064', btnClass: 'btn-teal', tagClass: 'tag-enfermagem', key: 'tec_enfermagem',
@@ -5131,6 +5131,8 @@ const PROFISSOES_DEFAULT = {
   'jorge marcio': 'Enfermeiro – Estratégia Saúde da Família',
   'mariana vaz': 'Enfermeira – Estratégia Saúde da Família',
   'lucelia de abreu': 'Enfermeira – Estratégia Saúde da Família',
+  'renata célia': 'Enfermeira – Estratégia Saúde da Família',
+  'renata celia': 'Enfermeira – Estratégia Saúde da Família',
   'viviane': 'Técnica de Enfermagem',
   'vilma': 'Técnica de Enfermagem',
   'fernando': 'Técnico de Enfermagem'

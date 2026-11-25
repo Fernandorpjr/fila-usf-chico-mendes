@@ -2932,7 +2932,7 @@
         <select id="acol-minha-fila-prof" style="display:none;padding:8px 12px;border:2px solid var(--gray-200);border-radius:20px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;background:var(--gray-100);color:var(--gray-600);" onchange="filtrarAcolhimento('minha_fila')">
           <option value="">— Profissional —</option>
           <option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
-          <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Gisele Monteiro</option>
+          <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Renata Célia</option><option>Dra. Gisele Monteiro</option>
         </select>
       </div>
     </div>
@@ -3525,7 +3525,7 @@
             <select id="agend-profissional" title="Profissional">
               <option value="">— Opcional —</option>
               <option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
-              <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Juliana Cavalcante</option>
+              <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Renata Célia</option><option>Dra. Juliana Cavalcante</option>
             </select>
           </div>
           <div class="form-group" style="margin-bottom:12px;"><label>Equipe</label>
@@ -3712,6 +3712,7 @@
               <option value="Mariana Vaz">Mariana Vaz</option>
               <option value="Jorge Marcio">Jorge Marcio</option>
               <option value="Lucelia de Abreu">Lucelia de Abreu</option>
+              <option value="Renata Célia">Renata Célia</option>
               <option value="Dra. Juliana Cavalcante">Dra. Juliana Cavalcante</option>
             </select>
           </div>
@@ -4304,7 +4305,7 @@
         <div class="form-group"><label>Data Fim</label><input type="date" id="filter-data-fim"></div>
         <div class="form-group" style="flex:1;min-width:180px;"><label>Buscar Paciente</label><input type="text" id="filter-busca-nome" placeholder="Nome, CPF ou queixa..." oninput="renderAttended()" style="padding:9px 12px;font-size:13.5px;border-radius:8px;border:1px solid var(--gray-200);width:100%;"></div>
         <div class="form-group"><label>Setor</label><select id="filter-setor" onchange="applyFilters()" style="padding:10px;font-size:13.5px;"><option value="">Todos</option><option value="Acolhimento">Acolhimento</option><option value="Farmácia">Farmácia</option><option value="Regulação">Regulação</option><option value="Médico">Médico</option><option value="Enfermagem">Enfermagem</option><option value="Téc. Enfermagem">Téc. Enfermagem</option><option value="Odontologia">Odontologia</option><option value="ACS">ACS</option></select></div>
-        <div class="form-group"><label>Profissional</label><select id="filter-profissional" onchange="applyFilters()" style="padding:10px;font-size:13.5px;"><option value="">Todos</option><option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option><option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Dra. Juliana Cavalcante</option><option>Vivi</option><option>Viviane</option><option>Vilma</option><option>Fernando</option><option>Leandra</option></select></div>
+        <div class="form-group"><label>Profissional</label><select id="filter-profissional" onchange="applyFilters()" style="padding:10px;font-size:13.5px;"><option value="">Todos</option><option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option><option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Renata Célia</option><option>Dra. Juliana Cavalcante</option><option>Vivi</option><option>Viviane</option><option>Vilma</option><option>Fernando</option><option>Leandra</option></select></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;padding-bottom:2px;">
           <button class="btn btn-primary btn-sm" onclick="applyFilters()">🔍 Filtrar</button>
           <button class="btn btn-outline btn-sm" onclick="filtrarAtendidosHoje()" title="Mostrar somente atendimentos de hoje">📅 Hoje</button>

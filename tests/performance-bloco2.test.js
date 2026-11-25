@@ -189,3 +189,19 @@ test('Bloco 2 SQL & Vercel/Neon: elimina loops N+1, protege initDB por versão e
   assert.equal(loadAllSlice.includes('/chat/resumo/'), true);
   assert.equal(loadAllSlice.includes('getVisibleCanais().map(c => loadChannelMessages'), false);
 });
+
+test('Enfermeira Renata Célia está cadastrada no setor Enfermagem, agendamentos, formulários e SISREG', () => {
+  const indexHtml = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+  const regJs = fs.readFileSync(path.join(ROOT, 'public', 'regulacao-sisreg.js'), 'utf8');
+  const { inferirSetorDestinoDevolucao } = require('../lib/sisreg');
+
+  assert.equal(serverSrc.includes("['Renata Célia', 'Enfermeira – Estratégia Saúde da Família']"), true);
+  assert.equal(serverSrc.includes("profNorm.includes('renata')"), true);
+  assert.match(appSrc, /'Enfermagem':[\s\S]{0,180}profissionais:\s*\[[^\]]*'Renata Célia'/);
+  assert.equal(appSrc.includes("'renata célia': 'Enfermeira – Estratégia Saúde da Família'"), true);
+  assert.equal(regJs.includes("'Renata Célia'"), true);
+  assert.equal(inferirSetorDestinoDevolucao('Exame pendente', 'Renata Célia'), 'Enfermagem');
+
+  const ocorrenciasHtml = indexHtml.match(/Renata Célia/g) || [];
+  assert.equal(ocorrenciasHtml.length >= 4, true, 'Renata Célia deve aparecer nos 4 selects de filtros/agendamento');
+});

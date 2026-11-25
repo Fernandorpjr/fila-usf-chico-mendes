@@ -442,7 +442,7 @@ const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermag
 // Canais de chat válidos
 const CANAIS_CHAT = ['geral', 'recepcao', 'acolhimento', 'acs', 'medico', 'enfermagem', 'odontologia', 'farmacia', 'regulacao', 'gerencia'];
 
-const DB_SCHEMA_VERSION = '2026-11-25-bloco2-v1';
+const DB_SCHEMA_VERSION = '2026-11-25-bloco2-v2';
 
 // Create tables on startup
 async function initDB() {
@@ -792,7 +792,8 @@ async function initDB() {
       ['Dr. Joene Halan', 'Médico – Estratégia Saúde da Família'],
       ['Jorge Marcio', 'Enfermeiro – Estratégia Saúde da Família'],
       ['Mariana Vaz', 'Enfermeira – Estratégia Saúde da Família'],
-      ['Lucelia de Abreu', 'Enfermeira – Estratégia Saúde da Família']
+      ['Lucelia de Abreu', 'Enfermeira – Estratégia Saúde da Família'],
+      ['Renata Célia', 'Enfermeira – Estratégia Saúde da Família']
     ];
     for (const [nome, profissao] of profSeed) {
       await pool.query(
@@ -5310,7 +5311,8 @@ app.post('/api/agendamentos/:id/enviar-fila', async (req, res) => {
         tipoNorm.includes('puericultura') ||
         profNorm.includes('mariana') ||
         profNorm.includes('jorge') ||
-        profNorm.includes('lucelia')
+        profNorm.includes('lucelia') ||
+        profNorm.includes('renata')
       ) {
         setorDest = 'Enfermagem';
       } else if (tipoNorm === 'exame') {

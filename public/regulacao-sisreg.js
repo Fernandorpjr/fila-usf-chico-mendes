@@ -25,7 +25,7 @@
 
   const PROFISSIONAIS_DEVOLUCAO_POR_SETOR = {
     'Médico': ['Dr. Israel Christian', 'Dr. Joene Halan', 'Dra. Mirela Mota'],
-    'Enfermagem': ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu'],
+    'Enfermagem': ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu', 'Renata Célia'],
     'Odontologia': ['Dra. Juliana Cavalcante'],
     'ACS': [
       'Ana Paula', 'Ana Lúcia', 'Lenilda', 'Conceição', 'Joselita',
@@ -2615,7 +2615,7 @@
       return 'ACS';
     }
     if (/odont|dentist|juliana cavalcante|\bcro\b/.test(p)) return 'Odontologia';
-    if (/enferm|mariana vaz|jorge marcio|lucelia|\bcoren\b/.test(p)) return 'Enfermagem';
+    if (/enferm|mariana vaz|jorge marcio|lucelia|renata celia|\bcoren\b/.test(p)) return 'Enfermagem';
     if (/\bacs\b|agente comunit|ana paula|ana lucia|lenilda|conceicao|joselita|alda|simone|patricia|telma|jeane|joselia|arlinda|nena|rosilene|fatima/.test(p)) {
       return 'ACS';
     }
