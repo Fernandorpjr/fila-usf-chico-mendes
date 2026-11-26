@@ -188,3 +188,87 @@ test('Broadcast multi-TV do Pedir Silêncio e Botão Hero Chamar Próximo em des
   assert.equal(indexHtml.includes('min-height: 58px;'), true);
   assert.equal(indexHtml.includes('font-size: 18px;'), true);
 });
+
+test('Formulário PEC Offline: Ficha de Registro Tardio SOAP com timbre Prefeitura do Recife nas abas Médico, Enfermagem e Odontologia', () => {
+  const soapPath = path.join(ROOT, 'public', 'formularios', 'registro-tardio-soap.html');
+  assert.equal(fs.existsSync(soapPath), true);
+  const soapHtml = fs.readFileSync(soapPath, 'utf8');
+
+  // Timbre oficial Prefeitura do Recife + SUS + USF (idêntico ao brasão do receituário)
+  const recHtml = fs.readFileSync(path.join(ROOT, 'public', 'formularios', 'receituario.html'), 'utf8');
+  const mRec = recHtml.match(/src="(data:image\/jpeg;base64,[^"]+)"/);
+  const mSoap = soapHtml.match(/src="(data:image\/jpeg;base64,[^"]+)"/);
+  assert.ok(mRec && mSoap && mSoap[1] === mRec[1], 'Brasão da Prefeitura do Recife deve ser idêntico ao oficial do receituário');
+  assert.equal(soapHtml.includes('Secretaria de Saúde do Recife'), true);
+  assert.equal(soapHtml.includes('PREFEITURA DO RECIFE'), true);
+  assert.equal(soapHtml.includes('data:image/jpeg;base64,'), true);
+  assert.equal(soapHtml.includes('SUS'), true);
+  assert.equal(soapHtml.includes('US 177 USF CHICO MENDES'), true);
+
+  // Estrutura fiel ao MODELO_FICHA_DE_REGISTRO_TARDIO_SOAP.docx
+  const obrigatorios = [
+    'REGISTRO DE ATENDIMENTO',
+    'HORA DO ATENDIMENTO',
+    'CNS / CPF',
+    'SUBJETIVO',
+    'OBJETIVO',
+    'SINAIS VITAIS',
+    'GESTANTE',
+    'PRESSÃO ARTERIAL',
+    'TEMPERATURA',
+    'GLICEMIA',
+    'EXAMES AVALIADOS',
+    'AVALIAÇÃO',
+    'PROBLEMA E/OU CONDIÇÃO AVALIADA',
+    'PLANO',
+    'INTERVENÇÃO OU PROCEDIMENTOS CLÍNICOS',
+    'SOLICITAÇÕES DE EXAMES',
+    'PRESCRIÇÃO DE MEDICAMENTOS',
+    'TIPO DE ATENDIMENTO',
+    'CONSULTA NO DIA',
+    'URGÊNCIA',
+    'TIPO DE CONSULTA',
+    '1ª CONSULTA',
+    'CONSULTA DE RETORNO',
+    'CONSULTA DE MANUTENÇÃO',
+    'CONDUTA',
+    'RETORNO PARA CONSULTA',
+    'AGENDAMENTO PARA OUTROS PROFISSIONAIS AB',
+    'AGENDAMENTO PARA NASF',
+    'ALTA DO EPISÓDIO',
+    'AGENDAMENTOS PARA GRUPOS',
+    'Assinatura do Profissional Responsável'
+  ];
+  for (const item of obrigatorios) {
+    assert.equal(soapHtml.includes(item), true, `Campo/seção ausente no SOAP HTML: ${item}`);
+  }
+
+  // Contrato postMessage
+  assert.equal(soapHtml.includes("form:'registro-soap'"), true);
+  assert.equal(soapHtml.includes("'FORM_PREENCHER'"), true);
+  assert.equal(soapHtml.includes("'FORM_BRANCO'"), true);
+  assert.equal(soapHtml.includes("'FORM_IMPRIMIR'"), true);
+
+  // Integração restrita a Médico, Enfermagem e Odontologia em formularios-pec.js
+  assert.equal(formsSrc.includes("'registro-soap'"), true);
+  assert.equal(formsSrc.includes('/formularios/registro-tardio-soap.html?v=1.0'), true);
+  const setoresSlice = extractSlice(formsSrc, 'const FORMULARIOS_POR_SETOR = {', 'const FORMULARIOS_LINHA_FILA = {');
+  for (const setor of ["'Médico':", "'Enfermagem':", "'Odontologia':"]) {
+    const linha = setoresSlice.split('\n').find(l => l.includes(setor)) || '';
+    assert.equal(linha.includes("'registro-soap'"), true, `${setor} deve incluir registro-soap em FORMULARIOS_POR_SETOR`);
+  }
+  for (const setorRestrito of ["'Recepção':", "'ACS':", "'Regulação':", "'Acolhimento':", "'Farmácia':", "'Téc. Enfermagem':"]) {
+    const linha = setoresSlice.split('\n').find(l => l.includes(setorRestrito)) || '';
+    assert.equal(linha.includes("'registro-soap'"), false, `${setorRestrito} não deve incluir registro-soap`);
+  }
+
+  const linhaFilaSlice = extractSlice(formsSrc, 'const FORMULARIOS_LINHA_FILA = {', 'let _foEstadoAtual = {');
+  for (const setor of ["'Médico':", "'Enfermagem':", "'Odontologia':"]) {
+    const linha = linhaFilaSlice.split('\n').find(l => l.includes(setor)) || '';
+    assert.equal(linha.includes("'registro-soap'"), true, `${setor} deve incluir registro-soap no popover da fila`);
+  }
+
+  // Botões no modal e na prévia em index.html
+  assert.equal(indexHtml.includes('id="fo-tab-registro-soap"'), true);
+  assert.equal(indexHtml.includes('id="vp-btn-form-soap"'), true);
+});

@@ -35,6 +35,12 @@ const FORMULARIOS_PEC_REG = {
     shortLabel: '🔬 Citopatológico',
     icon: '🔬'
   },
+  'registro-soap': {
+    url: '/formularios/registro-tardio-soap.html?v=1.0',
+    titulo: '📝 Ficha de Registro Tardio — SOAP',
+    shortLabel: '📝 Registro SOAP',
+    icon: '📝'
+  },
   'declaracao-residencia': {
     url: '/formularios/declaracao-residencia.html?v=1.3',
     titulo: '🏠 Declaração de Residência (ACS)',
@@ -44,9 +50,9 @@ const FORMULARIOS_PEC_REG = {
 };
 
 const FORMULARIOS_POR_SETOR = {
-  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'citopatologico', 'declaracao-residencia'],
-  'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial', 'controle-especial', 'declaracao-residencia'],
-  'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'exames-laboratoriais', 'declaracao-residencia'],
+  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'registro-soap', 'citopatologico', 'declaracao-residencia'],
+  'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial', 'registro-soap', 'controle-especial', 'declaracao-residencia'],
+  'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'registro-soap', 'exames-laboratoriais', 'declaracao-residencia'],
   'ACS': ['declaracao-residencia', 'ficha-ambulatorial'],
   'Recepção': ['declaracao-residencia', 'ficha-ambulatorial', 'exames-laboratoriais'],
   'Regulação': ['ficha-ambulatorial', 'exames-laboratoriais', 'declaracao-residencia'],
@@ -56,9 +62,9 @@ const FORMULARIOS_POR_SETOR = {
 };
 
 const FORMULARIOS_LINHA_FILA = {
-  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'citopatologico'],
-  'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial'],
-  'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'exames-laboratoriais']
+  'Médico': ['receituario', 'controle-especial', 'exames-laboratoriais', 'ficha-ambulatorial', 'registro-soap', 'citopatologico'],
+  'Enfermagem': ['receituario', 'citopatologico', 'exames-laboratoriais', 'ficha-ambulatorial', 'registro-soap'],
+  'Odontologia': ['receituario', 'controle-especial', 'ficha-ambulatorial', 'registro-soap', 'exames-laboratoriais']
 };
 
 let _foEstadoAtual = {
@@ -93,6 +99,20 @@ function obterDataHojeRecife() {
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const aa = String(d.getFullYear());
     return { dd, mm, aa, data_br: `${dd}/${mm}/${aa}` };
+  }
+}
+
+function obterHoraAgoraRecife() {
+  try {
+    return new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Recife',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(new Date());
+  } catch (_) {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 }
 
@@ -420,8 +440,10 @@ function montarPayloadFormulario({ modo, setor, acsNome, paciente, previa, anexo
     data_mm: hoje.mm,
     data_aa: hoje.aa,
     data_br: hoje.data_br,
+    hora_atendimento: obterHoraAgoraRecife(),
     paciente_nome: previa?.paciente_nome_ocr || paciente?.nome || '',
     paciente_idade: paciente?.idade !== undefined && paciente?.idade !== null ? String(paciente.idade) : '',
+    paciente_gestante: /\bgestante\b/.test(normTextFormFront([paciente?.condicoes_especiais, paciente?.tipo_prioridade].filter(Boolean).join(' '))),
     paciente_cns: docs.paciente_cns,
     paciente_cpf: docs.paciente_cpf,
     paciente_rg: ocrAtivo?.paciente_rg || ext.paciente_rg || paciente?.rg || '',
@@ -555,7 +577,8 @@ function atualizarUITopoModalFormulario() {
   Object.keys(FORMULARIOS_PEC_REG).forEach(k => {
     const btn = document.getElementById(`fo-tab-${k}`);
     if (btn) {
-      btn.style.display = 'inline-flex';
+      const visivel = k !== 'registro-soap' || SETORES_CLINICOS_FILA.includes(_foEstadoAtual.setor) || _foEstadoAtual.tipo === 'registro-soap';
+      btn.style.display = visivel ? 'inline-flex' : 'none';
       btn.classList.toggle('active', k === _foEstadoAtual.tipo);
     }
   });

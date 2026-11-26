@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registro de Atendimento - SOAP (Ficha de Registro Tardio)</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; background: #e5e5e5; font-family: Arial, Helvetica, sans-serif; color: #000; }
+
+  .toolbar { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #bbb; padding: 2.5mm; display: flex; flex-wrap: wrap; gap: 3mm; justify-content: center; align-items: center; font-size: 10pt; }
+  .toolbar button { font-size: 11pt; padding: 2mm 5mm; border: 1px solid #555; border-radius: 2mm; background: #f2f2f2; cursor: pointer; }
+  .toolbar button.main { background: #1f5fbf; color: #fff; border-color: #1f5fbf; font-weight: bold; }
+  .toolbar span { color: #555; }
+
+  .page {
+    width: 210mm; height: 297mm; margin: 0 auto; padding: 6mm 7mm;
+    background: #fff; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .form {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    border: 1.5px solid #000;
+  }
+  .form > *, .col > * { flex-shrink: 0; }
+  .form > .grow, .col > .grow { flex: 1 1 0; min-height: 0; }
+
+  /* Cabeçalho / Timbre Prefeitura do Recife + SUS */
+  .hdr {
+    height: 20mm; display: flex; align-items: center; padding: 0 2.5mm;
+    border-bottom: 1.5px solid #000; background: #fff;
+  }
+  .hdr-left {
+    width: 44mm; display: flex; flex-direction: column; justify-content: center;
+    padding-right: 2mm; border-right: 1px solid #000; height: 100%;
+  }
+  .sus { display: flex; align-items: center; gap: 1.2mm; margin-bottom: .8mm; }
+  .cross { position: relative; width: 10mm; height: 8.5mm; flex-shrink: 0; }
+  .cross i { position: absolute; background: #1f4f9a; }
+  .cross i:nth-child(1) { left: 3.4mm; top: 0; width: 3.2mm; height: 8.5mm; }
+  .cross i:nth-child(2) { left: 0; top: 2.7mm; width: 10mm; height: 3.1mm; }
+  .sus b { font-size: 13.5pt; color: #1f4f9a; line-height: 1; }
+  .sus small { font-size: 4pt; color: #1f4f9a; line-height: 1.05; font-weight: bold; text-transform: uppercase; }
+  .sec-saude { font-size: 6.4pt; font-weight: bold; color: #1f4f9a; letter-spacing: .1px; }
+
+  .hdr-center {
+    flex: 1; min-width: 0; text-align: center; padding: 0 2.5mm;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    height: 100%;
+  }
+  .hdr-title { font-size: 12.5pt; font-weight: bold; letter-spacing: .3px; color: #111; line-height: 1.15; text-transform: uppercase; }
+  .hdr-sub { font-size: 7.4pt; font-weight: bold; color: #444; letter-spacing: .35px; margin-top: .6mm; text-transform: uppercase; }
+  .hdr-unit {
+    margin-top: .8mm; font-size: 7.2pt; font-weight: bold; color: #1f4f9a;
+    border-top: 1px dotted #999; padding-top: .6mm; width: 96%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; outline: none;
+  }
+
+  .hdr-right {
+    width: 34mm; height: 100%; border-left: 1px solid #000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding-left: 1.5mm;
+  }
+  .brasao { width: 13.5mm; height: 13.5mm; object-fit: contain; display: block; }
+  .pref-lbl { font-size: 5.5pt; font-weight: bold; letter-spacing: .4px; color: #111; margin-top: .4mm; text-align: center; }
+
+  /* Estrutura de linhas e células */
+  .row { display: flex; border-bottom: 1px solid #000; }
+  .row.last { border-bottom: 0; }
+  .c {
+    padding: .9mm 1.6mm; border-right: 1px solid #000; font-size: 7.6pt; font-weight: bold;
+    display: flex; align-items: center; gap: 1.2mm; min-width: 0;
+  }
+  .c:last-child { border-right: 0; }
+  .c.col { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: .6mm; }
+
+  .bar {
+    background: #6f7680; color: #fff; font-weight: bold; font-size: 8.5pt;
+    letter-spacing: .4px; padding: .7mm 2mm; border-bottom: 1px solid #000;
+    text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;
+  }
+  .bar small { font-size: 6.8pt; font-weight: normal; opacity: .95; letter-spacing: .2px; }
+
+  .subbar {
+    background: #eceef1; border-bottom: 1px solid #000; padding: .6mm 1.8mm;
+    font-size: 7.4pt; font-weight: bold; color: #111; text-transform: uppercase;
+  }
+
+  .lbl { white-space: nowrap; font-weight: bold; color: #111; }
+  .unit { font-size: 7pt; font-weight: normal; color: #333; white-space: nowrap; }
+
+  .fld {
+    flex: 1; min-width: 8mm; border-bottom: 1px solid #555; height: 4.3mm;
+    line-height: 4.2mm; font-size: 8.8pt; font-weight: normal; color: #000;
+    padding: 0 1mm; overflow: hidden; white-space: nowrap; outline: none;
+  }
+  .fld.sm { flex: 0 0 auto; width: 9mm; text-align: center; }
+  .fld.yr { flex: 0 0 auto; width: 12mm; text-align: center; }
+  .fld.md { flex: 0 0 auto; width: 18mm; text-align: center; }
+  .fld.pa { flex: 0 0 auto; width: 11mm; text-align: center; }
+  .fld.dum { flex: 0 0 auto; width: 25mm; text-align: center; }
+
+  .ml-wrap {
+    display: flex; flex-direction: column; padding: .8mm 1.8mm; border-bottom: 1px solid #000;
+    min-height: 0;
+  }
+  .ml-wrap.no-border { border-bottom: 0; }
+  .ml-head { font-size: 7.4pt; font-weight: bold; color: #111; margin-bottom: .5mm; }
+  .ml-box {
+    flex: 1; min-height: 0; font-size: 8.6pt; font-weight: normal; line-height: 1.32;
+    color: #000; outline: none; white-space: pre-wrap; overflow: hidden;
+    padding: .4mm .8mm; border: 1px dashed #c8cdd4; border-radius: 1mm;
+    background: repeating-linear-gradient(to bottom, transparent 0, transparent 4.3mm, #eef0f3 4.3mm, #eef0f3 4.5mm);
+  }
+
+  /* Checkboxes interativos */
+  .chk-group { display: flex; flex-wrap: wrap; align-items: center; gap: 1mm 3.5mm; font-size: 7.6pt; font-weight: normal; }
+  .chk-opt {
+    display: inline-flex; align-items: center; gap: 1mm; cursor: pointer;
+    user-select: none; padding: .2mm .6mm; border-radius: .8mm;
+  }
+  .chk-opt:hover { background: #fff8c4; }
+  .chk {
+    display: inline-block; width: 3.3mm; height: 3.3mm; border: 1.2px solid #000;
+    background: #fff; position: relative; flex-shrink: 0;
+  }
+  .chk.on::after {
+    content: "✓"; position: absolute; left: .25mm; top: -1.1mm;
+    font-size: 10.5pt; line-height: 1; font-weight: bold; color: #000;
+  }
+
+  /* Rodapé / Assinatura */
+  .footer-sig {
+    height: 15.5mm; border-top: 1.2px solid #000; display: flex; align-items: flex-end;
+    justify-content: space-between; padding: 1mm 3mm 1.5mm; gap: 6mm; background: #fff;
+  }
+  .footer-note { font-size: 6.8pt; color: #444; line-height: 1.25; }
+  .sig-box { width: 88mm; display: flex; flex-direction: column; align-items: center; }
+  .sig-box .fld {
+    width: 100%; flex: none; text-align: center; height: 5.2mm; line-height: 5mm;
+    font-size: 9pt; border-bottom: 1.2px solid #000;
+  }
+  .sig-box small { font-size: 7.4pt; font-weight: bold; margin-top: .7mm; color: #111; }
+
+  .fld:hover, .fld:focus, .ml-box:hover, .ml-box:focus, .hdr-unit:hover, .hdr-unit:focus {
+    background: #fff8c4;
+  }
+
+  @media print {
+    html, body { background: #fff; }
+    .toolbar { display: none !important; }
+    .page { margin: 0; box-shadow: none; }
+    .fld:hover, .fld:focus, .ml-box:hover, .ml-box:focus, .hdr-unit:hover, .hdr-unit:focus, .chk-opt:hover {
+      background: transparent;
+    }
+    .ml-box { border-color: transparent; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="main" onclick="window.print()">🖨 Imprimir</button>
+  <button onclick="deixarEmBranco()">📄 Deixar em Branco</button>
+  <button onclick="salvarEmitente()">💾 Salvar Carimbo</button>
+  <span>Clique nos campos para digitar e nas caixas para marcar.</span>
+</div>
+
+<div class="page">
+  <div class="form">
+
+    <!-- Timbre Oficial: SUS + Secretaria de Saúde + Prefeitura do Recife -->
+    <div class="hdr">
+      <div class="hdr-left">
+        <div class="sus">
+          <div class="cross"><i></i><i></i></div>
+          <b>SUS</b>
+          <small>Sistema<br>Único<br>de Saúde</small>
+        </div>
+        <div class="sec-saude">Secretaria de Saúde do Recife</div>
+      </div>
+      <div class="hdr-center">
+        <div class="hdr-title">REGISTRO DE ATENDIMENTO — SOAP</div>
+        <div class="hdr-sub">Ficha de Registro Tardio · Atenção Básica</div>
+        <div class="hdr-unit" data-k="unidade">US 177 USF CHICO MENDES · CNES 0000965</div>
+      </div>
+      <div class="hdr-right">
+        <img class="brasao" alt="Prefeitura do Recife" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAA0JCgsKCA0LCwsPDg0QFCEVFBISFCgdHhghMCoyMS8qLi00O0tANDhHOS0uQllCR05QVFVUMz9dY1xSYktTVFH/2wBDAQ4PDxQRFCcVFSdRNi42UVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVH/wAARCACXAJcDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD06iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiq2oXsWn2j3M24ovZRkmuMXXL+4nlmiumtvPdQIfvlBgdN3AI5zx6VlUqxp/EUot7HcyyLDE0j/AHVBJrGk8R26XCIVCRlsMztgjt07de9Hhm9lvNNMd7KrzByuxxhsADqDz37+orntX04waw8UW4xkl1wwURnGR0wTycYz6HHFZVqsoxU47AlrYvX/AIilE8ghudsYyVcAKMZ9WHapG8SB9LCI0i3Py/OSmOT659OM4rHW2VVKLOQ4ZeCq7yAc4O7aw9/Tk0xLRVIXzAQMc7peSAOnzYzj+Xsa4PrctXfcvlNvTfEDm4T7Tc/uT8zMwBGCoYcqPcfr7VoQ+IoWch0yu4gFDk47cf4e34cstqPKVUnLzAnOFUMeWPRcnqfXoD9RoeHLBpNTKzKfLhLMAzBw/wB0Zz+uMnHtWlHETk1CL+8Titzs1YMoYdDzS1g+K7+e000iyl/0jdjYnLHgnGBz2rBi1+/iuI7ieRpxCzKYs7SV2Z5xgEn6dV96751owlyslRb1R3lFVtPvodQtFuYC2xsj5hggjirNbbkhRRRQAUUUUAFFFFABRRWPrepSQZtbY7ZiqlpDj5AzbVwD1JOfy+gqZSUVdhuadzFHNA6SRiRSPunvXD2aWnklpC1ssnPytnALfKDxz3HOex711FjLcx6hPp9xOJsRiRHC7SAeMfn/AJ9MNUuLQW3lYDIogfjKPtYrg+nPQ+/Q4rzcwleEbdzSG47yE0y9gmiiIjRgoJbqMNx68Y4zxzjjrWl4ktElt0ulCgq2HOD8wPAzjrg49RyeKyr0hzOLnzzA6n5WQ/LgN0YYAzwACSTmuRuddvxLNAFQbWMZdiTIcHBJJ7kdug9KjAKdanKklcKjUXdm6joEd2bZFuJG5gq89+crk7u2OBVTzbUyEebBnpkGIdj/ABZ469awbjVNRkmaSGSO2LdTGMufq5yx/Om/adcFuLn+1Lgx79n/AB8NwcZ6ZrZZbXWrSV/Mn2sO51Ukgk8tgd0ZbIOdyA5OCAOM8jPWus8P2iWtiZ2RQ8hJB5yE7DJ5x37degryu31O/imMsrRzORjeRskH/A1wfzyKv2+u300sNu0UeXIj81MiQZwMgj2zx05xitaWDrYduco6LzE6kZaJnWRW6aleTzz2xCSMc84xjHynv+RxkdKpXcNqQjRl7rDAqGPJXdgqOBtGcDj1J5xVuw3RyQrH56xKoBXYRuJxyxOVOOQcEEYNS7JplnaeQs8hEC7RhUy23j1x1yf06V4saknW5n1a/M3todXBFHDCscSBEHRQOlPrJvprqfUo7C2mEAEfmu+MkjkAY+tJoepTXCra3in7QI9wf++AcHI4wQcZHuPoPo+dJ8phY16KKKsQUUUUAFFFFABWVqCafYzfbplLTsQVXcTuboMDp/hWrXMi+t49Zu7rUCVMPywIx6nJGFHqflI/36ibSsNF7T4ZLdbjVdScJLIMkZ4jQdBWLbR3cVxcXrxv5NxIZBCSWMYLAj5fXGTx0PrWvK8t2Ve5wFU7liB4B9z3P6flmmPdQRsU3hpB/wAs0+Z/++RzXhYzFqtalSV1+ZtGFtWZoKTu0l6WjMXzbAc5UlTkY6jjr6HnFcC0Ut1qVxHHHmR53G1eedxr0OGK8S0+yXqeSXRlt5G5IHIAbHG4DHfn86boPh2CWK6u7hHgu5pZQwjYYQFjjbx3GPwNduWynh5zVvetov1IqKMkr7f1oce1tpum4F2xurjvGhwq/U9/881MZYxYi9OiRC0LbA245z+ea60+AtJJJM12Se5df8Kh/wCEX083P9lGXUfJA8wfONmfyr1ZQpys5ycnfW9/wSasZRdZ35XbyWn/AA/zOSFpp+pZFkxt7jtFIcq30P8An61Qt0lt9VtkZNsiXCAhuMHcOtehr4D0lWDLNdgjod6//E03W/DttGba7gDzXcciKBIww4B5Lcc4H8qc6ns4yipXg09918+qFFOXx7rr39f8/vGNJ5Sxmy3MX+cox24GWYbs/dXLdevAHNMnS5fyrpYSIopUkMYJBKh2J47nBB9zU00N3JbrbWcX2hI9ouZARuYcAgerEdfQfhV2O6gkYIJAsnXy2+Vx9VPIr5K1Sko1eX5nXo9CfUIXke31bTyskka8gf8ALWM84/w+tPsItPvJvt9urLKGJZdxG1jwcrnHP5HrUMUktoC1sAyEljCeAT7Hsf0/PNVEvbaTW7S506Xi4BEyBe/ofRupP+77nPu0cTTrrmj5XXYxcXE6Wiiiu0gKKKKACiiigArD8Safbzrbzi3Rrn7RD8+0btquGPP0BrcrnL6S4fVJwMSOsqQwKx+WPcoLNjv1J98Y4rnxM3Gm7K7ei9WVFakGui4l09rW0SSSac7NseA23qxGeOmRz3IqAQ2VhbrqFjAIZbRtzgLh2H8avnkkg5574NdPY2MdopO9pZmGHlfG5vy4A9hWRriMby4jVeZrYBFPG9gW4B9cH+Ved9TeGpKfNqnd9uhpz8zsauq25utLuIVQO7IdoP8Ae7H65xWLa6sYri48keYm7ad6lcMuQf5D8q6KCaO4gWWJtyMK4u1/1l3/ANfc/wD6MavWVJTqKfa/4nJXm4Q0NC58WfZ7+2tGgTfPnHzdP8mrH9qv9p+0eSu/Zs+8cYzmuVv7lE1RWwzCLYGKjOPmyf0xWyDkAjkHpWsXGTa7GNV1KcISv8S/U1f7bm/54p+Zqrc6q01zCJUZAwMS7FJ+ZiuP5Vz0XiGzlu1tgkwZn2BioxnOPWtRv+Piz/6+ov8A0MVNalCtTcO4oTqwmufqdPpMDWuk2sLRrG6RKGUdmxz+ua5prWzvLU3t9bCe4vCJBsTLjI+VV7ggY59ia6y4njtoWllOFX0GSfYDuaxtDiQXUSsCZbe2EZA5CE4yD78LXDioupKFJO197eR3x0uyrohuU09Le8RkuIPkZXILY/hJxxyMfjmtDw/Z2scUtwkKLcNNMrvj5seYxx+WD+VXb6wS7UMJGhmUfLKnUexB4I9jWNYzXK6pbBNoMkskVyBna2wMNwHbkLz6HBz2xp0Pq2I5vsy/B7jcuaPodJRRRXqGYUUUUAFFFFACMdqk4Jx6Vx8+oW8t7LdRSOsczI0b+WytG68chhyMjkjPU9OtdZdJNJbSJbzCGVhhZCu7afXHesqHTr2C0W3CwNh/MZxMyl2P3icq3XJzz3rOpTVSPKxp2K+n+JHlleK5tZjgZWSKByp9jwQOvr6/i7UdTFzCYzYB4yQNzzAEE8ggpuIPfPGOKLvTtQSzK232G2Ee8hWyytnqp4XA96zLQy3Vkk3kzOuREywSxEKwwMfOvXpyCc8cmqSsrPUQsVxqkUhVIgbgsyZtpd4YqOdysAoPK/nWXY6WdVe6kmhuVmFw7SwCV12kkkDZkDoeveti3lm81WtRPG7cgzPEQcnGfkRjjP0rPnt9We/n3x2IeF8z3ZaRGYkBgqlDu27cAZGOKVKmqWkdiakfaK17Eg8Lqo+W3ugDyR5zcH8/6H+lTLoM67VBvPLHZZm49ualjtXu5ikE4hAHJa4uJMdOP9YvqO1QS2d1EJGa8bajbc4nwTkj/n446d8VqmlsjKVGUrKU27EC+EIEYMLa5ypDD96QQRyMcnP44/Gm39vc6fNZuq3Mk7Tq0UDMWLEc9PQY61oSWptNhuLgSq5wNs9zHznH/PRqzraLVE1W3VILFppXzDdZkdlwpJVi53bdpxxxkijm8h+ybabk3YvTzar5mZ4VWVRuLXE4GwcZICqy7uvXt7ZrV0/UhBEIlsUVAP8AljOrE+53bScnvyTWfePMsjteGeVgp3GGWLaADg/eRe9VrwPBYPP9nmjGfKQXLRrlsjA+RfVRySBx1rGFKMG2t2bt3NG+8TssyxWlrMFIBM0kD7ck4wOgP1z3+uK9nqcFvdpO5kMUfmBmWJmaR2YZwFHAznBOO2KntdGvWtFEptJCyjPlMUAOQTg4bPI/+tWjf2uoX0AjKW0LqwdJRIzlGHQgYX+dKVLmmpN7dAvoaoORmio7dJY7eNJpRLKFAZwu3cfXHapK1EFFFFABQSAMk4FFVNXgkudHvbeFd0ksDogzjJKkCgC0rBhlSCPUUBlJIDAkdfas/R9N/s6OUs6s8zB2CIEVcKBwB9Kz9P0q6g15ruZEEReZlKhQ3zEY3HOSCM4HbFAG1eQWt3btbXaRyRScFH6GqM2kBFHk6jdW6DGFLq6jHT74Y/rUWq2U8+s2dwkTvFGpDFVjbB3Ked/ToeRzU2u2MuoW1vDFgbbhHYkKcKM5ODwaAK6eHwGErancnA4YLEO+euypP7BtnuGnS7usuoWXE27zNucZJyRjJ6EVZv7SR9CuLOLDyNbtGvAXJ24HsKTRbeS2sBHIjowJ4dY1P/jnH9aAEGi6fj7kpHvPIf8A2amroukuflhVj7SNn+dT6ZBJBbypKuC08rjnPDOxH6EVBpOnizutQk+zxx+bcboyoHKbEHb3B4oAU6Np+NuJVHoLiQf+zVBHoFpBMZjd3QOCE/fbNmcZxjGc4HXPSob+wvJdSl8uDdFNPby+buUBRGwLAjOc8cYB61Z16xuL6G1S2WMtHNvPmqGUDYw5GeeSKAIpPD5diw1O65/vLE3fPdPXmpotGBVlm1C6nQkkoHEakk5P3AvfNTabDJY6HBCImaWKEDyywyWA6Z6dfwqp4bs77T4JoLxIwCwkUxvuBJHzdQP4gT/wKgDUtbW3srdbe2iSKJPuogwBUoZWzgg44OKWsTTLGWHU2lazEIBuN0uV/e75dy9DngeuMUAbRZQQCQCenvS1ga5p093POY7QTNLbCKKXK/uH3E7uTkdVORk/LW/QAUUUUAFV9Rjlm025igJEzxMqEHGGIOOe3NWKCcDJpp2dxPU8cm1DU4JpInv7nfGxVsTN1Bx61p6naeINJtIrufUJTFIQAUuGOCRkZBrI1Q/8TW8PUee//oRrR8QWGpWUVoby8e6hkTMZLkhfUc9O1ey7XjtqeSm7S30Ok8Fa5e6g09ldyGUpHvSQ/e64wT+Irk7261ayvJbaa+uBJG2GAnYj+ddT8OzZeTcbci9yA2T1Ttj+tcz4pIPiS+IOR5n9BWNNL20opGtRv2UZXLZsfEv9mpfrcXUkLgFRHMzMQfYGtrT9Yu9G8JST3gma7ecpEtxuz0HPPOBzSeGraTSYYtWvtTX7G8OBESx2kkY4pnji6g1LS7S8s5PNgSVkZgCMEgHv9KhvnmoNaX3/AEKS5Ic6ettv1OftX1nXtS8qO6leZssSXKqo9eOg+lP1Zte0yZbS7u7gFVyhSViCD7/41e+H88UWuSJIwVpISqZ7nIOP0NdTrPiqz0jUEtZI2myu5zGQSnoMVc5yjU5IxuTCClT53Kxzni99Ttbm3ukupo7eWJVXZKRlgOeM03wY+p32sCU3U0kEIPmB5SeoIHBPPNXviFKs2n6dIuQHYsAeCAQKj+G5AlvwTyQn/s1Tf/Z72Kt+/tc57UZtY068e1ub64WVcEgTsRzz61bis/EU2ljUY7q4eAjI2zsWPOOmab41IPia4IORtT/0EVv+B9Mu0WLUDebrZkZRBuPynPp07GtJT5aSnoZxi5VHDUxk/tk+HLmdp7tDDMrMXkZTtxjjPuRWdY3Gr6heR2tvfXBlkztBnYDgZ9a9F8XkDwze8/wj/wBCFeaaRazXupw28E/kSPnEmSMcE9qVGanCUmrDqxcJqKdzTmtfElpfLDK1++CCTG7uuPqK9RrAsNRstFtYdO1DUVe6T7xwxzkkjnHvW/XFXm5Wuv8AgnZRgo3s/wDgBRRRXObhVfULdrrTrm2RgrSxMgJ6AkEVYopp21E1fQ89/wCEAvv+f2D8mroB4aMnhRdInlQyplkkA4DbiR/PFdFRW0sRUla72Mo0IRvZbnFaP4NvNP1SC7e6hZYySVUHJ4Iqm3gG+LE/bYOfY16DRT+s1L3uT9Xp2seff8IDf4x9tg/Jq6LRvDq2uhTaZfFJ0lcsduR2GPx4rfopTxE5qzZUaEIu6RwN34BuVlzZXkbJ280FSPxAOat6P4HENylxqU6zbTkRIDtJ9yetdnRTeJqNWuJYemnexyXiPwpdavqpu4biKNNirtYHPFRaF4Qu9L1aK7kuoXRAwKqDnkEf1rsqKX1ifLydB+whzc3U8+bwDfFiftsH5Gug8KaBcaH9p8+aOXztuNgPGM+v1roaKJ4ic48rCNCEHzIxPFGiza3ZxQQypGUfcS+eeCK5j/hAb8f8vsH5NXoVFEK84LliE6EJu7PP4/Ad8sqObyA7SD0NegUUVNSrKpbmKp0o0/hCiiisjQKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/9k=">
+        <div class="pref-lbl">PREFEITURA DO RECIFE</div>
+      </div>
+    </div>
+
+    <!-- Identificação / Data e Hora -->
+    <div class="row">
+      <div class="c" style="width:66mm;">
+        <span class="lbl">DATA:</span>
+        <div class="fld sm" data-k="dd"></div><span>/</span>
+        <div class="fld sm" data-k="mm"></div><span>/</span>
+        <div class="fld yr" data-k="aa"></div>
+      </div>
+      <div class="c" style="flex:1;">
+        <span class="lbl">HORA DO ATENDIMENTO:</span>
+        <div class="fld md" data-k="hora"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="c" style="flex:1;">
+        <span class="lbl">NOME:</span>
+        <div class="fld" data-k="nome"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="c" style="flex:1.5;">
+        <span class="lbl">CNS / CPF:</span>
+        <div class="fld" data-k="cns_cpf"></div>
+      </div>
+      <div class="c" style="flex:1;">
+        <span class="lbl">DN:</span>
+        <div class="fld" data-k="dn"></div>
+      </div>
+    </div>
+
+    <!-- S — SUBJETIVO -->
+    <div class="bar"><span>S — SUBJETIVO</span><small>Queixa principal, HDA e contexto relatado</small></div>
+    <div class="row">
+      <div class="c" style="flex:1;">
+        <span class="lbl">CIAP2:</span>
+        <div class="fld" data-k="s_ciap2"></div>
+      </div>
+      <div class="c" style="flex:1;">
+        <span class="lbl">CID10:</span>
+        <div class="fld" data-k="s_cid10"></div>
+      </div>
+    </div>
+    <div class="ml-wrap grow" style="flex:1.15 1 0;">
+      <div class="ml-head">NOTA:</div>
+      <div class="ml-box" data-k="s_nota" data-ml="1"></div>
+    </div>
+
+    <!-- O — OBJETIVO -->
+    <div class="bar"><span>O — OBJETIVO</span><small>Exame físico, sinais vitais e exames avaliados</small></div>
+    <div class="subbar">SINAIS VITAIS</div>
+    <div class="row">
+      <div class="c" style="flex:1.35;">
+        <span class="lbl">GESTANTE:</span>
+        <div class="chk-group" data-radio="gestante">
+          <span class="chk-opt" data-val="sim"><span class="chk"></span> SIM</span>
+          <span class="chk-opt" data-val="nao"><span class="chk"></span> NÃO</span>
+        </div>
+      </div>
+      <div class="c" style="flex:1;">
+        <span class="lbl">DUM:</span>
+        <div class="fld dum" data-k="o_dum"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="c" style="flex:1.3;">
+        <span class="lbl">PRESSÃO ARTERIAL:</span>
+        <div class="fld pa" data-k="o_pa_sis"></div><span>/</span><div class="fld pa" data-k="o_pa_dia"></div><span class="unit">mmHg</span>
+      </div>
+      <div class="c" style="flex:.9;">
+        <span class="lbl">TEMPERATURA:</span>
+        <div class="fld md" data-k="o_temp"></div><span class="unit">°C</span>
+      </div>
+      <div class="c" style="flex:.95;">
+        <span class="lbl">GLICEMIA:</span>
+        <div class="fld md" data-k="o_glicemia"></div><span class="unit">mg/dL</span>
+      </div>
+    </div>
+    <div class="ml-wrap grow" style="flex:0.85 1 0;">
+      <div class="ml-head">EXAMES AVALIADOS:</div>
+      <div class="ml-box" data-k="o_exames" data-ml="1"></div>
+    </div>
+
+    <!-- A — AVALIAÇÃO -->
+    <div class="bar"><span>A — AVALIAÇÃO</span><small>Hipótese diagnóstica e impressão clínica</small></div>
+    <div class="subbar">PROBLEMA E/OU CONDIÇÃO AVALIADA*</div>
+    <div class="row">
+      <div class="c" style="flex:1;">
+        <span class="lbl">CID10:</span>
+        <div class="fld" data-k="a_cid10"></div>
+      </div>
+      <div class="c" style="flex:1;">
+        <span class="lbl">CIAP2:</span>
+        <div class="fld" data-k="a_ciap2"></div>
+      </div>
+    </div>
+    <div class="ml-wrap grow" style="flex:0.95 1 0;">
+      <div class="ml-head">NOTA:</div>
+      <div class="ml-box" data-k="a_nota" data-ml="1"></div>
+    </div>
+
+    <!-- P — PLANO -->
+    <div class="bar"><span>P — PLANO</span><small>Conduta terapêutica, procedimentos, exames e prescrições</small></div>
+    <div class="subbar">INTERVENÇÃO OU PROCEDIMENTOS CLÍNICOS*</div>
+    <div class="row">
+      <div class="c" style="flex:1.4;">
+        <span class="lbl">PROCEDIMENTO:</span>
+        <div class="fld" data-k="p_procedimento"></div>
+      </div>
+      <div class="c" style="flex:.8;">
+        <span class="lbl">CIAP2:</span>
+        <div class="fld" data-k="p_ciap2"></div>
+      </div>
+    </div>
+    <div class="ml-wrap grow" style="flex:0.85 1 0;">
+      <div class="ml-head">NOTA:</div>
+      <div class="ml-box" data-k="p_nota" data-ml="1"></div>
+    </div>
+    <div class="ml-wrap grow" style="flex:0.9 1 0;">
+      <div class="ml-head">SOLICITAÇÕES DE EXAMES:</div>
+      <div class="ml-box" data-k="p_exames" data-ml="1"></div>
+    </div>
+    <div class="ml-wrap grow no-border" style="flex:1.05 1 0;">
+      <div class="ml-head">PRESCRIÇÃO DE MEDICAMENTOS:</div>
+      <div class="ml-box" data-k="p_prescricao" data-ml="1"></div>
+    </div>
+
+    <!-- CLASSIFICAÇÃO / DESFECHO -->
+    <div class="bar"><span>CLASSIFICAÇÃO DO ATENDIMENTO E CONDUTA</span></div>
+    <div class="row">
+      <div class="c" style="flex:1;">
+        <span class="lbl">TIPO DE ATENDIMENTO:</span>
+        <div class="chk-group" data-radio="tipo_atendimento">
+          <span class="chk-opt" data-val="consulta_no_dia"><span class="chk"></span> CONSULTA NO DIA</span>
+          <span class="chk-opt" data-val="urgencia"><span class="chk"></span> URGÊNCIA</span>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="c" style="flex:1;">
+        <span class="lbl">TIPO DE CONSULTA:</span>
+        <div class="chk-group" data-radio="tipo_consulta">
+          <span class="chk-opt" data-val="primeira_consulta"><span class="chk"></span> 1ª CONSULTA</span>
+          <span class="chk-opt" data-val="consulta_retorno"><span class="chk"></span> CONSULTA DE RETORNO</span>
+          <span class="chk-opt" data-val="consulta_manutencao"><span class="chk"></span> CONSULTA DE MANUTENÇÃO</span>
+        </div>
+      </div>
+    </div>
+    <div class="row last">
+      <div class="c col" style="flex:1;">
+        <span class="lbl">CONDUTA:</span>
+        <div class="chk-group">
+          <span class="chk-opt"><span class="chk"></span> RETORNO PARA CONSULTA</span>
+          <span class="chk-opt"><span class="chk"></span> AGENDAMENTO PARA OUTROS PROFISSIONAIS AB</span>
+          <span class="chk-opt"><span class="chk"></span> AGENDAMENTO PARA NASF</span>
+          <span class="chk-opt"><span class="chk"></span> ALTA DO EPISÓDIO</span>
+          <span class="chk-opt"><span class="chk"></span> AGENDAMENTOS PARA GRUPOS</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rodapé / Assinatura -->
+    <div class="footer-sig">
+      <div class="footer-note">
+        Registro tardio de atendimento clínico · PEC Offline SUS Recife<br>
+        *Campos obrigatórios para lançamento posterior no prontuário eletrônico.
+      </div>
+      <div class="sig-box">
+        <div class="fld" data-k="ass"></div>
+        <small>Assinatura do Profissional Responsável</small>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var EMIT_KEY='usf_form_emitente_v1';
+
+  function plain(e){
+    e.preventDefault();
+    var t=(e.clipboardData||window.clipboardData).getData('text');
+    document.execCommand('insertText',false,t);
+  }
+  function noEnter(e){ if(e.key==='Enter') e.preventDefault(); }
+
+  document.querySelectorAll('[data-k]').forEach(function(el){
+    el.contentEditable='true';
+    el.spellcheck=false;
+    el.addEventListener('paste', plain);
+    if(el.dataset.ml!=='1') el.addEventListener('keydown', noEnter);
+  });
+
+  document.querySelectorAll('.chk-opt').forEach(function(opt){
+    opt.addEventListener('click', function(){
+      var chk=opt.querySelector('.chk');
+      if(!chk) return;
+      var radioGroup=opt.closest('[data-radio]');
+      var estavaMarcado=chk.classList.contains('on');
+      if(radioGroup){
+        radioGroup.querySelectorAll('.chk').forEach(function(c){ c.classList.remove('on'); });
+        if(!estavaMarcado) chk.classList.add('on');
+      } else {
+        chk.classList.toggle('on');
+      }
+    });
+  });
+
+  function dataHojeRecife(){
+    try{
+      var p=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Recife',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date()).split('/');
+      return {dd:p[0]||'',mm:p[1]||'',aa:p[2]||''};
+    }catch(_){
+      var d=new Date();
+      return {
+        dd:String(d.getDate()).padStart(2,'0'),
+        mm:String(d.getMonth()+1).padStart(2,'0'),
+        aa:String(d.getFullYear())
+      };
+    }
+  }
+
+  function horaAgoraRecife(){
+    try{
+      return new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Recife',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date());
+    }catch(_){
+      var d=new Date();
+      return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    }
+  }
+
+  function lerEmitenteSalvo(){
+    try{ return JSON.parse(localStorage.getItem(EMIT_KEY)||'{}')||{}; }catch(_){ return {}; }
+  }
+
+  function setCampo(k, v){
+    var el=document.querySelector('[data-k="'+k+'"]');
+    if(el) el.textContent=v||'';
+  }
+
+  function marcarRadio(grupo, valor){
+    var g=document.querySelector('[data-radio="'+grupo+'"]');
+    if(!g) return;
+    g.querySelectorAll('.chk').forEach(function(c){ c.classList.remove('on'); });
+    if(!valor) return;
+    var opt=g.querySelector('.chk-opt[data-val="'+valor+'"] .chk');
+    if(opt) opt.classList.add('on');
+  }
+
+  window.deixarEmBranco=function(skipConfirm){
+    if(!skipConfirm && !confirm('Deixar toda a Ficha de Registro SOAP em branco?')) return;
+    document.querySelectorAll('[data-k]').forEach(function(el){
+      if(el.dataset.k==='unidade'){
+        el.textContent='US 177 USF CHICO MENDES · CNES 0000965';
+      } else {
+        el.textContent='';
+      }
+    });
+    document.querySelectorAll('.chk').forEach(function(c){ c.classList.remove('on'); });
+  };
+
+  window.salvarEmitente=function(){
+    var assEl=document.querySelector('[data-k="ass"]');
+    var atual=lerEmitenteSalvo();
+    atual.ass=assEl?assEl.textContent.trim():'';
+    try{ localStorage.setItem(EMIT_KEY, JSON.stringify(atual)); }catch(_){}
+    if(window.parent && window.parent!==window){
+      window.parent.postMessage({type:'FORM_TOAST',msg:'💾 Carimbo salvo neste computador!'}, window.location.origin);
+    }
+  };
+
+  window.aplicarDados=function(d){
+    window.deixarEmBranco(true);
+    if(!d || d.modo==='branco') return;
+    var saved=lerEmitenteSalvo();
+    var hoje=dataHojeRecife();
+    var unidadeTxt=(d.unidade||'US 177 USF CHICO MENDES')+(d.cnes ? ' · CNES '+d.cnes : ' · CNES 0000965');
+    var cnsCpf=[d.paciente_cns, d.paciente_cpf].filter(Boolean).join(' / ');
+
+    setCampo('unidade', unidadeTxt);
+    setCampo('dd', d.data_dd||hoje.dd);
+    setCampo('mm', d.data_mm||hoje.mm);
+    setCampo('aa', d.data_aa||hoje.aa);
+    setCampo('hora', d.hora_atendimento||horaAgoraRecife());
+    setCampo('nome', d.paciente_nome||'');
+    setCampo('cns_cpf', cnsCpf);
+    setCampo('dn', d.paciente_dn||'');
+
+    setCampo('a_cid10', d.cid10||'');
+    setCampo('a_nota', d.hipotese_diagnostica||'');
+    setCampo('p_exames', d.exame_solicitado||d.exame_descricao||'');
+    setCampo('p_prescricao', d.prescricao||'');
+    setCampo('ass', d.profissional||saved.ass||'');
+
+    if(d.paciente_gestante===true){
+      marcarRadio('gestante', 'sim');
+    }
+  };
+
+  window.addEventListener('message', function(e){
+    if(e.origin!==window.location.origin || !e.data || typeof e.data!=='object') return;
+    if(e.data.type==='FORM_PREENCHER') window.aplicarDados(e.data.payload||{});
+    else if(e.data.type==='FORM_BRANCO') window.deixarEmBranco(true);
+    else if(e.data.type==='FORM_SALVAR_EMITENTE') window.salvarEmitente();
+    else if(e.data.type==='FORM_IMPRIMIR'){
+      window.focus();
+      window.print();
+    }
+  });
+
+  if(window.parent && window.parent!==window){
+    window.parent.postMessage({type:'FORM_PRONTO',form:'registro-soap'}, window.location.origin);
+  }
+})();
+</script>
+</body>
+</html>
