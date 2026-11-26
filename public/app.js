@@ -34,8 +34,7 @@ window.fetch = function(resource, config) {
       }
     }
     if (!nextConfig.method || nextConfig.method.toUpperCase() === 'GET') {
-      const separator = resource.includes('?') ? '&' : '?';
-      resource += `${separator}_t=${Date.now()}`;
+      if (!nextConfig.cache) nextConfig.cache = 'no-cache';
     }
   }
   const promise = originalFetch(resource, nextConfig);
@@ -501,12 +500,21 @@ async function toggleMutiraoHoje(forceLiberar) {
   const jaAtivo = _mutiraoLiberadoData === hoje;
   const novoEstado = forceLiberar !== undefined ? Boolean(forceLiberar) : !jaAtivo;
   const acaoTexto = novoEstado ? 'LIBERAR expediente extra / mutirão hoje' : 'ENCERRAR liberação de mutirão hoje';
-  const senha = prompt(`🗓️ ${acaoTexto}\n\nDigite a senha de administrador:`);
-  if (!senha) return;
+  let senha = (isAdmin && adminPassword) ? adminPassword : '';
+  if (senha) {
+    if (!confirm(`🗓️ Confirmar: ${acaoTexto}?`)) return;
+  } else {
+    const digitada = prompt(`🗓️ ${acaoTexto}\n\nDigite a senha de administrador:`);
+    if (!digitada) return;
+    senha = digitada.trim();
+  }
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (senha) headers['x-admin-password'] = senha;
     const res = await fetch(`${API_URL}/config/mutirao-hoje`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      headers,
       body: JSON.stringify({ senha, liberado: novoEstado })
     });
     const data = await res.json();
@@ -809,6 +817,11 @@ let queues = {}; SETORES.forEach(s => queues[s] = []);
 let currentCalling = {}; SETORES.forEach(s => currentCalling[s] = null);
 let callHistory = [], attendedPatients = [], totalAtendidos = 0, totalDesistencias = 0;
 let lastSpokenCallId = null, chatMessages = [], unreadChatCount = 0;
+let _historySeq = 0;
+let _pendingUserCallSpeakUntil = 0;
+const _spokenCallIds = new Set();
+let _loadingPendingVoiceCalls = false;
+const _processedVoiceCallIds = new Set();
 let isAdmin = false, isGerente = false, userRole = 'staff', adminPassword = null, alertedPatients = new Set();
 function isManagerOrAdmin() {
   return Boolean(isAdmin || isGerente);
@@ -2102,9 +2115,9 @@ async function callNext(setor, btnElement) {
   if (typeof unlockAudio === 'function' && !audioUnlocked) {
     unlockAudio(true);
   }
-  // Garante que a 1ª chamada do dia nunca seja engolida caso o 1º loadHistory ainda estivesse em trânsito
+  // Se clicou antes do 1º loadHistory terminar, libera apenas a chamada recém-criada (sem ler o dia inteiro)
   if (lastSpokenCallId === null) {
-    lastSpokenCallId = 0;
+    _pendingUserCallSpeakUntil = Date.now() + 8000;
   }
 
   if (btnElement) {
@@ -3002,15 +3015,14 @@ async function solicitarSilencioSalaEspera(btnElement) {
   }
 
   const painelAtivo = document.getElementById('screen-painel')?.classList.contains('active');
-  if (isModoTV() || painelAtivo) {
-    executarAvisoSilencioLocal();
-  }
 
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (adminPassword) headers['x-admin-password'] = adminPassword;
     const r = await fetch(`${API_URL}/voice-call`, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         nome: AVISO_SILENCIO_TOKEN,
         setor: 'Recepção',
@@ -3018,16 +3030,23 @@ async function solicitarSilencioSalaEspera(btnElement) {
         senha: adminPassword || undefined
       })
     });
+    const dResp = await r.json().catch(() => ({}));
     if (!r.ok) {
-      const dErr = await r.json().catch(() => ({}));
-      throw new Error(dErr.error || `HTTP ${r.status}`);
+      throw new Error(dResp.error || `HTTP ${r.status}`);
+    }
+    if (dResp && dResp.id) {
+      _processedVoiceCallIds.add(Number(dResp.id));
+    }
+    if (isModoTV() || painelAtivo) {
+      executarAvisoSilencioLocal();
+      if (dResp && dResp.id) {
+        fetch(`${API_URL}/voice-call/${dResp.id}/ack`, { method: 'POST' }).catch(() => {});
+      }
     }
     showToast('🤫 Pedido de silêncio enviado para a TV!');
   } catch (err) {
     console.warn('Falha ao enviar pedido de silêncio remoto:', err?.message || err);
-    if (!isModoTV() && !painelAtivo) {
-      showToast(err?.message || '❌ Não foi possível enviar o aviso à TV. Verifique a conexão.', true);
-    }
+    showToast(err?.message || '❌ Não foi possível enviar o aviso à TV. Verifique a conexão.', true);
   }
 }
 
@@ -3128,30 +3147,67 @@ async function loadQueues() {
 }
 async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); if (typeof d.sistemaPausado === 'boolean' && d.sistemaPausado !== isPausado) { aplicarEstadoPausa(d.sistemaPausado, d.pausaMotivo); } currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
 async function loadHistory() {
+  const reqSeq = ++_historySeq;
   try {
     const endpoint = (!isGateAuthenticated && isModoTV()) ? `${API_URL}/tv/history` : `${API_URL}/history`;
     const r = await fetch(endpoint);
     if (!r.ok) return;
     const data = await r.json();
+    // Descarta resposta atrasada fora de ordem para impedir regressão de lastSpokenCallId
+    if (reqSeq < _historySeq) return;
+
     callHistory = Array.isArray(data) ? data : [];
     // Ignorar registros de encaminhamento/transferência para controle de voz
     const callsOnly = (callHistory || []).filter(h => !(h.profissional || '').startsWith('➡️ Encaminhado'));
     if (callsOnly.length > 0) {
-      if (lastSpokenCallId !== null) {
-        // Encontrar todas as novas chamadas cronologicamente
+      const maxId = callsOnly.reduce((acc, item) => Math.max(acc, Number(item.id) || 0), 0);
+      if (lastSpokenCallId === null) {
+        // 1ª carga da aba: nunca dispara leitura de chamadas antigas; opcionalmente fala apenas 1 recente se acabou de chamar
+        const pendingSpeak = _pendingUserCallSpeakUntil > Date.now();
+        _pendingUserCallSpeakUntil = 0;
+        const newest = callsOnly[0];
+        const newestCreatedMs = newest?.created_at ? Date.parse(newest.created_at) : NaN;
+        const ehRecente = !Number.isFinite(newestCreatedMs) || (Date.now() - newestCreatedMs <= 15000);
+        callsOnly.forEach(item => {
+          const cid = Number(item.id) || 0;
+          if (cid > 0) _spokenCallIds.add(cid);
+        });
+        lastSpokenCallId = maxId;
+        if (pendingSpeak && newest && ehRecente) {
+          speakViaSynthesis(newest.nome, newest.setor, newest.medico);
+        }
+      } else {
+        const prevMaxId = Number(lastSpokenCallId) || 0;
+        const agoraMs = Date.now();
         const newCalls = [];
         for (const p of callsOnly) {
-          if (p.id === lastSpokenCallId || (typeof lastSpokenCallId === 'number' && p.id <= lastSpokenCallId)) break;
-          newCalls.unshift(p);
+          const pid = Number(p.id) || 0;
+          if (pid <= prevMaxId || _spokenCallIds.has(pid)) continue;
+          const createdMs = p.created_at ? Date.parse(p.created_at) : NaN;
+          if (Number.isFinite(createdMs) && (agoraMs - createdMs > 90000)) continue;
+          newCalls.push(p);
         }
+        // Registra IDs e avança ponteiro de forma monotônica ANTES de sintetizar voz
+        callsOnly.forEach(item => {
+          const cid = Number(item.id) || 0;
+          if (cid > 0) _spokenCallIds.add(cid);
+        });
+        if (_spokenCallIds.size > 300) {
+          const excess = _spokenCallIds.size - 200;
+          let count = 0;
+          for (const oldId of _spokenCallIds) {
+            _spokenCallIds.delete(oldId);
+            if (++count >= excess) break;
+          }
+        }
+        lastSpokenCallId = Math.max(prevMaxId, maxId);
+        // Ordem cronológica crescente para novas chamadas simultâneas
+        newCalls.sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
         for (const p of newCalls) {
           speakViaSynthesis(p.nome, p.setor, p.medico);
         }
       }
-      lastSpokenCallId = callsOnly[0].id;
-    } else {
-      // No início das atividades (histórico vazio no dia), inicializa com 0
-      // para que a PRIMEIRA chamada do dia seja anunciada normalmente!
+    } else if (lastSpokenCallId === null) {
       lastSpokenCallId = 0;
     }
     updatePainel();
@@ -7410,7 +7466,7 @@ async function chamarNoPainel(source, btn) {
     unlockAudio(true);
   }
   if (lastSpokenCallId === null) {
-    lastSpokenCallId = 0;
+    _pendingUserCallSpeakUntil = Date.now() + 8000;
   }
 
   const prefix = source === 'escuta1' ? 'acol-modal' : 'acol-escuta2';
@@ -8433,7 +8489,7 @@ async function chamarSegundaEscutaPaciente(id, nome, prof, btn) {
     unlockAudio(true);
   }
   if (lastSpokenCallId === null) {
-    lastSpokenCallId = 0;
+    _pendingUserCallSpeakUntil = Date.now() + 8000;
   }
   if (btn) { btn.disabled = true; btn.innerHTML = '⏳...'; }
   try {
@@ -9410,21 +9466,37 @@ async function loadPendingVoiceCalls() {
   const isTv = params.get('modo') === 'tv';
   const painelAtivo = document.getElementById('screen-painel')?.classList.contains('active');
   if (!isTv && !painelAtivo) return; // Apenas executa a chamada na tela de TV
+  if (_loadingPendingVoiceCalls) return;
 
+  _loadingPendingVoiceCalls = true;
   try {
     const r = await fetch(`${API_URL}/voice-call/pending`);
     if (!r.ok) return;
     const calls = await r.json();
     for (const call of calls) {
+      const cid = Number(call.id) || 0;
+      if (cid > 0 && _processedVoiceCallIds.has(cid)) {
+        await fetch(`${API_URL}/voice-call/${cid}/ack`, { method: 'POST' }).catch(() => {});
+        continue;
+      }
+      if (cid > 0) {
+        _processedVoiceCallIds.add(cid);
+        if (_processedVoiceCallIds.size > 120) {
+          const first = _processedVoiceCallIds.values().next().value;
+          if (first !== undefined) _processedVoiceCallIds.delete(first);
+        }
+      }
+      await fetch(`${API_URL}/voice-call/${cid}/ack`, { method: 'POST' }).catch(() => {});
       if (call.nome === AVISO_SILENCIO_TOKEN) {
         executarAvisoSilencioLocal();
       } else {
         speakViaSynthesis(call.nome, call.setor, call.destino);
       }
-      await fetch(`${API_URL}/voice-call/${call.id}/ack`, { method: 'POST' });
     }
   } catch (e) {
     console.error('Erro ao processar chamadas de voz pendentes:', e);
+  } finally {
+    _loadingPendingVoiceCalls = false;
   }
 }
 // === FIM MELHORIA 4 ===
@@ -10513,10 +10585,12 @@ async function confirmarEditarNomeFila() {
   }
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
   try {
+    const hdrRename = { 'Content-Type': 'application/json' };
+    if (adminPassword) hdrRename['x-admin-password'] = adminPassword;
     const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/rename`, {
       method: 'PUT',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      headers: hdrRename,
       body: JSON.stringify({ novoNome, motivo: motivo || null, senha: adminPassword || undefined })
     });
     const d = await r.json().catch(() => ({}));
@@ -10658,10 +10732,12 @@ async function confirmarAlterarPrioridadeFila() {
 
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Atualizando...'; }
   try {
+    const hdrPrio = { 'Content-Type': 'application/json' };
+    if (senha) hdrPrio['x-admin-password'] = senha;
     const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/prioridade`, {
       method: 'PUT',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      headers: hdrPrio,
       body: JSON.stringify({ prioridade, tipo_prioridade, idade, condicoes_especiais, motivo: motivo || null, senha: senha || undefined })
     });
     const d = await r.json().catch(() => ({}));

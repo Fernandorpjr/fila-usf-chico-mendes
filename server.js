@@ -279,7 +279,7 @@ function responderJsonComEtag(req, res, payload) {
   return res.type('application/json; charset=utf-8').send(body);
 }
 
-// === BLOQUEIO POR HORÁRIO (06:00 - 20:00 America/Recife | Seg-Sex, Mutirão ou Hora Extra temporária) ===
+// === BLOQUEIO POR HORÁRIO (06:00 - 18:00 America/Recife | Seg-Sex, Mutirão ou Hora Extra temporária) ===
 const EXPEDIENTE_EXTRA_PADRAO_ATE_ISO = '2026-11-25T23:00:00.000Z';
 function aplicarPisoExpedienteExtra(extraAteIsoRaw, nowMs = Date.now()) {
   const isoStr = extraAteIsoRaw ? String(extraAteIsoRaw).trim() : '';
@@ -347,7 +347,7 @@ async function isDentroDoHorario() {
   const hour = parseInt(new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Recife', hour: '2-digit', hour12: false
   }).format(now), 10);
-  if (hour < 6 || hour >= 20) return false;
+  if (hour < 6 || hour >= 18) return false;
   const day = new Date(hoje + 'T00:00:00Z').getUTCDay();
   if (day >= 1 && day <= 5) return true;
   const DATAS_MUTIRAO = ['2026-09-26', '2026-11-07', '2026-04-11', '2026-11-14', '2026-04-18'];
@@ -2359,7 +2359,14 @@ app.post('/api/patients/:id/rechamar', async (req, res) => {
       return res.status(404).json({ error: 'Paciente não encontrado' });
     }
     const p = pRes.rows[0];
-    await pool.query('UPDATE patients SET ausente_temporario = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [id]);
+    await pool.query(
+      `UPDATE patients
+       SET status = CASE WHEN status = 'aguardando' AND COALESCE(ausente_temporario, false) = true THEN 'chamado' ELSE status END,
+           ausente_temporario = false,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [id]
+    );
 
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', {
       timeZone: 'America/Recife',
@@ -3100,7 +3107,7 @@ app.get('/api/history', async (req, res) => {
     const result = await pool.query(
       `SELECT * FROM call_history
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`
+       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC, id DESC`
     );
     responderJsonComEtag(req, res, result.rows);
   } catch (error) {
@@ -3116,7 +3123,7 @@ app.get('/api/tv/history', async (req, res) => {
        FROM call_history
        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
          AND COALESCE(profissional, '') NOT LIKE '➡️ Encaminhado%'
-       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC
+       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC, id DESC
        LIMIT 30`
     );
     responderJsonComEtag(req, res, result.rows);
@@ -4500,6 +4507,17 @@ app.post('/api/voice-call', async (req, res) => {
           requiresManagerPassword: true
         });
       }
+      const dupSilencio = await pool.query(
+        `SELECT id, nome, setor, destino, created_at
+         FROM pending_voice_calls
+         WHERE nome = '__AVISO_SILENCIO__'
+           AND created_at >= NOW() - INTERVAL '8 seconds'
+         ORDER BY id DESC
+         LIMIT 1`
+      );
+      if (dupSilencio.rows.length > 0) {
+        return res.status(200).json({ ...dupSilencio.rows[0], deduplicated: true });
+      }
     }
     const result = await pool.query(
       `INSERT INTO pending_voice_calls (nome, setor, destino)
@@ -4512,14 +4530,15 @@ app.post('/api/voice-call', async (req, res) => {
   }
 });
 
-// GET /api/voice-call/pending — Listar chamadas não processadas (projeção explícita LGPD)
+// GET /api/voice-call/pending — Listar chamadas não processadas (projeção explícita LGPD, janela máxima de 90s)
 app.get('/api/voice-call/pending', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, nome, setor, destino, created_at
        FROM pending_voice_calls
        WHERE processed = false
-       ORDER BY created_at ASC
+         AND created_at >= NOW() - INTERVAL '90 seconds'
+       ORDER BY created_at ASC, id ASC
        LIMIT 20`
     );
     res.json(result.rows);

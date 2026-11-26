@@ -125,3 +125,43 @@ test('Organização dos Botões dos Médicos: deck padronizado, formulários agr
   // Tag compacta mantém 'Liberado para teste' no title (compatibilidade LGPD/testes)
   assert.equal(previaSrc.includes('title="Liberado para teste">Teste</span>'), true);
 });
+
+test('Correções de falhas: Pedir Silêncio sem duplicidade, fim da repetição de voz, ETag real e expediente 18h', () => {
+  // 1. Expediente do servidor alinhado para 18h, desempate por id DESC no histórico e janela de 90s para avisos pendentes
+  assert.equal(serverSrc.includes('if (hour < 6 || hour >= 18) return false;'), true);
+  assert.equal(serverSrc.includes('if (hour < 6 || hour >= 20) return false;'), false);
+  assert.equal(serverSrc.includes("ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC, id DESC"), true);
+  assert.equal(serverSrc.includes("AND created_at >= NOW() - INTERVAL '90 seconds'"), true);
+
+  // 2. Rechamar restaura status='chamado' para ausente temporário
+  const rechamarSlice = extractSlice(serverSrc, "app.post('/api/patients/:id/rechamar'", '// ====== MELHORIA G');
+  assert.equal(rechamarSlice.includes("THEN 'chamado' ELSE status END"), true);
+
+  // 3. ETag real no window.fetch sem ?_t=
+  const fetchSlice = extractSlice(appSrc, 'window.fetch = function(resource, config)', 'const GATE_EXPIRY_MS');
+  assert.equal(fetchSlice.includes("nextConfig.cache = 'no-cache'"), true);
+  assert.equal(fetchSlice.includes('_t=${Date.now()}'), false);
+
+  // 4. loadHistory sem regressão de ponteiro nem leitura retroativa do dia inteiro
+  const histSlice = extractSlice(appSrc, 'async function loadHistory()', 'async function loadAttended()');
+  assert.equal(histSlice.includes('if (reqSeq < _historySeq) return;'), true);
+  assert.equal(histSlice.includes('_spokenCallIds.has(pid)'), true);
+  assert.equal(histSlice.includes('Math.max(prevMaxId, maxId)'), true);
+
+  // Removido lastSpokenCallId = 0 forçado em callNext / chamarNoPainel / chamarSegundaEscutaPaciente
+  const callNextSlice = extractSlice(appSrc, 'async function callNext(', 'async function callNextMulti(');
+  assert.equal(callNextSlice.includes('lastSpokenCallId = 0'), false);
+
+  // 5. Pedir Silêncio não toca 2x na TV e usa trava/deduplicação em loadPendingVoiceCalls
+  const silenceFn = extractSlice(appSrc, 'async function solicitarSilencioSalaEspera', 'function getRealCallsFromHistory');
+  assert.equal(silenceFn.includes('_processedVoiceCallIds.add'), true);
+  assert.equal(silenceFn.includes("headers['x-admin-password']"), true);
+
+  const pendingVoiceSlice = extractSlice(appSrc, 'async function loadPendingVoiceCalls()', '// === FIM MELHORIA 4 ===');
+  assert.equal(pendingVoiceSlice.includes('if (_loadingPendingVoiceCalls) return;'), true);
+  assert.equal(pendingVoiceSlice.includes('_processedVoiceCallIds.has(cid)'), true);
+
+  // 6. Scroll listener do popover não usa captura global irrestrita
+  const popListenersSlice = extractSlice(formsSrc, 'function garantirListenersPopoverFormularios()', 'function abrirMenuFormulariosPaciente(');
+  assert.equal(popListenersSlice.includes('addEventListener(\'scroll\', fecharMenuFormulariosPaciente, true)'), false);
+});

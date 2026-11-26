@@ -1100,7 +1100,13 @@ function garantirListenersPopoverFormularios() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') fecharMenuFormulariosPaciente();
   });
-  window.addEventListener('scroll', fecharMenuFormulariosPaciente, true);
+  window.addEventListener('scroll', (e) => {
+    const pop = document.getElementById('fila-forms-popover');
+    if (!pop || !pop.classList.contains('visible')) return;
+    if (e.target === document || e.target === window || (e.target && e.target.contains && e.target.contains(pop))) {
+      fecharMenuFormulariosPaciente();
+    }
+  });
 }
 
 function abrirMenuFormulariosPaciente(event, patientId, setor) {
