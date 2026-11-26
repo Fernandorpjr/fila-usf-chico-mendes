@@ -392,11 +392,23 @@ async function desbloqueioEmergencialAdmin() {
 
 // ====== PAINEL ADMIN: DISPOSITIVOS CONECTADOS ======
 
+function _adminDispHeaders(withJson = false) {
+  const h = {};
+  if (withJson) h['Content-Type'] = 'application/json';
+  if (typeof adminPassword === 'string' && adminPassword.trim()) {
+    h['x-admin-password'] = adminPassword.trim();
+  }
+  if (_dispositivoAtualId) {
+    h['x-device-id'] = _dispositivoAtualId;
+  }
+  return h;
+}
+
 async function carregarDispositivosAdmin() {
   const container = document.getElementById('disp-lista-container');
   if (!container) return;
 
-  if (!isAdmin || !adminPassword) {
+  if (!isAdmin) {
     container.innerHTML = `
       <div style="text-align:center;padding:40px 20px;background:#fff;border-radius:12px;border:1px dashed var(--gray-300);">
         <div style="font-size:32px;margin-bottom:8px;">🔒</div>
@@ -419,13 +431,16 @@ async function carregarDispositivosAdmin() {
 
   try {
     const res = await fetch(`${API_URL}/admin/dispositivos?${params.toString()}`, {
-      headers: {
-        'x-admin-password': adminPassword
-      }
+      credentials: 'same-origin',
+      headers: _adminDispHeaders(false)
     });
 
     if (res.status === 403) {
-      container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red);">Senha administrativa inválida ou sessão expirada.</div>';
+      container.innerHTML = `
+        <div style="text-align:center;padding:30px;color:var(--red);">
+          <div>Sessão administrativa expirada ou sem permissão nesta aba.</div>
+          <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="toggleAdmin()">🔓 Reautenticar Admin</button>
+        </div>`;
       return;
     }
     if (!res.ok) throw new Error();
@@ -526,19 +541,12 @@ async function alternarBloqueioDispositivosSemNome() {
   }
 
   try {
-    const headers = {
-      'Content-Type': 'application/json',
-      'x-admin-password': adminPassword || ''
-    };
-    if (_dispositivoAtualId) {
-      headers['x-device-id'] = _dispositivoAtualId;
-    }
-
     const res = await fetch(`${API_URL}/admin/dispositivos/config-bloqueio-sem-nome`, {
       method: 'POST',
-      headers,
+      credentials: 'same-origin',
+      headers: _adminDispHeaders(true),
       body: JSON.stringify({
-        senha: adminPassword || '',
+        senha: adminPassword || undefined,
         bloquear_sem_nome: novoEstado
       })
     });
@@ -779,12 +787,10 @@ async function salvarEditarDispositivo() {
   try {
     const res = await fetch(`${API_URL}/admin/dispositivos/${encodeURIComponent(editedId)}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-password': adminPassword || ''
-      },
+      credentials: 'same-origin',
+      headers: _adminDispHeaders(true),
       body: JSON.stringify({
-        senha: adminPassword,
+        senha: adminPassword || undefined,
         nome,
         setor
       })
@@ -875,8 +881,9 @@ async function abrirModalHistoricoLogins(id, nome) {
   if (modal) modal.classList.add('show');
 
   try {
-    const res = await fetch(`${API_URL}/admin/dispositivos/${id}/acessos`, {
-      headers: { 'x-admin-password': adminPassword }
+    const res = await fetch(`${API_URL}/admin/dispositivos/${encodeURIComponent(id)}/acessos`, {
+      credentials: 'same-origin',
+      headers: _adminDispHeaders(false)
     });
     if (!res.ok) throw new Error();
     const lista = await res.json();
@@ -943,11 +950,9 @@ async function excluirDispositivo(id, nome) {
   try {
     const res = await fetch(`${API_URL}/admin/dispositivos/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-password': adminPassword || ''
-      },
-      body: JSON.stringify({ senha: adminPassword || '' })
+      credentials: 'same-origin',
+      headers: _adminDispHeaders(true),
+      body: JSON.stringify({ senha: adminPassword || undefined })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -966,11 +971,9 @@ async function limparDispositivosAntigos() {
   try {
     const res = await fetch(`${API_URL}/admin/dispositivos/limpar-antigos`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-password': adminPassword || ''
-      },
-      body: JSON.stringify({ senha: adminPassword || '' })
+      credentials: 'same-origin',
+      headers: _adminDispHeaders(true),
+      body: JSON.stringify({ senha: adminPassword || undefined })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {

@@ -328,6 +328,17 @@ async function tentarEntrar() {
     isGateAuthenticated = true;
     gateDeviceBlocked = false;
     limparBloqueioTemporarioPortal();
+    if (data.role === 'admin' || data.role === 'gerente') {
+      userRole = data.role;
+      isAdmin = data.role === 'admin';
+      isGerente = data.role === 'gerente';
+      adminPassword = senha;
+      try {
+        sessionStorage.setItem('usf_admin_pwd', senha);
+        sessionStorage.setItem('usf_user_role', data.role);
+      } catch (e) {}
+      if (typeof updateAdminUI === 'function') updateAdminUI();
+    }
     try {
       sessionStorage.setItem('usf_gate_auth', 'true');
       sessionStorage.setItem('usf_gate_time', Date.now().toString());
@@ -495,18 +506,20 @@ async function carregarStatusMutiraoHoje() {
   } catch (_) {}
 }
 
-async function toggleMutiraoHoje(forceLiberar) {
+async function toggleMutiraoHoje(forceLiberar, senhaRetry = '') {
   const hoje = getDataHojeRecife();
   const jaAtivo = _mutiraoLiberadoData === hoje;
   const novoEstado = forceLiberar !== undefined ? Boolean(forceLiberar) : !jaAtivo;
   const acaoTexto = novoEstado ? 'LIBERAR expediente extra / mutirão hoje' : 'ENCERRAR liberação de mutirão hoje';
-  let senha = (isAdmin && adminPassword) ? adminPassword : '';
-  if (senha) {
-    if (!confirm(`🗓️ Confirmar: ${acaoTexto}?`)) return;
-  } else {
-    const digitada = prompt(`🗓️ ${acaoTexto}\n\nDigite a senha de administrador:`);
-    if (!digitada) return;
-    senha = digitada.trim();
+  let senha = senhaRetry || ((isAdmin && adminPassword) ? adminPassword : '');
+  if (!senhaRetry) {
+    if (isAdmin) {
+      if (!confirm(`🗓️ Confirmar: ${acaoTexto}?`)) return;
+    } else {
+      const digitada = prompt(`🗓️ ${acaoTexto}\n\nDigite a senha de administrador:`);
+      if (!digitada) return;
+      senha = digitada.trim();
+    }
   }
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -515,9 +528,16 @@ async function toggleMutiraoHoje(forceLiberar) {
       method: 'POST',
       credentials: 'same-origin',
       headers,
-      body: JSON.stringify({ senha, liberado: novoEstado })
+      body: JSON.stringify({ senha: senha || undefined, liberado: novoEstado })
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if ((res.status === 401 || res.status === 403) && !senhaRetry && typeof pedirSenhaAdmin === 'function') {
+      const digitada = prompt(`🔒 Confirme a senha de Administrador para ${acaoTexto}:`);
+      if (!digitada) return;
+      adminPassword = digitada.trim();
+      try { sessionStorage.setItem('usf_admin_pwd', adminPassword); } catch (_) {}
+      return toggleMutiraoHoje(forceLiberar, adminPassword);
+    }
     if (!res.ok) {
       showToast(data.error || '❌ Senha incorreta!', true);
       return;
@@ -659,30 +679,42 @@ async function carregarStatusPausa() {
 }
 
 // --- Botão de Pausa Global para Palestras da Gestora ---
-async function togglePausaPalestra() {
+async function togglePausaPalestra(senhaRetry = '') {
   const novoEstado = !isPausado;
-  let senhaUsada = (isAdmin && adminPassword) ? adminPassword : '';
+  let senhaUsada = senhaRetry || ((isAdmin && adminPassword) ? adminPassword : '');
 
-  if (!senhaUsada) {
-    const msgPrompt = novoEstado
-      ? '🎙️ Pausar atendimento em TODOS os computadores e TVs\n\nDigite a senha de administrador:'
-      : '🔓 Retomar atendimento em TODOS os computadores e TVs\n\nDigite a senha de administrador:';
-    const digitada = prompt(msgPrompt);
-    if (!digitada) return;
-    senhaUsada = digitada.trim();
-  } else if (novoEstado) {
-    if (!confirm('🎙️ Pausar o atendimento agora em TODOS os computadores e TVs?')) return;
-  } else {
-    if (!confirm('🔓 Retomar o atendimento agora em TODOS os computadores e TVs?')) return;
+  if (!senhaRetry) {
+    if (!isAdmin) {
+      const msgPrompt = novoEstado
+        ? '🎙️ Pausar atendimento em TODOS os computadores e TVs\n\nDigite a senha de administrador:'
+        : '🔓 Retomar atendimento em TODOS os computadores e TVs\n\nDigite a senha de administrador:';
+      const digitada = prompt(msgPrompt);
+      if (!digitada) return;
+      senhaUsada = digitada.trim();
+    } else if (novoEstado) {
+      if (!confirm('🎙️ Pausar o atendimento agora em TODOS os computadores e TVs?')) return;
+    } else {
+      if (!confirm('🔓 Retomar o atendimento agora em TODOS os computadores e TVs?')) return;
+    }
   }
 
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (senhaUsada) headers['x-admin-password'] = senhaUsada;
     const res = await fetch(`${API_URL}/config/pausa`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senha: senhaUsada, pausado: novoEstado })
+      credentials: 'same-origin',
+      headers,
+      body: JSON.stringify({ senha: senhaUsada || undefined, pausado: novoEstado })
     });
     const data = await res.json().catch(() => ({}));
+    if ((res.status === 401 || res.status === 403) && !senhaRetry) {
+      const digitada = prompt('🔒 Confirme a senha de Administrador para alterar a pausa global:');
+      if (!digitada) return;
+      adminPassword = digitada.trim();
+      try { sessionStorage.setItem('usf_admin_pwd', adminPassword); } catch (_) {}
+      return togglePausaPalestra(adminPassword);
+    }
     if (!res.ok) {
       showToast(data.error || '❌ Senha incorreta!', true);
       return;
@@ -2832,7 +2864,14 @@ async function speakTextWithBrazilianVoice(texto) {
         clientTtsCache.set(cacheKey, ttsData);
       }
     }
-    await playAudioBase64(ttsData.audioBase64, ttsData.provider, voz);
+    if (Array.isArray(ttsData.audioSegments) && ttsData.audioSegments.length > 1) {
+      for (const seg of ttsData.audioSegments) {
+        if (isMuted) break;
+        await playAudioBase64(seg, ttsData.provider, voz);
+      }
+    } else {
+      await playAudioBase64(ttsData.audioBase64, ttsData.provider, voz);
+    }
   } catch (err) {
     console.warn('⚠️ Usando síntese local de fallback:', err.message || err);
     await speakViaBrowserFallback(texto, voz);
@@ -2945,8 +2984,41 @@ function speakViaSynthesis(nome, setor, medico) {
 }
 
 const AVISO_SILENCIO_TOKEN = '__AVISO_SILENCIO__';
+const AVISO_DOCUMENTOS_TOKEN = '__AVISO_DOCUMENTOS__';
+const AVISO_PAINEL_TOKEN = '__AVISO_AGUARDE_PAINEL__';
+const AVISOS_INSTITUCIONAIS_CONFIG = {
+  [AVISO_SILENCIO_TOKEN]: {
+    token: AVISO_SILENCIO_TOKEN,
+    bannerTexto: '🤫 Atenção: pedimos silêncio na sala de espera para que todos possam ouvir as chamadas com clareza.',
+    bannerClasse: '',
+    chime: 'silence',
+    vozTexto: 'Atenção, senhores usuários e pacientes. Pedimos a gentileza de manter o silêncio na sala de espera para que todos possam ouvir as chamadas com clareza. A equipe da U S F Chico Mendes agradece.',
+    toastEnviado: '🤫 Pedido de silêncio enviado para a TV da sala de espera!'
+  },
+  [AVISO_DOCUMENTOS_TOKEN]: {
+    token: AVISO_DOCUMENTOS_TOKEN,
+    bannerTexto: '🪪 Atenção: deixe seu documento com foto, CPF ou Cartão do SUS em mãos para agilizar seu atendimento.',
+    bannerClasse: 'tv-silencio-banner--documentos',
+    chime: 'silence',
+    vozTexto: 'Atenção, senhores usuários e pacientes. Pedimos que deixem o documento com foto, CPF ou Cartão do SUS em mãos para agilizar o atendimento na recepção e nos consultórios.',
+    toastEnviado: '🪪 Aviso de documentos em mãos enviado para a TV!'
+  },
+  [AVISO_PAINEL_TOKEN]: {
+    token: AVISO_PAINEL_TOKEN,
+    bannerTexto: '⏳ Atenção: acompanhe seu nome no painel. O atendimento segue a ordem de prioridade legal e o horário marcado.',
+    bannerClasse: 'tv-silencio-banner--painel',
+    chime: 'silence',
+    vozTexto: 'Atenção, senhores usuários e pacientes. Aguardem o chamamento acompanhando seu nome no painel. As chamadas seguem a ordem de prioridade prevista em lei e os horários marcados.',
+    toastEnviado: '⏳ Aviso sobre fila e painel enviado para a TV!'
+  }
+};
 let _silencioBannerTimer = null;
 let _ultimoAvisoSilencioTs = 0;
+const _ultimoAvisoPorToken = {};
+
+function resolverConfigAvisoInstitucional(token) {
+  return AVISOS_INSTITUCIONAIS_CONFIG[token] || AVISOS_INSTITUCIONAIS_CONFIG[AVISO_SILENCIO_TOKEN];
+}
 
 function playSilenceAttentionChime() {
   return new Promise((resolve) => {
@@ -2956,7 +3028,7 @@ function playSilenceAttentionChime() {
       if (!ctx) return resolve();
       const disparar = () => {
         try {
-          // Campainha dupla firme e respeitosa para chamar atenção antes do pedido de silêncio
+          // Campainha dupla firme e respeitosa para chamar atenção antes do aviso institucional
           tocarNotaWebAudio(ctx, 659.25, 0.00, 0.30, 'triangle', 0.25);
           tocarNotaWebAudio(ctx, 880.00, 0.18, 0.35, 'triangle', 0.27);
           tocarNotaWebAudio(ctx, 659.25, 0.55, 0.30, 'triangle', 0.25);
@@ -2977,24 +3049,35 @@ function playSilenceAttentionChime() {
   });
 }
 
-function mostrarBannerSilencioTV() {
+function mostrarBannerSilencioTV(token = AVISO_SILENCIO_TOKEN) {
   const banner = document.getElementById('tv-silencio-banner');
   if (!banner) return;
+  const cfg = resolverConfigAvisoInstitucional(token);
+  banner.classList.remove('tv-silencio-banner--documentos', 'tv-silencio-banner--painel');
+  if (cfg.bannerClasse) banner.classList.add(cfg.bannerClasse);
+  const span = banner.querySelector('span');
+  if (span) span.textContent = cfg.bannerTexto;
+  else banner.textContent = cfg.bannerTexto;
   banner.classList.add('visible');
   if (_silencioBannerTimer) clearTimeout(_silencioBannerTimer);
   _silencioBannerTimer = setTimeout(() => {
     banner.classList.remove('visible');
-  }, 14000);
+  }, 15000);
+}
+
+function executarAvisoInstitucionalLocal(token = AVISO_SILENCIO_TOKEN) {
+  const cfg = resolverConfigAvisoInstitucional(token);
+  mostrarBannerSilencioTV(cfg.token);
+  if (isMuted) return;
+  speechQueue.push({
+    customChime: cfg.chime || 'silence',
+    texto: cfg.vozTexto
+  });
+  processSpeechQueue();
 }
 
 function executarAvisoSilencioLocal() {
-  mostrarBannerSilencioTV();
-  if (isMuted) return;
-  speechQueue.push({
-    customChime: 'silence',
-    texto: 'Atenção, senhores usuários e pacientes. Pedimos a gentileza de manter o silêncio na sala de espera para que todos possam ouvir as chamadas com clareza. A equipe da U S F Chico Mendes agradece.'
-  });
-  processSpeechQueue();
+  return executarAvisoInstitucionalLocal(AVISO_SILENCIO_TOKEN);
 }
 
 function processarAvisoSilencioRemoto(silencioObj) {
@@ -3004,9 +3087,13 @@ function processarAvisoSilencioRemoto(silencioObj) {
   }
   const sid = Number(silencioObj.id) || 0;
   const ts = Number(silencioObj.ts) || 0;
+  const token = silencioObj.token || AVISO_SILENCIO_TOKEN;
+  const ageMs = Number.isFinite(Number(silencioObj.ageMs))
+    ? Number(silencioObj.ageMs)
+    : (ts > 0 ? Math.max(0, Date.now() - ts) : 0);
   if (!_silencioBroadcastInit) {
     _silencioBroadcastInit = true;
-    if (sid > 0 && ts > 0 && Date.now() - ts > 15000) {
+    if (sid > 0 && ageMs > 20000) {
       _processedVoiceCallIds.add(sid);
       return;
     }
@@ -3021,63 +3108,93 @@ function processarAvisoSilencioRemoto(silencioObj) {
       if (first !== undefined) _processedVoiceCallIds.delete(first);
     }
   }
-  executarAvisoSilencioLocal();
+  executarAvisoInstitucionalLocal(token);
 }
 
-async function solicitarSilencioSalaEspera(btnElement) {
+async function solicitarSilencioSalaEspera(btnElement, tokenAviso = AVISO_SILENCIO_TOKEN, senhaRetry = '') {
   if (!isManagerOrAdmin()) {
-    showToast('🔒 Apenas Gerente ou Administrador pode emitir o aviso de silêncio na TV.', true);
+    showToast('🔒 Apenas Gerente ou Administrador pode emitir avisos na TV.', true);
     return;
   }
+  const cfg = resolverConfigAvisoInstitucional(tokenAviso);
   const agora = Date.now();
-  if (agora - _ultimoAvisoSilencioTs < 8000) {
-    showToast('⏳ Aviso de silêncio acabou de ser enviado. Aguarde alguns segundos.', true);
+  const ultimoTokenTs = Number(_ultimoAvisoPorToken[cfg.token] || 0);
+  if (!senhaRetry && agora - ultimoTokenTs < 3000) {
+    showToast('⏳ Aviso acabou de ser enviado. Aguarde alguns segundos.', true);
     return;
   }
-  _ultimoAvisoSilencioTs = agora;
   unlockAudio(true);
 
   if (btnElement) {
     btnElement.disabled = true;
-    setTimeout(() => { btnElement.disabled = false; }, 8000);
   }
 
-  const painelAtivo = document.getElementById('screen-painel')?.classList.contains('active');
+  const painelAtivo = Boolean(document.getElementById('screen-painel')?.classList.contains('active'));
+  const senhaEfetiva = senhaRetry || adminPassword || '';
 
   try {
     const headers = { 'Content-Type': 'application/json' };
-    if (adminPassword) headers['x-admin-password'] = adminPassword;
+    if (senhaEfetiva) headers['x-admin-password'] = senhaEfetiva;
     const r = await fetch(`${API_URL}/voice-call`, {
       method: 'POST',
       credentials: 'same-origin',
       headers,
       body: JSON.stringify({
-        nome: AVISO_SILENCIO_TOKEN,
+        nome: cfg.token,
         setor: 'Recepção',
         destino: 'Sala de Espera',
-        senha: adminPassword || undefined
+        senha: senhaEfetiva || undefined
       })
     });
     const dResp = await r.json().catch(() => ({}));
+    if ((r.status === 401 || r.status === 403) && !senhaRetry && typeof pedirSenhaGerenteOuAdmin === 'function') {
+      if (btnElement) btnElement.disabled = false;
+      pedirSenhaGerenteOuAdmin('Emitir aviso sonoro na TV', (s) => {
+        adminPassword = s;
+        try { sessionStorage.setItem('usf_admin_pwd', s); } catch (_) {}
+        solicitarSilencioSalaEspera(btnElement, cfg.token, s);
+      });
+      return;
+    }
     if (!r.ok) {
       throw new Error(dResp.error || `HTTP ${r.status}`);
     }
-    // Marca localmente apenas nesta estação (NÃO dá ack no banco para não impedir o broadcast nas outras TVs)
-    if (dResp && dResp.id) {
-      _processedVoiceCallIds.add(Number(dResp.id));
+    _ultimoAvisoSilencioTs = Date.now();
+    _ultimoAvisoPorToken[cfg.token] = _ultimoAvisoSilencioTs;
+    if (btnElement) {
+      setTimeout(() => { btnElement.disabled = false; }, 3000);
     }
-    if (isModoTV() || painelAtivo) {
-      executarAvisoSilencioLocal();
+
+    const ehTelaTvLocal = isModoTV() || painelAtivo;
+    if (ehTelaTvLocal) {
+      if (isMuted) {
+        isMuted = false;
+        const bm = document.getElementById('btn-mute');
+        if (bm) bm.innerHTML = '🔊';
+      }
+      const numId = Number(dResp?.id) || 0;
+      const jaTocou = numId > 0 && _processedVoiceCallIds.has(numId);
+      if (numId > 0) _processedVoiceCallIds.add(numId);
+      if (!jaTocou) executarAvisoInstitucionalLocal(cfg.token);
     }
-    showToast('🤫 Pedido de silêncio enviado para a TV da sala de espera!');
+    showToast(cfg.toastEnviado);
   } catch (err) {
-    console.warn('Falha ao enviar pedido de silêncio remoto:', err?.message || err);
+    if (btnElement) btnElement.disabled = false;
+    console.warn('Falha ao enviar aviso institucional à TV:', err?.message || err);
     showToast(err?.message || '❌ Não foi possível enviar o aviso à TV. Verifique a conexão.', true);
   }
 }
 
 function getRealCallsFromHistory() {
   return (callHistory || []).filter(h => !(h.profissional || '').startsWith('➡️ Encaminhado'));
+}
+
+function solicitarAvisoDocumentosSalaEspera(btnElement) {
+  return solicitarSilencioSalaEspera(btnElement, AVISO_DOCUMENTOS_TOKEN);
+}
+
+function solicitarAvisoPainelSalaEspera(btnElement) {
+  return solicitarSilencioSalaEspera(btnElement, AVISO_PAINEL_TOKEN);
 }
 
 function speakPatientName(btnElement) {
@@ -3210,7 +3327,7 @@ async function loadHistory() {
           const pid = Number(p.id) || 0;
           if (pid <= prevMaxId || _spokenCallIds.has(pid)) continue;
           const createdMs = p.created_at ? Date.parse(p.created_at) : NaN;
-          if (Number.isFinite(createdMs) && (agoraMs - createdMs > 90000)) continue;
+          if (Number.isFinite(createdMs) && (agoraMs - createdMs > 600000)) continue;
           newCalls.push(p);
         }
         // Registra IDs e avança ponteiro de forma monotônica ANTES de sintetizar voz
@@ -9388,7 +9505,8 @@ function startPolling1() {
   if (pollingTimer1) clearTimeout(pollingTimer1);
   // ZERO polling sem autenticação (exceto TV), fora do expediente OU em pausa
   if ((!isGateAuthenticated && !isModoTV()) || isPausado || !isDentroDoHorario()) return;
-  const interval1 = document.hidden ? 30000 : 5000;
+  const emTelaTv = isModoTV() || Boolean(document.getElementById('screen-painel')?.classList.contains('active'));
+  const interval1 = emTelaTv ? (document.hidden ? 6000 : 3500) : (document.hidden ? 30000 : 5000);
   pollingTimer1 = setTimeout(() => { loopData1(); }, interval1);
 }
 
@@ -9525,9 +9643,15 @@ async function loadPendingVoiceCalls() {
     const calls = await r.json();
     for (const call of calls) {
       const cid = Number(call.id) || 0;
-      if (call.nome === AVISO_SILENCIO_TOKEN) {
+      if (call.nome === AVISO_SILENCIO_TOKEN || Boolean(AVISOS_INSTITUCIONAIS_CONFIG[call.nome])) {
         const callTs = call.created_at ? Date.parse(call.created_at) : Date.now();
-        processarAvisoSilencioRemoto({ id: cid, ts: Number.isFinite(callTs) ? callTs : Date.now() });
+        const ageMs = Number.isFinite(Number(call.age_ms)) ? Number(call.age_ms) : undefined;
+        processarAvisoSilencioRemoto({
+          id: cid,
+          token: call.nome,
+          ts: Number.isFinite(callTs) ? callTs : Date.now(),
+          ageMs
+        });
         continue;
       }
       if (cid > 0 && _processedVoiceCallIds.has(cid)) {

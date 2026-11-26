@@ -170,8 +170,9 @@ test('Broadcast multi-TV do Pedir Silêncio e Botão Hero Chamar Próximo em des
   // Backend grava aviso_silencio_ultimo em configuracoes, entrega via current-calling e não consome broadcast no /ack
   assert.equal(serverSrc.includes("'aviso_silencio_ultimo'"), true);
   assert.equal(serverSrc.includes('avisoSilencio'), true);
-  assert.equal(serverSrc.includes("nome = '__AVISO_SILENCIO__' AND created_at >= NOW() - INTERVAL '35 seconds'"), true);
-  assert.equal(serverSrc.includes("UPDATE pending_voice_calls SET processed = true WHERE id = $1 AND nome <> '__AVISO_SILENCIO__'"), true);
+  assert.equal(serverSrc.includes('AVISOS_INSTITUCIONAIS_TOKENS'), true);
+  assert.equal(serverSrc.includes("AND created_at >= NOW() - INTERVAL '60 seconds'"), true);
+  assert.equal(serverSrc.includes("WHERE id = $1 AND nome <> '__AVISO_SILENCIO__' AND NOT (nome = ANY($2::text[]))"), true);
 
   // Frontend não dá ack em __AVISO_SILENCIO__ e processa broadcast em loadCurrentCalling + loadPendingVoiceCalls
   const silenceFn = extractSlice(appSrc, 'async function solicitarSilencioSalaEspera', 'function getRealCallsFromHistory');
@@ -271,4 +272,54 @@ test('Formulário PEC Offline: Ficha de Registro Tardio SOAP com timbre Prefeitu
   // Botões no modal e na prévia em index.html
   assert.equal(indexHtml.includes('id="fo-tab-registro-soap"'), true);
   assert.equal(indexHtml.includes('id="vp-btn-form-soap"'), true);
+});
+
+test('Correção definitiva Pedir Silêncio + 2 Novos Avisos TV + Auditoria Geral (Dashboard, Dispositivos, Histórico CSV e SQL)', () => {
+  const dashHtml = fs.readFileSync(path.join(ROOT, 'public', 'dashboard.html'), 'utf8');
+  const dispFront = fs.readFileSync(path.join(ROOT, 'public', 'dispositivos.js'), 'utf8');
+  const histBack = fs.readFileSync(path.join(ROOT, 'lib', 'historico.js'), 'utf8');
+  const histFront = fs.readFileSync(path.join(ROOT, 'public', 'historico.js'), 'utf8');
+
+  // 1. Três avisos institucionais na barra Admin, na TV e no Dashboard
+  for (const tok of ['__AVISO_SILENCIO__', '__AVISO_DOCUMENTOS__', '__AVISO_AGUARDE_PAINEL__']) {
+    assert.equal(serverSrc.includes(tok), true, `Token ausente no backend: ${tok}`);
+    assert.equal(appSrc.includes(tok), true, `Token ausente em app.js: ${tok}`);
+    assert.equal(dashHtml.includes(tok), true, `Token ausente em dashboard.html: ${tok}`);
+  }
+  for (const btnId of [
+    'btn-pedir-silencio-admin',
+    'btn-aviso-documentos-admin',
+    'btn-aviso-painel-admin',
+    'btn-pedir-silencio-painel',
+    'btn-aviso-documentos-painel',
+    'btn-aviso-painel-painel'
+  ]) {
+    assert.equal(indexHtml.includes(`id="${btnId}"`), true, `Botão ausente em index.html: ${btnId}`);
+  }
+
+  // 2. Recuperação de sessão/senha em Pedir Silêncio Admin, sem sujar cache local quando fora da TV e proteção contra clock skew
+  const silenceFn = extractSlice(appSrc, 'async function solicitarSilencioSalaEspera', 'function getRealCallsFromHistory');
+  assert.equal(silenceFn.includes('pedirSenhaGerenteOuAdmin'), true);
+  assert.equal(silenceFn.includes('if (ehTelaTvLocal)'), true);
+  assert.equal(serverSrc.includes('EXTRACT(EPOCH FROM (NOW() - created_at))'), true);
+  assert.equal(serverSrc.includes("res.setHeader('Cache-Control', 'no-cache, must-revalidate')"), true);
+  assert.equal(serverSrc.includes('const privRole = resolvePrivilegedRole(senha);'), true);
+  assert.equal(appSrc.includes('Array.isArray(ttsData.audioSegments)'), true);
+
+  // 3. Correções da auditoria geral
+  assert.equal(dashHtml.includes('id="btnTabDevices"'), true);
+  assert.equal(dashHtml.includes('/auth/downgrade-staff'), true);
+  assert.equal(dashHtml.includes("roleBadge.style.display = currentDashRole ? 'inline-flex' : 'none'"), true);
+
+  assert.equal(dispFront.includes('if (!isAdmin || !adminPassword)'), false);
+  assert.equal(dispFront.includes('function _adminDispHeaders('), true);
+
+  const ausenteSlice = extractSlice(serverSrc, "app.put('/api/patients/:id/ausente-temporario'", "app.get('/api/admin/auditoria-fila'");
+  assert.equal(ausenteSlice.includes('FROM unnest($1::int[], $2::int[])'), true);
+  assert.equal(ausenteSlice.includes('for (let i = 0; i < ids.length; i++)'), false);
+
+  assert.equal(histBack.includes('function montarFiltrosHistoricoQuery('), true);
+  assert.equal(histFront.includes('function montarParamsFiltroHistorico('), true);
+  const expCsvSlice = extractSlice(histFront, 'function exportarCsvHistorico()', '');
+  assert.equal(expCsvSlice.includes('montarParamsFiltroHistorico()'), true);
 });

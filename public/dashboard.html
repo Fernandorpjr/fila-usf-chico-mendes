@@ -196,6 +196,11 @@
       <label for="dashDateFilter" style="font-size:11.5px;font-weight:800;color:var(--gray-300);text-transform:uppercase;margin-left:3px;">Data:</label>
       <input type="date" id="dashDateFilter" onchange="onDashDateChange()" style="background:transparent;border:none;color:white;font-family:'Nunito',sans-serif;font-weight:700;outline:none;cursor:pointer;">
     </div>
+    <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);padding:4px 8px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);" title="Emitir avisos sonoros e banners diretamente nas TVs da sala de espera">
+      <button type="button" class="btn-hdr" style="background:rgba(217,119,6,0.32);border-color:rgba(251,191,36,0.55);color:#fef3c7;" onclick="emitirAvisoTvDashboard('__AVISO_SILENCIO__', this)">🤫 Silêncio TV</button>
+      <button type="button" class="btn-hdr" style="background:rgba(37,99,235,0.32);border-color:rgba(96,165,250,0.55);color:#dbeafe;" onclick="emitirAvisoTvDashboard('__AVISO_DOCUMENTOS__', this)">🪪 Documentos</button>
+      <button type="button" class="btn-hdr" style="background:rgba(13,148,136,0.32);border-color:rgba(45,212,191,0.55);color:#ccfbf1;" onclick="emitirAvisoTvDashboard('__AVISO_AGUARDE_PAINEL__', this)">⏳ Aviso Fila</button>
+    </div>
     <button class="btn-hdr" onclick="manualRefreshDash()" title="Atualizar todos os dados agora">🔄 Atualizar</button>
     <button class="btn-hdr" id="btnToggleAuto" onclick="toggleAutoRefresh()">⏸️ Pausar Auto</button>
     <span id="dashClock" style="font-family:'Nunito',sans-serif;font-weight:800;color:var(--yellow);font-size:16px;"></span>
@@ -213,7 +218,7 @@
     <button class="dash-tab-btn" data-tab="tab-prioridades" onclick="switchDashTab('tab-prioridades')">🎯 Prioridades &amp; alumIA</button>
     <button class="dash-tab-btn" data-tab="tab-sisreg" onclick="switchDashTab('tab-sisreg')">📋 SISREG &amp; Agendamentos <span id="badgeTabSisreg" class="dash-tab-badge">0</span></button>
     <button class="dash-tab-btn" data-tab="tab-coletas" onclick="switchDashTab('tab-coletas')">🩸 Coletas de Sangue</button>
-    <button class="dash-tab-btn" data-tab="tab-dispositivos" onclick="switchDashTab('tab-dispositivos')">💻 Dispositivos <span id="badgeTabDevices" class="dash-tab-badge green">0</span></button>
+    <button class="dash-tab-btn" id="btnTabDevices" data-tab="tab-dispositivos" onclick="switchDashTab('tab-dispositivos')">💻 Dispositivos <span id="badgeTabDevices" class="dash-tab-badge green">0</span></button>
   </div>
 
   <!-- ====== ABA 1: TEMPO REAL ====== -->
@@ -776,6 +781,7 @@ function applyDashRoleUI(role) {
   if (roleBadge) {
     roleBadge.textContent = isAdminRole ? '🛡️ Administrador' : '👔 Gerente';
     roleBadge.className = `role-pill ${isAdminRole ? 'admin' : 'gerente'}`;
+    roleBadge.style.display = currentDashRole ? 'inline-flex' : 'none';
   }
   const btnTabDevices = document.getElementById('btnTabDevices');
   const paneDevices = document.getElementById('tab-dispositivos');
@@ -938,9 +944,45 @@ async function verifyDashboardAccess() {
   }
 }
 
+async function emitirAvisoTvDashboard(token, btn) {
+  if (!dashboardUnlocked) return;
+  if (btn) btn.disabled = true;
+  try {
+    const r = await apiDashFetch(`${API_URL}/voice-call`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: token || '__AVISO_SILENCIO__',
+        setor: 'Recepção',
+        destino: 'Sala de Espera'
+      })
+    });
+    if (!r) return;
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setDashStatusBanner(d.error || '❌ Não foi possível enviar o aviso para a TV.');
+      return;
+    }
+    const labels = {
+      '__AVISO_SILENCIO__': '🤫 Pedido de silêncio enviado para todas as TVs!',
+      '__AVISO_DOCUMENTOS__': '🪪 Aviso para separar documentos/SUS enviado para todas as TVs!',
+      '__AVISO_AGUARDE_PAINEL__': '⏳ Aviso sobre painel e prioridade enviado para todas as TVs!'
+    };
+    setDashStatusBanner(labels[token] || '✅ Aviso enviado para a TV!');
+    setTimeout(() => setDashStatusBanner(''), 4500);
+  } catch (err) {
+    setDashStatusBanner('❌ Erro de conexão ao enviar aviso para a TV.');
+  } finally {
+    if (btn) setTimeout(() => { btn.disabled = false; }, 3000);
+  }
+}
+
 async function logoutDashboard() {
   try {
-    await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'same-origin' });
+    const rDown = await fetch(`${API_URL}/auth/downgrade-staff`, { method: 'POST', credentials: 'same-origin' });
+    if (rDown && rDown.status === 401) {
+      await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    }
   } catch (e) {}
   metricsData = null;
   hourlyData = null;
@@ -949,7 +991,7 @@ async function logoutDashboard() {
   resumoOperacionalData = null;
   document.getElementById('dashActiveUsers').textContent = '0';
   if (document.getElementById('lockPassword')) document.getElementById('lockPassword').value = '';
-  showLockScreen('🔒 Sessão encerrada. Digite a senha para entrar novamente.');
+  showLockScreen('🔒 Sessão administrativa encerrada. Digite a senha para entrar novamente.');
 }
 
 // ====== NAVEGAÇÃO POR ABAS E AUTO-REFRESH INTELIGENTE ======

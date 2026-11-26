@@ -257,7 +257,15 @@ app.use(cors(buildCorsOptions()));
 app.use(securityHeadersMiddleware);
 app.use(express.json({ limit: '4.4mb' }));
 app.use(express.urlencoded({ limit: '4.4mb', extended: true }));
-app.use(express.static('public'));
+app.use(express.static('public', {
+  etag: true,
+  setHeaders(res, filePath) {
+    const ext = path.extname(String(filePath || '')).toLowerCase();
+    if (ext === '.html' || ext === '.js' || ext === '.css') {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
+}));
 
 function responderJsonComEtag(req, res, payload) {
   const body = JSON.stringify(payload);
@@ -1159,13 +1167,28 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const { senha } = req.body || {};
-    if (isValidGatePass(senha)) {
+    const privRole = resolvePrivilegedRole(senha);
+    if (privRole) {
       await resetarTentativasAuthDispositivo(pool, estado.deviceId);
-      setSessionCookie(res, 'staff');
+      setSessionCookie(res, privRole);
       return res.json({
         ok: true,
         authenticated: true,
-        role: 'staff',
+        role: privRole,
+        expiresInMs: SESSION_TTL_MS
+      });
+    }
+    if (isValidGatePass(senha)) {
+      await resetarTentativasAuthDispositivo(pool, estado.deviceId);
+      const sessAtual = getSessionFromRequest(req);
+      const roleEfetivo = (sessAtual && (sessAtual.role === 'admin' || sessAtual.role === 'gerente'))
+        ? sessAtual.role
+        : 'staff';
+      setSessionCookie(res, roleEfetivo);
+      return res.json({
+        ok: true,
+        authenticated: true,
+        role: roleEfetivo,
         expiresInMs: SESSION_TTL_MS
       });
     }
@@ -1402,7 +1425,7 @@ app.get('/api/config/mutirao-hoje', async (req, res) => {
 app.post('/api/config/mutirao-hoje', async (req, res) => {
   try {
     const senha = req.body?.senha || req.headers['x-admin-password'];
-    if (!isValidAdminPass(senha)) {
+    if (!isAdminAuthorized(req) && !isValidAdminPass(senha)) {
       return res.status(401).json({ error: 'Senha de administrador inválida.' });
     }
     const hoje = getDataHojeRecife();
@@ -1570,7 +1593,7 @@ app.get('/api/config/pausa', async (req, res) => {
 app.post('/api/config/pausa', async (req, res) => {
   try {
     const senha = req.body?.senha || req.headers['x-admin-password'];
-    if (!isValidAdminPass(senha)) {
+    if (!isAdminAuthorized(req) && !isValidAdminPass(senha)) {
       return res.status(401).json({ error: 'Senha de administrador inválida.' });
     }
     const pausado = Boolean(req.body?.pausado);
@@ -2843,8 +2866,15 @@ app.put('/api/patients/:id/ausente-temporario', async (req, res) => {
        WHERE id = $1`,
       [p.id]
     );
-    for (let i = 0; i < ids.length; i++) {
-      await client.query('UPDATE patients SET sort_order = $1 WHERE id = $2', [i + 1, ids[i]]);
+    if (ids.length > 0) {
+      const ords = ids.map((_, idx) => idx + 1);
+      await client.query(
+        `UPDATE patients AS p
+         SET sort_order = u.ord
+         FROM unnest($1::int[], $2::int[]) AS u(id, ord)
+         WHERE p.id = u.id`,
+        [ids.map(Number), ords]
+      );
     }
 
     await registrarAuditoriaFila(client, req, {
@@ -3368,8 +3398,14 @@ app.get('/api/current-calling', async (req, res) => {
         const parsedSil = JSON.parse(row.silencio_raw);
         const sid = Number(parsedSil?.id) || 0;
         const ts = Number(parsedSil?.ts) || 0;
-        if (sid > 0 && ts > 0 && Date.now() - ts <= 35000) {
-          avisoSilencio = { id: sid, ts };
+        const ageMs = ts > 0 ? Math.max(0, Date.now() - ts) : 0;
+        if (sid > 0 && ts > 0 && ageMs <= 60000) {
+          avisoSilencio = {
+            id: sid,
+            token: parsedSil.token || '__AVISO_SILENCIO__',
+            ts,
+            ageMs
+          };
         }
       }
     } catch (_) {}
@@ -4553,6 +4589,11 @@ app.delete('/api/vagas-medicos/:id', async (req, res) => {
 // ====== FIM MELHORIA 3 ======
 
 // ====== MELHORIA 4: CHAMADAS DE VOZ REMOTAS ======
+const AVISOS_INSTITUCIONAIS_TOKENS = [
+  '__AVISO_SILENCIO__',
+  '__AVISO_DOCUMENTOS__',
+  '__AVISO_AGUARDE_PAINEL__'
+];
 
 // POST /api/voice-call — Registrar chamada de voz pendente
 app.post('/api/voice-call', async (req, res) => {
@@ -4570,22 +4611,24 @@ app.post('/api/voice-call', async (req, res) => {
     }
     let savedRow = null;
     let isDupSilencio = false;
-    if (nomeLimpo === '__AVISO_SILENCIO__') {
+    const isAvisoInstitucional = nomeLimpo === '__AVISO_SILENCIO__' || AVISOS_INSTITUCIONAIS_TOKENS.includes(nomeLimpo);
+    if (isAvisoInstitucional) {
       const senhaSilencio = req.body?.senha || req.headers['x-admin-password'];
       const temPermissaoSilencio = isManagerOrAdminAuthorized(req) || Boolean(resolvePrivilegedRole(senhaSilencio));
       if (!temPermissaoSilencio) {
         return res.status(403).json({
-          error: 'Apenas Gerente ou Administrador pode emitir o aviso de silêncio na TV.',
+          error: 'Apenas Gerente ou Administrador pode emitir avisos institucionais na TV.',
           requiresManagerPassword: true
         });
       }
       const dupSilencio = await pool.query(
         `SELECT id, nome, setor, destino, created_at
          FROM pending_voice_calls
-         WHERE nome = '__AVISO_SILENCIO__'
-           AND created_at >= NOW() - INTERVAL '8 seconds'
+         WHERE nome = $1
+           AND created_at >= NOW() - INTERVAL '3 seconds'
          ORDER BY id DESC
-         LIMIT 1`
+         LIMIT 1`,
+        [nomeLimpo]
       );
       if (dupSilencio.rows.length > 0) {
         savedRow = dupSilencio.rows[0];
@@ -4600,13 +4643,17 @@ app.post('/api/voice-call', async (req, res) => {
       );
       savedRow = result.rows[0];
     }
-    if (nomeLimpo === '__AVISO_SILENCIO__' && savedRow?.id && !isDupSilencio) {
-      await pool.query(
-        `INSERT INTO configuracoes (chave, valor)
-         VALUES ('aviso_silencio_ultimo', $1)
-         ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
-        [JSON.stringify({ id: Number(savedRow.id), ts: Date.now() })]
-      ).catch(() => {});
+    if (isAvisoInstitucional && savedRow?.id && !isDupSilencio) {
+      try {
+        await pool.query(
+          `INSERT INTO configuracoes (chave, valor)
+           VALUES ('aviso_silencio_ultimo', $1)
+           ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+          [JSON.stringify({ id: Number(savedRow.id), token: nomeLimpo, ts: Date.now() })]
+        );
+      } catch (cfgErr) {
+        console.warn('[voice-call] Falha ao gravar aviso_silencio_ultimo:', cfgErr.message);
+      }
     }
     res.status(isDupSilencio ? 200 : 201).json(isDupSilencio ? { ...savedRow, deduplicated: true } : savedRow);
   } catch (error) {
@@ -4614,19 +4661,21 @@ app.post('/api/voice-call', async (req, res) => {
   }
 });
 
-// GET /api/voice-call/pending — Listar chamadas não processadas + broadcast multi-TV de silêncio (35s)
+// GET /api/voice-call/pending — Listar chamadas não processadas + broadcast multi-TV de avisos institucionais (60s)
 app.get('/api/voice-call/pending', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, nome, setor, destino, created_at
+      `SELECT id, nome, setor, destino, created_at,
+              GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW() - created_at)) * 1000))::bigint AS age_ms
        FROM pending_voice_calls
        WHERE (
-         (processed = false AND nome <> '__AVISO_SILENCIO__' AND created_at >= NOW() - INTERVAL '90 seconds')
+         (processed = false AND NOT (nome = ANY($1::text[])) AND created_at >= NOW() - INTERVAL '90 seconds')
          OR
-         (nome = '__AVISO_SILENCIO__' AND created_at >= NOW() - INTERVAL '35 seconds')
+         (nome = ANY($1::text[]) AND created_at >= NOW() - INTERVAL '60 seconds')
        )
        ORDER BY created_at ASC, id ASC
-       LIMIT 20`
+       LIMIT 20`,
+      [AVISOS_INSTITUCIONAIS_TOKENS]
     );
     res.json(result.rows);
   } catch (error) {
@@ -4634,13 +4683,13 @@ app.get('/api/voice-call/pending', async (req, res) => {
   }
 });
 
-// POST /api/voice-call/:id/ack — Marcar chamada individual como processada (não consome broadcast de silêncio)
+// POST /api/voice-call/:id/ack — Marcar chamada individual como processada (não consome broadcast de avisos institucionais)
 app.post('/api/voice-call/:id/ack', async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(
-      `UPDATE pending_voice_calls SET processed = true WHERE id = $1 AND nome <> '__AVISO_SILENCIO__'`,
-      [id]
+      `UPDATE pending_voice_calls SET processed = true WHERE id = $1 AND nome <> '__AVISO_SILENCIO__' AND NOT (nome = ANY($2::text[]))`,
+      [id, AVISOS_INSTITUCIONAIS_TOKENS]
     );
     res.json({ ok: true });
   } catch (error) {
@@ -4903,10 +4952,10 @@ function synthesizeEdgeNeuralTTSOnce(texto, voiceProfile, timeoutMs = 5500) {
 
 async function synthesizeEdgeNeuralTTS(texto, voiceProfile) {
   try {
-    return await synthesizeEdgeNeuralTTSOnce(texto, voiceProfile, 5500);
+    return await synthesizeEdgeNeuralTTSOnce(texto, voiceProfile, 3800);
   } catch (firstErr) {
     // Segunda tentativa imediata em caso de oscilação de rede
-    return await synthesizeEdgeNeuralTTSOnce(texto, voiceProfile, 5500);
+    return await synthesizeEdgeNeuralTTSOnce(texto, voiceProfile, 2500);
   }
 }
 
@@ -4919,10 +4968,11 @@ async function synthesizeGooglePtBrTTS(texto) {
     timeout: 6000,
     splitPunct: ',.?!;:'
   });
-  const buffers = results.map(item => Buffer.from(item.base64, 'base64'));
+  const segments = results.map(item => item.base64).filter(Boolean);
+  const buffers = segments.map(b64 => Buffer.from(b64, 'base64'));
   const combined = Buffer.concat(buffers);
   if (!combined.length) throw new Error('Google TTS retornou áudio vazio');
-  return combined.toString('base64');
+  return { audioBase64: combined.toString('base64'), segments };
 }
 
 async function handleTtsRequest(req, res) {
@@ -4946,6 +4996,7 @@ async function handleTtsRequest(req, res) {
     const voiceProfile = getEdgeVoiceProfile(voz);
     const edgeVoice = voiceProfile.voiceName;
     let audioBase64 = null;
+    let audioSegments = null;
     let provider = 'edge-neural';
 
     try {
@@ -4953,11 +5004,14 @@ async function handleTtsRequest(req, res) {
     } catch (edgeErr) {
       // Fallback imediato para Google TTS Português do Brasil (natural pt-BR)
       provider = 'google-pt-br';
-      audioBase64 = await synthesizeGooglePtBrTTS(texto);
+      const gRes = await synthesizeGooglePtBrTTS(texto);
+      audioBase64 = gRes.audioBase64;
+      audioSegments = gRes.segments && gRes.segments.length > 1 ? gRes.segments : null;
     }
 
     const payload = {
       audioBase64,
+      audioSegments,
       provider,
       voz,
       edgeVoice,

@@ -29,14 +29,7 @@ function formatarDataBR(isoDate) {
   return raw;
 }
 
-// Inicializar e carregar histórico
-async function carregarHistorico() {
-  const container = document.getElementById('hist-lista-container');
-  const contador = document.getElementById('hist-contador');
-  if (!container) return;
-
-  container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--gray-500);"><div class="spinner" style="margin:0 auto 10px;"></div>Carregando histórico...</div>';
-
+function montarParamsFiltroHistorico() {
   const params = new URLSearchParams();
   const dtInicio = document.getElementById('hist-filtro-inicio')?.value;
   const dtFim = document.getElementById('hist-filtro-fim')?.value;
@@ -59,6 +52,18 @@ async function carregarHistorico() {
   if (disp) params.set('dispositivo', disp);
   if (busca) params.set('busca', busca.trim());
   if (arquivado) params.set('arquivado', arquivado);
+  return { params, dtInicio, dtFim };
+}
+
+// Inicializar e carregar histórico
+async function carregarHistorico() {
+  const container = document.getElementById('hist-lista-container');
+  const contador = document.getElementById('hist-contador');
+  if (!container) return;
+
+  container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--gray-500);"><div class="spinner" style="margin:0 auto 10px;"></div>Carregando histórico...</div>';
+
+  const { params, dtInicio, dtFim } = montarParamsFiltroHistorico();
 
   try {
     const res = await fetch(`${API_URL}/agendamentos/historico?${params.toString()}`);
@@ -285,9 +290,11 @@ function limparFiltrosHistorico() {
   carregarHistorico();
 }
 
-// Exportar CSV
+// Exportar CSV respeitando os filtros ativos na tela
 function exportarCsvHistorico() {
-  window.open(`${API_URL}/agendamentos/historico/csv`, '_blank');
+  const { params } = montarParamsFiltroHistorico();
+  const qs = params.toString();
+  window.open(`${API_URL}/agendamentos/historico/csv${qs ? '?' + qs : ''}`, '_blank');
 }
 
 // Modal de Exclusão Individual / Em Lote
