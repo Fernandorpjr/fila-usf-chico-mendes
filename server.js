@@ -288,7 +288,7 @@ function responderJsonComEtag(req, res, payload) {
 }
 
 // === BLOQUEIO POR HORÁRIO (06:00 - 18:00 America/Recife | Seg-Sex, Mutirão ou Hora Extra temporária) ===
-const EXPEDIENTE_EXTRA_PADRAO_ATE_ISO = '2026-11-25T23:00:00.000Z';
+const EXPEDIENTE_EXTRA_PADRAO_ATE_ISO = '2026-11-26T23:00:00.000Z';
 function aplicarPisoExpedienteExtra(extraAteIsoRaw, nowMs = Date.now()) {
   const isoStr = extraAteIsoRaw ? String(extraAteIsoRaw).trim() : '';
   const dbMs = isoStr ? Date.parse(isoStr) : 0;

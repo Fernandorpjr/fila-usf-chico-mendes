@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a1e5c">
 <title>Dashboard Privado – USF Chico Mendes</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -17,8 +18,11 @@
     --yellow:#f9c823; --white:#fff; --gray-100:#f0f4ff;
     --gray-300:#b8c8f0; --gray-600:#5a6a8c; --radius:16px; --purple:#8e24aa;
   }
+  html { color-scheme:dark; scroll-padding-top:84px; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Nunito Sans',sans-serif; background:var(--blue-bg); min-height:100vh; color:var(--white); }
+  button, a, select, input, textarea { touch-action:manipulation; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid rgba(56,189,248,0.85); outline-offset:2px; }
 
   .header {
     background:linear-gradient(135deg,var(--blue-dark),var(--blue));
@@ -28,8 +32,8 @@
   .logo { font-family:'Nunito',sans-serif; font-size:21px; font-weight:900; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   .online-pill {
     background:rgba(74,171,60,0.2); padding:5px 12px; border-radius:999px;
-    display:inline-flex; align-items:center; gap:7px; font-size:12px;
-    border:1px solid rgba(74,171,60,0.45); cursor:pointer; transition:background 0.2s;
+    display:inline-flex; align-items:center; gap:7px; font-size:12px; color:inherit; font-family:inherit;
+    border:1px solid rgba(74,171,60,0.45); cursor:pointer; transition:background-color 0.2s;
   }
   .online-pill:hover { background:rgba(74,171,60,0.34); }
   .online-dot { display:inline-block; width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 8px var(--green); }
@@ -65,7 +69,7 @@
     background:transparent; color:var(--gray-300); border:1px solid transparent;
     border-radius:10px; padding:9px 14px; font-family:'Nunito',sans-serif;
     font-size:13.5px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
-    transition:all 0.18s;
+    transition:background-color 0.18s, border-color 0.18s, color 0.18s;
   }
   .dash-tab-btn:hover { background:rgba(255,255,255,0.08); color:var(--white); }
   .dash-tab-btn.active {
@@ -86,7 +90,7 @@
   .metric-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.2); }
   .metric-card.alert { border-color:var(--red); background:rgba(229,57,53,0.1); animation:pulseCard 1.5s infinite; }
   @keyframes pulseCard { 0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.4);} 50%{box-shadow:0 0 0 8px rgba(229,57,53,0);} }
-  .metric-value { font-family:'Nunito',sans-serif; font-size:30px; font-weight:900; line-height:1.1; }
+  .metric-value { font-family:'Nunito',sans-serif; font-size:30px; font-weight:900; line-height:1.1; font-variant-numeric:tabular-nums; }
   .metric-label { font-size:11.5px; color:var(--gray-300); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; }
   .metric-sub { font-size:11.5px; color:var(--gray-300); margin-top:4px; opacity:0.9; }
   .metric-icon { font-size:24px; margin-bottom:6px; }
@@ -101,17 +105,21 @@
 
   .table-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius); padding:22px; margin-bottom:24px; overflow-x:auto; }
   table { width:100%; border-collapse:collapse; }
-  th,td { padding:11px 14px; text-align:left; font-size:13.5px; border-bottom:1px solid rgba(255,255,255,0.1); }
+  th,td { padding:11px 14px; text-align:left; font-size:13.5px; border-bottom:1px solid rgba(255,255,255,0.1); font-variant-numeric:tabular-nums; }
   th { font-weight:800; color:var(--orange); text-transform:uppercase; font-size:11.5px; letter-spacing:0.5px; }
 
-  .btn-export { background:linear-gradient(135deg,var(--green),#3a8a2e); color:white; border:none; border-radius:11px; padding:10px 18px; font-family:'Nunito',sans-serif; font-size:14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
+  .btn-export { background:linear-gradient(135deg,var(--green),#3a8a2e); color:white; border:none; border-radius:11px; padding:10px 18px; font-family:'Nunito',sans-serif; font-size:14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:transform 0.2s, box-shadow 0.2s, background-color 0.2s; }
   .btn-export:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(74,171,60,0.4); }
-  .btn-pdf { background:linear-gradient(135deg,#e53935,#b71c1c); color:white; border:none; border-radius:11px; padding:10px 18px; font-family:'Nunito',sans-serif; font-size:14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
+  .btn-pdf { background:linear-gradient(135deg,#e53935,#b71c1c); color:white; border:none; border-radius:11px; padding:10px 18px; font-family:'Nunito',sans-serif; font-size:14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:transform 0.2s, box-shadow 0.2s, background-color 0.2s; }
   .btn-pdf:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(229,57,53,0.4); }
-  .btn-quick-date { background:rgba(255,255,255,0.12); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; }
+  .btn-quick-date { background:rgba(255,255,255,0.12); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; transition:background-color 0.2s, border-color 0.2s; }
   .btn-quick-date:hover { background:rgba(255,255,255,0.25); }
-  .btn-day-shortcut { background:rgba(244,130,30,0.18); color:var(--orange); border:1px solid rgba(244,130,30,0.4); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; transition:all 0.2s; }
+  .btn-day-shortcut { background:rgba(244,130,30,0.18); color:var(--orange); border:1px solid rgba(244,130,30,0.4); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; transition:background-color 0.2s, border-color 0.2s; }
   .btn-day-shortcut:hover { background:rgba(244,130,30,0.35); }
+  #dashClock { font-variant-numeric:tabular-nums; }
+  @media(prefers-reduced-motion:reduce) {
+    *, *::before, *::after { animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
+  }
 
   .lock-overlay { position:fixed; inset:0; background:rgba(5,18,60,0.96); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
   .lock-box { background:var(--white); border-radius:24px; padding:38px 42px; text-align:center; max-width:410px; width:92%; color:var(--blue-dark); box-shadow:0 24px 60px rgba(0,0,0,0.45); }
@@ -133,7 +141,7 @@
   /* ====== COLETAS SECTION ====== */
   .coletas-metrics { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; margin-bottom:22px; }
   .coleta-metric { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:16px 18px; text-align:center; }
-  .coleta-metric .cm-value { font-family:'Nunito',sans-serif; font-size:30px; font-weight:900; line-height:1; }
+  .coleta-metric .cm-value { font-family:'Nunito',sans-serif; font-size:30px; font-weight:900; line-height:1; font-variant-numeric:tabular-nums; }
   .coleta-metric .cm-label { font-size:11px; color:var(--gray-300); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-top:5px; }
   .coleta-metric .cm-icon { font-size:22px; margin-bottom:6px; }
   .coleta-form { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:20px; margin-bottom:22px; }
@@ -183,11 +191,11 @@
   <div class="logo">
     <span>📊 Dashboard – <span style="color:var(--orange);">USF</span> Chico Mendes</span>
     <span id="dashRoleBadge" style="font-size:11.5px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.12);color:#e2e8f0;display:none;"></span>
-    <div class="online-pill" id="dashOnlinePill" onclick="switchDashTab('tab-dispositivos')" title="Clique para ver os dispositivos online agora">
+    <button type="button" class="online-pill" id="dashOnlinePill" onclick="switchDashTab('tab-dispositivos')" title="Clique para ver os dispositivos online agora" aria-label="Ver dispositivos conectados agora">
       <span class="online-dot"></span>
       <span style="color:#bbf7d0;font-weight:900;" id="dashActiveUsers">0</span>
       <span style="color:var(--gray-300);">Online</span>
-    </div>
+    </button>
   </div>
   <div class="header-controls">
     <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.1);padding:5px 10px;border-radius:10px;">
@@ -209,8 +217,8 @@
   </div>
 </header>
 
-<div class="main" id="dashContent" style="display:none;">
-  <div id="dashStatusBanner" class="status-banner"></div>
+<main class="main" id="dashContent" style="display:none;">
+  <div id="dashStatusBanner" class="status-banner" role="status" aria-live="polite"></div>
 
   <div class="dash-tabs" role="tablist">
     <button class="dash-tab-btn active" data-tab="tab-realtime" onclick="switchDashTab('tab-realtime')">⚡ Tempo Real</button>
@@ -423,23 +431,23 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label>Data da Coleta</label>
+          <label for="coleta-data">Data da Coleta</label>
           <input type="date" id="coleta-data" style="width:160px;">
         </div>
         <div class="form-group">
-          <label>Agendados</label>
+          <label for="coleta-agendados">Agendados</label>
           <input type="number" id="coleta-agendados" min="0" max="30" value="12" placeholder="12" oninput="calcFaltasAuto()">
         </div>
         <div class="form-group">
-          <label>Realizados</label>
+          <label for="coleta-realizados">Realizados</label>
           <input type="number" id="coleta-realizados" min="0" max="30" value="12" placeholder="12" oninput="calcFaltasAuto()">
         </div>
         <div class="form-group">
-          <label>Faltas (Auto)</label>
+          <label for="coleta-faltas">Faltas (Auto)</label>
           <input type="number" id="coleta-faltas" min="0" max="30" value="0" placeholder="0">
         </div>
         <div class="form-group">
-          <label>Observações</label>
+          <label for="coleta-obs">Observações</label>
           <input type="text" id="coleta-obs" placeholder="Ex: Faltou insumo..." style="width:200px;">
         </div>
         <button class="btn-add-coleta" onclick="salvarColeta()">💾 Salvar Registro</button>
@@ -524,7 +532,7 @@
       </table>
     </div>
   </section>
-</div>
+</main>
 
 <script>
 // @ts-nocheck
@@ -824,7 +832,7 @@ function setDashStatusBanner(msg = '') {
   const el = document.getElementById('dashStatusBanner');
   if (!el) return;
   if (msg) {
-    el.innerHTML = `<span>${escHtml(msg)}</span><button class="btn-hdr" onclick="setDashStatusBanner('')">✕</button>`;
+    el.innerHTML = `<span>${escHtml(msg)}</span><button type="button" class="btn-hdr" onclick="setDashStatusBanner('')" aria-label="Fechar aviso">✕</button>`;
     el.style.display = 'flex';
   } else {
     el.style.display = 'none';
@@ -1984,7 +1992,7 @@ function renderColetasTable(monthData) {
       <td>${META_DIARIA}</td>
       <td>${statusTag}</td>
       <td style="font-size:12px;color:var(--gray-300);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(c.observacoes || '')}">${escHtml(c.observacoes || '—')}</td>
-      <td><button class="btn-delete" onclick="deletarColeta(${Number(c.id)})">🗑️</button></td>
+      <td><button type="button" class="btn-delete" onclick="deletarColeta(${Number(c.id)})" aria-label="Remover registro de coleta de ${escHtml(dataBR)}" title="Remover registro">🗑️</button></td>
     </tr>`;
   }).join('');
 }

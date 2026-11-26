@@ -18,7 +18,7 @@ function extractFnSlice(src, startMarker, endMarker) {
   return src.slice(i1, i2);
 }
 
-test('Prorrogação de +2h hoje (25/11/2026 até 20h Recife) funciona e expira automaticamente depois das 20h', () => {
+test('Prorrogação de +2h hoje (26/11/2026 até 20h Recife) funciona e expira automaticamente depois das 20h', () => {
   // 1. Extrair e validar lógica do backend (aplicarPisoExpedienteExtra)
   const serverFloorSlice = extractFnSlice(
     serverSrc,
@@ -28,13 +28,13 @@ test('Prorrogação de +2h hoje (25/11/2026 até 20h Recife) funciona e expira a
   const serverCtx = {};
   vm.runInNewContext(serverFloorSlice, serverCtx);
 
-  const dentro1830 = Date.parse('2026-11-25T18:30:00-03:00');
-  const dentro1959 = Date.parse('2026-11-25T19:59:59-03:00');
-  const depois2001 = Date.parse('2026-11-25T20:00:01-03:00');
-  const amanha1830 = Date.parse('2026-11-26T18:30:00-03:00');
+  const dentro1830 = Date.parse('2026-11-26T18:30:00-03:00');
+  const dentro1959 = Date.parse('2026-11-26T19:59:59-03:00');
+  const depois2001 = Date.parse('2026-11-26T20:00:01-03:00');
+  const amanha1830 = Date.parse('2026-11-27T18:30:00-03:00');
 
   const cfg1830 = serverCtx.aplicarPisoExpedienteExtra('', dentro1830);
-  assert.equal(cfg1830.extraAteIso, '2026-11-25T23:00:00.000Z');
+  assert.equal(cfg1830.extraAteIso, '2026-11-26T23:00:00.000Z');
   assert.equal(dentro1830 < cfg1830.extraAteMs, true);
 
   const cfg1959 = serverCtx.aplicarPisoExpedienteExtra('', dentro1959);
@@ -74,10 +74,10 @@ test('Prorrogação de +2h hoje (25/11/2026 até 20h Recife) funciona e expira a
     return ctx.isDentroDoHorario();
   }
 
-  assert.equal(evalFrontDentroHorario('2026-11-25T18:30:00-03:00'), true);
-  assert.equal(evalFrontDentroHorario('2026-11-25T19:59:59-03:00'), true);
-  assert.equal(evalFrontDentroHorario('2026-11-25T20:00:01-03:00'), false);
-  assert.equal(evalFrontDentroHorario('2026-11-26T18:30:00-03:00'), false);
+  assert.equal(evalFrontDentroHorario('2026-11-26T18:30:00-03:00'), true);
+  assert.equal(evalFrontDentroHorario('2026-11-26T19:59:59-03:00'), true);
+  assert.equal(evalFrontDentroHorario('2026-11-26T20:00:01-03:00'), false);
+  assert.equal(evalFrontDentroHorario('2026-11-27T18:30:00-03:00'), false);
 });
 
 test('responderJsonComEtag gera ETag W/"...", evita cache compartilhado e responde 304 no If-None-Match', () => {

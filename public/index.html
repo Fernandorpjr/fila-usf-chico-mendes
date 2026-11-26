@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f3491">
 <title>USF Chico Mendes – Sistema de Gestão de Filas 1.0 IA</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2.3">
 <link rel="stylesheet" href="print.css">
 <style>
   :root {
@@ -18,12 +18,14 @@
     --shadow-sm: 0 2px 8px rgba(15,52,145,0.12); --shadow-md: 0 6px 24px rgba(15,52,145,0.18);
     --shadow-lg: 0 12px 40px rgba(15,52,145,0.25); --radius: 16px; --radius-sm: 10px;
   }
+  html { scroll-padding-top: 132px; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Nunito Sans', sans-serif; background: var(--blue-bg); min-height: 100vh; color: var(--white); }
+  button, a, select, input, textarea { touch-action: manipulation; }
 
   /* Sub-abas e Histórico */
   .sub-tabs-bar { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--gray-200); padding-bottom: 10px; flex-wrap: wrap; }
-  .sub-tab-btn { background: #fff; border: 1px solid var(--gray-300); border-radius: 8px; padding: 10px 18px; font-weight: 800; font-size: 13px; color: var(--gray-700); cursor: pointer; transition: all 0.2s; }
+  .sub-tab-btn { background: #fff; border: 1px solid var(--gray-300); border-radius: 8px; padding: 10px 18px; font-weight: 800; font-size: 13px; color: var(--gray-700); cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; }
   .sub-tab-btn:hover { background: var(--gray-100); }
   .sub-tab-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 2px 8px rgba(26,79,196,0.3); }
   .hist-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -127,7 +129,7 @@
     gap: 6px;
     text-decoration: none;
     white-space: nowrap;
-    transition: all 0.16s ease;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
   }
   .admin-tb-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); transform: translateY(-1px); }
   .admin-tb-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
@@ -142,16 +144,16 @@
   .admin-tb-btn--danger { background: rgba(220, 38, 38, 0.22); border-color: rgba(248, 113, 113, 0.52); color: #fecaca; }
   .admin-tb-btn--danger:hover:not(:disabled) { background: rgba(220, 38, 38, 0.42); border-color: #fca5a5; color: #fff; }
 
-  .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; white-space: nowrap; }
   .btn-admin-lock:hover { background: rgba(255,255,255,0.1); }
   .btn-admin-lock.unlocked { color: var(--green); border-color: rgba(74,171,60,0.5); background: rgba(74,171,60,0.1); }
   .btn-admin-lock.manager { color: #fde68a; border-color: rgba(250,204,21,0.5); background: rgba(250,204,21,0.14); }
-  .btn-reset { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s; letter-spacing: 0.4px; white-space: nowrap; }
+  .btn-reset { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; letter-spacing: 0.4px; white-space: nowrap; }
   .btn-reset:hover { background: rgba(229,57,53,0.15); color: var(--red); border-color: rgba(229,57,53,0.3); }
   .select-voz-admin { background: rgba(15,23,42,0.78); color: #fff; border: 1.5px solid rgba(255,255,255,0.25); height: 34px; padding: 0 10px; border-radius: 9px; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; outline: none; white-space: nowrap; }
   .select-voz-admin:hover { border-color: rgba(74,171,60,0.65); background: rgba(15,23,42,0.92); }
   .select-voz-admin option { background: #0f172a; color: #fff; font-weight: 700; }
-  .clock { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 800; color: var(--yellow); letter-spacing: 1.5px; white-space: nowrap; line-height: 1.1; text-align: right; }
+  .clock { font-family: 'Nunito', sans-serif; font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 800; color: var(--yellow); letter-spacing: 1.5px; white-space: nowrap; line-height: 1.1; text-align: right; }
   .date-display { font-size: 11.5px; color: var(--gray-300); text-align: right; white-space: nowrap; }
   .admin-only, .admin-strict-only { display: none !important; }
   .admin-active .admin-only, body.admin-active .admin-strict-only { display: flex !important; }
@@ -190,51 +192,59 @@
   .btn-reorder-arrow {
     background: rgba(26,79,196,0.1);
     border: 1px solid rgba(26,79,196,0.25);
-    border-radius: 6px; width: 26px; height: 26px;
+    border-radius: 7px; width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 13px; font-weight: 900;
-    color: var(--blue); transition: all 0.15s;
+    cursor: pointer; font-size: 14px; font-weight: 900;
+    color: var(--blue); transition: background-color 0.15s, color 0.15s, transform 0.15s;
     font-family: 'Nunito', sans-serif; padding: 0;
   }
-  .btn-reorder-arrow:hover { background: var(--blue); color: #fff; transform: scale(1.12); }
+  .btn-reorder-arrow:hover { background: var(--blue); color: #fff; transform: scale(1.08); }
   .btn-reorder-arrow:active { transform: scale(0.95); }
 
   /* Botão de posição numérica (#) */
   .btn-reorder-pos {
     background: rgba(249,200,35,0.12);
     border: 1px solid rgba(249,200,35,0.4);
-    border-radius: 6px; height: 26px; padding: 0 7px;
+    border-radius: 7px; height: 32px; min-width: 32px; padding: 0 7px;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 11px; font-weight: 900;
-    color: #8a6d00; transition: all 0.15s;
+    cursor: pointer; font-size: 12px; font-weight: 900;
+    color: #8a6d00; transition: background-color 0.15s, color 0.15s, transform 0.15s;
     font-family: 'Nunito', sans-serif;
   }
-  .btn-reorder-pos:hover { background: var(--yellow); color: #5d4000; transform: scale(1.08); }
+  .btn-reorder-pos:hover { background: var(--yellow); color: #5d4000; transform: scale(1.06); }
 
   /* Menu contextual (3 pontinhos) */
   .btn-context-menu {
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 6px; width: 26px; height: 26px;
+    border-radius: 7px; width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; font-size: 16px; font-weight: 900;
-    color: var(--gray-600); transition: all 0.15s;
+    color: var(--gray-600); transition: background-color 0.15s, color 0.15s, transform 0.15s;
     font-family: 'Nunito', sans-serif; padding: 0;
   }
   .queue-item .btn-context-menu { border-color: rgba(90,106,140,0.3); }
-  .btn-context-menu:hover { background: var(--gray-200); color: var(--blue); transform: scale(1.08); }
+  .btn-context-menu:hover { background: var(--gray-200); color: var(--blue); transform: scale(1.06); }
 
   /* Botão de transferência */
   .btn-transfer-sector {
     background: rgba(0,137,123,0.1);
     border: 1px solid rgba(0,137,123,0.3);
-    border-radius: 6px; height: 26px; padding: 0 8px;
-    display: flex; align-items: center; gap: 3px;
-    cursor: pointer; font-size: 11px; font-weight: 800;
-    color: var(--teal-dark); transition: all 0.15s;
+    border-radius: 7px; height: 32px; padding: 0 10px;
+    display: flex; align-items: center; gap: 4px;
+    cursor: pointer; font-size: 11.5px; font-weight: 800;
+    color: var(--teal-dark); transition: background-color 0.15s, color 0.15s, transform 0.15s;
     font-family: 'Nunito', sans-serif; white-space: nowrap;
   }
-  .btn-transfer-sector:hover { background: var(--teal); color: #fff; transform: scale(1.05); }
+  .btn-transfer-sector:hover { background: var(--teal); color: #fff; transform: scale(1.04); }
+  .fila-danger-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 4px;
+    padding-left: 8px;
+    border-left: 1.5px solid #e2e8f0;
+  }
 
   /* Floating context menu */
   .ctx-menu {
@@ -286,6 +296,7 @@
   .reorder-modal {
     background: var(--white); border-radius: 20px;
     padding: 32px; max-width: 460px; width: 90%;
+    max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
     box-shadow: 0 24px 60px rgba(0,0,0,0.4);
     color: var(--gray-700);
     animation: notifIn 0.3s ease;
@@ -327,7 +338,7 @@
 
   .nav-tabs { background: var(--blue-dark); display: flex; padding: 0 16px; gap: 2px; border-bottom: 2px solid rgba(255,255,255,0.1); overflow-x: auto; scrollbar-width: none; }
   .nav-tabs::-webkit-scrollbar { display: none; }
-  .nav-tab { padding: 12px 16px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; color: var(--gray-300); cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px; margin-bottom: -2px; white-space: nowrap; border-radius: 10px 10px 0 0; }
+  .nav-tab { padding: 12px 16px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; color: var(--gray-300); cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px; margin-bottom: -2px; white-space: nowrap; border-radius: 10px 10px 0 0; }
   .nav-tab:hover { color: var(--white); background: rgba(255,255,255,0.06); }
   .nav-tab.active { color: var(--white); border-bottom-color: var(--orange); background: rgba(255,255,255,0.11); font-weight: 900; }
   .nav-tab .tab-badge { background: var(--orange); color: var(--white); font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 20px; min-width: 20px; text-align: center; }
@@ -348,11 +359,11 @@
   .form-group { display: flex; flex-direction: column; gap: 6px; } .form-group.full { grid-column: 1 / -1; }
   label { font-size: 13px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.5px; }
   .card-white label { color: #334155; }
-  input[type="text"], select { padding: 14px 16px; border: 2px solid var(--gray-200); border-radius: var(--radius-sm); font-family: 'Nunito Sans', sans-serif; font-size: 15px; font-weight: 600; color: var(--gray-700); background: var(--gray-100); outline: none; transition: all 0.2s; }
+  input[type="text"], select { padding: 14px 16px; border: 2px solid var(--gray-200); border-radius: var(--radius-sm); font-family: 'Nunito Sans', sans-serif; font-size: 15px; font-weight: 600; color: var(--gray-700); background: var(--gray-100); outline: none; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; }
   input[type="text"]:focus, select:focus { border-color: var(--blue); background: var(--white); box-shadow: 0 0 0 3px rgba(26,79,196,0.12); }
   input[type="date"] { padding: 10px 14px; border: 2px solid var(--gray-200); border-radius: var(--radius-sm); font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--gray-700); background: var(--gray-100); outline: none; }
 
-  .btn { min-height: 40px; padding: 12px 22px; border: 1px solid transparent; border-radius: var(--radius-sm); font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 800; cursor: pointer; transition: all 0.18s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: 0.25px; }
+  .btn { min-height: 40px; padding: 12px 22px; border: 1px solid transparent; border-radius: var(--radius-sm); font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 800; cursor: pointer; transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: 0.25px; }
   .btn:disabled, .pec-form-btn:disabled, .btn-filter:disabled { opacity: 0.58; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
   button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(56, 189, 248, 0.72); outline-offset: 2px; }
   .btn-outline { background: #ffffff; color: #1e293b; border: 1.5px solid #cbd5e1; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
@@ -383,7 +394,7 @@
   .btn-3d {
     border-bottom: 4px solid rgba(0, 0, 0, 0.2);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transition: all 0.1s ease;
+    transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
   }
   .btn-3d:active:not(:disabled) {
     border-bottom-width: 0px;
@@ -406,7 +417,7 @@
   .sector-count { background: var(--blue); color: var(--white); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; padding: 4px 12px; border-radius: 20px; }
 
   .queue-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; margin-bottom: 16px; scrollbar-width: thin; scrollbar-color: var(--gray-200) transparent; }
-  .queue-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--gray-100); border-radius: var(--radius-sm); border: 1px solid var(--gray-200); transition: all 0.2s; animation: slideIn 0.3s ease; }
+  .queue-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--gray-100); border-radius: var(--radius-sm); border: 1px solid var(--gray-200); transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; animation: slideIn 0.3s ease; }
   @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
   .queue-item:hover { border-color: var(--blue); background: #e8eeff; }
   .queue-item.calling { background: linear-gradient(135deg, #fff8e1, #fff3cd); border-color: var(--yellow); border-width: 2px; box-shadow: 0 0 0 3px rgba(249,200,35,0.2); }
@@ -521,13 +532,13 @@
   .stats-row .stat-card { flex: 1; min-width: 130px; padding: 16px; }
   .stat-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius); padding: 20px; display: flex; align-items: center; gap: 16px; }
   .stat-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-  .stat-value { font-family: 'Nunito', sans-serif; font-size: 30px; font-weight: 900; line-height: 1; }
+  .stat-value { font-family: 'Nunito', sans-serif; font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 900; line-height: 1; }
   .stat-label { font-size: 12px; color: var(--gray-300); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
 
   .empty-state { text-align: center; padding: 32px; color: var(--gray-300); }
   .empty-state .es-icon { font-size: 40px; margin-bottom: 10px; opacity: 0.5; } .empty-state p { font-size: 14px; font-weight: 600; opacity: 0.7; }
 
-  #toast { position: fixed; bottom: 26px; right: 26px; background: linear-gradient(135deg, #16a34a, #15803d); color: var(--white); padding: 14px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14.5px; max-width: min(92vw, 520px); box-shadow: 0 12px 32px rgba(0,0,0,0.35); transform: translateY(100px); opacity: 0; transition: all 0.25s ease; z-index: 100100; display: flex; align-items: center; gap: 10px; pointer-events: none; }
+  #toast { position: fixed; bottom: 26px; right: 26px; background: linear-gradient(135deg, #16a34a, #15803d); color: var(--white); padding: 14px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14.5px; max-width: min(92vw, 520px); box-shadow: 0 12px 32px rgba(0,0,0,0.35); transform: translateY(100px); opacity: 0; transition: transform 0.25s ease, opacity 0.25s ease; z-index: 100100; display: flex; align-items: center; gap: 10px; pointer-events: none; }
   #toast.show { transform: translateY(0); opacity: 1; } #toast.error { background: linear-gradient(135deg, #dc2626, #b91c1c); }
 
   .sector-page-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
@@ -549,7 +560,7 @@
 
   .filter-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
   .filter-row .form-group { margin: 0; min-width: 140px; }
-  .btn-filter { padding: 8px 16px; border: 2px solid var(--gray-200); border-radius: 20px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: var(--gray-100); color: var(--gray-600); }
+  .btn-filter { padding: 8px 16px; border: 2px solid var(--gray-200); border-radius: 20px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; background: var(--gray-100); color: var(--gray-600); }
   .btn-filter:hover { border-color: var(--blue); color: var(--blue); background: rgba(26,79,196,0.05); }
   .btn-filter.active { background: var(--blue); color: var(--white); border-color: var(--blue); box-shadow: 0 2px 8px rgba(26,79,196,0.3); }
 
@@ -558,7 +569,7 @@
    .chat-sidebar-header{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;}
    .chat-sidebar-header h3{font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:#fff;margin:0;letter-spacing:0.3px;}
    .chat-canal-list{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin;}
-   .chat-canal-btn{width:100%;text-align:left;background:transparent;border:1px solid transparent;color:#dbeafe;padding:7px 10px;border-radius:10px;font-family:'Nunito Sans',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:stretch;gap:2px;transition:all .18s;position:relative;}
+   .chat-canal-btn{width:100%;text-align:left;background:transparent;border:1px solid transparent;color:#dbeafe;padding:7px 10px;border-radius:10px;font-family:'Nunito Sans',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:stretch;gap:2px;transition: background-color .18s, border-color .18s, color .18s, transform .18s, box-shadow .18s, opacity .18s;position:relative;}
    .chat-canal-btn:hover{background:rgba(255,255,255,0.09);color:#fff;}
    .chat-canal-btn.active{background:rgba(59,130,246,0.35);border-color:rgba(147,197,253,0.45);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.18);}
    .chat-canal-btn.has-unread:not(.active){background:rgba(249,115,22,0.16);border-color:rgba(251,146,60,0.45);color:#fff;}
@@ -573,13 +584,13 @@
    .chat-main-header .ch-actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
    .chat-search-input{padding:6px 12px;border-radius:999px;border:1.5px solid #cbd5e1;font-size:12px;width:195px;outline:none;background:#f8fafc;color:#1e293b;font-family:'Nunito Sans',sans-serif;font-weight:600;transition:border-color 0.2s,background 0.2s;}
    .chat-search-input:focus{border-color:var(--blue);background:#ffffff;}
-   .chat-messages-area{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:6px;background:#edf2f9;scrollbar-width:thin;}
+   .chat-messages-area{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:18px 20px;display:flex;flex-direction:column;gap:6px;background:#edf2f9;scrollbar-width:thin;}
    .chat-date-divider{align-self:center;margin:10px 0 6px;padding:3px 12px;border-radius:999px;background:#dbe4f3;color:#334155;font-size:11px;font-weight:800;}
    .chat-typing-indicator{padding:4px 18px;font-size:12px;color:var(--gray-600);font-style:italic;min-height:18px;background:#edf2f9;flex-shrink:0;}
    .chat-input-area{padding:12px 16px;background:white;border-top:1px solid var(--gray-200);display:flex;gap:10px;align-items:flex-end;position:relative;flex-shrink:0;}
    .chat-input-area textarea{flex:1;resize:none;border:2px solid var(--gray-200);border-radius:12px;padding:10px 14px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);outline:none;min-height:42px;max-height:120px;transition:border-color .2s;}
    .chat-input-area textarea:focus{border-color:var(--blue);}
-   .chat-urgent-toggle{background:transparent;border:2px solid var(--gray-200);border-radius:10px;width:42px;height:42px;font-size:18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+   .chat-urgent-toggle{background:transparent;border:2px solid var(--gray-200);border-radius:10px;width:42px;height:42px;font-size:18px;cursor:pointer;transition: background-color .2s, border-color .2s, color .2s, transform .2s, box-shadow .2s, opacity .2s;display:flex;align-items:center;justify-content:center;}
    .chat-urgent-toggle.active{border-color:var(--red);background:rgba(229,57,53,0.1);}
    .chat-send-btn{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;border:none;border-radius:50%;width:42px;height:42px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(26,79,196,0.3);transition:transform .2s;}
    .chat-send-btn:hover{transform:scale(1.1);}
@@ -600,16 +611,16 @@
   #chat-drawer-overlay.chat-drop-active { box-shadow: 0 0 0 4px #3b82f6, 0 12px 36px rgba(37,99,235,0.35); }
   .chat-drawer-header { background: linear-gradient(135deg, var(--blue-dark), #0a1f5c); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
   .chat-canais-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 8px 12px; background: #eef3ff; border-bottom: 1px solid #dbe4ff; flex-shrink: 0; }
-  .chat-canal-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .chat-canal-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; }
   .chat-canal-pill:hover { border-color: var(--blue); color: var(--blue-dark); }
   .chat-canal-pill.active { background: var(--blue); color: #ffffff; border-color: var(--blue-dark); box-shadow: 0 2px 6px rgba(26,79,196,0.25); }
   .chat-canal-pill.has-unread:not(.active) { background: #fff7ed; border-color: #f97316; color: #9a3412; box-shadow: 0 1px 4px rgba(249,115,22,0.2); }
   .chat-canal-pill .chat-canal-badge { background: var(--red); color: #fff; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px; margin-left: 2px; }
   .chat-quick-replies { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
   .chat-quick-replies::-webkit-scrollbar { display: none; }
-  .chat-quick-chip { padding: 4px 10px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .chat-quick-chip { padding: 4px 10px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; }
   .chat-quick-chip:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
-  .chat-ciente-btn { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.85); color: #334155; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .chat-ciente-btn { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.85); color: #334155; font-size: 11px; font-weight: 700; cursor: pointer; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; }
   .chat-ciente-btn:hover { background: #dcfce7; border-color: #86efac; color: #166534; }
   @keyframes chatFabPulse { 0%,100%{ box-shadow: 0 4px 16px rgba(26,79,196,0.4), 0 0 0 0 rgba(37,99,235,0.55); } 50%{ box-shadow: 0 4px 20px rgba(26,79,196,0.5), 0 0 0 12px rgba(37,99,235,0); } }
   #chat-fab.chat-fab-unread { animation: chatFabPulse 1.6s infinite; }
@@ -638,13 +649,13 @@
    .agend-status.faltou{background:rgba(229,57,53,0.2);color:var(--red);border:1px solid rgba(229,57,53,0.4);}
    .agend-status.reagendado{background:rgba(230,126,34,0.15);color:#d35400;border:1px solid rgba(230,126,34,0.35);}
    .agend-actions{display:flex;gap:4px;align-items:center;}
-   .agend-actions button{padding:4px 8px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:all .15s;background:transparent;}
+   .agend-actions button{padding:4px 8px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;background:transparent;}
    .agend-actions button:hover{background:var(--gray-100);}
-   .btn-editar-envio{background:#e67e22!important;color:white!important;border:none;border-radius:6px;padding:4px 9px!important;font-size:11px!important;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;transition:all .15s;box-shadow:0 2px 6px rgba(230,126,34,0.3);}
+   .btn-editar-envio{background:#e67e22!important;color:white!important;border:none;border-radius:6px;padding:4px 9px!important;font-size:11px!important;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;box-shadow:0 2px 6px rgba(230,126,34,0.3);}
    .btn-editar-envio:hover{background:#d35400!important;transform:scale(1.03);}
    .wa-modal-overlay{position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;display:none;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
    .wa-modal-overlay.show{display:flex;}
-   .wa-modal{background:white;border-radius:20px;padding:32px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;color:var(--gray-700);box-shadow:0 24px 60px rgba(0,0,0,0.4);}
+   .wa-modal{background:white;border-radius:20px;padding:32px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;overscroll-behavior:contain;color:var(--gray-700);box-shadow:0 24px 60px rgba(0,0,0,0.4);}
    .wa-modal h3{font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:var(--blue-dark);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
    .wa-preview{background:#e5ddd5;border-radius:12px;padding:16px;margin-bottom:20px;font-size:14px;line-height:1.6;white-space:pre-wrap;}
    .wa-btn-send{background:#25D366;color:white;border:none;border-radius:12px;padding:14px 28px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(37,211,102,0.4);}
@@ -663,7 +674,7 @@
    .acol-stage-count{margin-left:auto;background:rgba(255,255,255,0.15);color:var(--white);font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;min-width:24px;text-align:center;}
    .acol-card-list{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow-y:auto;scrollbar-width:thin;}
 
-   .acol-card{background:var(--white);border-radius:12px;padding:14px 16px;color:var(--gray-700);box-shadow:0 2px 8px rgba(0,0,0,0.08);border-left:5px solid #4aab3c;transition:all 0.25s;animation:slideIn 0.3s ease;}
+   .acol-card{background:var(--white);border-radius:12px;padding:14px 16px;color:var(--gray-700);box-shadow:0 2px 8px rgba(0,0,0,0.08);border-left:5px solid #4aab3c;transition: background-color 0.25s, border-color 0.25s, color 0.25s, transform 0.25s, box-shadow 0.25s, opacity 0.25s;animation:slideIn 0.3s ease;}
    .acol-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,0.12);}
    .acol-card.etapa-primeira_escuta{border-left-color:#f4821e;}
    .acol-card.etapa-segunda_escuta{border-left-color:#e53935;}
@@ -677,7 +688,7 @@
    .acol-risco-badge.amarelo{background:rgba(249,200,35,0.2);color:#8a6d00;}
    .acol-risco-badge.vermelho{background:rgba(229,57,53,0.15);color:#c62828;animation:pulseAlert 1.5s infinite;}
 
-   .acol-btn-action{padding:6px 12px;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:4px;}
+   .acol-btn-action{padding:6px 12px;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s;display:inline-flex;align-items:center;gap:4px;}
    .acol-btn-action:hover{transform:scale(1.05);}
    .acol-btn-iniciar{background:linear-gradient(135deg,#f4821e,#d46b10);color:white;box-shadow:0 2px 8px rgba(244,130,30,0.3);}
    .acol-btn-encaminhar{background:linear-gradient(135deg,#e53935,#c62828);color:white;box-shadow:0 2px 8px rgba(229,57,53,0.3);}
@@ -685,10 +696,10 @@
 
    .acol-modal-overlay{position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
    .acol-modal-overlay.show{display:flex;}
-   .acol-modal{background:white;border-radius:20px;padding:32px;max-width:520px;width:90%;max-height:85vh;overflow-y:auto;color:var(--gray-700);box-shadow:0 24px 60px rgba(0,0,0,0.4);}
+   .acol-modal{background:white;border-radius:20px;padding:32px;max-width:520px;width:90%;max-height:85vh;overflow-y:auto;overscroll-behavior:contain;color:var(--gray-700);box-shadow:0 24px 60px rgba(0,0,0,0.4);}
    .acol-modal h3{font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:var(--blue-dark);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
 
-   .acol-risco-btn{padding:8px 16px;border:2px solid var(--gray-200);border-radius:20px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:var(--gray-100);color:var(--gray-600);}
+   .acol-risco-btn{padding:8px 16px;border:2px solid var(--gray-200);border-radius:20px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s;background:var(--gray-100);color:var(--gray-600);}
    .acol-risco-btn:hover{transform:scale(1.05);}
    .acol-risco-btn.active{font-weight:800;}
    .acol-risco-verde.active{background:rgba(74,171,60,0.15);color:#2d7a22;border-color:#4aab3c;}
@@ -773,7 +784,7 @@
     .gate-btn {
       width: 100%; padding: 16px; margin-top: 16px; border: none;
       border-radius: 14px; font-family: 'Nunito', sans-serif; font-size: 17px;
-      font-weight: 900; cursor: pointer; transition: all 0.2s;
+      font-weight: 900; cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s;
       background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
       color: #fff; box-shadow: 0 4px 20px rgba(244,130,30,0.5);
     }
@@ -785,7 +796,7 @@
     .btn-logout-gate {
       background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.15);
       padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
-      cursor: pointer; transition: all 0.2s; font-family: 'Nunito', sans-serif;
+      cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; font-family: 'Nunito', sans-serif;
     }
     .btn-logout-gate:hover { background: rgba(229,57,53,0.15); color: var(--red); border-color: rgba(229,57,53,0.3); }
     /* === FIM MELHORIA A === */
@@ -877,7 +888,7 @@
     .notif-btn-ok {
       width: 100%; padding: 16px; border: none; border-radius: 14px;
       font-family: 'Nunito', sans-serif; font-size: 17px; font-weight: 900;
-      cursor: pointer; transition: all 0.2s;
+      cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s;
       background: linear-gradient(135deg, var(--green), var(--green-dark));
       color: #fff; box-shadow: 0 4px 20px rgba(74,171,60,0.5);
     }
@@ -895,7 +906,7 @@
       background: linear-gradient(135deg, var(--green), var(--green-dark));
       color: #fff; border: none; border-radius: 8px; padding: 5px 12px;
       font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800;
-      cursor: pointer; transition: all 0.2s;
+      cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s;
       box-shadow: 0 2px 8px rgba(74,171,60,0.3);
     }
     .btn-confirmar-presenca:hover { transform: scale(1.05); }
@@ -926,7 +937,7 @@
       font-size: 15px; font-weight: 800; color: var(--yellow); letter-spacing: 0.5px;
     }
     .offhours-clock-display {
-      font-family: 'Nunito', sans-serif; font-size: 52px; font-weight: 900;
+      font-family: 'Nunito', sans-serif; font-variant-numeric: tabular-nums; font-size: 52px; font-weight: 900;
       color: rgba(255,255,255,0.22); letter-spacing: 6px; margin-top: 6px;
     }
     .offhours-hint { font-size: 13px; color: rgba(255,255,255,0.28); margin-top: 18px; font-weight: 600; }
@@ -935,33 +946,121 @@
     /* === MELHORIA F: TELA PAUSA PALESTRA === */
     .pause-overlay {
       position: fixed; inset: 0; z-index: 999999;
-      background: linear-gradient(160deg, #071a0f 0%, #0d3520 55%, #1a5c36 100%);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(74, 171, 60, 0.22), transparent 45%),
+        radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.14), transparent 50%),
+        linear-gradient(160deg, #05160e 0%, #0b2e1e 52%, #134a30 100%);
       display: flex; align-items: center; justify-content: center;
+      padding: 20px;
       font-family: 'Nunito', sans-serif;
       pointer-events: all;
       cursor: default;
+      overscroll-behavior: contain;
     }
     .pause-overlay.hidden { display: none; pointer-events: none; }
-    .pause-card { text-align: center; max-width: 620px; width: 90%; animation: gateIn 0.5s ease; }
-    .pause-icon { font-size: 90px; margin-bottom: 20px; animation: breathe 2.8s ease-in-out infinite; }
-    @keyframes breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.09); } }
-    .pause-title { font-size: 30px; font-weight: 900; color: #fff; margin-bottom: 18px; letter-spacing: 0.3px; }
+    .pause-card {
+      text-align: center;
+      max-width: 720px;
+      width: 100%;
+      padding: 34px 36px 30px;
+      border-radius: 26px;
+      background: rgba(6, 26, 17, 0.72);
+      border: 1.5px solid rgba(167, 243, 208, 0.24);
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(14px);
+      animation: gateIn 0.45s ease;
+    }
+    .pause-brand-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding-bottom: 16px; margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .pause-brand-logo { font-size: 20px; font-weight: 900; color: #fff; letter-spacing: 0.3px; }
+    .pause-brand-logo .u { color: #fff; }
+    .pause-brand-logo .s { color: var(--green); }
+    .pause-brand-logo .f { color: var(--orange); }
+    .pause-clock {
+      font-family: 'Nunito', monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 22px; font-weight: 900; color: var(--yellow);
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(249, 200, 35, 0.35);
+      padding: 4px 14px; border-radius: 999px;
+      letter-spacing: 1px;
+    }
+    .pause-icon { font-size: 72px; margin-bottom: 10px; line-height: 1; animation: breathe 2.8s ease-in-out infinite; }
+    @keyframes breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.07); } }
+    .pause-title { font-size: clamp(26px, 3vw, 34px); font-weight: 900; color: #fff; margin-bottom: 10px; letter-spacing: 0.3px; }
+    .pause-meta-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 800; color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.16); border: 1px solid rgba(74, 222, 128, 0.35);
+      padding: 5px 14px; border-radius: 999px; margin-bottom: 18px;
+      font-variant-numeric: tabular-nums;
+    }
+    .pause-reason-box {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1.5px solid rgba(255, 255, 255, 0.18);
+      border-radius: 18px;
+      padding: 18px 22px;
+      margin: 0 auto 18px;
+      max-width: 600px;
+    }
+    .pause-reason-label {
+      font-size: 11px; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 1.2px; color: #a7f3d0; margin-bottom: 6px;
+    }
     .pause-sub {
-      font-size: 18px; color: rgba(255,255,255,0.8); font-weight: 600;
-      line-height: 1.75; max-width: 500px; margin: 0 auto 28px;
+      font-size: clamp(16px, 1.8vw, 20px); color: #ffffff; font-weight: 700;
+      line-height: 1.55; margin: 0;
+    }
+    .pause-reassure {
+      font-size: 13.5px; color: #cbd5e1; font-weight: 700; line-height: 1.45;
+      margin: 0 auto 20px; max-width: 540px;
     }
     .pause-badge {
-      display: inline-flex; align-items: center; gap: 12px;
+      display: inline-flex; align-items: center; gap: 10px;
       background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 40px; padding: 14px 30px;
-      font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.75); letter-spacing: 0.5px;
+      border-radius: 40px; padding: 11px 24px;
+      font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.88); letter-spacing: 0.4px;
     }
     .pause-badge::before {
-      content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+      content: ''; display: inline-block; width: 11px; height: 11px; border-radius: 50%;
       background: #4aab3c; box-shadow: 0 0 10px rgba(74,171,60,0.8); flex-shrink: 0;
       animation: blink 1.5s ease-in-out infinite;
     }
+    .pause-resume-btn {
+      margin-top: 22px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: linear-gradient(135deg, #16a34a, #15803d); color: #fff;
+      border: 1.5px solid rgba(134, 239, 172, 0.65); padding: 13px 28px;
+      border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer;
+      font-family: 'Nunito', sans-serif; box-shadow: 0 8px 24px rgba(22, 163, 74, 0.35);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+      pointer-events: all;
+    }
+    .pause-resume-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(22, 163, 74, 0.45); }
+    .pause-preset-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+    .pause-preset-chip {
+      padding: 7px 11px; border-radius: 999px; border: 1.5px solid #cbd5e1;
+      background: #f8fafc; color: #1e293b; font-family: 'Nunito', sans-serif;
+      font-size: 12px; font-weight: 800; cursor: pointer;
+      transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .pause-preset-chip:hover { border-color: var(--blue); background: #eff6ff; color: var(--blue-dark); }
+    .pause-preset-chip.active { background: #1e3a8a; border-color: #1e3a8a; color: #fff; }
     @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
+    @media (max-width: 600px) {
+      .pause-card { padding: 22px 18px; border-radius: 18px; }
+      .pause-icon { font-size: 56px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
     /* === FIM MELHORIA F (pause) === */
 
     /* === MELHORIA F: BOTÃO PAUSA === */
@@ -969,7 +1068,7 @@
       background: rgba(249,200,35,0.18); color: var(--yellow);
       border: 1.5px solid rgba(249,200,35,0.5); min-height: 34px; padding: 6px 12px;
       border-radius: 9px; font-size: 12px; font-weight: 800;
-      cursor: pointer; transition: all 0.2s; font-family: 'Nunito', sans-serif;
+      cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; font-family: 'Nunito', sans-serif;
       white-space: nowrap; flex-shrink: 0; align-items: center; gap: 6px;
     }
     .btn-palestra:hover { background: rgba(249,200,35,0.32); border-color: rgba(249,200,35,0.7); }
@@ -988,7 +1087,7 @@
     .acs-col-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); }
     .acs-col-name { font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px; }
     .acs-col-badge { background:#f4821e; color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px; }
-    .acs-call-btn { background:linear-gradient(135deg,#f4821e,#d46b10); color:#fff; border:none; border-radius:10px; padding:8px 16px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s; box-shadow:0 2px 8px rgba(244,130,30,0.4); }
+    .acs-call-btn { background:linear-gradient(135deg,#f4821e,#d46b10); color:#fff; border:none; border-radius:10px; padding:8px 16px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; box-shadow:0 2px 8px rgba(244,130,30,0.4); }
     .acs-call-btn:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(244,130,30,0.5); }
     .acs-call-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
     .acs-patient-list { display:flex; flex-direction:column; gap:8px; max-height:360px; overflow-y:auto; scrollbar-width:thin; }
@@ -997,9 +1096,9 @@
     .acs-patient-name { font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; color:var(--blue-dark); margin-bottom:4px; }
     .acs-patient-meta { font-size:11px; color:var(--gray-600); font-weight:600; display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
     .acs-patient-actions { display:flex; gap:6px; flex-wrap:wrap; }
-    .acs-btn-enc { background:linear-gradient(135deg,#e53935,#c62828); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; }
+    .acs-btn-enc { background:linear-gradient(135deg,#e53935,#c62828); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; display:inline-flex; align-items:center; gap:4px; }
     .acs-btn-enc:hover { transform:scale(1.05); }
-    .acs-btn-chamar { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; }
+    .acs-btn-chamar { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; display:inline-flex; align-items:center; gap:4px; }
     .acs-btn-chamar:hover { transform:scale(1.05); }
     .acs-stat-bar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
     .acs-stat { background:rgba(244,130,30,0.15); border:1px solid rgba(244,130,30,0.3); border-radius:12px; padding:12px 18px; display:flex; align-items:center; gap:10px; min-width:120px; }
@@ -1025,9 +1124,9 @@
     .seg-patient-meta { font-size:11px; color:var(--gray-600); font-weight:600; display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
     .seg-patient-queixa { font-size:11px; color:var(--gray-600); background:var(--gray-100); padding:5px 9px; border-radius:7px; margin-bottom:8px; font-style:italic; font-weight:600; }
     .seg-patient-actions { display:flex; gap:6px; flex-wrap:wrap; }
-    .seg-btn-finalizar { background:linear-gradient(135deg,#4aab3c,#3a8a2e); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; }
+    .seg-btn-finalizar { background:linear-gradient(135deg,#4aab3c,#3a8a2e); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; display:inline-flex; align-items:center; gap:4px; }
     .seg-btn-finalizar:hover { transform:scale(1.05); }
-    .seg-btn-chamar { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; }
+    .seg-btn-chamar { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; display:inline-flex; align-items:center; gap:4px; }
     .seg-btn-chamar:hover { transform:scale(1.05); }
     .seg-stat-bar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
     .seg-stat { background:rgba(229,57,53,0.12); border:1px solid rgba(229,57,53,0.3); border-radius:12px; padding:12px 18px; display:flex; align-items:center; gap:10px; min-width:120px; }
@@ -1035,13 +1134,13 @@
     .seg-stat-lbl { font-size:11px; color:rgba(255,255,255,0.7); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
     .seg-filter-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
     .seg-filter-bar label { font-size:12px; font-weight:700; color:rgba(255,255,255,0.6); text-transform:uppercase; }
-    .seg-filter-btn { padding:6px 14px; border:2px solid rgba(255,255,255,0.2); border-radius:20px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.7); transition:all 0.2s; }
+    .seg-filter-btn { padding:6px 14px; border:2px solid rgba(255,255,255,0.2); border-radius:20px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.7); transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; }
     .seg-filter-btn.active { background:rgba(229,57,53,0.35); color:#fff; border-color:#e53935; }
     .seg-filter-btn:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
     /* ====== FIM NOVAS TELAS ====== */
 
     /* ====== CTRL AGENDAMENTOS (Checklist Interno) ====== */
-    .ctrl-agend-filter { padding:6px 14px; border:2px solid rgba(255,255,255,0.2); border-radius:20px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.7); transition:all 0.2s; }
+    .ctrl-agend-filter { padding:6px 14px; border:2px solid rgba(255,255,255,0.2); border-radius:20px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.7); transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; }
     .ctrl-agend-filter.active { background:rgba(230,126,34,0.35); color:#fff; border-color:#e67e22; }
     .ctrl-agend-filter:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
     .ctrl-agend-row { transition: background 0.2s; }
@@ -1051,7 +1150,7 @@
     .ctrl-agend-row.status-agendado td:first-child { text-decoration:none; }
     .ctrl-badge-pendente { display:inline-flex; align-items:center; gap:4px; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:800; font-family:'Nunito',sans-serif; }
     .ctrl-badge-agendado { display:inline-flex; align-items:center; gap:4px; background:#d1e7dd; color:#155724; border:1px solid #4aab3c; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:800; font-family:'Nunito',sans-serif; }
-    .ctrl-btn-toggle { padding:6px 14px; border:none; border-radius:8px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; cursor:pointer; transition:all 0.2s; }
+    .ctrl-btn-toggle { padding:6px 14px; border:none; border-radius:8px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; cursor:pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; }
     .ctrl-btn-marcar { background:linear-gradient(135deg,#4aab3c,#3a8a2e); color:white; box-shadow:0 2px 8px rgba(74,171,60,0.3); }
     .ctrl-btn-marcar:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(74,171,60,0.4); }
     .ctrl-btn-desfazer { background:rgba(230,126,34,0.15); color:#d35400; border:1px solid rgba(230,126,34,0.4); }
@@ -1115,7 +1214,7 @@
       font-size: 11px;
       font-weight: 800;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s;
       box-shadow: 0 2px 6px rgba(0, 137, 123, 0.3);
     }
     .btn-radar-alumia:hover {
@@ -1239,7 +1338,7 @@
       font-size: 13px;
       font-weight: 800;
       cursor: pointer;
-      transition: all 0.18s ease;
+      transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
       text-align: left;
     }
     .equipe-pill-btn:hover {
@@ -1289,7 +1388,7 @@
       font-size: 12px;
       font-weight: 800;
       cursor: pointer;
-      transition: all 0.18s ease;
+      transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
       text-align: center;
       line-height: 1.2;
     }
@@ -1323,7 +1422,7 @@
       font-weight: 800;
       cursor: pointer;
       font-family: 'Nunito', sans-serif;
-      transition: all 0.15s;
+      transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s;
     }
     .motivo-chip:hover {
       background: #dbeafe;
@@ -1592,7 +1691,7 @@
       font-size: 12px;
       font-weight: 800;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
       border: 1.5px solid #cbd5e1;
       background: #f8fafc;
       color: #334155;
@@ -1660,6 +1759,7 @@
     .fila-table-wrap {
       width: 100%;
       overflow-x: auto;
+      overscroll-behavior: contain;
       border-radius: 12px;
       border: 1px solid #cbd5e1;
       background: #ffffff;
@@ -1772,7 +1872,7 @@
       user-select: none;
       white-space: nowrap;
       flex-shrink: 0;
-      transition: all 0.2s ease;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
     }
     .net-status-pill .net-dot {
       width: 10px;
@@ -1884,13 +1984,14 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 26px;
-      height: 26px;
+      min-width: 28px;
+      height: 28px;
       padding: 0 6px;
       border-radius: 6px;
       background: var(--blue);
       color: #ffffff;
       font-family: 'Nunito', sans-serif;
+      font-variant-numeric: tabular-nums;
       font-weight: 900;
       font-size: 12px;
       margin-right: 4px;
@@ -1957,18 +2058,18 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 5px;
+      gap: 6px;
       flex-wrap: wrap;
     }
     .btn-icon-compact {
-      width: 26px !important;
-      height: 26px !important;
-      min-width: 26px !important;
+      width: 32px !important;
+      height: 32px !important;
+      min-width: 32px !important;
       padding: 0 !important;
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
-      font-size: 12px !important;
+      font-size: 13px !important;
     }
     .acol-stages-grid,
     .acs-grid,
@@ -2327,12 +2428,12 @@
     .previa-teste-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: rgba(254, 243, 199, 0.95); color: #92400e; border: 1px solid #f59e0b; font-size: 11px; font-weight: 900; }
     .previa-modal-backdrop { display: none; position: fixed; inset: 0; z-index: 9995; background: rgba(15, 23, 42, 0.78); align-items: center; justify-content: center; padding: 10px; }
     .previa-modal-backdrop.show { display: flex; }
-    .previa-modal-card { background: #fff; color: #0f172a; border-radius: 16px; width: 100%; max-width: 720px; max-height: 94vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.45); display: flex; flex-direction: column; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
+    .previa-modal-card { background: #fff; color: #0f172a; border-radius: 16px; width: 100%; max-width: 720px; max-height: 94vh; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 24px 60px rgba(0,0,0,0.45); display: flex; flex-direction: column; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
     .previa-modal-card.wide { width: 96vw; max-width: 1520px; height: 94vh; max-height: 94vh; overflow: hidden; }
     .previa-modal-head { background: linear-gradient(135deg, #0f2c73, #1a4fc4); color: #fff; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; }
-    .previa-btn-close-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: 1.5px solid #fecaca; border-radius: 9px; padding: 6px 13px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 10px rgba(220,38,38,0.42); transition: all 0.15s; flex-shrink: 0; }
+    .previa-btn-close-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: 1.5px solid #fecaca; border-radius: 9px; padding: 6px 13px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 10px rgba(220,38,38,0.42); transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s; flex-shrink: 0; }
     .previa-btn-close-red:hover { background: #b91c1c; border-color: #fff; transform: scale(1.04); }
-    .previa-modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
+    .previa-modal-body { padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; flex: 1; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
     .previa-modal-body::-webkit-scrollbar, .previa-modal-card::-webkit-scrollbar, .previa-side-panel::-webkit-scrollbar, .sisreg-table-wrap::-webkit-scrollbar, .sisreg-dev-lista::-webkit-scrollbar { width: 14px; height: 14px; }
     .previa-modal-body::-webkit-scrollbar-track, .previa-modal-card::-webkit-scrollbar-track, .previa-side-panel::-webkit-scrollbar-track, .sisreg-table-wrap::-webkit-scrollbar-track, .sisreg-dev-lista::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
     .previa-modal-body::-webkit-scrollbar-thumb, .previa-modal-card::-webkit-scrollbar-thumb, .previa-side-panel::-webkit-scrollbar-thumb, .sisreg-table-wrap::-webkit-scrollbar-thumb, .sisreg-dev-lista::-webkit-scrollbar-thumb { background: #64748b; border-radius: 8px; border: 2px solid #e2e8f0; }
@@ -2347,7 +2448,7 @@
     .previa-pan-hint { font-size: 11px; color: #64748b; font-weight: 700; margin-left: auto; }
     .vp-forms-box { background: linear-gradient(135deg, #f0f9ff, #eff6ff); border: 1.5px solid #93c5fd; border-radius: 12px; padding: 10px 12px; }
     .vp-forms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
-    .btn-form-transfer { padding: 9px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.15s; text-align: center; }
+    .btn-form-transfer { padding: 9px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; text-align: center; }
     .btn-form-transfer:hover { border-color: #2563eb; background: #dbeafe; color: #1e40af; transform: translateY(-1px); }
     .btn-form-transfer.destaque { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; border-color: #1e40af; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28); }
     .fila-forms-mini { display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 2px 4px; }
@@ -2510,13 +2611,13 @@
       font-size: 11.5px;
       font-weight: 800;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     }
     .clinical-forms-toggle-btn:hover { background: #e2e8f0; border-color: #94a3b8; color: #0f172a; }
 
     .pec-forms-title { font-size: 12px; font-weight: 900; color: #1e3a8a; margin-right: 4px; }
     .pec-forms-sep { width: 1px; height: 22px; background: #cbd5e1; margin: 0 2px; flex-shrink: 0; }
-    .pec-form-btn { min-height: 34px; padding: 6px 12px; border-radius: 9px; border: 1.5px solid #93c5fd; background: #fff; color: #1e3a8a; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease; }
+    .pec-form-btn { min-height: 34px; padding: 6px 12px; border-radius: 9px; border: 1.5px solid #93c5fd; background: #fff; color: #1e3a8a; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease; }
     .pec-form-btn:hover { background: #dbeafe; border-color: #2563eb; }
     .pec-form-btn.branco { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
     .pec-form-btn.branco:hover { background: #e2e8f0; border-color: #94a3b8; color: #0f172a; }
@@ -2540,7 +2641,7 @@
       font-weight: 800;
       cursor: pointer;
       line-height: 1;
-      transition: all 0.15s ease;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     }
     .btn-inline-mgr--edit { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
     .btn-inline-mgr--edit:hover { background: #dbeafe; border-color: #3b82f6; }
@@ -2572,7 +2673,7 @@
       align-items: center;
       gap: 4px;
       white-space: nowrap;
-      transition: all 0.15s ease;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     }
     .btn-fila-forms-trigger:hover { background: #dbeafe; border-color: #2563eb; }
 
@@ -2639,7 +2740,7 @@
     .modal-actions-row { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
     .modal-actions-row .btn { min-height: 40px; border-radius: 9px; font-weight: 800; }
     .wa-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .wa-modal-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 16px; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+    .wa-modal-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 16px; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; flex-shrink: 0; }
     .wa-modal-close:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
     .fo-modal-backdrop { z-index: 9998; }
     .fo-modal-card { background: #fff; color: #0f172a; border-radius: 14px; width: 98vw; max-width: 1620px; height: 96vh; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,0.55); display: flex; flex-direction: column; }
@@ -2687,7 +2788,7 @@
     .sisreg-head-btn:hover { background: rgba(255,255,255,0.28); }
     .sisreg-copiloto-body { padding: 14px 16px; background: #f8fafc; }
     .sisreg-tabs-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-    .sisreg-tab-btn { padding: 8px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #fff; color: #334155; font-size: 13px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
+    .sisreg-tab-btn { padding: 8px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #fff; color: #334155; font-size: 13px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; }
     .sisreg-tab-btn:hover { border-color: #2563eb; color: #1e40af; }
     .sisreg-tab-btn.active { background: #1d4ed8; color: #fff; border-color: #1e40af; box-shadow: 0 3px 10px rgba(29,78,216,0.25); }
     .sisreg-tab-btn.respondidas { border-color: #6ee7b7; color: #065f46; background: #ecfdf5; }
@@ -2787,7 +2888,7 @@
     }
     .modal-overlay { display: none; position: fixed; inset: 0; z-index: 10010; background: rgba(15, 23, 42, 0.78); align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(4px); }
     .modal-overlay.show { display: flex; }
-    .modal-box { background: #ffffff; color: #0f172a; border-radius: 16px; padding: 20px 22px; max-height: 92vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.45); }
+    .modal-box { background: #ffffff; color: #0f172a; border-radius: 16px; padding: 20px 22px; max-height: 92vh; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 24px 60px rgba(0,0,0,0.45); }
     .segunda-tela-split { flex: 1; min-height: 0; display: flex; background: #e2e8f0; overflow: hidden; }
     .segunda-tela-side { width: 370px; min-width: 300px; background: #f8fafc; border-right: 1.5px solid #cbd5e1; padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
     .segunda-tela-desk { flex: 1; min-width: 0; padding: 18px; overflow-y: auto; background: #cbd5e1; display: flex; flex-direction: column; align-items: center; }
@@ -2829,13 +2930,53 @@
 <!-- === FIM MELHORIA F: TELA FORA DO EXPEDIENTE === -->
 
 <!-- === MELHORIA F: TELA PAUSA PALESTRA === -->
-<div class="pause-overlay hidden" id="pause-overlay">
+<div class="pause-overlay hidden" id="pause-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title-heading">
   <div class="pause-card">
+    <div class="pause-brand-bar">
+      <div class="pause-brand-logo"><span class="u">U</span><span class="s">S</span><span class="f">F</span> Chico Mendes</div>
+      <div class="pause-clock" id="pause-clock">--:--:--</div>
+    </div>
     <div class="pause-icon">🎙️</div>
-    <div class="pause-title">Atendimento Pausado</div>
-    <div class="pause-sub" id="pause-sub-text">Atendimento pausado temporariamente para realização de atividade interna / palestra na recepção.</div>
+    <h2 class="pause-title" id="pause-title-heading">Atendimento Temporariamente Pausado</h2>
+    <div class="pause-meta-pill" id="pause-meta-time">Pausa ativa no sistema</div>
+    <div class="pause-reason-box">
+      <div class="pause-reason-label">Motivo informado pela unidade</div>
+      <p class="pause-sub" id="pause-sub-text">Atendimento pausado temporariamente para realização de atividade interna / palestra na recepção.</p>
+    </div>
+    <div class="pause-reassure">Sua posição na fila está preservada — assim que retornarmos, as chamadas no painel continuarão normalmente.</div>
     <div class="pause-badge">Aguarde — retornaremos em breve</div>
-    <button onclick="togglePausaPalestra()" style="margin-top:32px;background:rgba(255,255,255,0.12);color:#fff;border:1.5px solid rgba(255,255,255,0.3);padding:12px 28px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;pointer-events:all;">🔓 Retomar Atendimento (Admin)</button>
+    <div>
+      <button type="button" class="pause-resume-btn" onclick="togglePausaPalestra()">🔓 Retomar Atendimento (Admin)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Configurar Motivo da Pausa Global (Admin) -->
+<div class="reorder-modal-overlay" id="modal-config-pausa" role="dialog" aria-modal="true" aria-labelledby="modal-config-pausa-title" onclick="if(event.target===this)fecharModalConfigPausa()">
+  <div class="reorder-modal" style="max-width:520px;text-align:left;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+      <h3 id="modal-config-pausa-title" style="margin:0;">🎙️ Pausar Atendimento Global</h3>
+      <button type="button" class="wa-modal-close" onclick="fecharModalConfigPausa()" title="Fechar janela" aria-label="Fechar janela de pausa">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px;line-height:1.45;">
+      Todos os computadores e TVs da sala de espera exibirão esta mensagem e suspenderão novas chamadas até você retomar.
+    </p>
+    <div style="font-size:11.5px;font-weight:800;color:var(--gray-600);text-transform:uppercase;margin-bottom:6px;">Motivos rápidos</div>
+    <div class="pause-preset-chips">
+      <button type="button" class="pause-preset-chip active" onclick="selecionarMotivoPausaRapido(this, 'Atendimento pausado temporariamente para realização de atividade interna / palestra na recepção.')">🎙️ Palestra / Educação em Saúde</button>
+      <button type="button" class="pause-preset-chip" onclick="selecionarMotivoPausaRapido(this, 'Atendimento pausado temporariamente para reunião rápida de alinhamento da equipe.')">🤝 Reunião Rápida de Equipe</button>
+      <button type="button" class="pause-preset-chip" onclick="selecionarMotivoPausaRapido(this, 'Intervalo programado para troca de turno e organização do atendimento.')">🍽️ Intervalo / Troca de Turno</button>
+      <button type="button" class="pause-preset-chip" onclick="selecionarMotivoPausaRapido(this, 'Pausa breve para higienização ou manutenção preventiva na unidade.')">🧹 Higienização / Manutenção</button>
+      <button type="button" class="pause-preset-chip" onclick="selecionarMotivoPausaRapido(this, 'Instabilidade momentânea de energia ou internet — retomaremos em instantes.')">⚡ Instabilidade Temporária</button>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label for="input-motivo-pausa" style="font-size:12px;color:var(--gray-600);">Mensagem exibida na TV e nos computadores</label>
+      <textarea id="input-motivo-pausa" rows="3" maxlength="200" style="width:100%;padding:10px 12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:600;color:#0f172a;resize:vertical;"></textarea>
+    </div>
+    <div class="reorder-modal-actions">
+      <button type="button" class="btn btn-primary" onclick="confirmarPausaPalestraModal()" style="background:linear-gradient(135deg,#0f766e,#15803d);border-color:#166534;">🎙️ Confirmar e Pausar Agora</button>
+      <button type="button" class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalConfigPausa()">Cancelar</button>
+    </div>
   </div>
 </div>
 <!-- === FIM MELHORIA F: TELA PAUSA PALESTRA === -->
@@ -2867,11 +3008,11 @@
       <button type="button" id="header-chat-alert" class="header-chat-alert" onclick="toggleChatPanel()" title="Você tem mensagens não lidas no Chat Interno">
         💬 <span id="header-chat-alert-text">Nova msg</span>
       </button>
-      <div id="net-status-pill" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da conexão com a internet e servidor (clique para testar agora)">
+      <button type="button" id="net-status-pill" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da conexão com a internet e servidor (clique para testar agora)" aria-label="Status da conexão com a internet e servidor">
         <span class="net-dot"></span>
         <span id="net-status-text">Online</span>
-      </div>
-      <button id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio">🔊</button>
+      </button>
+      <button type="button" id="btn-mute" class="btn-reset" onclick="toggleMute()" title="Silenciar/Ativar áudio" aria-label="Silenciar ou ativar áudio do navegador">🔊</button>
       <button class="btn-admin-lock" id="btn-admin" onclick="toggleAdmin()" title="Modo Administrador">🔒 Modo Público</button>
       <!-- === MELHORIA A: BOTÃO LOGOUT === -->
       <button class="btn-logout-gate" id="btn-logout-gate" onclick="logoutGate()" title="Encerrar sessão do portão de entrada">🚪 Encerrar sessão</button>
@@ -2930,7 +3071,7 @@
       <button type="button" class="admin-tb-btn admin-tb-btn--warn manager-or-admin-tab" style="display:none;" onclick="abrirModalContingenciaOffline('contingencia')" title="Imprimir Folha de Contingência da fila atual (Segunda Tela)">
         🖨️ Contingência / Fila <span id="contingencia-offline-badge" style="display:none;background:#dc2626;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;margin-left:2px;">0</span>
       </button>
-      <a href="/dashboard" target="_blank" class="admin-tb-btn admin-tb-btn--blue" title="Abrir Painel de Métricas e Indicadores">📊 Dashboard</a>
+      <a href="/dashboard" target="_blank" rel="noopener noreferrer" class="admin-tb-btn admin-tb-btn--blue" title="Abrir Painel de Métricas e Indicadores">📊 Dashboard</a>
     </div>
 
     <div class="admin-cat-pod admin-cat-pod--system admin-strict-only">
@@ -2968,7 +3109,7 @@
   <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
 
-<div class="main">
+<main class="main" id="main-content">
 
   <!-- ============ RECEPÇÃO (1ª ESCUTA MODERNIZADA) ============ -->
   <div class="screen active" id="screen-recepcao">
@@ -3015,18 +3156,18 @@
               <span id="recepcao-step1-label">Paciente &amp; Prioridade</span>
             </div>
             <div class="form-group" style="margin-bottom:10px;position:relative;">
-              <label>Nome Completo do Paciente <span style="color:var(--red);">*</span></label>
+              <label for="input-nome">Nome Completo do Paciente <span style="color:var(--red);">*</span></label>
               <input type="text" id="input-nome" placeholder="Ex: Maria da Silva ou CPF/SUS..." autocomplete="off" style="font-size:14.5px;font-weight:700;padding:11px 14px;">
               <div id="autocomplete-sugestoes" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
 
             <div style="display:grid;grid-template-columns:105px 1fr;gap:10px;align-items:start;margin-bottom:10px;">
               <div class="form-group" style="margin-bottom:0;">
-                <label title="Digite 0 para bebês de meses (Criança de Colo)">Idade (opc.)</label>
-                <input type="number" id="input-idade" min="0" max="120" step="1" placeholder="Ex: 65 ou 0" title="Digite 0 para Criança de Colo (meses) — Prioridade igual a 80+" autocomplete="off" style="padding:11px 10px;">
+                <label for="input-idade" title="Digite 0 para bebês de meses (Criança de Colo)">Idade (opc.)</label>
+                <input type="number" id="input-idade" min="0" max="120" step="1" inputmode="numeric" placeholder="Ex: 65 ou 0" title="Digite 0 para Criança de Colo (meses) — Prioridade igual a 80+" autocomplete="off" style="padding:11px 10px;">
               </div>
               <div class="form-group" style="margin-bottom:0;">
-                <label>Prioridade Legal</label>
+                <label for="input-prioridade">Prioridade Legal</label>
                 <select id="input-prioridade" onchange="togglePrioridadeDetalhes()" style="padding:11px 12px;font-size:13.5px;">
                   <option value="geral">👤 Geral (ou 60+/80+ auto)</option>
                   <option value="prioritario">⭐ Prioritário (Criança de Colo / Gestante / TEA / PCD)</option>
@@ -3035,7 +3176,7 @@
             </div>
 
             <div class="form-group" style="margin-bottom:10px;display:none;" id="prioridade-detalhes">
-              <label>Tipo de Prioridade Legal (Ordem 1º a 10º — Lei nº 10.048/2000)</label>
+              <label for="input-tipo-prioridade">Tipo de Prioridade Legal (Ordem 1º a 10º — Lei nº 10.048/2000)</label>
               <select id="input-tipo-prioridade" style="padding:10px 12px;font-size:13.5px;">
                 <option value="1. Idoso 80+ (Prioridade Especial)">1º Idosos com 80 anos ou mais – prioridade especial</option>
                 <option value="2. Pessoa com Deficiência (PCD)">2º Pessoas com deficiência – incluindo cadeirantes</option>
@@ -3134,7 +3275,7 @@
               </div>
 
               <div class="form-group" style="margin-bottom:10px;">
-                <label style="font-size:11px;color:var(--gray-600);">Setor Selecionado</label>
+                <label for="input-setor" style="font-size:11px;color:var(--gray-600);">Setor Selecionado</label>
                 <select id="input-setor" onchange="toggleTipoAtendimento()" style="padding:10px 12px;font-size:13.5px;">
                   <option value="">— Selecione o setor —</option>
                   <option value="Acolhimento">💜 Acolhimento (Recepção)</option>
@@ -3151,7 +3292,7 @@
 
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div class="form-group" style="margin-bottom:0;display:none;" id="tipo-atendimento-grupo">
-                  <label>Tipo de Atendimento</label>
+                  <label for="input-tipo-atendimento">Tipo de Atendimento</label>
                   <select id="input-tipo-atendimento" onchange="verificarSubmodoOdontoRecepcao()" style="padding:10px 12px;font-size:13px;">
                     <option value="Consulta">🩺 Consulta</option>
                     <option value="Consulta Agendada (Conecta Recife)">📱 Consulta Agendada (Conecta Recife)</option>
@@ -3166,13 +3307,13 @@
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom:0;display:none;" id="profissional-grupo">
-                  <label>Profissional Responsável</label>
+                  <label for="input-profissional">Profissional Responsável</label>
                   <select id="input-profissional" onchange="atualizarAlertaIntercorrenciaRecepcao()" style="padding:10px 12px;font-size:13px;">
                     <option value="">— Selecione o profissional —</option>
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom:0;display:none;" id="odonto-horario-marcado-grupo">
-                  <label title="Horário agendado (Médico, Odontologia e Enfermagem)">⏰ Horário Marcado</label>
+                  <label for="input-horario-marcado" title="Horário agendado (Médico, Odontologia e Enfermagem)">⏰ Horário Marcado</label>
                   <input type="time" id="input-horario-marcado" oninput="atualizarAlertaIntercorrenciaRecepcao()" onchange="atualizarAlertaIntercorrenciaRecepcao()" style="padding:9px 12px;font-size:13.5px;font-weight:800;color:#6d28d9;border:2px solid #ddd6fe;border-radius:10px;background:#f5f3ff;">
                 </div>
               </div>
@@ -3209,12 +3350,12 @@
               <div id="recepcao-interc-alerta"></div>
               <div id="recepcao-previa-receita-bar" class="recepcao-previa-bar">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                  <button type="button" id="btn-abrir-previa-recepcao" class="btn-previa-recepcao" onclick="abrirModalCapturaReceita()">📷 Prévia (Liberado para teste)</button>
+                  <button type="button" id="btn-abrir-previa-recepcao" class="btn-previa-recepcao" onclick="abrirModalCapturaReceita()" title="Prévia (Liberado para teste) — Anexar receita, exame ou encaminhamento">📷 Anexar Prévia</button>
                   <span id="recepcao-previa-subtxt" style="font-size:11.5px;color:#1e3a8a;font-weight:700;">Anexe receita, exame ou encaminhamento (foto ou PDF) para qualquer fila</span>
                 </div>
                 <div id="recepcao-previa-anexada-pill" class="recepcao-previa-anexada">
                   <span id="recepcao-previa-anexada-txt">📄 Prévia anexada</span>
-                  <button type="button" onclick="limparPreviaReceitaPendente()" style="background:transparent;border:none;color:#991b1b;font-weight:900;cursor:pointer;" title="Remover prévia">✕</button>
+                  <button type="button" onclick="limparPreviaReceitaPendente()" style="background:transparent;border:none;color:#991b1b;font-weight:900;cursor:pointer;" title="Remover prévia" aria-label="Remover prévia anexada">✕</button>
                 </div>
               </div>
             </div>
@@ -3230,7 +3371,7 @@
             <div>
               <div class="recepcao-step-title">
                 <span class="recepcao-step-num">3</span>
-                <span>Motivo / Queixa Inicial (1ª Escuta)</span>
+                <label for="input-motivo-primeira-escuta" style="margin:0;color:inherit;font-size:inherit;font-weight:inherit;text-transform:none;letter-spacing:0;">Motivo / Queixa Inicial (1ª Escuta)</label>
               </div>
               <div class="form-group" style="margin-bottom:10px;">
                 <textarea id="input-motivo-primeira-escuta" rows="3" placeholder="Descreva o motivo da vinda ou queixa inicial na 1ª Escuta..." style="width:100%;padding:10px 12px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--gray-700);resize:vertical;"></textarea>
@@ -3381,14 +3522,14 @@
   </div>
 
   <!-- Modal: 1ª Escuta (Encaminhar) -->
-  <div class="acol-modal-overlay" id="acol-escuta-modal">
+  <div class="acol-modal-overlay" id="acol-escuta-modal" role="dialog" aria-modal="true" aria-labelledby="acol-escuta1-title">
     <div class="acol-modal acol-modal-wide">
       <div class="acol-modal-head escuta1">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;flex:1;">
-          <h3>🟡 1ª Escuta – Encaminhar Paciente</h3>
+          <h3 id="acol-escuta1-title">🟡 1ª Escuta – Encaminhar Paciente</h3>
           <div id="acol-modal-patient-info" class="acol-modal-patient-pill">—</div>
         </div>
-        <button type="button" class="previa-btn-close-red" onclick="fecharEscutaModal()" title="Fechar janela">✕ Fechar</button>
+        <button type="button" class="previa-btn-close-red" onclick="fecharEscutaModal()" title="Fechar janela" aria-label="Fechar modal de 1ª Escuta">✕ Fechar</button>
       </div>
       <div class="acol-modal-body">
         <input type="hidden" id="acol-modal-id">
@@ -3396,16 +3537,16 @@
           <div style="display:flex;flex-direction:column;gap:10px;">
             <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:10px;">
               <div class="form-group" style="margin-bottom:0;">
-                <label style="color:var(--gray-600);font-size:12px;">CPF (6 dígitos)</label>
-                <input type="text" id="acol-modal-cpf" maxlength="6" oninput="this.value=this.value.replace(/\D/g,'')" placeholder="Apenas 6 números" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;">
+                <label for="acol-modal-cpf" style="color:var(--gray-600);font-size:12px;">CPF (6 dígitos)</label>
+                <input type="text" id="acol-modal-cpf" maxlength="6" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" placeholder="Apenas 6 números" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;">
               </div>
               <div class="form-group" style="margin-bottom:0;">
-                <label style="color:var(--gray-600);font-size:12px;">Cartão SUS (Opcional)</label>
-                <input type="text" id="acol-modal-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;">
+                <label for="acol-modal-sus" style="color:var(--gray-600);font-size:12px;">Cartão SUS (Opcional)</label>
+                <input type="text" id="acol-modal-sus" inputmode="numeric" placeholder="000 0000 0000 0000" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;">
               </div>
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label style="color:var(--gray-600);font-size:12px;">🏥 Equipe do Paciente</label>
+              <label for="acol-modal-equipe" style="color:var(--gray-600);font-size:12px;">🏥 Equipe do Paciente</label>
               <select id="acol-modal-equipe" style="width:100%;padding:9px 10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:700;color:var(--gray-700);">
                 <option value="">— Selecione a Equipe —</option>
                 <option value="Eq 1 Chico Mendes">🏥 Equipe 1 · Chico Mendes</option>
@@ -3415,7 +3556,7 @@
               </select>
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label style="color:var(--gray-600);font-size:12px;">💬 Motivo / Queixa Principal (1ª Escuta) <span style="color:var(--red);">*</span></label>
+              <label for="acol-modal-queixa" style="color:var(--gray-600);font-size:12px;">💬 Motivo / Queixa Principal (1ª Escuta) <span style="color:var(--red);">*</span></label>
               <textarea id="acol-modal-queixa" rows="3" style="width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--gray-700);resize:vertical;" placeholder="Descreva a queixa do paciente na 1ª escuta..."></textarea>
             </div>
             <div class="acol-panel-card" style="padding:10px 12px;">
@@ -3457,7 +3598,7 @@
                   Opcional: escolha o profissional desejado ou deixe em branco para a fila geral da 2ª Escuta.
                 </p>
                 <div class="form-group" style="margin-bottom:10px;">
-                  <label style="color:var(--gray-600);font-size:12px;">Tipo Profissional Destino</label>
+                  <label for="acol-modal-tipo-prof" style="color:var(--gray-600);font-size:12px;">Tipo Profissional Destino</label>
                   <select id="acol-modal-tipo-prof" style="width:100%;padding:9px 10px;border:2px solid #cbd5e1;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;color:var(--gray-700);background:#fff;" onchange="updateAcolProfDest()">
                     <option value="">— Opcional —</option>
                     <option value="medico">🩺 Médico</option>
@@ -3466,7 +3607,7 @@
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
-                  <label style="color:var(--gray-600);font-size:12px;">Profissional Destino</label>
+                  <label for="acol-modal-prof-dest" style="color:var(--gray-600);font-size:12px;">Profissional Destino</label>
                   <select id="acol-modal-prof-dest" style="width:100%;padding:9px 10px;border:2px solid #cbd5e1;border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:13px;font-weight:700;color:var(--gray-700);background:#fff;">
                     <option value="">— Opcional —</option>
                   </select>
@@ -3489,14 +3630,14 @@
   </div>
 
   <!-- Modal: 2ª Escuta (Atendimento, Reencaminhamento como Intercorrência ou Encerramento) -->
-  <div class="acol-modal-overlay" id="acol-escuta2-modal">
+  <div class="acol-modal-overlay" id="acol-escuta2-modal" role="dialog" aria-modal="true" aria-labelledby="acol-escuta2-title">
     <div class="acol-modal acol-modal-wide acol-modal-wide-lg">
       <div class="acol-modal-head escuta2">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;flex:1;">
-          <h3>🔴 2ª Escuta – Avaliação &amp; Conduta Clínica</h3>
+          <h3 id="acol-escuta2-title">🔴 2ª Escuta – Avaliação &amp; Conduta Clínica</h3>
           <div id="acol-escuta2-patient-info" class="acol-modal-patient-pill">—</div>
         </div>
-        <button type="button" class="previa-btn-close-red" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')" title="Fechar janela">✕ Fechar</button>
+        <button type="button" class="previa-btn-close-red" onclick="document.getElementById('acol-escuta2-modal').classList.remove('show')" title="Fechar janela" aria-label="Fechar modal de 2ª Escuta">✕ Fechar</button>
       </div>
       <div class="acol-modal-body">
         <input type="hidden" id="acol-escuta2-id">
@@ -3527,7 +3668,7 @@
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                 <div class="form-group" style="margin-bottom:0;">
-                  <label style="color:#7c2d12;font-size:11.5px;">Destino</label>
+                  <label for="acol-escuta2-setor-destino" style="color:#7c2d12;font-size:11.5px;">Destino</label>
                   <select id="acol-escuta2-setor-destino" onchange="atualizarProfissionaisDestinoEscuta2()" style="width:100%;padding:8px 9px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:700;background:#fff;color:#1e293b;">
                     <option value="">— Selecione o Destino —</option>
                     <option value="Médico">🩺 Médico</option>
@@ -3541,14 +3682,14 @@
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom:0;" id="acol-escuta2-prof-destino-grupo">
-                  <label style="color:#7c2d12;font-size:11.5px;">Profissional</label>
+                  <label for="acol-escuta2-prof-destino" style="color:#7c2d12;font-size:11.5px;">Profissional</label>
                   <select id="acol-escuta2-prof-destino" style="width:100%;padding:8px 9px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:700;background:#fff;color:#1e293b;">
                     <option value="">— Qualquer disponível —</option>
                   </select>
                 </div>
               </div>
               <div class="form-group" style="margin-bottom:0;">
-                <label style="color:#7c2d12;font-size:11.5px;">Observações da 2ª Escuta / Triagem</label>
+                <label for="acol-escuta2-obs-segunda" style="color:#7c2d12;font-size:11.5px;">Observações da 2ª Escuta / Triagem</label>
                 <textarea id="acol-escuta2-obs-segunda" rows="3" placeholder="Ex: PA 150x90 mmHg, encaminhado para avaliação médica..." style="width:100%;padding:8px 10px;border:2px solid #fdba74;border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:600;background:#fff;color:#1e293b;resize:vertical;"></textarea>
               </div>
             </div>
@@ -3562,17 +3703,17 @@
             <div class="acol-panel-card-title" style="color:#15803d;margin-bottom:0;">✅ Ou Concluir na Própria 2ª Escuta</div>
             <div style="display:grid;grid-template-columns:0.8fr 1.2fr;gap:8px;">
               <div class="form-group" style="margin-bottom:0;">
-                <label style="color:var(--gray-600);font-size:11.5px;">CPF (6 dígitos)</label>
-                <input type="text" id="acol-escuta2-cpf" maxlength="6" oninput="this.value=this.value.replace(/\D/g,'')" placeholder="6 números" style="width:100%;padding:8px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;background:#fff;">
+                <label for="acol-escuta2-cpf" style="color:var(--gray-600);font-size:11.5px;">CPF (6 dígitos)</label>
+                <input type="text" id="acol-escuta2-cpf" maxlength="6" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" placeholder="6 números" style="width:100%;padding:8px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;background:#fff;">
               </div>
               <div class="form-group" style="margin-bottom:0;">
-                <label style="color:var(--gray-600);font-size:11.5px;">Cartão SUS</label>
-                <input type="text" id="acol-escuta2-sus" placeholder="000 0000 0000 0000" style="width:100%;padding:8px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;background:#fff;">
+                <label for="acol-escuta2-sus" style="color:var(--gray-600);font-size:11.5px;">Cartão SUS</label>
+                <input type="text" id="acol-escuta2-sus" inputmode="numeric" placeholder="000 0000 0000 0000" style="width:100%;padding:8px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;background:#fff;">
               </div>
             </div>
 
             <div class="form-group" style="margin-bottom:0;">
-              <label style="color:var(--gray-600);font-size:11.5px;">Queixa / Registro Final</label>
+              <label for="acol-escuta2-queixa" style="color:var(--gray-600);font-size:11.5px;">Queixa / Registro Final</label>
               <textarea id="acol-escuta2-queixa" rows="2" style="width:100%;padding:8px 9px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Nunito Sans',sans-serif;font-size:12.5px;font-weight:600;color:var(--gray-700);resize:vertical;background:#fff;" placeholder="Revise a queixa..."></textarea>
             </div>
 
@@ -3623,17 +3764,17 @@
   </div>
 
   <!-- Modal: Seleção de ACS (Acolhimento) -->
-  <div class="acol-modal-overlay" id="acol-acs-modal">
+  <div class="acol-modal-overlay" id="acol-acs-modal" role="dialog" aria-modal="true" aria-labelledby="acol-acs-title">
     <div class="acol-modal acol-modal-wide" style="max-width:500px;">
       <div class="acol-modal-head acs">
-        <h3>🟡 Iniciar 1ª Escuta</h3>
-        <button type="button" class="previa-btn-close-red" onclick="document.getElementById('acol-acs-modal').classList.remove('show')" title="Fechar janela">✕ Fechar</button>
+        <h3 id="acol-acs-title">🟡 Iniciar 1ª Escuta</h3>
+        <button type="button" class="previa-btn-close-red" onclick="document.getElementById('acol-acs-modal').classList.remove('show')" title="Fechar janela" aria-label="Fechar seleção de ACS">✕ Fechar</button>
       </div>
       <div class="acol-modal-body">
         <div id="acol-acs-patient-info" style="margin-bottom:12px;padding:10px 12px;background:var(--gray-100);border-radius:10px;font-weight:700;font-size:14.5px;color:var(--gray-700);"></div>
         <input type="hidden" id="acol-acs-patient-id">
         <div class="form-group" style="margin-bottom:0;">
-          <label style="color:var(--gray-600);">ACS Responsável</label>
+          <label for="acol-acs-select" style="color:var(--gray-600);">ACS Responsável</label>
           <select id="acol-acs-select" style="width:100%;padding:11px;border:2px solid var(--gray-200);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;font-weight:600;color:var(--gray-700);">
             <option value="">— Selecione o Agente de Saúde —</option>
             <optgroup label="Equipe 1 Chico Mendes">
@@ -3668,9 +3809,9 @@
   </div>
 
   <!-- Modal: Relatório Acolhimento -->
-  <div class="acol-modal-overlay" id="acol-relatorio-modal">
+  <div class="acol-modal-overlay" id="acol-relatorio-modal" role="dialog" aria-modal="true" aria-labelledby="acol-relatorio-title">
     <div class="acol-modal" style="max-width:650px;">
-      <h3>📊 Relatório do Acolhimento – Hoje</h3>
+      <h3 id="acol-relatorio-title">📊 Relatório do Acolhimento – Hoje</h3>
       <div id="acol-relatorio-content" style="font-size:14px;color:var(--gray-700);line-height:1.7;"></div>
       <div style="display:flex;gap:12px;margin-top:20px;">
         <button class="btn btn-primary" style="flex:1;" onclick="exportarRelatorioAcolhimentoPDF()">📄 Exportar PDF</button>
@@ -3705,10 +3846,10 @@
           </div>
         </div>
         <div class="painel-topbar-right">
-          <div id="painel-net-status" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da internet no Painel TV">
+          <button type="button" id="painel-net-status" class="net-status-pill" onclick="verificarConexaoAgora(true)" title="Status da internet no Painel TV" aria-label="Status da internet no Painel TV">
             <span class="net-dot"></span>
             <span id="painel-net-status-text">Conectado</span>
-          </div>
+          </button>
           <div class="painel-clock-box">
             <div class="painel-clock-time" id="painel-clock-time">--:--:--</div>
             <div class="painel-clock-date" id="painel-clock-date">--/--/----</div>
@@ -3800,13 +3941,13 @@
         <button type="button" id="btn-chat-expand" onclick="toggleChatExpand()" style="background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.28); color:white; font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; cursor:pointer; font-family:'Nunito',sans-serif;" title="Expandir ou reduzir janela do chat">
           ⤢ Expandir
         </button>
-        <button type="button" onclick="playChatSound();showToast('🔊 Som de notificação do chat ativo!');" style="background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.28); color:white; font-size:12px; font-weight:800; padding:4px 9px; border-radius:8px; cursor:pointer; font-family:'Nunito',sans-serif;" title="Testar som de notificação do chat">
+        <button type="button" onclick="playChatSound();showToast('🔊 Som de notificação do chat ativo!');" style="background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.28); color:white; font-size:12px; font-weight:800; padding:4px 9px; border-radius:8px; cursor:pointer; font-family:'Nunito',sans-serif;" title="Testar som de notificação do chat" aria-label="Testar som de notificação do chat">
           🔔
         </button>
-        <button onclick="clearChatCanal()" style="background:rgba(229,57,53,0.25); border:1px solid rgba(255,255,255,0.35); color:white; font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:4px; font-family:'Nunito',sans-serif; transition:background 0.2s;" title="Limpar conversa do canal ativo (requer senha de administrador)">
+        <button type="button" onclick="clearChatCanal()" style="background:rgba(229,57,53,0.25); border:1px solid rgba(255,255,255,0.35); color:white; font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:4px; font-family:'Nunito',sans-serif; transition:background-color 0.2s;" title="Limpar conversa do canal ativo (requer senha de administrador)">
           🗑️ Limpar
         </button>
-        <button onclick="toggleChatPanel()" style="background:transparent; border:none; color:white; font-size:20px; cursor:pointer; padding:4px; line-height:1;" title="Fechar Chat">✕</button>
+        <button type="button" onclick="toggleChatPanel()" style="background:transparent; border:none; color:white; font-size:20px; cursor:pointer; padding:4px; line-height:1;" title="Fechar Chat" aria-label="Fechar painel de chat">✕</button>
       </div>
     </div>
     <div class="chat-layout">
@@ -3842,7 +3983,7 @@
         <div class="chat-pin-banner" id="chat-pin-banner" style="display:none;">
           <span>📌</span>
           <span class="pin-text" id="chat-pin-text"></span>
-          <button class="pin-close" onclick="removeChatPin()" title="Remover pin">✕</button>
+          <button type="button" class="pin-close" onclick="removeChatPin()" title="Remover pin" aria-label="Remover mensagem fixada">✕</button>
         </div>
         <!-- === FIM MELHORIA C === -->
         <div class="chat-messages-area" id="chat-messages"></div>
@@ -3857,20 +3998,20 @@
           <div class="emoji-picker" id="emoji-picker"></div>
           
           <input type="file" id="chat-file-input" style="display:none;" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">
-          <button type="button" onclick="document.getElementById('chat-file-input').click()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Anexar Imagem ou Arquivo (ou cole com Ctrl+V)">📎</button>
+          <button type="button" onclick="document.getElementById('chat-file-input').click()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Anexar Imagem ou Arquivo (ou cole com Ctrl+V)" aria-label="Anexar imagem ou arquivo">📎</button>
           
-          <button type="button" onclick="toggleEmojiPicker()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Emojis">😊</button>
+          <button type="button" onclick="toggleEmojiPicker()" style="background:transparent;border:none;font-size:22px;cursor:pointer;" title="Emojis" aria-label="Inserir emoji">😊</button>
           
           <!-- Container de preview do anexo -->
           <div id="chat-file-preview" style="display:none; position:absolute; bottom: 64px; left: 10px; z-index: 25; background: white; padding: 8px 10px; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.18); border: 1px solid #cbd5e1; align-items:center; gap:8px;">
              <img id="chat-file-thumb" src="" alt="" style="display:none; width:38px; height:38px; object-fit:cover; border-radius:6px; border:1px solid #e2e8f0;">
              <span id="chat-file-name" style="font-size: 12px; font-weight: bold; max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color:#1e293b;"></span>
-             <button type="button" onclick="removeChatAttachment()" style="background: #f44336; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; flex-shrink:0;" title="Remover anexo">✕</button>
+             <button type="button" onclick="removeChatAttachment()" style="background: #f44336; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; flex-shrink:0;" title="Remover anexo" aria-label="Remover anexo">✕</button>
           </div>
 
           <textarea id="chat-input" placeholder="Digite sua mensagem ou cole um print (Ctrl+V)..." rows="1" onkeydown="handleChatKeydown(event)" oninput="handleChatTyping()"></textarea>
-          <button type="button" class="chat-urgent-toggle" id="chat-urgent-btn" onclick="toggleUrgent()" title="Marcar como urgente">🔴</button>
-          <button type="button" class="chat-send-btn" id="chat-send-btn" onclick="sendChatChannelMessage()" title="Enviar">🚀</button>
+          <button type="button" class="chat-urgent-toggle" id="chat-urgent-btn" onclick="toggleUrgent()" title="Marcar como urgente" aria-label="Marcar mensagem como urgente">🔴</button>
+          <button type="button" class="chat-send-btn" id="chat-send-btn" onclick="sendChatChannelMessage()" title="Enviar" aria-label="Enviar mensagem no chat">🚀</button>
         </div>
       </div>
     </div>
@@ -3889,7 +4030,7 @@
   <div id="chat-notif-popup" onclick="abrirChatNotificacao()">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
       <span id="chat-notif-canal" style="font-size:11px; font-weight:900; color:#1d4ed8; background:#dbeafe; padding:2px 8px; border-radius:999px;">📢 Geral</span>
-      <button type="button" onclick="event.stopPropagation(); fecharNotificacaoChatPopup()" style="background:transparent; border:none; color:#64748b; font-size:15px; font-weight:800; cursor:pointer; line-height:1;" title="Fechar aviso">✕</button>
+      <button type="button" onclick="event.stopPropagation(); fecharNotificacaoChatPopup()" style="background:transparent; border:none; color:#64748b; font-size:15px; font-weight:800; cursor:pointer; line-height:1;" title="Fechar aviso" aria-label="Fechar notificação do chat">✕</button>
     </div>
     <div id="chat-notif-autor" style="font-size:13px; font-weight:900; color:#0f172a; margin-bottom:2px;"></div>
     <div id="chat-notif-texto" style="font-size:12.5px; color:#334155; line-height:1.35; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;"></div>
@@ -4379,7 +4520,7 @@
   </div>
 
   <!-- WhatsApp Preview Modal -->
-  <div class="wa-modal-overlay" id="wa-modal">
+  <div class="wa-modal-overlay" id="wa-modal" role="dialog" aria-modal="true">
     <div class="wa-modal">
       <h3>📱 Preview da Mensagem WhatsApp</h3>
       <div class="wa-preview" id="wa-preview-text"></div>
@@ -4399,16 +4540,16 @@
   </div>
 
   <!-- Agendamento Edit Modal -->
-  <div class="wa-modal-overlay" id="agend-edit-modal">
+  <div class="wa-modal-overlay" id="agend-edit-modal" role="dialog" aria-modal="true">
     <div class="wa-modal">
       <h3>✏️ Editar Contato do Paciente</h3>
       <input type="hidden" id="edit-agend-id">
       <div class="form-group" style="margin-bottom:12px;text-align:left;">
-        <label>Nome do Paciente</label>
+        <label for="edit-agend-nome">Nome do Paciente</label>
         <input type="text" id="edit-agend-nome" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
       </div>
       <div class="form-group" style="margin-bottom:16px;text-align:left;">
-        <label>Telefone do Paciente</label>
+        <label for="edit-agend-telefone">Telefone do Paciente</label>
         <input type="text" id="edit-agend-telefone" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--gray-300);">
       </div>
       <button class="btn btn-green" style="width:100%;margin-bottom:12px;" onclick="salvarEdicaoAgendamento()">💾 Salvar Alterações</button>
@@ -4417,11 +4558,11 @@
   </div>
 
   <!-- Modal Editar Envio (Cancelar / Reagendar) -->
-  <div class="wa-modal-overlay" id="modal-editar-envio">
+  <div class="wa-modal-overlay" id="modal-editar-envio" role="dialog" aria-modal="true">
     <div class="wa-modal" style="max-width:580px;width:95%;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <h3 style="margin-bottom:0;">✏️ Editar Envio de Consulta</h3>
-        <button onclick="fecharModalEditarEnvio()" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--gray-500);">✕</button>
+        <button type="button" onclick="fecharModalEditarEnvio()" aria-label="Fechar edição de envio" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--gray-500);">✕</button>
       </div>
 
       <!-- Card com resumo da consulta selecionada -->
@@ -4441,11 +4582,11 @@
       <div style="margin-bottom:16px;text-align:left;">
         <label style="font-size:12px;font-weight:800;color:var(--gray-700);text-transform:uppercase;display:block;margin-bottom:8px;">Novo Status da Consulta <span style="color:var(--red);">*</span></label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid var(--gray-300);border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;transition:all .15s;" id="label-status-cancelado">
+          <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid var(--gray-300);border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;" id="label-status-cancelado">
             <input type="radio" name="ee-status" id="ee-status-cancelado" value="cancelado" onchange="onEditarEnvioStatusChange()">
             <span>❌ Cancelado</span>
           </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid var(--gray-300);border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;transition:all .15s;" id="label-status-reagendado">
+          <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid var(--gray-300);border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;" id="label-status-reagendado">
             <input type="radio" name="ee-status" id="ee-status-reagendado" value="reagendado" onchange="onEditarEnvioStatusChange()">
             <span>🔄 Reagendado</span>
           </label>
@@ -4535,11 +4676,11 @@
   </div>
 
   <!-- Modal de Fila de Disparo em Lote (WhatsApp) -->
-  <div class="wa-modal-overlay" id="modal-fila-disparo-lote">
+  <div class="wa-modal-overlay" id="modal-fila-disparo-lote" role="dialog" aria-modal="true">
     <div class="wa-modal" style="max-width:680px;width:95%;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <h3 style="margin-bottom:0;">⚡ Disparo de Mensagens em Lote</h3>
-        <button onclick="fecharFilaDisparoLote()" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--gray-500);">✕</button>
+        <button type="button" onclick="fecharFilaDisparoLote()" aria-label="Fechar disparo em lote" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--gray-500);">✕</button>
       </div>
       <p style="font-size:13px;color:var(--gray-600);margin-bottom:12px;text-align:left;">
         As consultas foram atualizadas no sistema. Confira ou edite a mensagem abaixo se precisar corrigir algum erro, ou clique em <b>Desfazer e Voltar Atrás</b> para reverter todas as consultas ao estado original:
@@ -4744,13 +4885,13 @@
       </div>
     </div>
   </div>
-</div>
+</main>
 
 </div>
 <!-- === FIM APP WRAPPER === -->
 
 <!-- Modal: Encaminhar para Sala de Agendamento -->
-<div class="reorder-modal-overlay" id="modal-agendamento">
+<div class="reorder-modal-overlay" id="modal-agendamento" role="dialog" aria-modal="true">
   <div class="reorder-modal" style="text-align:left;">
     <h3 style="margin-bottom:12px;">🗂️ Sala de Agendamento</h3>
     <div class="patient-badge" id="agend-patient-info" style="margin-bottom:16px;">
@@ -4787,7 +4928,7 @@
 </div>
 
 <!-- Modal: Editar Agendamento Interno (Sala de Agendamento) -->
-<div class="reorder-modal-overlay" id="edit-ctrl-modal">
+<div class="reorder-modal-overlay" id="edit-ctrl-modal" role="dialog" aria-modal="true">
   <div class="reorder-modal" style="max-width: 440px;">
     <h3>✏️ Editar Registro na Sala de Agendamento</h3>
     <input type="hidden" id="edit-ctrl-id">
@@ -4847,7 +4988,7 @@
 </div>
 
 <!-- Modal: Novo Registro Manual na Sala de Agendamento (EXCLUSIVO ADMIN) -->
-<div class="reorder-modal-overlay" id="modal-novo-ctrl-admin">
+<div class="reorder-modal-overlay" id="modal-novo-ctrl-admin" role="dialog" aria-modal="true">
   <div class="reorder-modal" style="max-width:440px;text-align:left;">
     <h3>➕ Novo Registro Manual (Admin)</h3>
     <p style="font-size:12px;color:#64748b;margin:-4px 0 12px;">Exclusivo do administrador. Atendimentos regulares devem passar pela 1ª Escuta.</p>
@@ -4901,7 +5042,7 @@
 <!-- ====== MELHORIA G: MODAIS DE REORDENAÇÃO (ADMIN RBAC) ====== -->
 
 <!-- Modal: Transferência de Setor -->
-<div class="reorder-modal-overlay" id="transfer-modal">
+<div class="reorder-modal-overlay" id="transfer-modal" role="dialog" aria-modal="true">
   <div class="reorder-modal">
     <h3>↗️ Encaminhar para outro Setor</h3>
     <div class="patient-badge" id="transfer-patient-info">
@@ -4971,7 +5112,7 @@
 </div>
 
 <!-- Modal: Posicionamento Numérico -->
-<div class="reorder-modal-overlay" id="position-modal">
+<div class="reorder-modal-overlay" id="position-modal" role="dialog" aria-modal="true">
   <div class="reorder-modal">
     <h3>🔢 Ir para posição</h3>
     <div class="patient-badge" id="position-patient-info">
@@ -4981,8 +5122,8 @@
     <input type="hidden" id="position-patient-id">
     <input type="hidden" id="position-patient-setor">
     <div class="form-group" style="margin-bottom:0;">
-      <label style="color:var(--gray-600);">Nova Posição na Fila</label>
-      <input type="number" id="position-input" min="1" placeholder="Ex: 3" style="-moz-appearance:textfield;">
+      <label for="position-input" style="color:var(--gray-600);">Nova Posição na Fila</label>
+      <input type="number" id="position-input" min="1" inputmode="numeric" placeholder="Ex: 3" style="-moz-appearance:textfield;">
     </div>
     <p style="font-size:12px;color:var(--gray-600);margin-bottom:20px;line-height:1.5;">
       Digite o número da posição desejada. Os demais pacientes serão ajustados automaticamente.
@@ -4995,7 +5136,7 @@
 </div>
 
 <!-- Modal: Editar Nome do Paciente na Fila (sem prompt nativo) -->
-<div class="reorder-modal-overlay" id="rename-patient-modal" onclick="if(event.target===this)fecharModalEditarNomeFila()">
+<div class="reorder-modal-overlay" id="rename-patient-modal" role="dialog" aria-modal="true" onclick="if(event.target===this)fecharModalEditarNomeFila()">
   <div class="reorder-modal">
     <h3>✏️ Editar Nome do Paciente <span class="mgr-only-badge">👔 Gerente / Admin</span></h3>
     <div class="patient-badge">
@@ -5004,11 +5145,11 @@
     </div>
     <input type="hidden" id="rename-patient-id">
     <div class="form-group" style="margin-bottom:14px;">
-      <label style="color:var(--gray-600);">Nome Completo Corrigido <span style="color:var(--red);">*</span></label>
+      <label for="rename-patient-input" style="color:var(--gray-600);">Nome Completo Corrigido <span style="color:var(--red);">*</span></label>
       <input type="text" id="rename-patient-input" maxlength="120" placeholder="Digite o nome completo..." style="width:100%;padding:12px 14px;border:2px solid var(--gray-200);border-radius:10px;font-size:15px;font-weight:700;color:#0f172a;">
     </div>
     <div class="form-group" style="margin-bottom:18px;">
-      <label style="color:var(--gray-600);">Motivo da Correção (opcional · log)</label>
+      <label for="rename-patient-motivo" style="color:var(--gray-600);">Motivo da Correção (opcional · log)</label>
       <input type="text" id="rename-patient-motivo" maxlength="160" placeholder="Ex: Erro de digitação na entrada" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;font-weight:600;">
     </div>
     <div class="reorder-modal-actions">
@@ -5019,7 +5160,7 @@
 </div>
 
 <!-- Modal: Alterar / Acrescentar Prioridade na Fila -->
-<div class="reorder-modal-overlay" id="priority-patient-modal" onclick="if(event.target===this)fecharModalPrioridadeFila()">
+<div class="reorder-modal-overlay" id="priority-patient-modal" role="dialog" aria-modal="true" onclick="if(event.target===this)fecharModalPrioridadeFila()">
   <div class="reorder-modal" style="max-width:520px;">
     <h3>⭐ Alterar Prioridade na Fila <span class="mgr-only-badge">👔 Gerente / Admin</span></h3>
     <div class="patient-badge">
@@ -5084,11 +5225,11 @@
 </div>
 
 <!-- Modal: Tubos e Exames de Coleta (Téc. Enfermagem) -->
-<div class="reorder-modal-overlay" id="tubos-coleta-modal" onclick="if(event.target===this)fecharModalTubosColeta()">
+<div class="reorder-modal-overlay" id="tubos-coleta-modal" role="dialog" aria-modal="true" onclick="if(event.target===this)fecharModalTubosColeta()">
   <div class="reorder-modal" style="max-width:740px;max-height:88vh;display:flex;flex-direction:column;padding:22px 24px;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
       <h3 style="margin:0;">🧪 Tubos de Coleta — Laboratório Recife</h3>
-      <button type="button" class="btn btn-sm" style="background:#f1f5f9;color:#334155;" onclick="fecharModalTubosColeta()">✕</button>
+      <button type="button" class="btn btn-sm" style="background:#f1f5f9;color:#334155;" onclick="fecharModalTubosColeta()" aria-label="Fechar seleção de tubos">✕</button>
     </div>
     <div id="tubos-modal-subtitle" style="font-size:12.5px;color:#475569;font-weight:700;margin-bottom:10px;">Marque os perfis, exames ou diretamente a quantidade de cada tubo (oculto no Painel TV).</div>
 
@@ -5162,7 +5303,7 @@
   </div>
 </div>
 
-<div id="toast">✅ <span id="toast-msg">Mensagem</span></div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true">✅ <span id="toast-msg">Mensagem</span></div>
 <audio id="global-audio" src="data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" preload="auto"></audio>
 <div id="qr-modal" style="display:none;position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:3000;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
   <div class="qr-content" style="background:#fff;border-radius:24px;padding:32px;text-align:center;max-width:320px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.4);" id="ticketPrintArea">
@@ -5182,11 +5323,11 @@
 </div>
 
 <!-- Modal: Excluir Histórico (Individual / Lote) com Senha Admin -->
-<div class="wa-modal-overlay" id="modal-excluir-historico">
+<div class="wa-modal-overlay" id="modal-excluir-historico" role="dialog" aria-modal="true">
   <div class="wa-modal" style="max-width:440px;">
     <div class="wa-modal-head">
       <h3 style="color:var(--red);margin-bottom:0;">🗑️ Confirmar Exclusão</h3>
-      <button type="button" class="wa-modal-close" onclick="fecharModalExcluirHistorico()" title="Fechar janela">✕</button>
+      <button type="button" class="wa-modal-close" onclick="fecharModalExcluirHistorico()" title="Fechar janela" aria-label="Fechar confirmação de exclusão">✕</button>
     </div>
     <p id="modal-excluir-hist-texto" style="font-size:13px;color:var(--gray-700);line-height:1.5;margin-bottom:16px;">
       Tem certeza de que deseja excluir permanentemente o(s) registro(s) selecionado(s)?
@@ -5203,11 +5344,11 @@
 </div>
 
 <!-- Modal: Configuração de Retenção Automática (N dias) -->
-<div class="wa-modal-overlay" id="modal-config-retencao">
+<div class="wa-modal-overlay" id="modal-config-retencao" role="dialog" aria-modal="true">
   <div class="wa-modal" style="max-width:440px;">
     <div class="wa-modal-head">
       <h3 style="margin-bottom:0;">⚙️ Retenção Automática do Histórico</h3>
-      <button type="button" class="wa-modal-close" onclick="fecharModalConfigRetencao()" title="Fechar janela">✕</button>
+      <button type="button" class="wa-modal-close" onclick="fecharModalConfigRetencao()" title="Fechar janela" aria-label="Fechar configuração de retenção">✕</button>
     </div>
     <p style="font-size:13px;color:var(--gray-700);line-height:1.5;margin-bottom:14px;">
       Consultas que já passaram da data são automaticamente arquivadas. Registros arquivados são apagados definitivamente após N dias.
@@ -5228,11 +5369,11 @@
 </div>
 
 <!-- Modal: Editar Dispositivo (Nome e Setor) -->
-<div class="wa-modal-overlay" id="modal-editar-dispositivo">
+<div class="wa-modal-overlay" id="modal-editar-dispositivo" role="dialog" aria-modal="true">
   <div class="wa-modal" style="max-width:440px;">
     <div class="wa-modal-head">
       <h3 style="margin-bottom:0;">✏️ Identificação do Dispositivo</h3>
-      <button type="button" class="wa-modal-close" onclick="fecharModalEditarDispositivo()" title="Fechar janela">✕</button>
+      <button type="button" class="wa-modal-close" onclick="fecharModalEditarDispositivo()" title="Fechar janela" aria-label="Fechar identificação do dispositivo">✕</button>
     </div>
     <p style="font-size:13px;color:var(--gray-600);line-height:1.5;margin-bottom:14px;">
       Defina o nome deste aparelho (ex.: Consultório 1, Celular Triagem). Esse nome será usado no histórico e auditoria.
@@ -5266,11 +5407,11 @@
 </div>
 
 <!-- Modal: Histórico de Logins do Dispositivo (30 Dias) -->
-<div class="wa-modal-overlay" id="modal-logins-dispositivo">
+<div class="wa-modal-overlay" id="modal-logins-dispositivo" role="dialog" aria-modal="true">
   <div class="wa-modal" style="max-width:620px;width:95%;">
     <div class="wa-modal-head">
       <h3 id="modal-logins-disp-titulo" style="margin-bottom:0;">📜 Histórico de Acessos</h3>
-      <button type="button" class="wa-modal-close" onclick="fecharModalHistoricoLogins()" title="Fechar janela">✕</button>
+      <button type="button" class="wa-modal-close" onclick="fecharModalHistoricoLogins()" title="Fechar janela" aria-label="Fechar histórico de acessos">✕</button>
     </div>
     <div id="modal-logins-disp-lista" style="max-height:380px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;padding:8px;">
       <!-- Carregado via JS -->
@@ -5279,13 +5420,13 @@
 </div>
 
 <!-- Modal: Busca Ativa (alumIA) — Parte B -->
-<div class="wa-modal-overlay" id="modal-busca-ativa">
+<div class="wa-modal-overlay" id="modal-busca-ativa" role="dialog" aria-modal="true">
   <div class="wa-modal" style="max-width:560px;width:95%;text-align:left;">
     <div class="wa-modal-head">
       <h3 style="margin-bottom:0;display:flex;align-items:center;gap:8px;color:#00695c;">
         <span>📡</span> Busca ativa (alumIA)
       </h3>
-      <button type="button" class="wa-modal-close" onclick="fecharModalBuscaAtiva()" title="Fechar janela">✕</button>
+      <button type="button" class="wa-modal-close" onclick="fecharModalBuscaAtiva()" title="Fechar janela" aria-label="Fechar Busca Ativa">✕</button>
     </div>
 
     <!-- Aviso Fixo Obrigatório -->
@@ -5331,7 +5472,7 @@
 </div>
 
 <!-- Modal 1: Recepção — Capturar Prévia da Receita / Encaminhamento (Opcional) -->
-<div id="modal-captura-receita" class="previa-modal-backdrop" onclick="if(event.target===this)fecharModalCapturaReceita()">
+<div id="modal-captura-receita" class="previa-modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)fecharModalCapturaReceita()">
   <div class="previa-modal-card">
     <div class="previa-modal-head">
       <div>
@@ -5432,7 +5573,7 @@
 </div>
 
 <!-- Modal 2: Consultório — Ver Prévia da Receita (Lado a Lado) -->
-<div id="modal-ver-previa-receita" class="previa-modal-backdrop" onclick="if(event.target===this)fecharModalVerPreviaReceita()">
+<div id="modal-ver-previa-receita" class="previa-modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)fecharModalVerPreviaReceita()">
   <div class="previa-modal-card wide">
     <div class="previa-modal-head">
       <div>
@@ -5541,7 +5682,7 @@
 </div>
 
 <!-- Modal 3: Formulários SUS/Recife (PEC Offline / Transferência de Receita) -->
-<div id="modal-formulario-oficial" class="previa-modal-backdrop fo-modal-backdrop" onclick="if(event.target===this)fecharModalFormularioOficial()">
+<div id="modal-formulario-oficial" class="previa-modal-backdrop fo-modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)fecharModalFormularioOficial()">
   <div class="fo-modal-card">
     <div class="fo-head">
       <div>
@@ -5572,14 +5713,14 @@
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
           <span style="color:#fff;font-size:12px;font-weight:800;">📷 Documento Anexo</span>
           <span id="fo-ref-nav" class="fo-ref-nav" style="display:none;">
-            <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="navegarRefFotoForm(-1)">◀</button>
+            <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="navegarRefFotoForm(-1)" aria-label="Foto anterior do anexo">◀</button>
             <span id="fo-ref-counter" style="color:#e2e8f0;font-size:11px;font-weight:800;">1/1</span>
-            <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="navegarRefFotoForm(1)">▶</button>
+            <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="navegarRefFotoForm(1)" aria-label="Próxima foto do anexo">▶</button>
           </span>
-          <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="zoomRefFotoForm(-0.25)">➖</button>
-          <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="zoomRefFotoForm(0.25)">➕</button>
-          <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="girarRefFotoForm()">🔄</button>
-          <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="resetRefFotoForm()">🎯</button>
+          <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="zoomRefFotoForm(-0.25)" aria-label="Diminuir zoom do anexo">➖</button>
+          <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="zoomRefFotoForm(0.25)" aria-label="Aumentar zoom do anexo">➕</button>
+          <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="girarRefFotoForm()" aria-label="Girar imagem do anexo 90 graus">🔄</button>
+          <button type="button" class="btn btn-sm" style="background:#1e293b;color:#fff;border:1px solid #475569;" onclick="resetRefFotoForm()" aria-label="Restaurar zoom 100% do anexo">🎯</button>
           <span style="color:#94a3b8;font-size:11px;margin-left:auto;">✋ Arraste p/ mover</span>
         </div>
         <div id="fo-ref-stage" class="fo-ref-stage">
@@ -5592,7 +5733,7 @@
 </div>
 
 <!-- Modal 4: Consulta e Leitor SISREG III (Médicos / Enfermagem / Odontologia · DS5) -->
-<div id="modal-sisreg-medico" class="previa-modal-backdrop sisreg-med-modal-backdrop" onclick="if(event.target===this)fecharModalSisregMedico()">
+<div id="modal-sisreg-medico" class="previa-modal-backdrop sisreg-med-modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)fecharModalSisregMedico()">
   <div class="previa-modal-card wide">
     <div class="previa-modal-head" style="background:linear-gradient(135deg,#0f2c73,#0f766e);">
       <div>
@@ -5871,6 +6012,6 @@
 <script src="receitas-previa.js?v=2.3"></script>
 <script src="formularios-pec.js?v=2.2"></script>
 <script src="regulacao-sisreg.js?v=2.4"></script>
-<script src="app.js?v=8.8"></script>
+<script src="app.js?v=8.9"></script>
 </body>
 </html>

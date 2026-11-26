@@ -412,8 +412,10 @@ document.addEventListener('DOMContentLoaded', () => {
 /* === MELHORIA F: TRAVA DE EXPEDIENTE E PAUSA MANUAL === */
 
 // --- Estado global de pausa e referências aos intervalos controlados ---
-const EXPEDIENTE_EXTRA_HOJE_ATE_MS = Date.parse('2026-11-25T20:00:00-03:00');
+const EXPEDIENTE_EXTRA_HOJE_ATE_MS = Date.parse('2026-11-26T20:00:00-03:00');
 let isPausado = false;
+let _pausaIniciadaEmMs = 0;
+let intervalPauseClock = null;
 let intervalChat = null;   // referência ao setInterval do chat (~linha 2422)
 let intervalAgend = null;  // referência ao setInterval de agendamentos (~linha 2447)
 let intervalCheckPausa = null;
@@ -612,13 +614,47 @@ setInterval(checkExpediente, 60000); // verifica a cada minuto
 // --- Aplicar / sincronizar estado global de pausa em todas as estações ---
 const DEFAULT_PAUSE_MSG = 'Atendimento pausado temporariamente para realização de atividade interna / palestra na recepção.';
 
-function aplicarEstadoPausa(pausado, motivo) {
+function atualizarRelogioPausa() {
+  const clockEl = document.getElementById('pause-clock');
+  const metaEl = document.getElementById('pause-meta-time');
+  const agora = Date.now();
+  if (clockEl) {
+    clockEl.textContent = new Date(agora).toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
+  if (metaEl) {
+    if (_pausaIniciadaEmMs > 0) {
+      const horaIni = new Date(_pausaIniciadaEmMs).toLocaleTimeString('pt-BR', {
+        timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit'
+      });
+      const mins = Math.max(0, Math.floor((agora - _pausaIniciadaEmMs) / 60000));
+      metaEl.textContent = mins >= 1
+        ? `Pausado às ${horaIni} · há ${mins} min`
+        : `Pausado às ${horaIni} · agora`;
+    } else {
+      metaEl.textContent = 'Pausa ativa no sistema';
+    }
+  }
+}
+
+function aplicarEstadoPausa(pausado, motivo, pausadoEm = null) {
   const overlay = document.getElementById('pause-overlay');
   const subEl = document.getElementById('pause-sub-text');
   const btn = document.getElementById('btn-palestra');
 
   if (pausado) {
+    const parsedEm = pausadoEm ? Date.parse(pausadoEm) : 0;
+    if (Number.isFinite(parsedEm) && parsedEm > 0) {
+      _pausaIniciadaEmMs = parsedEm;
+    } else if (!_pausaIniciadaEmMs) {
+      _pausaIniciadaEmMs = Date.now();
+    }
     if (subEl) subEl.textContent = motivo || DEFAULT_PAUSE_MSG;
+    atualizarRelogioPausa();
+    if (!intervalPauseClock) {
+      intervalPauseClock = setInterval(atualizarRelogioPausa, 1000);
+    }
     if (isPausado) {
       if (overlay) overlay.classList.remove('hidden');
       return;
@@ -630,6 +666,7 @@ function aplicarEstadoPausa(pausado, motivo) {
         el.style.display = 'none';
       }
     });
+    fecharModalConfigPausa();
     document.body.style.overflow = 'hidden';
     if (btn) {
       btn.innerHTML = '▶️ Retomar';
@@ -641,6 +678,11 @@ function aplicarEstadoPausa(pausado, motivo) {
       intervalCheckPausa = setInterval(carregarStatusPausa, 5000);
     }
   } else {
+    _pausaIniciadaEmMs = 0;
+    if (intervalPauseClock) {
+      clearInterval(intervalPauseClock);
+      intervalPauseClock = null;
+    }
     if (intervalCheckPausa) {
       clearInterval(intervalCheckPausa);
       intervalCheckPausa = null;
@@ -674,14 +716,55 @@ async function carregarStatusPausa() {
     const r = await fetch(`${API_URL}/config/pausa`, { cache: 'no-store' });
     if (!r.ok) return;
     const d = await r.json();
-    aplicarEstadoPausa(Boolean(d.pausado), d.motivo);
+    aplicarEstadoPausa(Boolean(d.pausado), d.motivo, d.pausado_em);
   } catch (_) {}
 }
 
+function selecionarMotivoPausaRapido(btnEl, texto) {
+  const input = document.getElementById('input-motivo-pausa');
+  if (input && texto) input.value = texto;
+  document.querySelectorAll('#modal-config-pausa .pause-preset-chip').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  input?.focus();
+}
+
+function fecharModalConfigPausa() {
+  const modal = document.getElementById('modal-config-pausa');
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = '';
+  }
+}
+
+function confirmarPausaPalestraModal() {
+  const input = document.getElementById('input-motivo-pausa');
+  const motivo = (input?.value || '').trim() || DEFAULT_PAUSE_MSG;
+  fecharModalConfigPausa();
+  return togglePausaPalestra('', motivo);
+}
+
 // --- Botão de Pausa Global para Palestras da Gestora ---
-async function togglePausaPalestra(senhaRetry = '') {
+async function togglePausaPalestra(senhaRetry = '', motivoOverride = null) {
   const novoEstado = !isPausado;
   let senhaUsada = senhaRetry || ((isAdmin && adminPassword) ? adminPassword : '');
+
+  if (novoEstado && motivoOverride === null && !senhaRetry) {
+    const modal = document.getElementById('modal-config-pausa');
+    if (modal) {
+      const input = document.getElementById('input-motivo-pausa');
+      if (input) input.value = DEFAULT_PAUSE_MSG;
+      document.querySelectorAll('#modal-config-pausa .pause-preset-chip').forEach((b, idx) => {
+        b.classList.toggle('active', idx === 0);
+      });
+      modal.classList.add('show');
+      setTimeout(() => document.getElementById('input-motivo-pausa')?.focus(), 60);
+      return;
+    }
+  }
+
+  const motivoFinal = novoEstado
+    ? (String(motivoOverride || DEFAULT_PAUSE_MSG).trim().slice(0, 200) || DEFAULT_PAUSE_MSG)
+    : null;
 
   if (!senhaRetry) {
     if (!isAdmin) {
@@ -691,9 +774,7 @@ async function togglePausaPalestra(senhaRetry = '') {
       const digitada = prompt(msgPrompt);
       if (!digitada) return;
       senhaUsada = digitada.trim();
-    } else if (novoEstado) {
-      if (!confirm('🎙️ Pausar o atendimento agora em TODOS os computadores e TVs?')) return;
-    } else {
+    } else if (!novoEstado) {
       if (!confirm('🔓 Retomar o atendimento agora em TODOS os computadores e TVs?')) return;
     }
   }
@@ -705,7 +786,11 @@ async function togglePausaPalestra(senhaRetry = '') {
       method: 'POST',
       credentials: 'same-origin',
       headers,
-      body: JSON.stringify({ senha: senhaUsada || undefined, pausado: novoEstado })
+      body: JSON.stringify({
+        senha: senhaUsada || undefined,
+        pausado: novoEstado,
+        motivo: motivoFinal
+      })
     });
     const data = await res.json().catch(() => ({}));
     if ((res.status === 401 || res.status === 403) && !senhaRetry) {
@@ -713,13 +798,13 @@ async function togglePausaPalestra(senhaRetry = '') {
       if (!digitada) return;
       adminPassword = digitada.trim();
       try { sessionStorage.setItem('usf_admin_pwd', adminPassword); } catch (_) {}
-      return togglePausaPalestra(adminPassword);
+      return togglePausaPalestra(adminPassword, motivoFinal);
     }
     if (!res.ok) {
       showToast(data.error || '❌ Senha incorreta!', true);
       return;
     }
-    aplicarEstadoPausa(Boolean(data.pausado), data.motivo);
+    aplicarEstadoPausa(Boolean(data.pausado), data.motivo, data.pausado_em);
     showToast(data.pausado
       ? '🎙️ Atendimento pausado em TODOS os computadores!'
       : '✅ Atendimento retomado em TODOS os computadores!'
@@ -3668,7 +3753,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       ? `<div style="font-size:12px;font-weight:800;color:var(--blue-dark);margin-bottom:2px;">👨‍⚕️ ${escapeText(p.profissional)}</div>`
       : `<div style="font-size:11px;font-weight:700;color:var(--gray-600);margin-bottom:2px;">📋 Fila Geral (${escapeText(setor)})</div>`;
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
-    const qrBtn = `<button class="btn-qr btn-icon-compact" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
+    const qrBtn = `<button type="button" class="btn-qr btn-icon-compact" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code" aria-label="Ver QR Code de ${escapeText(p.nome)}">📱</button>`;
     // Se o paciente já tem busca ativa ativa, o bloco detalhado com botão de edição é renderizado na coluna de Histórico.
     // Deixamos o botão de ação apenas para quem não ativou ainda, evitando poluição visual.
     const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, setor) : '';
@@ -3715,29 +3800,31 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       : '';
     const ehPrioAtivo = p.prioridade === 'prioritario' || Number(p.nivel_prioridade) <= 2;
     const renameBtn = isManagerOrAdmin()
-      ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila (Gerente/Admin)">✏️</button>`
+      ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila (Gerente/Admin)" aria-label="Editar nome de ${escapeText(p.nome)}">✏️</button>`
       : '';
     const prioEditBtn = (isManagerOrAdmin() && p.status !== 'atendido' && p.status !== 'desistencia')
-      ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${ehPrioAtivo ? ' ativo' : ''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila (Gerente/Admin)">${ehPrioAtivo ? '⭐ Prio' : '+ ⭐'}</button>`
+      ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${ehPrioAtivo ? ' ativo' : ''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila (Gerente/Admin)" aria-label="Alterar prioridade de ${escapeText(p.nome)}">${ehPrioAtivo ? '⭐ Prio' : '+ ⭐'}</button>`
       : '';
 
     const actionButtons = isManagerOrAdmin() ? `
       <span class="fila-reorder-pill">
-        <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
-        <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
-        <button class="btn-reorder-pos btn-icon-compact" title="Ir para posição específica" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">🔢</button>
+        <button type="button" class="btn-reorder-arrow" title="Subir uma posição" aria-label="Subir ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
+        <button type="button" class="btn-reorder-arrow" title="Descer uma posição" aria-label="Descer ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
+        <button type="button" class="btn-reorder-pos btn-icon-compact" title="Ir para posição específica" aria-label="Mover ${escapeText(p.nome)} para posição específica" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">🔢</button>
       </span>
-      <button class="btn-transfer-sector" title="Encaminhar para outro setor" onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">↗️ Encaminhar</button>
-      <button class="btn-context-menu" title="Mais ações gerenciais" onclick="event.stopPropagation();openContextMenu(event,${p.id},'${safeNome}','${setor}')">⋮</button>
-      <button class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência">🚶</button>
-      ${isAdmin ? `<button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>` : ''}
+      <button type="button" class="btn-transfer-sector" title="Encaminhar para outro setor" onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">↗️ Encaminhar</button>
+      <button type="button" class="btn-context-menu" title="Mais ações gerenciais" aria-label="Mais ações para ${escapeText(p.nome)}" onclick="event.stopPropagation();openContextMenu(event,${p.id},'${safeNome}','${setor}')">⋮</button>
+      <span class="fila-danger-group">
+        <button type="button" class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência" aria-label="Marcar desistência para ${escapeText(p.nome)}">🚶</button>
+        ${isAdmin ? `<button type="button" class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente" aria-label="Excluir permanentemente ${escapeText(p.nome)}">🔥</button>` : ''}
+      </span>
     ` : `
       <span class="fila-reorder-pill">
-        <button class="btn-reorder-arrow" title="Subir uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
-        <button class="btn-reorder-arrow" title="Descer uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
-        <button class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Mudar posição na fila">🔢</button>
+        <button type="button" class="btn-reorder-arrow" title="Subir uma posição na fila" aria-label="Subir ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
+        <button type="button" class="btn-reorder-arrow" title="Descer uma posição na fila" aria-label="Descer ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
+        <button type="button" class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Mudar posição na fila" aria-label="Mudar posição de ${escapeText(p.nome)} na fila">🔢</button>
       </span>
-      <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
+      <button type="button" class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
     `;
 
     const nivelCls = Number(p.nivel_prioridade) === 1
@@ -3873,7 +3960,7 @@ function updateMiniQueues() {
         ? `<div style="font-size:12px;font-weight:800;color:var(--blue-dark);margin-bottom:2px;">👨‍⚕️ ${escapeText(p.profissional)}</div>`
         : `<div style="font-size:11px;font-weight:700;color:var(--gray-600);margin-bottom:2px;">${cfg.icon || '📋'} ${escapeText(s)}</div>`;
       const condBadges = renderCondicoesBadges(p.condicoes_especiais);
-      const qrBtn = `<button class="btn-qr btn-icon-compact" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code">📱</button>`;
+      const qrBtn = `<button type="button" class="btn-qr btn-icon-compact" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code" aria-label="Ver QR Code de ${escapeText(p.nome)}">📱</button>`;
       const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, 'Recepção') : '';
       const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, 'Recepção');
 
@@ -3891,8 +3978,10 @@ function updateMiniQueues() {
         : '';
 
       const removeBtn = isManagerOrAdmin() ? `
-        <button class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Marcar como Desistência">🚶</button>
-        ${isAdmin ? `<button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Excluir Permanentemente">🔥</button>` : ''}
+        <span class="fila-danger-group">
+          <button type="button" class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Marcar como Desistência" aria-label="Marcar desistência para ${escapeText(p.nome)}">🚶</button>
+          ${isAdmin ? `<button type="button" class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Excluir Permanentemente" aria-label="Excluir permanentemente ${escapeText(p.nome)}">🔥</button>` : ''}
+        </span>
       ` : '';
 
       let presencaHtml = '';
@@ -3901,17 +3990,17 @@ function updateMiniQueues() {
         if (p.presenca_confirmada) {
           presencaHtml = '<span class="presenca-badge presenca-confirmada" title="Presença confirmada na recepção">🟢 PRESENTE</span>';
         } else if (p.status === 'aguardando') {
-          presencaBtn = `<button class="btn-confirmar-presenca" onclick="event.stopPropagation();confirmarPresenca(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Confirmar presença na recepção">✅ Presença</button>`;
+          presencaBtn = `<button type="button" class="btn-confirmar-presenca" onclick="event.stopPropagation();confirmarPresenca(${p.id},'${p.nome.replace(/'/g,"\\'")}')" title="Confirmar presença na recepção">✅ Presença</button>`;
         }
       }
 
       const transferBtn = `
         <span class="fila-reorder-pill">
-          <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','up')">↑</button>
-          <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','down')">↓</button>
-          <button class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${s}')" title="Ir para posição específica">🔢</button>
+          <button type="button" class="btn-reorder-arrow" title="Subir uma posição" aria-label="Subir ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','up')">↑</button>
+          <button type="button" class="btn-reorder-arrow" title="Descer uma posição" aria-label="Descer ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','down')">↓</button>
+          <button type="button" class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${s}')" title="Ir para posição específica" aria-label="Mover ${escapeText(p.nome)} para posição específica">🔢</button>
         </span>
-        <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
+        <button type="button" class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
       `;
 
       const originBadge = p.origem_transferencia
@@ -3930,10 +4019,10 @@ function updateMiniQueues() {
         : '';
       const ehPrioMini = p.prioridade === 'prioritario' || Number(p.nivel_prioridade) <= 2;
       const renameBtnMini = isManagerOrAdmin()
-        ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila (Gerente/Admin)">✏️</button>`
+        ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila (Gerente/Admin)" aria-label="Editar nome de ${escapeText(p.nome)}">✏️</button>`
         : '';
       const prioEditBtnMini = isManagerOrAdmin()
-        ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${ehPrioMini ? ' ativo' : ''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila (Gerente/Admin)">${ehPrioMini ? '⭐ Prio' : '+ ⭐'}</button>`
+        ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${ehPrioMini ? ' ativo' : ''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila (Gerente/Admin)" aria-label="Alterar prioridade de ${escapeText(p.nome)}">${ehPrioMini ? '⭐ Prio' : '+ ⭐'}</button>`
         : '';
 
       const rowCls = [
@@ -11977,9 +12066,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    if (document.getElementById('modal-contingencia-offline')?.classList.contains('show')) {
-      fecharModalContingenciaOffline();
+  if (e.key !== 'Escape') return;
+  if (isPausado || !isGateAuthenticated) return;
+
+  if (document.getElementById('modal-contingencia-offline')?.classList.contains('show')) {
+    fecharModalContingenciaOffline();
+    return;
+  }
+  if (document.getElementById('modal-config-pausa')?.classList.contains('show')) {
+    fecharModalConfigPausa();
+    return;
+  }
+  const openOverlay = document.querySelector(
+    '.previa-modal-backdrop.show, .modal-overlay.show, .acol-modal-overlay.show, .wa-modal-overlay.show, .reorder-modal-overlay.show'
+  );
+  if (openOverlay) {
+    openOverlay.classList.remove('show');
+    if (openOverlay.style.display === 'flex' || openOverlay.style.display === 'block') {
+      openOverlay.style.display = 'none';
     }
   }
 });

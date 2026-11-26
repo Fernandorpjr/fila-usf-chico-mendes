@@ -323,3 +323,39 @@ test('Correção definitiva Pedir Silêncio + 2 Novos Avisos TV + Auditoria Gera
   const expCsvSlice = extractSlice(histFront, 'function exportarCsvHistorico()', '');
   assert.equal(expCsvSlice.includes('montarParamsFiltroHistorico()'), true);
 });
+
+test('Prorrogação de +2h hoje, nova tela de pausa e melhorias da auditoria visual/UX', () => {
+  const dashHtml = fs.readFileSync(path.join(ROOT, 'public', 'dashboard.html'), 'utf8');
+
+  // 1. Prorrogação de +2h após fechamento das 18h em 26/11/2026 mantendo regra base 06h-18h
+  assert.equal(serverSrc.includes("const EXPEDIENTE_EXTRA_PADRAO_ATE_ISO = '2026-11-26T23:00:00.000Z';"), true);
+  assert.equal(serverSrc.includes('if (hour < 6 || hour >= 18) return false;'), true);
+  assert.equal(appSrc.includes("Date.parse('2026-11-26T20:00:00-03:00')"), true);
+
+  // 2. Tela de pausa modernizada + modal de escolha de motivo
+  assert.equal(indexHtml.includes('id="pause-clock"'), true);
+  assert.equal(indexHtml.includes('id="pause-meta-time"'), true);
+  assert.equal(indexHtml.includes('id="modal-config-pausa"'), true);
+  assert.equal(indexHtml.includes('confirmarPausaPalestraModal()'), true);
+  assert.equal(appSrc.includes('function atualizarRelogioPausa()'), true);
+  assert.equal(appSrc.includes('function confirmarPausaPalestraModal()'), true);
+  assert.equal(appSrc.includes('aplicarEstadoPausa(Boolean(d.pausado), d.motivo, d.pausado_em)'), true);
+
+  // 3. Auditoria Visual/UX: zero CSS 404, acessibilidade, dark scheme, tabular-nums, reduced-motion, overscroll e Escape
+  assert.equal(indexHtml.includes('styles.css?v=2.3'), false);
+  assert.equal(indexHtml.includes('prefers-reduced-motion: reduce'), true);
+  assert.equal(indexHtml.includes('overscroll-behavior: contain'), true);
+  assert.equal(indexHtml.includes('role="dialog" aria-modal="true"'), true);
+  assert.equal(indexHtml.includes('rel="noopener noreferrer"'), true);
+  assert.equal(indexHtml.includes('<main class="main"'), true);
+  assert.equal(indexHtml.includes('aria-label='), true);
+  assert.equal(indexHtml.includes('class="fila-danger-group"') || appSrc.includes('class="fila-danger-group"'), true);
+  assert.equal(appSrc.includes('aria-label="Ver QR Code de'), true);
+
+  assert.equal(dashHtml.includes('color-scheme:dark'), true);
+  assert.equal(dashHtml.includes(':focus-visible'), true);
+  assert.equal(dashHtml.includes('tabular-nums'), true);
+  assert.equal(dashHtml.includes('prefers-reduced-motion:reduce'), true);
+  assert.equal(dashHtml.includes('<main class="main" id="dashContent"'), true);
+  assert.equal(dashHtml.includes('transition:all'), false);
+});
