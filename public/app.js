@@ -822,6 +822,7 @@ let _pendingUserCallSpeakUntil = 0;
 const _spokenCallIds = new Set();
 let _loadingPendingVoiceCalls = false;
 const _processedVoiceCallIds = new Set();
+let _silencioBroadcastInit = false;
 let isAdmin = false, isGerente = false, userRole = 'staff', adminPassword = null, alertedPatients = new Set();
 function isManagerOrAdmin() {
   return Boolean(isAdmin || isGerente);
@@ -933,9 +934,9 @@ function initSectorScreens() {
     }
 
     const callBtnsHTML = `
-      <div class="sector-call-actions">
-        <button class="btn ${cfg.btnClass} btn-3d" onclick="callNext('${setor}', this)">📢 Chamar Próximo</button>
-        ${(setor === 'Farmácia' || setor === 'Regulação') ? `<button class="btn ${cfg.btnClass} btn-3d" onclick="callNextMulti('${setor}', this)">📢 Chamar 3 Próximos</button>` : ''}
+      <div class="sector-call-actions sector-call-actions--hero">
+        <button class="btn ${cfg.btnClass} btn-3d btn-call-hero" onclick="callNext('${setor}', this)">📢 Chamar Próximo</button>
+        ${(setor === 'Farmácia' || setor === 'Regulação') ? `<button class="btn ${cfg.btnClass} btn-3d btn-call-hero btn-call-hero--multi" onclick="callNextMulti('${setor}', this)">📢 Chamar 3 Próximos</button>` : ''}
         <button class="btn btn-repeat-sector" onclick="speakAgain('${setor}', this)" title="Repetir chamada atual no painel e na voz">🔊 Repetir</button>
       </div>`;
 
@@ -957,8 +958,8 @@ function initSectorScreens() {
           <div class="sector-call-row">
             <div class="form-group"><label>Consultório / Sala</label><select id="consultorio-${cfg.key}">${consultOpts}</select></div>
             <div class="form-group"><label>Profissional em Atendimento</label><select id="profissional-${cfg.key}">${profOpts}</select></div>
-            ${callBtnsHTML}
           </div>
+          ${callBtnsHTML}
         </div>`;
     } else {
       controlDeckHTML = `
@@ -2996,6 +2997,33 @@ function executarAvisoSilencioLocal() {
   processSpeechQueue();
 }
 
+function processarAvisoSilencioRemoto(silencioObj) {
+  if (!silencioObj || !silencioObj.id) {
+    _silencioBroadcastInit = true;
+    return;
+  }
+  const sid = Number(silencioObj.id) || 0;
+  const ts = Number(silencioObj.ts) || 0;
+  if (!_silencioBroadcastInit) {
+    _silencioBroadcastInit = true;
+    if (sid > 0 && ts > 0 && Date.now() - ts > 15000) {
+      _processedVoiceCallIds.add(sid);
+      return;
+    }
+  }
+  const ehTelaTv = isModoTV() || Boolean(document.getElementById('screen-painel')?.classList.contains('active'));
+  if (!ehTelaTv) return;
+  if (sid > 0 && _processedVoiceCallIds.has(sid)) return;
+  if (sid > 0) {
+    _processedVoiceCallIds.add(sid);
+    if (_processedVoiceCallIds.size > 120) {
+      const first = _processedVoiceCallIds.values().next().value;
+      if (first !== undefined) _processedVoiceCallIds.delete(first);
+    }
+  }
+  executarAvisoSilencioLocal();
+}
+
 async function solicitarSilencioSalaEspera(btnElement) {
   if (!isManagerOrAdmin()) {
     showToast('🔒 Apenas Gerente ou Administrador pode emitir o aviso de silêncio na TV.', true);
@@ -3034,16 +3062,14 @@ async function solicitarSilencioSalaEspera(btnElement) {
     if (!r.ok) {
       throw new Error(dResp.error || `HTTP ${r.status}`);
     }
+    // Marca localmente apenas nesta estação (NÃO dá ack no banco para não impedir o broadcast nas outras TVs)
     if (dResp && dResp.id) {
       _processedVoiceCallIds.add(Number(dResp.id));
     }
     if (isModoTV() || painelAtivo) {
       executarAvisoSilencioLocal();
-      if (dResp && dResp.id) {
-        fetch(`${API_URL}/voice-call/${dResp.id}/ack`, { method: 'POST' }).catch(() => {});
-      }
     }
-    showToast('🤫 Pedido de silêncio enviado para a TV!');
+    showToast('🤫 Pedido de silêncio enviado para a TV da sala de espera!');
   } catch (err) {
     console.warn('Falha ao enviar pedido de silêncio remoto:', err?.message || err);
     showToast(err?.message || '❌ Não foi possível enviar o aviso à TV. Verifique a conexão.', true);
@@ -3145,7 +3171,7 @@ async function loadQueues() {
     console.error(e);
   }
 }
-async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); if (typeof d.sistemaPausado === 'boolean' && d.sistemaPausado !== isPausado) { aplicarEstadoPausa(d.sistemaPausado, d.pausaMotivo); } currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
+async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); if (typeof d.sistemaPausado === 'boolean' && d.sistemaPausado !== isPausado) { aplicarEstadoPausa(d.sistemaPausado, d.pausaMotivo); } if (typeof processarAvisoSilencioRemoto === 'function') { processarAvisoSilencioRemoto(d.avisoSilencio); } currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
 async function loadHistory() {
   const reqSeq = ++_historySeq;
   try {
@@ -9499,6 +9525,11 @@ async function loadPendingVoiceCalls() {
     const calls = await r.json();
     for (const call of calls) {
       const cid = Number(call.id) || 0;
+      if (call.nome === AVISO_SILENCIO_TOKEN) {
+        const callTs = call.created_at ? Date.parse(call.created_at) : Date.now();
+        processarAvisoSilencioRemoto({ id: cid, ts: Number.isFinite(callTs) ? callTs : Date.now() });
+        continue;
+      }
       if (cid > 0 && _processedVoiceCallIds.has(cid)) {
         await fetch(`${API_URL}/voice-call/${cid}/ack`, { method: 'POST' }).catch(() => {});
         continue;
@@ -9511,11 +9542,7 @@ async function loadPendingVoiceCalls() {
         }
       }
       await fetch(`${API_URL}/voice-call/${cid}/ack`, { method: 'POST' }).catch(() => {});
-      if (call.nome === AVISO_SILENCIO_TOKEN) {
-        executarAvisoSilencioLocal();
-      } else {
-        speakViaSynthesis(call.nome, call.setor, call.destino);
-      }
+      speakViaSynthesis(call.nome, call.setor, call.destino);
     }
   } catch (e) {
     console.error('Erro ao processar chamadas de voz pendentes:', e);

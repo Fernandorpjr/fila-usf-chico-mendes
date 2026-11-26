@@ -165,3 +165,26 @@ test('Correções de falhas: Pedir Silêncio sem duplicidade, fim da repetição
   const popListenersSlice = extractSlice(formsSrc, 'function garantirListenersPopoverFormularios()', 'function abrirMenuFormulariosPaciente(');
   assert.equal(popListenersSlice.includes('addEventListener(\'scroll\', fecharMenuFormulariosPaciente, true)'), false);
 });
+
+test('Broadcast multi-TV do Pedir Silêncio e Botão Hero Chamar Próximo em destaque', () => {
+  // Backend grava aviso_silencio_ultimo em configuracoes, entrega via current-calling e não consome broadcast no /ack
+  assert.equal(serverSrc.includes("'aviso_silencio_ultimo'"), true);
+  assert.equal(serverSrc.includes('avisoSilencio'), true);
+  assert.equal(serverSrc.includes("nome = '__AVISO_SILENCIO__' AND created_at >= NOW() - INTERVAL '35 seconds'"), true);
+  assert.equal(serverSrc.includes("UPDATE pending_voice_calls SET processed = true WHERE id = $1 AND nome <> '__AVISO_SILENCIO__'"), true);
+
+  // Frontend não dá ack em __AVISO_SILENCIO__ e processa broadcast em loadCurrentCalling + loadPendingVoiceCalls
+  const silenceFn = extractSlice(appSrc, 'async function solicitarSilencioSalaEspera', 'function getRealCallsFromHistory');
+  assert.equal(silenceFn.includes('/ack'), false);
+  assert.equal(appSrc.includes('function processarAvisoSilencioRemoto('), true);
+  const currentCallingFn = extractSlice(appSrc, 'async function loadCurrentCalling()', 'async function loadHistory()');
+  assert.equal(currentCallingFn.includes('processarAvisoSilencioRemoto(d.avisoSilencio)'), true);
+
+  // Botão Hero Chamar Próximo em destaque na UI e no CSS
+  const sectorInitSlice = extractSlice(appSrc, 'function initSectorScreens()', 'function initOverview()');
+  assert.equal(sectorInitSlice.includes('sector-call-actions--hero'), true);
+  assert.equal(sectorInitSlice.includes('btn-call-hero'), true);
+  assert.equal(indexHtml.includes('.btn-call-hero {'), true);
+  assert.equal(indexHtml.includes('min-height: 58px;'), true);
+  assert.equal(indexHtml.includes('font-size: 18px;'), true);
+});

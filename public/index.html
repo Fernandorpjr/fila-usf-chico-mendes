@@ -2001,7 +2001,9 @@
       .admin-cat-pod--system { margin-left: 0 !important; }
       .sector-call-row { grid-template-columns: 1fr !important; }
       .sector-call-actions { width: 100%; }
-      .sector-call-actions .btn { flex: 1; }
+      .sector-call-actions--hero { flex-direction: column; }
+      .sector-call-actions--hero .btn-call-hero { width: 100%; min-height: 56px !important; font-size: 17px !important; }
+      .sector-call-actions--hero .btn-repeat-sector { width: 100%; min-height: 46px !important; }
       .clinical-forms-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
       .logo-text { font-size: 20px !important; }
       .logo-text .nome { font-size: 16px !important; }
@@ -2417,7 +2419,7 @@
     }
     .sector-call-row {
       display: grid;
-      grid-template-columns: minmax(170px, 1fr) minmax(200px, 1.1fr) auto;
+      grid-template-columns: 1fr 1fr;
       gap: 12px;
       align-items: end;
     }
@@ -2437,16 +2439,39 @@
     .sector-call-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
     }
-    .sector-call-actions .btn {
-      height: 44px;
-      min-height: 44px;
-      padding: 0 18px;
-      font-size: 14px;
-      white-space: nowrap;
+    .sector-call-actions--hero {
+      width: 100%;
+      align-items: stretch;
+      margin-top: 2px;
+    }
+    .sector-call-actions--hero .btn-call-hero {
+      flex: 1;
+      min-height: 58px;
+      height: auto;
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+      border-radius: 13px;
       width: auto;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.22);
+    }
+    .sector-call-actions--hero .btn-call-hero--multi {
+      flex: 0.85;
+      font-size: 16px;
+    }
+    .sector-call-actions--hero .btn-repeat-sector {
+      min-height: 58px;
+      height: auto;
+      padding: 0 22px;
+      font-size: 15px;
+      font-weight: 800;
+      border-radius: 13px;
+      width: auto;
+      flex-shrink: 0;
     }
     .btn-repeat-sector {
       background: #fff7ed !important;

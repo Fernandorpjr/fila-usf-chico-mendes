@@ -3341,12 +3341,16 @@ app.get('/api/current-calling', async (req, res) => {
        ),
        pausa AS (
          SELECT valor FROM configuracoes WHERE chave = 'sistema_pausado' LIMIT 1
+       ),
+       silencio AS (
+         SELECT valor FROM configuracoes WHERE chave = 'aviso_silencio_ultimo' LIMIT 1
        )
        SELECT
          COALESCE((SELECT json_agg(chamando) FROM chamando), '[]'::json) AS chamando_rows,
          (SELECT cnt FROM atend) AS total_atendidos,
          (SELECT cnt FROM desist) AS total_desistencias,
-         (SELECT valor FROM pausa) AS pausa_raw`,
+         (SELECT valor FROM pausa) AS pausa_raw,
+         (SELECT valor FROM silencio) AS silencio_raw`,
       [SETORES]
     );
 
@@ -3358,13 +3362,25 @@ app.get('/api/current-calling', async (req, res) => {
       }
     }
     const pausaStatus = parseStatusPausaRaw(row.pausa_raw || '');
+    let avisoSilencio = null;
+    try {
+      if (row.silencio_raw) {
+        const parsedSil = JSON.parse(row.silencio_raw);
+        const sid = Number(parsedSil?.id) || 0;
+        const ts = Number(parsedSil?.ts) || 0;
+        if (sid > 0 && ts > 0 && Date.now() - ts <= 35000) {
+          avisoSilencio = { id: sid, ts };
+        }
+      }
+    } catch (_) {}
 
     responderJsonComEtag(req, res, {
       current,
       totalAtendidos: parseInt(row.total_atendidos, 10) || 0,
       totalDesistencias: parseInt(row.total_desistencias, 10) || 0,
       sistemaPausado: pausaStatus.pausado,
-      pausaMotivo: pausaStatus.motivo
+      pausaMotivo: pausaStatus.motivo,
+      avisoSilencio
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -4552,6 +4568,8 @@ app.post('/api/voice-call', async (req, res) => {
     if (!nomeLimpo) {
       return res.status(400).json({ error: 'Nome é obrigatório' });
     }
+    let savedRow = null;
+    let isDupSilencio = false;
     if (nomeLimpo === '__AVISO_SILENCIO__') {
       const senhaSilencio = req.body?.senha || req.headers['x-admin-password'];
       const temPermissaoSilencio = isManagerOrAdminAuthorized(req) || Boolean(resolvePrivilegedRole(senhaSilencio));
@@ -4570,28 +4588,43 @@ app.post('/api/voice-call', async (req, res) => {
          LIMIT 1`
       );
       if (dupSilencio.rows.length > 0) {
-        return res.status(200).json({ ...dupSilencio.rows[0], deduplicated: true });
+        savedRow = dupSilencio.rows[0];
+        isDupSilencio = true;
       }
     }
-    const result = await pool.query(
-      `INSERT INTO pending_voice_calls (nome, setor, destino)
-       VALUES ($1, $2, $3) RETURNING id, nome, setor, destino, created_at`,
-      [nomeLimpo, setorLimpo, destinoLimpo]
-    );
-    res.status(201).json(result.rows[0]);
+    if (!savedRow) {
+      const result = await pool.query(
+        `INSERT INTO pending_voice_calls (nome, setor, destino)
+         VALUES ($1, $2, $3) RETURNING id, nome, setor, destino, created_at`,
+        [nomeLimpo, setorLimpo, destinoLimpo]
+      );
+      savedRow = result.rows[0];
+    }
+    if (nomeLimpo === '__AVISO_SILENCIO__' && savedRow?.id && !isDupSilencio) {
+      await pool.query(
+        `INSERT INTO configuracoes (chave, valor)
+         VALUES ('aviso_silencio_ultimo', $1)
+         ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+        [JSON.stringify({ id: Number(savedRow.id), ts: Date.now() })]
+      ).catch(() => {});
+    }
+    res.status(isDupSilencio ? 200 : 201).json(isDupSilencio ? { ...savedRow, deduplicated: true } : savedRow);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET /api/voice-call/pending — Listar chamadas não processadas (projeção explícita LGPD, janela máxima de 90s)
+// GET /api/voice-call/pending — Listar chamadas não processadas + broadcast multi-TV de silêncio (35s)
 app.get('/api/voice-call/pending', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, nome, setor, destino, created_at
        FROM pending_voice_calls
-       WHERE processed = false
-         AND created_at >= NOW() - INTERVAL '90 seconds'
+       WHERE (
+         (processed = false AND nome <> '__AVISO_SILENCIO__' AND created_at >= NOW() - INTERVAL '90 seconds')
+         OR
+         (nome = '__AVISO_SILENCIO__' AND created_at >= NOW() - INTERVAL '35 seconds')
+       )
        ORDER BY created_at ASC, id ASC
        LIMIT 20`
     );
@@ -4601,12 +4634,12 @@ app.get('/api/voice-call/pending', async (req, res) => {
   }
 });
 
-// POST /api/voice-call/:id/ack — Marcar chamada como processada
+// POST /api/voice-call/:id/ack — Marcar chamada individual como processada (não consome broadcast de silêncio)
 app.post('/api/voice-call/:id/ack', async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(
-      'UPDATE pending_voice_calls SET processed = true WHERE id = $1',
+      `UPDATE pending_voice_calls SET processed = true WHERE id = $1 AND nome <> '__AVISO_SILENCIO__'`,
       [id]
     );
     res.json({ ok: true });
