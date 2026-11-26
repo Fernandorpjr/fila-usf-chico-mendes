@@ -5522,12 +5522,33 @@ function isContextoMutiraoAtivoFront() {
   return false;
 }
 
+function normalizarSetorProfissionalFront(p) {
+  const setorRaw = String(p?.setor || '').trim();
+  const nome = String(p?.nome || '').trim();
+  const nomeNorm = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const profDict = typeof PROFISSOES_DEFAULT !== 'undefined' ? (PROFISSOES_DEFAULT[nome.toLowerCase()] || PROFISSOES_DEFAULT[nomeNorm] || '') : '';
+  const profNorm = String(p?.profissao || profDict || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  if (!setorRaw || setorRaw === 'Médico') {
+    if (/dentist|odonto/.test(profNorm) || nomeNorm === 'dra. juliana cavalcante' || nomeNorm === 'juliana cavalcante') {
+      return 'Odontologia';
+    }
+    if ((/tecnic/.test(profNorm) && /enferm/.test(profNorm)) || ['viviane', 'vilma', 'fernando'].includes(nomeNorm)) {
+      return 'Téc. Enfermagem';
+    }
+    if ((/enferm/.test(profNorm) && !/tecnic/.test(profNorm)) || ['mariana vaz', 'jorge marcio', 'lucelia de abreu', 'renata celia'].includes(nomeNorm)) {
+      return 'Enfermagem';
+    }
+  }
+  return ['Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'].includes(setorRaw) ? setorRaw : 'Médico';
+}
+
 function filtrarListaProfissionaisAtivos(listaRaw, mutiraoAtivo = isContextoMutiraoAtivoFront()) {
   const porSetorAtendimento = { 'Médico': [], 'Enfermagem': [], 'Odontologia': [], 'Téc. Enfermagem': [] };
   const porSetorTodosAtivos = { 'Médico': [], 'Enfermagem': [], 'Odontologia': [], 'Téc. Enfermagem': [] };
   (Array.isArray(listaRaw) ? listaRaw : []).forEach(p => {
     if (!p || p.ativo === false) return;
-    const setor = p.setor;
+    const setor = normalizarSetorProfissionalFront(p);
     const nome = String(p.nome || '').trim();
     if (!nome || !porSetorTodosAtivos[setor]) return;
     if (!porSetorTodosAtivos[setor].includes(nome)) porSetorTodosAtivos[setor].push(nome);
@@ -5567,6 +5588,9 @@ function aplicarProfissionaisDinamicosNoSistema() {
     SECTOR_CONFIG[setor].profissionais = novaLista;
 
     const cfg = SECTOR_CONFIG[setor];
+    if (setor !== 'Odontologia' && sectorFilters[cfg.key] && !novaLista.includes(sectorFilters[cfg.key])) {
+      sectorFilters[cfg.key] = novaLista[0] || '';
+    }
     const profSelEl = document.getElementById('profissional-' + cfg.key);
     if (profSelEl) {
       atualizarSelectPreservandoValor(profSelEl, novaLista.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join(''));

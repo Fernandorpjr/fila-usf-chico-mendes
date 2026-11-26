@@ -452,7 +452,47 @@ const SETORES = ['Acolhimento', 'Farmácia', 'Regulação', 'Médico', 'Enfermag
 // Canais de chat válidos
 const CANAIS_CHAT = ['geral', 'recepcao', 'acolhimento', 'acs', 'medico', 'enfermagem', 'odontologia', 'farmacia', 'regulacao', 'gerencia'];
 
-const DB_SCHEMA_VERSION = '2026-11-25-bloco1-mutirao-v1';
+const DB_SCHEMA_VERSION = '2026-11-26-fix-setor-profissionais-v2';
+
+const SETORES_PROFISSIONAIS_PERMITIDOS = ['Médico', 'Enfermagem', 'Odontologia', 'Téc. Enfermagem'];
+
+function corrigirSetorProfissionalRegistro(row) {
+  if (!row || typeof row !== 'object') return row;
+  const setorRaw = String(row.setor || '').trim();
+  const profNorm = String(row.profissao || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  const nomeNorm = String(row.nome || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+  let setorCorrigido = SETORES_PROFISSIONAIS_PERMITIDOS.includes(setorRaw) ? setorRaw : '';
+  if (!setorCorrigido || setorCorrigido === 'Médico') {
+    if (
+      /dentist|odonto/.test(profNorm) ||
+      nomeNorm === 'dra. juliana cavalcante' ||
+      nomeNorm === 'juliana cavalcante'
+    ) {
+      setorCorrigido = 'Odontologia';
+    } else if (
+      (/tecnic/.test(profNorm) && /enferm/.test(profNorm)) ||
+      ['viviane', 'vilma', 'fernando'].includes(nomeNorm)
+    ) {
+      setorCorrigido = 'Téc. Enfermagem';
+    } else if (
+      (/enferm/.test(profNorm) && !/tecnic/.test(profNorm)) ||
+      ['mariana vaz', 'jorge marcio', 'lucelia de abreu', 'renata celia'].includes(nomeNorm)
+    ) {
+      setorCorrigido = 'Enfermagem';
+    } else if (!setorCorrigido) {
+      setorCorrigido = 'Médico';
+    }
+  }
+  return setorCorrigido === row.setor ? row : { ...row, setor: setorCorrigido };
+}
 
 // Create tables on startup
 async function initDB() {
@@ -790,24 +830,33 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         nome TEXT NOT NULL UNIQUE,
         profissao TEXT,
-        setor TEXT DEFAULT 'Médico',
+        setor TEXT,
         regime TEXT NOT NULL DEFAULT 'fixo',
         ordem SMALLINT DEFAULT 50,
         ativo BOOLEAN DEFAULT true,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    await pool.query(`ALTER TABLE profissionais_cadastro ADD COLUMN IF NOT EXISTS setor TEXT DEFAULT 'Médico'`);
+    await pool.query(`ALTER TABLE profissionais_cadastro ADD COLUMN IF NOT EXISTS setor TEXT`);
     await pool.query(`ALTER TABLE profissionais_cadastro ADD COLUMN IF NOT EXISTS regime TEXT NOT NULL DEFAULT 'fixo'`);
     await pool.query(`ALTER TABLE profissionais_cadastro ADD COLUMN IF NOT EXISTS ordem SMALLINT DEFAULT 50`);
 
-    // Backfill único para bases antigas onde ainda não havia coluna setor
-    await pool.query(
-      `UPDATE profissionais_cadastro SET regime = 'mutirao', setor = 'Enfermagem', ordem = 14
-       WHERE nome = 'Renata Célia' AND (setor IS NULL OR setor = '')`
-    );
+    // Reparo para bases antigas onde ALTER TABLE ADD COLUMN setor DEFAULT 'Médico' gravou 'Médico' em todos os cargos
+    await pool.query(`
+      UPDATE profissionais_cadastro
+      SET setor = CASE
+        WHEN LOWER(COALESCE(profissao, '')) ~ 'dentist|odonto'
+          OR LOWER(TRIM(nome)) IN ('dra. juliana cavalcante', 'juliana cavalcante') THEN 'Odontologia'
+        WHEN (LOWER(COALESCE(profissao, '')) ~ 't[eé]cnic' AND LOWER(COALESCE(profissao, '')) ~ 'enferm')
+          OR LOWER(TRIM(nome)) IN ('viviane', 'vilma', 'fernando') THEN 'Téc. Enfermagem'
+        WHEN (LOWER(COALESCE(profissao, '')) ~ 'enferm' AND LOWER(COALESCE(profissao, '')) !~ 't[eé]cnic')
+          OR LOWER(TRIM(nome)) IN ('mariana vaz', 'jorge marcio', 'lucelia de abreu', 'renata célia', 'renata celia') THEN 'Enfermagem'
+        ELSE setor
+      END
+      WHERE setor IS NULL OR TRIM(setor) = '' OR setor = 'Médico'
+    `);
 
-    // Seed idempotente – preserva alterações feitas pelo coordenador na tela
+    // Seed idempotente – corrige setor contaminado e preserva alterações posteriores no setor correto
     const profSeed = [
       ['Dr. Israel Christian', 'Médico – Estratégia Saúde da Família', 'Médico', 'fixo', 1],
       ['Dr. Joene Halan', 'Médico – Estratégia Saúde da Família', 'Médico', 'fixo', 2],
@@ -827,7 +876,12 @@ async function initDB() {
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (nome) DO UPDATE SET
            profissao = COALESCE(NULLIF(profissionais_cadastro.profissao, ''), EXCLUDED.profissao),
-           setor = COALESCE(NULLIF(profissionais_cadastro.setor, ''), EXCLUDED.setor),
+           regime = CASE
+             WHEN (profissionais_cadastro.setor IS NULL OR profissionais_cadastro.setor = '' OR profissionais_cadastro.setor = 'Médico')
+                  AND EXCLUDED.setor <> 'Médico' THEN EXCLUDED.regime
+             ELSE COALESCE(NULLIF(profissionais_cadastro.regime, ''), EXCLUDED.regime)
+           END,
+           setor = EXCLUDED.setor,
            ordem = COALESCE(profissionais_cadastro.ordem, EXCLUDED.ordem)`,
         [nome, profissao, setor, regime, ordem]
       );
@@ -6302,10 +6356,11 @@ app.get('/api/profissionais', async (req, res) => {
          WHERE ativo = true
          ORDER BY COALESCE(ordem, 50) ASC, nome ASC`;
     const result = await pool.query(sql);
+    const rowsCorrigidos = result.rows.map(corrigirSetorProfissionalRegistro);
     if (incluirInativos) {
-      return res.json(result.rows);
+      return res.json(rowsCorrigidos);
     }
-    responderJsonComEtag(req, res, result.rows);
+    responderJsonComEtag(req, res, rowsCorrigidos);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

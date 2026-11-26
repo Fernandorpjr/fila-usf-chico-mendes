@@ -99,7 +99,7 @@ test('Bloco 1 (Segurança/LGPD/Idempotência): backend protege rotas, valida ent
 test('Mutirão Dinâmico: filtra profissionais só-mutirão (Renata Célia) na semana e libera no sábado/mutirão', () => {
   const fnSlice = extractSlice(
     appSrc,
-    'function filtrarListaProfissionaisAtivos(',
+    'function normalizarSetorProfissionalFront(',
     'function atualizarSelectPreservandoValor('
   );
   const ctx = {
@@ -135,6 +135,76 @@ test('Mutirão Dinâmico: filtra profissionais só-mutirão (Renata Célia) na s
   // UI e modal presentes no index.html
   assert.equal(indexHtml.includes('id="modal-equipe-mutirao"'), true);
   assert.equal(indexHtml.includes('abrirModalEquipeMutirao()'), true);
+});
+
+test('Separação por Aba/Setor: enfermeiros, dentista e técnicos não vazam para a aba Médico mesmo com legado no banco', () => {
+  const serverHelpers = extractSlice(
+    serverSrc,
+    'const SETORES_PROFISSIONAIS_PERMITIDOS =',
+    '// Create tables on startup'
+  );
+  const sCtx = {};
+  vm.runInNewContext(serverHelpers, sCtx);
+
+  const appSlice = extractSlice(
+    appSrc,
+    'function normalizarSetorProfissionalFront(',
+    'function atualizarSelectPreservandoValor('
+  );
+  const fCtx = {
+    _PROFISSIONAIS_FALLBACK: {
+      'Médico': ['Dr. Israel Christian', 'Dr. Joene Halan', 'Dra. Mirela Mota'],
+      'Enfermagem': ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu', 'Renata Célia'],
+      'Odontologia': ['Dra. Juliana Cavalcante'],
+      'Téc. Enfermagem': ['Viviane', 'Vilma', 'Fernando']
+    },
+    isContextoMutiraoAtivoFront: () => true
+  };
+  vm.runInNewContext(appSlice, fCtx);
+
+  const linhasContaminadas = [
+    { nome: 'Dr. Israel Christian', profissao: 'Médico – Estratégia Saúde da Família', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Dr. Joene Halan', profissao: 'Médico – Estratégia Saúde da Família', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Dra. Mirela Mota', profissao: 'Clínica Geral – Médica da Estratégia Saúde da Família', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Mariana Vaz', profissao: 'Enfermeira – Estratégia Saúde da Família', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Jorge Marcio', profissao: 'Enfermeiro – Estratégia Saúde da Família', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Lucelia de Abreu', profissao: 'Enfermeira – Estratégia Saúde da Família', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Renata Célia', profissao: 'Enfermeira – Estratégia Saúde da Família', setor: 'Médico', regime: 'mutirao', ativo: true },
+    { nome: 'Dra. Juliana Cavalcante', profissao: 'Cirurgiã-Dentista – Estratégia Saúde da Família', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Viviane', profissao: 'Técnica de Enfermagem', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Vilma', profissao: 'Técnica de Enfermagem', setor: 'Médico', regime: 'fixo', ativo: true },
+    { nome: 'Fernando', profissao: 'Técnico de Enfermagem', setor: 'Médico', regime: 'fixo', ativo: true }
+  ];
+
+  // Backend corrige todos os registros contaminados em GET /api/profissionais
+  const corrigidosBackend = JSON.parse(JSON.stringify(linhasContaminadas.map(sCtx.corrigirSetorProfissionalRegistro)));
+  assert.deepEqual(
+    corrigidosBackend.filter(r => r.setor === 'Médico').map(r => r.nome),
+    ['Dr. Israel Christian', 'Dr. Joene Halan', 'Dra. Mirela Mota']
+  );
+  assert.deepEqual(
+    corrigidosBackend.filter(r => r.setor === 'Enfermagem').map(r => r.nome),
+    ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu', 'Renata Célia']
+  );
+  assert.deepEqual(
+    corrigidosBackend.filter(r => r.setor === 'Odontologia').map(r => r.nome),
+    ['Dra. Juliana Cavalcante']
+  );
+  assert.deepEqual(
+    corrigidosBackend.filter(r => r.setor === 'Téc. Enfermagem').map(r => r.nome),
+    ['Viviane', 'Vilma', 'Fernando']
+  );
+
+  // Frontend também impede vazamento para a aba Médico
+  const agrupado = JSON.parse(JSON.stringify(fCtx.filtrarListaProfissionaisAtivos(linhasContaminadas, true)));
+  assert.deepEqual(agrupado.porSetorAtendimento['Médico'], ['Dr. Israel Christian', 'Dr. Joene Halan', 'Dra. Mirela Mota']);
+  assert.deepEqual(agrupado.porSetorAtendimento['Enfermagem'], ['Mariana Vaz', 'Jorge Marcio', 'Lucelia de Abreu', 'Renata Célia']);
+  assert.deepEqual(agrupado.porSetorAtendimento['Odontologia'], ['Dra. Juliana Cavalcante']);
+  assert.deepEqual(agrupado.porSetorAtendimento['Téc. Enfermagem'], ['Viviane', 'Vilma', 'Fernando']);
+
+  // Versão do schema incrementada para rodar reparo no banco em produção
+  assert.equal(serverSrc.includes("const DB_SCHEMA_VERSION = '2026-11-26-fix-setor-profissionais-v2';"), true);
+  assert.equal(serverSrc.includes('ALTER TABLE profissionais_cadastro ADD COLUMN IF NOT EXISTS setor TEXT`'), true);
 });
 
 test('Contingência Offline: ofusca espelho local, remove dados clínicos (LGPD), limpa no logout e gera folha imprimível', () => {
