@@ -2490,15 +2490,20 @@ async function registrarAuditoriaFila(db, req, {
   }
 }
 
-// PUT /api/patients/:id/rename — Editar nome do paciente diretamente na fila (equipe autenticada, com sincronização e auditoria)
+// PUT /api/patients/:id/rename — Editar nome do paciente diretamente na fila (exclusivo Gerente/Admin, com sincronização e auditoria)
 app.put('/api/patients/:id/rename', async (req, res) => {
   const client = await pool.connect();
   try {
     await garantirColunasEscuta(client);
     const { id } = req.params;
     const novoNomeRaw = req.body?.novoNome;
-    if (!req.session && !isManagerOrAdminAuthorized(req)) {
-      return res.status(401).json({ error: 'Sessão não autenticada.' });
+    const senhaRename = req.body?.senha || req.headers['x-admin-password'];
+    const autorizadoRename = isManagerOrAdminAuthorized(req) || Boolean(resolvePrivilegedRole(senhaRename));
+    if (!autorizadoRename) {
+      return res.status(403).json({
+        error: 'Apenas Gerente ou Administrador pode editar o nome do paciente.',
+        requiresManagerPassword: true
+      });
     }
     const nomeLimpo = String(novoNomeRaw || '').replace(/\s+/g, ' ').trim();
     if (nomeLimpo.length < 2 || nomeLimpo.length > 120) {
@@ -2584,8 +2589,13 @@ app.put('/api/patients/:id/prioridade', async (req, res) => {
       senha
     } = req.body || {};
 
-    if (!req.session && !isManagerOrAdminAuthorized(req)) {
-      return res.status(401).json({ error: 'Sessão não autenticada.' });
+    const senhaPrio = senha || req.headers['x-admin-password'];
+    const temGerenteOuAdmin = isManagerOrAdminAuthorized(req) || Boolean(resolvePrivilegedRole(senhaPrio));
+    if (!temGerenteOuAdmin) {
+      return res.status(403).json({
+        error: 'Apenas Gerente ou Administrador pode editar ou alterar a prioridade de atendimento.',
+        requiresManagerPassword: true
+      });
     }
 
     await client.query('BEGIN');
@@ -2611,25 +2621,6 @@ app.put('/api/patients/:id/prioridade', async (req, res) => {
       return res.status(400).json({ error: calc.erro });
     }
     const calcOdonto = calcularOrdemPrioridadeOdonto(calc.idade, calc.prioridade, calc.tipo_prioridade, condInput);
-
-    const rankAntes = Number(
-      antes.ordem_prioridade_odonto ||
-      (Number(antes.nivel_prioridade) === 1 ? 1 : (antes.prioridade === 'prioritario' || Number(antes.nivel_prioridade) === 2 ? 9 : 99))
-    );
-    const rankNovo = Number(calcOdonto.ordem_prioridade_odonto || 99);
-
-    // Incluir ou elevar prioridade (rankNovo <= rankAntes) é livre para equipe autenticada;
-    // Remover ou rebaixar prioridade já concedida (rankNovo > rankAntes) exige Gerente/Admin.
-    if (rankNovo > rankAntes) {
-      const temGerenteOuAdmin = isManagerOrAdminAuthorized(req) || Boolean(resolvePrivilegedRole(senha));
-      if (!temGerenteOuAdmin) {
-        await client.query('ROLLBACK');
-        return res.status(403).json({
-          error: 'Para remover ou reduzir uma prioridade já registrada, informe a senha de Gerente ou Administrador.',
-          requiresManagerPassword: true
-        });
-      }
-    }
 
     const updRes = await client.query(
       `UPDATE patients
@@ -4499,6 +4490,16 @@ app.post('/api/voice-call', async (req, res) => {
     const destinoLimpo = String(destino || 'Sala de Agendamento').trim().slice(0, 80);
     if (!nomeLimpo) {
       return res.status(400).json({ error: 'Nome é obrigatório' });
+    }
+    if (nomeLimpo === '__AVISO_SILENCIO__') {
+      const senhaSilencio = req.body?.senha || req.headers['x-admin-password'];
+      const temPermissaoSilencio = isManagerOrAdminAuthorized(req) || Boolean(resolvePrivilegedRole(senhaSilencio));
+      if (!temPermissaoSilencio) {
+        return res.status(403).json({
+          error: 'Apenas Gerente ou Administrador pode emitir o aviso de silêncio na TV.',
+          requiresManagerPassword: true
+        });
+      }
     }
     const result = await pool.query(
       `INSERT INTO pending_voice_calls (nome, setor, destino)

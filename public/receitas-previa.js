@@ -965,7 +965,7 @@ function renderPreviaReceitaBadgeLinha(p) {
 function renderBotaoPreviaReceitaLinha(p, setor) {
   const safeNome = String(p?.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const safeSetor = String(setor || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-  const testeTag = '<span class="previa-teste-tag">Liberado para teste</span>';
+  const testeTag = '<span class="previa-teste-tag" title="Liberado para teste">Teste</span>';
   if (setor === 'Regulação' && p?.id) {
     if (p.previa_receita) {
       const qtd = Number(p.previa_receita.qtd_anexos) || 0;

@@ -55,18 +55,92 @@
   .admin-toolbar {
     display: none !important;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     flex-wrap: wrap;
-    gap: 10px 18px;
-    padding: 8px 20px;
-    background: rgba(7, 20, 48, 0.55);
+    gap: 8px 12px;
+    padding: 9px 20px;
+    background: rgba(6, 17, 44, 0.72);
     border-top: 1px solid rgba(255, 255, 255, 0.14);
     width: 100%;
   }
   .admin-active .admin-toolbar, body.manager-active .admin-toolbar { display: flex !important; }
-  .admin-toolbar-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .admin-toolbar-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; color: rgba(255, 255, 255, 0.58); margin-right: 2px; white-space: nowrap; }
-  .admin-toolbar-divider { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.16); }
+  .admin-role-pill {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    height: 34px;
+    padding: 0 11px;
+    border-radius: 9px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 11.5px;
+    font-weight: 900;
+    letter-spacing: 0.35px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  body.admin-active .admin-role-admin {
+    display: inline-flex;
+    background: rgba(34, 197, 94, 0.18);
+    border: 1.5px solid rgba(74, 222, 128, 0.55);
+    color: #bbf7d0;
+  }
+  body.manager-active:not(.admin-active) .admin-role-manager {
+    display: inline-flex;
+    background: rgba(250, 204, 21, 0.18);
+    border: 1.5px solid rgba(250, 204, 21, 0.55);
+    color: #fef08a;
+  }
+  .admin-cat-pod {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 11px;
+    padding: 4px 10px;
+  }
+  .admin-cat-pod--system { margin-left: auto; border-color: rgba(248, 113, 113, 0.28); background: rgba(127, 29, 29, 0.18); }
+  .admin-cat-title {
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: rgba(219, 234, 254, 0.82);
+    padding-right: 7px;
+    border-right: 1px solid rgba(255, 255, 255, 0.16);
+    white-space: nowrap;
+  }
+  .admin-tb-btn {
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 9px;
+    border: 1.5px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.09);
+    color: #f8fafc;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.16s ease;
+  }
+  .admin-tb-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); transform: translateY(-1px); }
+  .admin-tb-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+  .admin-tb-btn--amber { background: rgba(217, 119, 6, 0.26); border-color: rgba(251, 191, 36, 0.65); color: #fef3c7; }
+  .admin-tb-btn--amber:hover:not(:disabled) { background: rgba(217, 119, 6, 0.44); border-color: #fde047; color: #fff; }
+  .admin-tb-btn--teal { background: rgba(13, 148, 136, 0.26); border-color: rgba(45, 212, 191, 0.58); color: #ccfbf1; }
+  .admin-tb-btn--teal:hover:not(:disabled) { background: rgba(13, 148, 136, 0.44); border-color: #5eead4; color: #fff; }
+  .admin-tb-btn--warn { background: rgba(245, 158, 11, 0.2); border-color: rgba(251, 191, 36, 0.52); color: #fef3c7; }
+  .admin-tb-btn--warn:hover:not(:disabled) { background: rgba(245, 158, 11, 0.36); border-color: #fbbf24; color: #fff; }
+  .admin-tb-btn--blue { background: rgba(37, 99, 235, 0.26); border-color: rgba(96, 165, 250, 0.55); color: #dbeafe; }
+  .admin-tb-btn--blue:hover:not(:disabled) { background: rgba(37, 99, 235, 0.45); border-color: #93c5fd; color: #fff; }
+  .admin-tb-btn--danger { background: rgba(220, 38, 38, 0.22); border-color: rgba(248, 113, 113, 0.52); color: #fecaca; }
+  .admin-tb-btn--danger:hover:not(:disabled) { background: rgba(220, 38, 38, 0.42); border-color: #fca5a5; color: #fff; }
 
   .btn-admin-lock { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
   .btn-admin-lock:hover { background: rgba(255,255,255,0.1); }
@@ -74,15 +148,16 @@
   .btn-admin-lock.manager { color: #fde68a; border-color: rgba(250,204,21,0.5); background: rgba(250,204,21,0.14); }
   .btn-reset { background: transparent; color: var(--gray-300); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s; letter-spacing: 0.4px; white-space: nowrap; }
   .btn-reset:hover { background: rgba(229,57,53,0.15); color: var(--red); border-color: rgba(229,57,53,0.3); }
-  .select-voz-admin { background: rgba(15,23,42,0.65); color: #fff; border: 1px solid rgba(255,255,255,0.25); padding: 6px 8px; border-radius: 8px; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; cursor: pointer; outline: none; white-space: nowrap; }
-  .select-voz-admin:hover { border-color: rgba(74,171,60,0.6); background: rgba(15,23,42,0.85); }
+  .select-voz-admin { background: rgba(15,23,42,0.78); color: #fff; border: 1.5px solid rgba(255,255,255,0.25); height: 34px; padding: 0 10px; border-radius: 9px; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; outline: none; white-space: nowrap; }
+  .select-voz-admin:hover { border-color: rgba(74,171,60,0.65); background: rgba(15,23,42,0.92); }
   .select-voz-admin option { background: #0f172a; color: #fff; font-weight: 700; }
   .clock { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 800; color: var(--yellow); letter-spacing: 1.5px; white-space: nowrap; line-height: 1.1; text-align: right; }
   .date-display { font-size: 11.5px; color: var(--gray-300); text-align: right; white-space: nowrap; }
   .admin-only, .admin-strict-only { display: none !important; }
   .admin-active .admin-only, body.admin-active .admin-strict-only { display: flex !important; }
   .admin-active select.admin-only { display: inline-block !important; }
-  body.admin-active button.admin-strict-only, body.admin-active button.admin-only { display: inline-flex !important; }
+  body.admin-active button.admin-strict-only, body.admin-active button.admin-only,
+  body.admin-active .admin-tb-btn.admin-strict-only, body.admin-active .btn-palestra.admin-strict-only { display: inline-flex !important; }
 
   /* ====== MELHORIA G: CONTROLES DE REORDENAÇÃO (ADMIN RBAC) ====== */
 
@@ -890,10 +965,10 @@
     /* === MELHORIA F: BOTÃO PAUSA === */
     .btn-palestra {
       background: rgba(249,200,35,0.18); color: var(--yellow);
-      border: 1.5px solid rgba(249,200,35,0.5); padding: 7px 14px;
-      border-radius: 8px; font-size: 13px; font-weight: 800;
+      border: 1.5px solid rgba(249,200,35,0.5); min-height: 34px; padding: 6px 12px;
+      border-radius: 9px; font-size: 12px; font-weight: 800;
       cursor: pointer; transition: all 0.2s; font-family: 'Nunito', sans-serif;
-      white-space: nowrap; flex-shrink: 0;
+      white-space: nowrap; flex-shrink: 0; align-items: center; gap: 6px;
     }
     .btn-palestra:hover { background: rgba(249,200,35,0.32); border-color: rgba(249,200,35,0.7); }
     .btn-palestra.btn-palestra-pausado {
@@ -1923,7 +1998,11 @@
         padding: 8px 14px !important;
         gap: 8px !important;
       }
-      .admin-toolbar-divider { display: none; }
+      .admin-cat-pod--system { margin-left: 0 !important; }
+      .sector-call-row { grid-template-columns: 1fr !important; }
+      .sector-call-actions { width: 100%; }
+      .sector-call-actions .btn { flex: 1; }
+      .clinical-forms-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
       .logo-text { font-size: 20px !important; }
       .logo-text .nome { font-size: 16px !important; }
       .header-subtitle { font-size: 9.5px !important; }
@@ -2272,7 +2351,142 @@
     .btn-fila-form:hover { background: #dbeafe; }
     .btn-fila-form-esp:hover { background: #bfdbfe; }
     .btn-fila-form-amb:hover { background: #dcfce7; }
-    .pec-forms-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: linear-gradient(135deg, #f8fafc, #eff6ff); border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 9px 12px; margin-bottom: 14px; }
+    /* ====== CONTROLES DO SETOR / MÉDICOS E FERRAMENTAS CLÍNICAS PADRONIZADAS ====== */
+    .priority-rule-collapse {
+      margin-bottom: 14px;
+      border-radius: 10px;
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      overflow: hidden;
+    }
+    .priority-rule-collapse summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 8px 14px;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #5b21b6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      user-select: none;
+    }
+    .priority-rule-collapse summary::-webkit-details-marker { display: none; }
+    .priority-rule-collapse summary:hover { background: #ede9fe; }
+    .priority-rule-hint {
+      font-size: 11px;
+      font-weight: 800;
+      color: #6d28d9;
+      background: #ffffff;
+      border: 1px solid #ddd6fe;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .priority-rule-body {
+      padding: 0 14px 10px;
+      font-size: 12px;
+      color: #4c1d95;
+      line-height: 1.5;
+      border-top: 1px dashed #ddd6fe;
+      padding-top: 8px;
+    }
+
+    .sector-control-deck {
+      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 1.5px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sector-filter-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sector-deck-label {
+      font-size: 11px;
+      font-weight: 900;
+      color: #334155;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .sector-call-row {
+      display: grid;
+      grid-template-columns: minmax(170px, 1fr) minmax(200px, 1.1fr) auto;
+      gap: 12px;
+      align-items: end;
+    }
+    .sector-call-row .form-group { margin-bottom: 0; }
+    .sector-call-row select {
+      width: 100%;
+      height: 44px;
+      padding: 0 12px;
+      border-radius: 10px;
+      border: 2px solid var(--gray-200);
+      background: #fff;
+      font-family: 'Nunito Sans', sans-serif;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .sector-call-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .sector-call-actions .btn {
+      height: 44px;
+      min-height: 44px;
+      padding: 0 18px;
+      font-size: 14px;
+      white-space: nowrap;
+      width: auto;
+    }
+    .btn-repeat-sector {
+      background: #fff7ed !important;
+      color: #c2410c !important;
+      border: 1.5px solid #fdba74 !important;
+      box-shadow: none !important;
+    }
+    .btn-repeat-sector:hover:not(:disabled) {
+      background: #ffedd5 !important;
+      border-color: #ea580c !important;
+    }
+
+    .pec-forms-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: linear-gradient(135deg, #f8fafc, #eff6ff); border: 1.5px solid #bfdbfe; border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; }
+    .pec-forms-bar.clinical-tools-deck { flex-direction: column; align-items: stretch; gap: 12px; }
+    .clinical-tools-zone { display: flex; flex-direction: column; gap: 8px; }
+    .clinical-forms-zone { padding-top: 10px; border-top: 1px dashed #cbd5e1; }
+    .clinical-zone-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .clinical-zone-label { font-size: 11.5px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.55px; }
+    .clinical-zone-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .clinical-quick-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .clinical-quick-row .pec-form-btn { min-height: 36px; padding: 7px 13px; }
+    .clinical-forms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 8px; }
+    .clinical-forms-grid.collapsed { display: none; }
+    .clinical-forms-grid .pec-form-btn { width: 100%; min-height: 36px; justify-content: flex-start; padding: 6px 11px; }
+    .clinical-blank-btn { min-height: 30px !important; padding: 4px 10px !important; font-size: 11.5px !important; }
+    .clinical-forms-toggle-btn {
+      min-height: 30px;
+      padding: 4px 11px;
+      border-radius: 8px;
+      border: 1.5px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .clinical-forms-toggle-btn:hover { background: #e2e8f0; border-color: #94a3b8; color: #0f172a; }
+
     .pec-forms-title { font-size: 12px; font-weight: 900; color: #1e3a8a; margin-right: 4px; }
     .pec-forms-sep { width: 1px; height: 22px; background: #cbd5e1; margin: 0 2px; flex-shrink: 0; }
     .pec-form-btn { min-height: 34px; padding: 6px 12px; border-radius: 9px; border: 1.5px solid #93c5fd; background: #fff; color: #1e3a8a; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease; }
@@ -2285,6 +2499,116 @@
     .pec-form-btn.devolucao:hover { background: #ffedd5; border-color: #ea580c; color: #7c2d12; }
     .pec-form-btn.positivo { background: #ecfdf5; color: #065f46; border-color: #34d399; }
     .pec-form-btn.positivo:hover { background: #d1fae5; border-color: #10b981; color: #064e3b; }
+
+    /* Botões inline exclusivos de Gerente/Admin na fila + agrupamento da linha */
+    .btn-inline-mgr {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      height: 22px;
+      padding: 0 7px;
+      border-radius: 6px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 10.5px;
+      font-weight: 800;
+      cursor: pointer;
+      line-height: 1;
+      transition: all 0.15s ease;
+    }
+    .btn-inline-mgr--edit { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .btn-inline-mgr--edit:hover { background: #dbeafe; border-color: #3b82f6; }
+    .btn-inline-mgr--prio { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
+    .btn-inline-mgr--prio:hover { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+    .btn-inline-mgr--prio.ativo { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+
+    .fila-reorder-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 3px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    .btn-fila-forms-trigger {
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: 1.5px solid #93c5fd;
+      background: #eff6ff;
+      color: #1e40af;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .btn-fila-forms-trigger:hover { background: #dbeafe; border-color: #2563eb; }
+
+    .fila-form-popover {
+      position: fixed;
+      display: none;
+      min-width: 245px;
+      max-width: min(92vw, 310px);
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 13px;
+      box-shadow: 0 14px 36px rgba(15, 23, 42, 0.24);
+      z-index: 9999;
+      overflow: hidden;
+      animation: ctxMenuIn 0.14s ease;
+    }
+    .fila-form-popover.visible { display: block; }
+    .fila-form-popover-head {
+      padding: 9px 13px;
+      background: #eff6ff;
+      border-bottom: 1px solid #dbeafe;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 900;
+      color: #1e3a8a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .fila-form-popover-list { padding: 5px; display: flex; flex-direction: column; gap: 2px; }
+    .fila-form-popover-item {
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #1e293b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.12s, color 0.12s;
+    }
+    .fila-form-popover-item:hover { background: #dbeafe; color: #1e40af; }
+    .mgr-only-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      font-size: 10.5px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.35px;
+    }
     .modal-actions-row { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
     .modal-actions-row .btn { min-height: 40px; border-radius: 9px; font-weight: 800; }
     .wa-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -2532,16 +2856,20 @@
     </div>
   </div>
   <div class="admin-toolbar" id="admin-toolbar">
-    <div class="admin-toolbar-group admin-strict-only">
-      <span class="admin-toolbar-label">Operação</span>
+    <span class="admin-role-pill admin-role-admin" title="Perfil ativo com controle total do sistema">👑 Admin</span>
+    <span class="admin-role-pill admin-role-manager" title="Perfil ativo de Gerente da Unidade">👔 Gerente</span>
+
+    <div class="admin-cat-pod">
+      <span class="admin-cat-title">Operação &amp; Sala</span>
+      <button type="button" id="btn-pedir-silencio-admin" class="admin-tb-btn admin-tb-btn--amber manager-or-admin-tab" style="display:none;" onclick="solicitarSilencioSalaEspera(this)" title="Emitir aviso sonoro e banner na TV pedindo silêncio na sala de espera (Gerente/Admin)">🤫 Pedir Silêncio</button>
       <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
-      <button id="btn-palestra" class="btn-palestra" onclick="togglePausaPalestra()" title="Pausar atendimento em todos os computadores e TVs">🎙️ Pausar</button>
+      <button id="btn-palestra" class="btn-palestra admin-strict-only" onclick="togglePausaPalestra()" title="Pausar atendimento em todos os computadores e TVs (Somente Admin)">🎙️ Pausar</button>
       <!-- === FIM MELHORIA F === -->
-      <button id="btn-mutirao-hoje" class="btn-reset" onclick="toggleMutiraoHoje()" title="Liberar ou encerrar expediente extra / mutirão hoje">🗓️ Mutirão Hoje</button>
+      <button id="btn-mutirao-hoje" class="admin-tb-btn admin-tb-btn--teal admin-strict-only" onclick="toggleMutiraoHoje()" title="Liberar ou encerrar expediente extra / mutirão hoje (Somente Admin)">🗓️ Mutirão Hoje</button>
     </div>
-    <div class="admin-toolbar-divider admin-strict-only"></div>
-    <div class="admin-toolbar-group admin-strict-only">
-      <span class="admin-toolbar-label">Áudio / TV</span>
+
+    <div class="admin-cat-pod admin-strict-only">
+      <span class="admin-cat-title">Áudio &amp; TV</span>
       <select id="select-voz-sistema" class="select-voz-admin" onchange="alterarVozPreferida(this.value, true)" title="Escolher voz brasileira das chamadas (Somente Admin — toca teste ao trocar)">
         <option value="feminina_br">🎙️ Francisca (Fem)</option>
         <option value="elza_br">🎙️ Elza (Fem Madura)</option>
@@ -2566,16 +2894,19 @@
         <option value="atencao_setor">📢 Atenção + Paciente/Usuário</option>
       </select>
     </div>
-    <div class="admin-toolbar-divider admin-strict-only"></div>
-    <div class="admin-toolbar-group">
-      <span class="admin-toolbar-label">Gestão</span>
-      <button type="button" id="btn-pedir-silencio-admin" class="btn-reset manager-or-admin-tab" style="display:none;background:rgba(217,119,6,0.28);border-color:rgba(251,191,36,0.7);color:#fef3c7;" onclick="solicitarSilencioSalaEspera(this)" title="Emitir aviso sonoro e visual pedindo silêncio na sala de espera da TV">🤫 Pedir Silêncio</button>
-      <button type="button" class="btn-reset manager-or-admin-tab" style="display:none;background:rgba(245,158,11,0.22);border-color:rgba(251,191,36,0.6);color:#fef3c7;" onclick="abrirModalContingenciaOffline('contingencia')" title="Abrir Segunda Tela Administrativa para imprimir Folha de Contingência da fila atual">
-        🖨️ Contingência / Imprimir Fila <span id="contingencia-offline-badge" style="display:none;background:#dc2626;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;margin-left:3px;">0</span>
+
+    <div class="admin-cat-pod">
+      <span class="admin-cat-title">Gestão &amp; Equipe</span>
+      <button type="button" class="admin-tb-btn admin-tb-btn--teal manager-or-admin-tab" style="display:none;" onclick="abrirModalEquipeMutirao()" title="Gerenciar médicos, enfermeiros e plantonistas de mutirão">👥 Equipe / Mutirão</button>
+      <button type="button" class="admin-tb-btn admin-tb-btn--warn manager-or-admin-tab" style="display:none;" onclick="abrirModalContingenciaOffline('contingencia')" title="Imprimir Folha de Contingência da fila atual (Segunda Tela)">
+        🖨️ Contingência / Fila <span id="contingencia-offline-badge" style="display:none;background:#dc2626;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;margin-left:2px;">0</span>
       </button>
-      <button type="button" class="btn-reset manager-or-admin-tab" style="display:none;background:rgba(13,148,136,0.22);border-color:rgba(45,212,191,0.55);" onclick="abrirModalEquipeMutirao()" title="Gerenciar médicos, enfermeiros e plantonistas de mutirão na Segunda Tela">👥 Equipe / Mutirão</button>
-      <a href="/dashboard" target="_blank" class="btn-reset" style="text-decoration:none;display:inline-flex;align-items:center;" title="Abrir Painel de Métricas">📊 Dashboard</a>
-      <button class="btn-reset admin-strict-only" onclick="resetData()" title="Zerar fila diária (Somente Administrador)">🗑️ Resetar Diário</button>
+      <a href="/dashboard" target="_blank" class="admin-tb-btn admin-tb-btn--blue" title="Abrir Painel de Métricas e Indicadores">📊 Dashboard</a>
+    </div>
+
+    <div class="admin-cat-pod admin-cat-pod--system admin-strict-only">
+      <span class="admin-cat-title">Sistema</span>
+      <button class="admin-tb-btn admin-tb-btn--danger admin-strict-only" onclick="resetData()" title="Zerar fila diária (Somente Administrador)">🗑️ Resetar Diário</button>
     </div>
   </div>
 </header>
@@ -2643,9 +2974,6 @@
             </button>
             <button type="button" class="pec-form-btn" style="padding:7px 11px;" onclick="abrirDeclaracaoResidenciaRecepcao(false)" title="Imprimir Declaração de Residência (ACS)">
               🏠 Decl. Residência (ACS)
-            </button>
-            <button type="button" class="pec-form-btn" style="padding:7px 11px;background:#fef3c7;border-color:#f59e0b;color:#92400e;" onclick="solicitarSilencioSalaEspera(this)" title="Enviar aviso sonoro e banner na TV pedindo silêncio na sala de espera">
-              🤫 Pedir Silêncio na TV
             </button>
           </div>
         </div>
@@ -3396,7 +3724,7 @@
           <button class="btn-3d" onclick="repeatLastCall(this)" style="background:rgba(255,255,255,0.1);color:var(--white);border:1.5px solid rgba(255,255,255,0.25);border-radius:10px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;">🔁 Repetir Última</button>
           <button id="btn-painel-fullscreen" class="btn-3d" onclick="togglePainelFullscreen()" style="background:rgba(56,189,248,0.18);color:#e0f2fe;border:1.5px solid rgba(56,189,248,0.45);border-radius:10px;padding:10px 16px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;" title="Abrir ou sair da Tela Cheia na TV">⛶ Tela Cheia</button>
           <button id="btn-painel-contraste" class="btn-3d" onclick="togglePainelAltoContraste()" style="background:rgba(253,224,71,0.16);color:#fef08a;border:1.5px solid rgba(253,224,71,0.5);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;" title="Alternar Alto Contraste e Fonte Ampliada para leitura a distância">👁️ Alto Contraste</button>
-          <button type="button" class="btn-3d" onclick="solicitarSilencioSalaEspera(this)" style="background:rgba(217,119,6,0.3);color:#fef3c7;border:1.5px solid rgba(251,191,36,0.65);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;" title="Tocar aviso pedindo silêncio na sala de espera">🤫 Pedir Silêncio</button>
+          <button type="button" id="btn-pedir-silencio-painel" class="btn-3d manager-or-admin-tab" onclick="solicitarSilencioSalaEspera(this)" style="display:none;background:rgba(217,119,6,0.3);color:#fef3c7;border:1.5px solid rgba(251,191,36,0.65);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;align-items:center;gap:6px;" title="Tocar aviso pedindo silêncio na sala de espera (Exclusivo Gerente/Admin)">🤫 Pedir Silêncio</button>
           <div class="admin-only" style="align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:6px 10px;">
             <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.9);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">
               <option value="feminina_br">🇧🇷👩 Francisca (Feminina Padrão)</option>
@@ -4638,7 +4966,7 @@
 <!-- Modal: Editar Nome do Paciente na Fila (sem prompt nativo) -->
 <div class="reorder-modal-overlay" id="rename-patient-modal" onclick="if(event.target===this)fecharModalEditarNomeFila()">
   <div class="reorder-modal">
-    <h3>✏️ Editar Nome do Paciente</h3>
+    <h3>✏️ Editar Nome do Paciente <span class="mgr-only-badge">👔 Gerente / Admin</span></h3>
     <div class="patient-badge">
       <span style="font-size:20px;">👤</span>
       <span id="rename-patient-atual">—</span>
@@ -4662,7 +4990,7 @@
 <!-- Modal: Alterar / Acrescentar Prioridade na Fila -->
 <div class="reorder-modal-overlay" id="priority-patient-modal" onclick="if(event.target===this)fecharModalPrioridadeFila()">
   <div class="reorder-modal" style="max-width:520px;">
-    <h3>⭐ Alterar Prioridade na Fila</h3>
+    <h3>⭐ Alterar Prioridade na Fila <span class="mgr-only-badge">👔 Gerente / Admin</span></h3>
     <div class="patient-badge">
       <span style="font-size:20px;">👤</span>
       <span id="prio-modal-patient-name">—</span>
@@ -4767,9 +5095,9 @@
 <!-- Floating Context Menu -->
 <div class="ctx-menu" id="ctx-menu" role="menu">
   <div class="ctx-menu-header" id="ctx-menu-patient-label">Paciente</div>
-  <button class="ctx-menu-item" onclick="ctxRenamePatient()">✏️ Editar Nome...</button>
-  <button class="ctx-menu-item" onclick="ctxEditPriority()">⭐ Alterar Prioridade...</button>
-  <div class="ctx-menu-divider"></div>
+  <button class="ctx-menu-item" id="ctx-item-rename" onclick="ctxRenamePatient()">✏️ Editar Nome...</button>
+  <button class="ctx-menu-item" id="ctx-item-priority" onclick="ctxEditPriority()">⭐ Alterar Prioridade...</button>
+  <div class="ctx-menu-divider" id="ctx-divider-mgr"></div>
   <button class="ctx-menu-item" onclick="ctxMoveToTop()">🔝 Mover para o Topo (Emergência)</button>
   <button class="ctx-menu-item" onclick="ctxMoveToBottom()">⬇️ Mover para o Fim</button>
   <button class="ctx-menu-item" onclick="ctxOpenPositionModal()">🔢 Ir para Posição...</button>

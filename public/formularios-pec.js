@@ -833,32 +833,84 @@ window.addEventListener('message', (e) => {
   }
 });
 
+function obterSetorKeyFormulario(setor) {
+  if (typeof SECTOR_CONFIG !== 'undefined' && SECTOR_CONFIG[setor]?.key) {
+    return SECTOR_CONFIG[setor].key;
+  }
+  return String(setor || 'clinico')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_');
+}
+
+function isPainelFormulariosRecolhido(setorKey) {
+  try {
+    return localStorage.getItem(`usf_pec_forms_collapsed_${setorKey}`) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function togglePainelFormulariosSetor(btn, setorKey) {
+  const grid = document.getElementById(`clinical-forms-grid-${setorKey}`);
+  if (!grid) return;
+  const recolher = !grid.classList.contains('collapsed');
+  grid.classList.toggle('collapsed', recolher);
+  if (btn) {
+    btn.setAttribute('aria-expanded', recolher ? 'false' : 'true');
+    btn.textContent = recolher ? '▸ Mostrar formulários' : '▾ Recolher formulários';
+  }
+  try {
+    localStorage.setItem(`usf_pec_forms_collapsed_${setorKey}`, recolher ? '1' : '0');
+  } catch (_) {}
+}
+
 function renderBarraFormulariosSetor(setor) {
   if (!SETORES_CLINICOS_FILA.includes(setor)) return '';
+  const setorKey = obterSetorKeyFormulario(setor);
   const lista = FORMULARIOS_POR_SETOR[setor] || [];
   const botoes = lista.map(k => {
     const f = FORMULARIOS_PEC_REG[k];
     if (!f) return '';
-    return `<button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','${k}',false)">${f.shortLabel}</button>`;
+    return `<button type="button" class="pec-form-btn" onclick="abrirFormularioAvulsoSetor('${setor}','${k}',false)" title="${f.titulo}">${f.shortLabel}</button>`;
   }).join('');
   const primeiro = lista[0] || 'receituario';
+  const recolhido = isPainelFormulariosRecolhido(setorKey);
+
+  const btnAnalisarReceita = ['Médico', 'Enfermagem', 'Odontologia'].includes(setor)
+    ? `<button type="button" class="pec-form-btn receita" onclick="abrirModalAnalisarReceituario('${setor}')" title="Tirar foto ou enviar PDF de receituário para análise completa (Enfermeiro/Médico, Hiperdia, validade e comprimidos)">💊 Analisar Receituário</button>`
+    : '';
   const btnSisregBusca = `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregConsulta('${setor}')" title="Consultar códigos, procedimentos e fluxo no SISREG (DS5)">🔎 Consultar SISREG</button>`;
   const btnSisregLeitor = setor === 'Médico'
-    ? `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregLeitor('${setor}')" title="Abrir Prévia SISREG (Liberado para teste — Foto ou PDF)">📋 Prévia SISREG <span class="previa-teste-tag">Liberado para teste</span></button>`
-    : '';
-  const btnAnalisarReceita = ['Médico', 'Enfermagem', 'Odontologia'].includes(setor)
-    ? `<span class="pec-forms-sep"></span><button type="button" class="pec-form-btn receita" onclick="abrirModalAnalisarReceituario('${setor}')" title="Tirar foto ou enviar PDF de receituário para análise completa (Enfermeiro/Médico, Hiperdia, validade e comprimidos)">💊 Analisar Receituário</button>`
+    ? `<button type="button" class="pec-form-btn sisreg" onclick="abrirModalSisregLeitor('${setor}')" title="Abrir Prévia SISREG (Liberado para teste — Foto ou PDF)">📋 Prévia SISREG <span class="previa-teste-tag">Teste</span></button>`
     : '';
   const btnDevolucoes = `<button type="button" class="pec-form-btn devolucao" onclick="abrirModalDevolucoesProfissional('${setor}')" title="Ver e comentar devoluções do SISREG direcionadas para ${setor}">↩️ Devoluções SISREG <span class="sisreg-dev-count sisreg-dev-badge-setor" data-setor="${setor}" style="display:none;">0</span></button>`;
-  return `<div class="pec-forms-bar">
-    <span class="pec-forms-title">🖨️ Formulários (PEC Offline):</span>
-    ${botoes}
-    <button type="button" class="pec-form-btn branco" onclick="abrirFormularioAvulsoSetor('${setor}','${primeiro}',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
-    ${btnAnalisarReceita}
-    <span class="pec-forms-sep"></span>
-    ${btnSisregBusca}
-    ${btnSisregLeitor}
-    ${btnDevolucoes}
+
+  return `<div class="pec-forms-bar clinical-tools-deck">
+    <div class="clinical-tools-zone">
+      <div class="clinical-zone-head">
+        <span class="clinical-zone-label">🩺 Apoio Clínico &amp; Regulação (SISREG)</span>
+      </div>
+      <div class="clinical-quick-row">
+        ${btnAnalisarReceita}
+        ${btnSisregBusca}
+        ${btnSisregLeitor}
+        ${btnDevolucoes}
+      </div>
+    </div>
+    <div class="clinical-tools-zone clinical-forms-zone">
+      <div class="clinical-zone-head">
+        <span class="clinical-zone-label">🖨️ Formulários Oficiais (PEC Offline)</span>
+        <div class="clinical-zone-actions">
+          <button type="button" class="pec-form-btn branco clinical-blank-btn" onclick="abrirFormularioAvulsoSetor('${setor}','${primeiro}',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
+          <button type="button" class="clinical-forms-toggle-btn" aria-expanded="${recolhido ? 'false' : 'true'}" onclick="togglePainelFormulariosSetor(this,'${setorKey}')" title="Expandir ou recolher modelos de formulários">${recolhido ? '▸ Mostrar formulários' : '▾ Recolher formulários'}</button>
+        </div>
+      </div>
+      <div id="clinical-forms-grid-${setorKey}" class="clinical-forms-grid${recolhido ? ' collapsed' : ''}">
+        ${botoes}
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1023,14 +1075,91 @@ window.aplicarProcedimentoSisregNaFicha = function (proc, setor = 'Médico', dad
   });
 };
 
-function renderBotoesFormulariosLinha(p, setor) {
-  if (!SETORES_CLINICOS_FILA.includes(setor) || !p?.id) return '';
-  const lista = FORMULARIOS_LINHA_FILA[setor] || [];
-  const botoes = lista.map(k => {
+let _filaFormsPopoverPid = null;
+let _filaFormsPopoverBound = false;
+
+function fecharMenuFormulariosPaciente() {
+  const pop = document.getElementById('fila-forms-popover');
+  if (pop) {
+    pop.classList.remove('visible');
+    pop.style.display = 'none';
+  }
+  _filaFormsPopoverPid = null;
+}
+
+function garantirListenersPopoverFormularios() {
+  if (_filaFormsPopoverBound) return;
+  _filaFormsPopoverBound = true;
+  document.addEventListener('click', (e) => {
+    const pop = document.getElementById('fila-forms-popover');
+    if (!pop || !pop.classList.contains('visible')) return;
+    if (!pop.contains(e.target) && !e.target.closest('.btn-fila-forms-trigger')) {
+      fecharMenuFormulariosPaciente();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') fecharMenuFormulariosPaciente();
+  });
+  window.addEventListener('scroll', fecharMenuFormulariosPaciente, true);
+}
+
+function abrirMenuFormulariosPaciente(event, patientId, setor) {
+  if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+  garantirListenersPopoverFormularios();
+
+  let pop = document.getElementById('fila-forms-popover');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'fila-forms-popover';
+    pop.className = 'fila-form-popover';
+    pop.setAttribute('role', 'menu');
+    document.body.appendChild(pop);
+  }
+
+  if (pop.classList.contains('visible') && Number(_filaFormsPopoverPid) === Number(patientId)) {
+    fecharMenuFormulariosPaciente();
+    return;
+  }
+
+  _filaFormsPopoverPid = Number(patientId);
+  const pac = typeof buscarPacienteNaMemoria === 'function' ? buscarPacienteNaMemoria(patientId, setor) : null;
+  const nomePac = pac?.nome ? String(pac.nome).trim() : 'Paciente';
+  const esc = (v) => (typeof escapeText === 'function'
+    ? escapeText(v)
+    : String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
+
+  const lista = FORMULARIOS_LINHA_FILA[setor] || FORMULARIOS_LINHA_FILA['Médico'] || [];
+  const itensHtml = lista.map(k => {
     const f = FORMULARIOS_PEC_REG[k];
     if (!f) return '';
-    const extraCls = k === 'controle-especial' ? ' btn-fila-form-esp' : (k === 'ficha-ambulatorial' ? ' btn-fila-form-amb' : '');
-    return `<button class="btn-fila-form${extraCls}" onclick="abrirFormularioPacienteFila(${p.id},'${setor}','${k}')" title="${f.titulo}">${f.icon}</button>`;
+    return `<button type="button" class="fila-form-popover-item" role="menuitem" onclick="fecharMenuFormulariosPaciente();abrirFormularioPacienteFila(${Number(patientId)},'${esc(setor)}','${esc(k)}')" title="${esc(f.titulo)}">
+      <span class="ffp-label">${esc(f.shortLabel)}</span>
+    </button>`;
   }).join('');
-  return `<span class="fila-forms-mini" onclick="event.stopPropagation()" title="Formulários (PEC Offline)">${botoes}</span>`;
+
+  pop.innerHTML = `
+    <div class="fila-form-popover-head">📄 Formulários · ${esc(nomePac)}</div>
+    <div class="fila-form-popover-list">${itensHtml}</div>
+  `;
+  pop.style.display = 'block';
+  pop.classList.add('visible');
+
+  const trigger = event?.currentTarget || event?.target?.closest('.btn-fila-forms-trigger');
+  const rect = trigger ? trigger.getBoundingClientRect() : { left: event?.clientX || 120, bottom: event?.clientY || 120, right: (event?.clientX || 120) + 120, top: (event?.clientY || 120) - 30 };
+  const pw = pop.offsetWidth || 240;
+  const ph = pop.offsetHeight || 220;
+  let left = rect.right - pw;
+  if (left < 10) left = Math.max(10, rect.left);
+  if (left + pw > window.innerWidth - 10) left = Math.max(10, window.innerWidth - pw - 10);
+  let top = rect.bottom + 6;
+  if (top + ph > window.innerHeight - 10) {
+    top = Math.max(10, rect.top - ph - 6);
+  }
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+}
+
+function renderBotoesFormulariosLinha(p, setor) {
+  if (!SETORES_CLINICOS_FILA.includes(setor) || !p?.id) return '';
+  return `<button type="button" class="btn-fila-forms-trigger" onclick="event.stopPropagation();abrirMenuFormulariosPaciente(event,${p.id},'${setor}')" title="Abrir formulários oficiais (PEC Offline) preenchidos para este paciente">📄 Formulários ▾</button>`;
 }

@@ -907,8 +907,8 @@ function initSectorScreens() {
         `<button class="btn-filter${idx === 0 ? ' active' : ''}" data-prof="${p}" onclick="filterSector('${cfg.key}','${p}')">${p}</button>`
       ).join('');
       filterHTML = `
-        <div style="margin-bottom:20px;">
-          <label style="font-size:13px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:block;">Selecione seu Profissional</label>
+        <div class="sector-filter-row">
+          <span class="sector-deck-label">Filtrar Fila por Profissional</span>
           <div class="filter-bar" id="filter-bar-${cfg.key}" style="display:flex;gap:8px;flex-wrap:wrap;">
             ${allBtn}${btns}
           </div>
@@ -919,7 +919,14 @@ function initSectorScreens() {
       }
     }
 
-    let profHTML = '';
+    const callBtnsHTML = `
+      <div class="sector-call-actions">
+        <button class="btn ${cfg.btnClass} btn-3d" onclick="callNext('${setor}', this)">📢 Chamar Próximo</button>
+        ${(setor === 'Farmácia' || setor === 'Regulação') ? `<button class="btn ${cfg.btnClass} btn-3d" onclick="callNextMulti('${setor}', this)">📢 Chamar 3 Próximos</button>` : ''}
+        <button class="btn btn-repeat-sector" onclick="speakAgain('${setor}', this)" title="Repetir chamada atual no painel e na voz">🔊 Repetir</button>
+      </div>`;
+
+    let controlDeckHTML = '';
     if (cfg.profissionais) {
       const listaConsultorios = setor === 'Odontologia'
         ? ['Odontológico']
@@ -931,22 +938,36 @@ function initSectorScreens() {
         return `<option value="${c}"${sel}>${label}</option>`;
       }).join('');
       const profOpts = cfg.profissionais.map(p => `<option value="${p}">${p}</option>`).join('');
-      profHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-          <div class="form-group"><label>Consultório</label><select id="consultorio-${cfg.key}" style="width:100%;padding:12px;border-radius:8px;border:2px solid var(--gray-200);font-family:'Nunito Sans',sans-serif;font-weight:700;">${consultOpts}</select></div>
-          <div class="form-group"><label>Profissional</label><select id="profissional-${cfg.key}" style="width:100%;padding:12px;border-radius:8px;border:2px solid var(--gray-200);font-family:'Nunito Sans',sans-serif;font-weight:700;">${profOpts}</select></div>
+      controlDeckHTML = `
+        <div class="sector-control-deck">
+          ${filterHTML}
+          <div class="sector-call-row">
+            <div class="form-group"><label>Consultório / Sala</label><select id="consultorio-${cfg.key}">${consultOpts}</select></div>
+            <div class="form-group"><label>Profissional em Atendimento</label><select id="profissional-${cfg.key}">${profOpts}</select></div>
+            ${callBtnsHTML}
+          </div>
+        </div>`;
+    } else {
+      controlDeckHTML = `
+        <div class="sector-control-deck">
+          ${callBtnsHTML}
         </div>`;
     }
 
     const usaHorarioMarcadoSetor = SETORES_HORARIO_MARCADO.includes(setor);
     const odontoRegraBanner = `
-      <div style="margin-bottom:14px;padding:10px 14px;border-radius:10px;background:rgba(139,92,246,0.10);border:1.5px solid rgba(139,92,246,0.35);font-size:12px;color:#5b21b6;line-height:1.45;">
-        <strong>⭐ Regra de Prioridade (Lei nº 10.048/2000 — 1 a 10):</strong><br>
-        <strong>1º Preferenciais na ordem legal (1 a 10):</strong> 1. Idoso 80+ → 2. PCD → 3. TEA → 4. Gestante → 5. Lactante → 6. Criança de colo (&lt;2a) → 7. Mobilidade reduzida → 8. Obesidade → 9. Idoso 60+ → 10. Doador de sangue.<br>
-        ${usaHorarioMarcadoSetor
-          ? '<strong>2º Ordem por Horário Marcado + Chegada:</strong> Pacientes de 09:00 atendem antes de 10:00 (salvo preferencial). No mesmo horário marcado, vale a ordem de chegada.'
-          : '<strong>2º Demanda Espontânea (Ordem de Chegada):</strong> Setor sem horário marcado; após os preferenciais, o atendimento segue a ordem de chegada na recepção.'}
-      </div>`;
+      <details class="priority-rule-collapse">
+        <summary>
+          <span>⭐ Regra de Prioridade (Lei nº 10.048/2000 · 1º ao 10º) e ${usaHorarioMarcadoSetor ? 'Horário Marcado' : 'Demanda Espontânea'}</span>
+          <span class="priority-rule-hint">Ver ordem legal ▾</span>
+        </summary>
+        <div class="priority-rule-body">
+          <strong>1º Preferenciais na ordem legal (1 a 10):</strong> 1. Idoso 80+ → 2. PCD → 3. TEA → 4. Gestante → 5. Lactante → 6. Criança de colo (&lt;2a) → 7. Mobilidade reduzida → 8. Obesidade → 9. Idoso 60+ → 10. Doador de sangue.<br>
+          ${usaHorarioMarcadoSetor
+            ? '<strong>2º Ordem por Horário Marcado + Chegada:</strong> Pacientes de 09:00 atendem antes de 10:00 (salvo preferencial). No mesmo horário marcado, vale a ordem de chegada.'
+            : '<strong>2º Demanda Espontânea (Ordem de Chegada):</strong> Setor sem horário marcado; após os preferenciais, o atendimento segue a ordem de chegada na recepção.'}
+        </div>
+      </details>`;
 
     screenEl.innerHTML = `
       <div class="sector-page-header">
@@ -961,15 +982,9 @@ function initSectorScreens() {
       </div>
       <div class="card-white">
         ${odontoRegraBanner}
-        ${filterHTML}
-        ${profHTML}
+        ${controlDeckHTML}
         ${typeof renderBarraFormulariosSetor === 'function' ? renderBarraFormulariosSetor(setor) : ''}
         ${setor === 'Regulação' ? '<div id="regulacao-copiloto-root"></div>' : ''}
-        <div class="btn-group" style="margin-bottom:20px;">
-          <button class="btn ${cfg.btnClass} btn-3d" onclick="callNext('${setor}', this)" style="flex:1;">📢 Chamar Próximo</button>
-          ${(setor === 'Farmácia' || setor === 'Regulação') ? `<button class="btn ${cfg.btnClass} btn-3d" onclick="callNextMulti('${setor}', this)" style="flex:1;">📢 Chamar 3 Próximos (Multi)</button>` : ''}
-          <button class="btn btn-orange btn-3d" onclick="speakAgain('${setor}', this)" style="width:auto;padding:16px 20px;background:${cfg.color}33;color:${cfg.color};box-shadow:none;border:1px solid ${cfg.color}55;">🔊 Repetir</button>
-        </div>
         <div class="sector-header">
           <div class="sector-name"><div class="sector-dot" style="background:${cfg.color}"></div>Aguardando</div>
           <span class="sector-count" style="background:${cfg.color};" id="cnt2-${cfg.key}">0</span>
@@ -1101,6 +1116,9 @@ function updateAdminUI() {
     t.style.display = isManagerOrAdmin() ? 'inline-flex' : 'none';
   });
   if (typeof updateAll === 'function') updateAll();
+  if (typeof renderAcolhimentoFluxo === 'function') renderAcolhimentoFluxo();
+  if (typeof renderAcsEscutaScreen === 'function') renderAcsEscutaScreen();
+  if (typeof renderSegundaEscutaScreen === 'function') renderSegundaEscutaScreen();
 }
 
 // ====== MELHORIA G: MÓDULO DE REORDENAÇÃO RBAC ======
@@ -1274,6 +1292,11 @@ function openContextMenu(event, id, nome, setor) {
   const label = document.getElementById('ctx-menu-patient-label');
   if (label) label.textContent = nome;
   if (!menu) return;
+  const temPermissaoMgr = isManagerOrAdmin();
+  ['ctx-item-rename', 'ctx-item-priority', 'ctx-divider-mgr'].forEach(elId => {
+    const el = document.getElementById(elId);
+    if (el) el.style.display = temPermissaoMgr ? '' : 'none';
+  });
   // Posicionamento inteligente
   const vw = window.innerWidth, vh = window.innerHeight;
   let x = event.clientX, y = event.clientY;
@@ -1299,9 +1322,14 @@ function ctxMoveToBottom() { closeContextMenu(); moveToBottom(_ctxPatientId, _ct
 function ctxOpenPositionModal() { closeContextMenu(); openPositionModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
 function ctxTransfer() { closeContextMenu(); isPublicTransfer = false; openTransferModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
 function ctxRemove() { closeContextMenu(); removePatient(_ctxPatientId, _ctxPatientNome); }
-function ctxRenamePatient() { closeContextMenu(); abrirModalEditarNomeFila(_ctxPatientId, _ctxPatientNome); }
+function ctxRenamePatient() {
+  closeContextMenu();
+  if (!isManagerOrAdmin()) { showToast('🔒 Apenas Gerente ou Administrador pode editar o nome.', true); return; }
+  abrirModalEditarNomeFila(_ctxPatientId, _ctxPatientNome);
+}
 function ctxEditPriority() {
   closeContextMenu();
+  if (!isManagerOrAdmin()) { showToast('🔒 Apenas Gerente ou Administrador pode alterar a prioridade.', true); return; }
   const p = encontrarPacienteEmCachePorId(_ctxPatientId);
   if (p) abrirModalPrioridadeFila(p);
   else abrirModalPrioridadeFila({ id: _ctxPatientId, nome: _ctxPatientNome, setor: _ctxPatientSetor });
@@ -2956,6 +2984,10 @@ function executarAvisoSilencioLocal() {
 }
 
 async function solicitarSilencioSalaEspera(btnElement) {
+  if (!isManagerOrAdmin()) {
+    showToast('🔒 Apenas Gerente ou Administrador pode emitir o aviso de silêncio na TV.', true);
+    return;
+  }
   const agora = Date.now();
   if (agora - _ultimoAvisoSilencioTs < 8000) {
     showToast('⏳ Aviso de silêncio acabou de ser enviado. Aguarde alguns segundos.', true);
@@ -2977,19 +3009,24 @@ async function solicitarSilencioSalaEspera(btnElement) {
   try {
     const r = await fetch(`${API_URL}/voice-call`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nome: AVISO_SILENCIO_TOKEN,
         setor: 'Recepção',
-        destino: 'Sala de Espera'
+        destino: 'Sala de Espera',
+        senha: adminPassword || undefined
       })
     });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (!r.ok) {
+      const dErr = await r.json().catch(() => ({}));
+      throw new Error(dErr.error || `HTTP ${r.status}`);
+    }
     showToast('🤫 Pedido de silêncio enviado para a TV!');
   } catch (err) {
     console.warn('Falha ao enviar pedido de silêncio remoto:', err?.message || err);
     if (!isModoTV() && !painelAtivo) {
-      showToast('❌ Não foi possível enviar o aviso à TV. Verifique a conexão.', true);
+      showToast(err?.message || '❌ Não foi possível enviar o aviso à TV. Verifique a conexão.', true);
     }
   }
 }
@@ -3477,22 +3514,30 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const tubosBtn = (!document.body.classList.contains('modo-tv') && setor === 'Téc. Enfermagem')
       ? `<button type="button" class="btn-transfer-sector" style="background:rgba(15,118,110,0.12);border-color:rgba(15,118,110,0.35);color:#0f766e;" onclick="event.stopPropagation();abrirModalTubosPaciente(${p.id})" title="Definir / visualizar tubos de coleta">🧪 Tubos</button>`
       : '';
-    const renameBtn = `<button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;line-height:1.4;">✏️</button>`;
-    const prioEditBtn = p.status !== 'atendido' && p.status !== 'desistencia'
-      ? `<button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila" style="background:${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#fef3c7':'#f8fafc'};color:${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#92400e':'#475569'};border:1px solid ${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#fcd34d':'#cbd5e1'};border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;line-height:1.4;">${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'⭐ Editar Prio':'+ ⭐ Prio'}</button>`
+    const ehPrioAtivo = p.prioridade === 'prioritario' || Number(p.nivel_prioridade) <= 2;
+    const renameBtn = isManagerOrAdmin()
+      ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila (Gerente/Admin)">✏️</button>`
+      : '';
+    const prioEditBtn = (isManagerOrAdmin() && p.status !== 'atendido' && p.status !== 'desistencia')
+      ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${ehPrioAtivo ? ' ativo' : ''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila (Gerente/Admin)">${ehPrioAtivo ? '⭐ Prio' : '+ ⭐'}</button>`
       : '';
 
     const actionButtons = isManagerOrAdmin() ? `
-      <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
-      <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
-      <button class="btn-reorder-pos btn-icon-compact" title="Ir para posição específica" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">🔢</button>
+      <span class="fila-reorder-pill">
+        <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
+        <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
+        <button class="btn-reorder-pos btn-icon-compact" title="Ir para posição específica" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">🔢</button>
+      </span>
       <button class="btn-transfer-sector" title="Encaminhar para outro setor" onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">↗️ Encaminhar</button>
+      <button class="btn-context-menu" title="Mais ações gerenciais" onclick="event.stopPropagation();openContextMenu(event,${p.id},'${safeNome}','${setor}')">⋮</button>
       <button class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência">🚶</button>
       ${isAdmin ? `<button class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente">🔥</button>` : ''}
     ` : `
-      <button class="btn-reorder-arrow" title="Subir uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
-      <button class="btn-reorder-arrow" title="Descer uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
-      <button class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Mudar posição na fila">🔢</button>
+      <span class="fila-reorder-pill">
+        <button class="btn-reorder-arrow" title="Subir uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
+        <button class="btn-reorder-arrow" title="Descer uma posição na fila" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
+        <button class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Mudar posição na fila">🔢</button>
+      </span>
       <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
     `;
 
@@ -3662,9 +3707,11 @@ function updateMiniQueues() {
       }
 
       const transferBtn = `
-        <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','up')">↑</button>
-        <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','down')">↓</button>
-        <button class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${s}')" title="Ir para posição específica">🔢</button>
+        <span class="fila-reorder-pill">
+          <button class="btn-reorder-arrow" title="Subir uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','up')">↑</button>
+          <button class="btn-reorder-arrow" title="Descer uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${s}','down')">↓</button>
+          <button class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${s}')" title="Ir para posição específica">🔢</button>
+        </span>
         <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${s}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
       `;
 
@@ -3682,8 +3729,13 @@ function updateMiniQueues() {
       const tubosBtnMini = (!document.body.classList.contains('modo-tv') && s === 'Téc. Enfermagem')
         ? `<button type="button" class="btn-transfer-sector" style="background:rgba(15,118,110,0.12);border-color:rgba(15,118,110,0.35);color:#0f766e;" onclick="event.stopPropagation();abrirModalTubosPaciente(${p.id})" title="Definir tubos de coleta">🧪 Tubos</button>`
         : '';
-      const renameBtnMini = `<button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;line-height:1.4;">✏️</button>`;
-      const prioEditBtnMini = `<button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila" style="background:${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#fef3c7':'#f8fafc'};color:${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#92400e':'#475569'};border:1px solid ${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'#fcd34d':'#cbd5e1'};border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;line-height:1.4;">${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?'⭐ Editar':'+ ⭐'}</button>`;
+      const ehPrioMini = p.prioridade === 'prioritario' || Number(p.nivel_prioridade) <= 2;
+      const renameBtnMini = isManagerOrAdmin()
+        ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${safeNome}')" title="Editar nome do paciente na fila (Gerente/Admin)">✏️</button>`
+        : '';
+      const prioEditBtnMini = isManagerOrAdmin()
+        ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${ehPrioMini ? ' ativo' : ''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila (Gerente/Admin)">${ehPrioMini ? '⭐ Prio' : '+ ⭐'}</button>`
+        : '';
 
       const rowCls = [
         p.status === 'chamado' ? 'calling' : '',
@@ -7213,7 +7265,6 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
         <button class="acol-btn-action acol-btn-iniciar" onclick="iniciarEscuta(${p.id},'${nomeSafe}')">🟡 Iniciar 1ª Escuta</button>
         <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')">↗️ Encaminhar</button>
         <button class="acol-btn-action" style="background:linear-gradient(135deg,#2e7d32,#1b5e20);color:white;" onclick="direcionarParaRecepcaoFisica(${p.id},'${nomeSafe}')">📋 Agendado</button>
-        <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️</button>
       `;
     } else if (etapa === 'primeira_escuta') {
       actions = `
@@ -7221,7 +7272,6 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
         <button class="acol-btn-action" style="background:var(--green);color:white;" onclick="finalizarAcsDireto(${p.id}, false, '${nomeSafe}')">✅ Finalizar</button>
         <button class="acol-btn-action" style="background:#1976d2;color:white;" onclick="abrirModalAgendamento(${p.id}, '${nomeSafe}', '${motivoTexto.replace(/'/g,"\\'")}')">🗂️ Agendar</button>
         <button class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${nomeSafe}', 'Acolhimento')">↗️ Setor</button>
-        <button class="acol-btn-action" style="background:linear-gradient(135deg,#1565c0,#0d47a1);color:white;" onclick="editarNomeAcolhimento(${p.id},'${nomeSafe}')">✏️</button>
       `;
     } else if (etapa === 'segunda_escuta') {
       actions = `
@@ -7236,6 +7286,9 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     ` : '';
     const originBadge = p.origem_transferencia ? `<span style="font-size:10px;color:#475569;background:#f1f5f9;padding:2px 6px;border-radius:4px;border:1px solid #cbd5e1;font-weight:700;">🔙 de: ${escapeText(p.origem_transferencia)}</span>` : '';
     const cardCls = ['acol-patient-card', posReal === 1 ? 'is-next' : '', p.status === 'chamado' ? 'is-calling' : ''].filter(Boolean).join(' ');
+    const acolMgrBtns = isManagerOrAdmin()
+      ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome (Gerente/Admin)">✏️</button> <button type="button" class="btn-inline-mgr btn-inline-mgr--prio${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?' ativo':''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade (Gerente/Admin)">⭐</button>`
+      : '';
 
     return `<div class="${cardCls}">
       <div class="acol-card-top">
@@ -7249,7 +7302,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
           ${nextBadge}${callingBadge}
         </div>
       </div>
-      <div class="fila-paciente-nome" style="font-size:15px;">${escapeText(p.nome)} <button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;">✏️</button> ${prioBadge} <button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;">⭐</button></div>
+      <div class="fila-paciente-nome" style="font-size:15px;">${escapeText(p.nome)} ${acolMgrBtns} ${prioBadge}</div>
       <div class="fila-paciente-sub" style="margin-top:4px;">
         ${equipeBadge}
         ${riscoBadge}
@@ -8091,7 +8144,7 @@ function renderAcsEscutaScreen() {
                     <div style="margin-top:3px;"><span class="acol-tempo-badge">⏱ ${tempoMin}m</span> ${waitBadge}</div>
                   </td>
                   <td>
-                    <div class="fila-paciente-nome">${escapeText(p.nome)} <button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;">✏️</button> ${prioBadge} <button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;">⭐</button></div>
+                    <div class="fila-paciente-nome">${escapeText(p.nome)} ${isManagerOrAdmin() ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome (Gerente/Admin)">✏️</button>` : ''} ${prioBadge} ${isManagerOrAdmin() ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?' ativo':''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade (Gerente/Admin)">⭐</button>` : ''}</div>
                     <div class="fila-paciente-sub">${equipeBadge} ${riscoBadge} ${condBadges}</div>
                     ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
                   </td>
@@ -8314,7 +8367,7 @@ function renderSegundaEscutaScreen() {
           <div style="margin-top:3px;"><span class="acol-tempo-badge">⏱ ${tempoMin}m</span> ${waitBadge}</div>
         </td>
         <td>
-          <div class="fila-paciente-nome">${escapeText(p.nome)} <button type="button" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;cursor:pointer;">✏️</button> ${prioBadge} <button type="button" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;cursor:pointer;">⭐</button></div>
+          <div class="fila-paciente-nome">${escapeText(p.nome)} ${isManagerOrAdmin() ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--edit" onclick="event.stopPropagation();abrirModalEditarNomeFila(${p.id},'${nomeSafe}')" title="Editar nome (Gerente/Admin)">✏️</button>` : ''} ${prioBadge} ${isManagerOrAdmin() ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${(p.prioridade==='prioritario'||Number(p.nivel_prioridade)<=2)?' ativo':''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar prioridade (Gerente/Admin)">⭐</button>` : ''}</div>
           <div class="fila-paciente-sub">${equipeBadge} ${riscoBadge} ${condBadges}</div>
           ${typeof renderPreviaReceitaBadgeLinha === 'function' ? renderPreviaReceitaBadgeLinha(p) : ''}
         </td>
@@ -10419,8 +10472,12 @@ function encontrarPacienteEmCachePorId(id) {
   return null;
 }
 
-// --- 1) EDITAR NOME DO PACIENTE NA FILA ---
+// --- 1) EDITAR NOME DO PACIENTE NA FILA (Exclusivo Gerente / Admin) ---
 function abrirModalEditarNomeFila(id, nomeAtual) {
+  if (!isManagerOrAdmin()) {
+    showToast('🔒 Apenas Gerente ou Administrador pode editar o nome do paciente.', true);
+    return;
+  }
   const modal = document.getElementById('rename-patient-modal');
   if (!modal) return;
   const p = encontrarPacienteEmCachePorId(id);
@@ -10440,6 +10497,11 @@ function fecharModalEditarNomeFila() {
 }
 
 async function confirmarEditarNomeFila() {
+  if (!isManagerOrAdmin()) {
+    showToast('🔒 Apenas Gerente ou Administrador pode editar o nome do paciente.', true);
+    fecharModalEditarNomeFila();
+    return;
+  }
   const id = document.getElementById('rename-patient-id')?.value;
   const novoNome = (document.getElementById('rename-patient-input')?.value || '').trim();
   const motivo = (document.getElementById('rename-patient-motivo')?.value || '').trim();
@@ -10453,8 +10515,9 @@ async function confirmarEditarNomeFila() {
   try {
     const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/rename`, {
       method: 'PUT',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ novoNome, motivo: motivo || null })
+      body: JSON.stringify({ novoNome, motivo: motivo || null, senha: adminPassword || undefined })
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) {
@@ -10498,6 +10561,10 @@ function calcularRankPrevioFront(prioridadeVal, categoriaVal, idadeVal, condsArr
 }
 
 function abrirModalPrioridadePorId(id) {
+  if (!isManagerOrAdmin()) {
+    showToast('🔒 Apenas Gerente ou Administrador pode alterar a prioridade de atendimento.', true);
+    return;
+  }
   const p = encontrarPacienteEmCachePorId(id);
   if (!p) {
     showToast('Paciente não encontrado na lista atual.', true);
@@ -10507,6 +10574,10 @@ function abrirModalPrioridadePorId(id) {
 }
 
 function abrirModalPrioridadeFila(p) {
+  if (!isManagerOrAdmin()) {
+    showToast('🔒 Apenas Gerente ou Administrador pode alterar a prioridade de atendimento.', true);
+    return;
+  }
   const modal = document.getElementById('priority-patient-modal');
   if (!modal || !p) return;
   document.getElementById('prio-modal-patient-id').value = p.id;
@@ -10564,6 +10635,11 @@ function onPrioModalInputChange() {
 }
 
 async function confirmarAlterarPrioridadeFila() {
+  if (!isManagerOrAdmin()) {
+    showToast('🔒 Apenas Gerente ou Administrador pode alterar a prioridade de atendimento.', true);
+    fecharModalPrioridadeFila();
+    return;
+  }
   const id = document.getElementById('prio-modal-patient-id')?.value;
   const prioridade = document.getElementById('prio-modal-tipo')?.value || 'geral';
   const tipo_prioridade = prioridade === 'prioritario' ? document.getElementById('prio-modal-categoria')?.value : null;
@@ -10584,8 +10660,9 @@ async function confirmarAlterarPrioridadeFila() {
   try {
     const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/prioridade`, {
       method: 'PUT',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prioridade, tipo_prioridade, idade, condicoes_especiais, motivo: motivo || null, senha })
+      body: JSON.stringify({ prioridade, tipo_prioridade, idade, condicoes_especiais, motivo: motivo || null, senha: senha || undefined })
     });
     const d = await r.json().catch(() => ({}));
     if (r.status === 403 && d.requiresManagerPassword) {
