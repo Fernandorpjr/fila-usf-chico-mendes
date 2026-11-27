@@ -164,11 +164,28 @@
 
   @media(max-width:900px){
     .charts{grid-template-columns:1fr;}
+    .charts > .chart-card{grid-column:auto !important;}
     .metrics{grid-template-columns:1fr 1fr;}
     .main{padding:14px;}
     .header{padding:10px 14px;}
+    .dash-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px;}
+    .dash-tabs::-webkit-scrollbar{display:none;}
+    .dash-tab-btn{flex-shrink:0;white-space:nowrap;min-height:42px;}
+    .filter-bar{gap:10px;padding:12px;}
     .coleta-form .form-row{flex-direction:column;align-items:stretch;}
     .coletas-metrics{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:640px){
+    html,body{overflow-x:hidden;}
+    .logo{font-size:17px;gap:8px;}
+    .header-controls{width:100%;justify-content:flex-start;gap:6px;}
+    .btn-hdr,.btn-lock-out,.btn-export,.btn-pdf,.btn-add-coleta{min-height:42px;}
+    .filter-bar select,.filter-bar input[type="text"],.coleta-form input,.coleta-form textarea{font-size:16px;width:100%;}
+    .title{font-size:18px;flex-wrap:wrap;}
+    .chart-card,.table-card,.coleta-form{padding:14px;}
+  }
+  @media(max-width:420px){
+    .metrics,.coletas-metrics{grid-template-columns:1fr;}
   }
 </style>
 </head>

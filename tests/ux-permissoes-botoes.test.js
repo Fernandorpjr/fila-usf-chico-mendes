@@ -420,3 +420,45 @@ test('Layout Recepção (botão Prévia em destaque, Setor/Destino maior + cores
   assert.equal(previaSrc.includes('function renderDecisionHeroPrevia('), true);
   assert.equal(previaSrc.includes("document.getElementById('vp-scan-result-hero')"), true);
 });
+
+test('Responsividade Celular e Tablet (ACS) estritamente isolada em @media <= 1024px sem alterar Desktop', () => {
+  const dashHtml = fs.readFileSync(path.join(ROOT, 'public', 'dashboard.html'), 'utf8');
+  const startMarker = '/* ====== RESPONSIVO PRO: TABLET (ACS) & CELULAR (<= 1024px — ZERO ALTERAÇÃO NO PC) ====== */';
+  const endMarker = '/* ====== FIM CLEAN TABLE UI ====== */';
+  const respSlice = extractSlice(indexHtml, startMarker, endMarker);
+
+  // 1. Todo o bloco novo inicia imediatamente com @media (max-width: 1024px) e possui @media (max-width: 640px)
+  const trimmedAfterMarker = respSlice.slice(startMarker.length).trim();
+  assert.equal(trimmedAfterMarker.startsWith('@media (max-width: 1024px)'), true);
+  assert.equal(respSlice.includes('@media (max-width: 768px)'), true);
+  assert.equal(respSlice.includes('@media (max-width: 640px)'), true);
+  assert.equal(respSlice.includes('@media (max-width: 480px)'), true);
+
+  // 2. Garantir que nenhuma regra de nível raiz escapou de dentro dos blocos @media (profundidade de chaves balanceada por bloco)
+  let depth = 0;
+  let outsideMedia = '';
+  for (let i = 0; i < trimmedAfterMarker.length; i++) {
+    const ch = trimmedAfterMarker[i];
+    if (depth === 0) outsideMedia += ch;
+    if (ch === '{') depth++;
+    else if (ch === '}') depth--;
+    assert.ok(depth >= 0, 'Chave de fechamento CSS sobrando no bloco responsivo de index.html');
+  }
+  assert.equal(depth, 0, 'Chaves CSS desbalanceadas no bloco responsivo de index.html');
+  assert.equal(outsideMedia.replace(/@media\s*\([^)]+\)\s*\{/g, '').trim(), '', 'Nenhuma regra CSS pode ficar fora de @media no bloco responsivo');
+
+  // 3. Regras-chave Tablet (ACS) e Celular presentes em index.html
+  assert.equal(respSlice.includes('overflow-x: auto;'), true);
+  assert.equal(respSlice.includes('min-height: 44px;'), true);
+  assert.equal(respSlice.includes('font-size: 16px !important;'), true);
+  assert.equal(respSlice.includes('position: sticky;'), true);
+  assert.equal(respSlice.includes('height: 100dvh !important;'), true);
+  assert.equal(respSlice.includes('env(safe-area-inset-bottom, 0px)'), true);
+
+  // 4. Correção mobile/tablet em dashboard.html estritamente dentro de @media <= 900px
+  const dashMediaSlice = extractSlice(dashHtml, '@media(max-width:900px){', '</style>');
+  assert.equal(dashMediaSlice.includes('.charts > .chart-card{grid-column:auto !important;}'), true);
+  assert.equal(dashMediaSlice.includes('.dash-tabs{flex-wrap:nowrap;overflow-x:auto;'), true);
+  assert.equal(dashMediaSlice.includes('@media(max-width:640px){'), true);
+  assert.equal(dashMediaSlice.includes('@media(max-width:420px){'), true);
+});
