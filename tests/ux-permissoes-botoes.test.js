@@ -405,4 +405,18 @@ test('Layout Recepção (botão Prévia em destaque, Setor/Destino maior + cores
   for (const reqId of ['pr-btn-camera', 'pr-btn-confirmar', 'pr-btn-confirmar-sugerido', 'pr-btn-nova-analise']) {
     assert.equal(modalCapturaSlice.includes(`id="${reqId}"`), true, `ID obrigatório ausente no modal de prévia: ${reqId}`);
   }
+
+  // 4. Segunda tela do Consultório (#modal-ver-previa-receita): resultado do escaneamento no topo, botões melhorados e formulário sugerido piscando
+  const recBack = fs.readFileSync(path.join(ROOT, 'lib', 'receitas.js'), 'utf8');
+  assert.equal(recBack.includes('row.classificacao = classificarDocumentoPrevia('), true);
+  const modalVerSlice = extractSlice(indexHtml, 'id="modal-ver-previa-receita"', '<!-- Modal 3: Formulários SUS');
+  const vpHeroIdx = modalVerSlice.indexOf('id="vp-scan-result-hero"');
+  const vpSplitIdx = modalVerSlice.indexOf('class="previa-split-grid"');
+  assert.ok(vpHeroIdx > 0 && vpSplitIdx > vpHeroIdx, 'Decision Hero #vp-scan-result-hero deve aparecer no topo acima de .previa-split-grid');
+  assert.equal(modalVerSlice.includes('class="vp-toolbar-bar"'), true);
+  assert.equal(modalVerSlice.includes('class="vp-footer-actions"'), true);
+  assert.equal(indexHtml.includes('@keyframes vpFormPulse'), true);
+  assert.equal(indexHtml.includes('animation: vpFormPulse'), true);
+  assert.equal(previaSrc.includes('function renderDecisionHeroPrevia('), true);
+  assert.equal(previaSrc.includes("document.getElementById('vp-scan-result-hero')"), true);
 });

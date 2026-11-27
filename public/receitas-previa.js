@@ -753,15 +753,15 @@ async function processarImagemReceitaFile(file) {
   if (file) await processarListaImagensReceita([file]);
 }
 
-function atualizarSugestaoReceitaLocal(clfServer) {
-  const box = document.getElementById('pr-sugestao-box');
+function renderDecisionHeroPrevia(box, { tipo = 'branca', clfServer = null, extras = null, scrollContainerSelector = '' } = {}) {
   if (!box) return;
-  const tipo = document.getElementById('pr-tipo')?.value || 'branca';
-  const ehSisreg = tipo === 'sisreg' || clfServer?.categoria_destino === 'sisreg' || _previaDadosExtrasAtual?.destino_ia === 'sisreg';
+  const tipoNorm = tipo || 'branca';
+  const dadosExtras = extras || _previaDadosExtrasAtual || {};
+  const ehSisreg = tipoNorm === 'sisreg' || clfServer?.categoria_destino === 'sisreg' || dadosExtras?.destino_ia === 'sisreg';
 
   if (ehSisreg) {
-    const esp = _previaDadosExtrasAtual?.especialidade ? escSafe(_previaDadosExtrasAtual.especialidade) : 'Não informada no documento';
-    const tel = _previaDadosExtrasAtual?.paciente_telefone ? escSafe(_previaDadosExtrasAtual.paciente_telefone) : 'Não identificado';
+    const esp = dadosExtras?.especialidade ? escSafe(dadosExtras.especialidade) : 'Não informada no documento';
+    const tel = dadosExtras?.paciente_telefone ? escSafe(dadosExtras.paciente_telefone) : 'Não identificado';
     box.className = 'pr-decision-hero pr-verdict-sisreg';
     box.innerHTML = `
       <div class="pr-verdict-head">
@@ -783,21 +783,21 @@ function atualizarSugestaoReceitaLocal(clfServer) {
         <div class="pr-verdict-card pr-verdict-card--ok">
           <div class="pr-vc-label">➡️ Encaminhamento</div>
           <div class="pr-vc-value" style="color:#065f46;">Regulação</div>
-          <div class="pr-vc-sub">Use “Anexar + Usar Setor Sugerido” abaixo.</div>
+          <div class="pr-vc-sub">Confira ou transfira para Ficha Ambulatorial abaixo.</div>
         </div>
       </div>`;
     box.dataset.filaSugerida = 'Regulação';
     box.style.display = 'block';
-    if (clfServer) {
-      const bodyEl = document.querySelector('#modal-captura-receita .previa-modal-body');
+    if (clfServer && scrollContainerSelector) {
+      const bodyEl = document.querySelector(scrollContainerSelector);
       if (bodyEl) bodyEl.scrollTop = 0;
     }
     return;
   }
 
-  let filaSug = clfServer?.fila_destino || (tipo === 'azul' ? 'Médico' : tipo === 'odonto' ? 'Odontologia' : 'Médico');
-  const validadeTxt = clfServer?.regra_validade || (tipo === 'azul' ? '2 meses (Azul)' : '6 meses');
-  const tipoRotulo = tipo === 'azul' ? '💊 RECEITA AZUL' : tipo === 'odonto' ? '🦷 RECEITA ODONTO' : '💊 RECEITA';
+  const filaSug = clfServer?.fila_destino || (tipoNorm === 'azul' ? 'Médico' : tipoNorm === 'odonto' ? 'Odontologia' : 'Médico');
+  const validadeTxt = clfServer?.regra_validade || (tipoNorm === 'azul' ? '2 meses (Azul)' : '6 meses');
+  const tipoRotulo = tipoNorm === 'azul' ? '💊 RECEITA AZUL' : tipoNorm === 'odonto' ? '🦷 RECEITA ODONTO' : '💊 RECEITA';
 
   const heroTema = filaSug === 'Enfermagem'
     ? 'pr-verdict-enfermagem'
@@ -880,10 +880,22 @@ function atualizarSugestaoReceitaLocal(clfServer) {
 
   box.dataset.filaSugerida = filaSug;
   box.style.display = 'block';
-  if (clfServer) {
-    const bodyEl = document.querySelector('#modal-captura-receita .previa-modal-body');
+  if (clfServer && scrollContainerSelector) {
+    const bodyEl = document.querySelector(scrollContainerSelector);
     if (bodyEl) bodyEl.scrollTop = 0;
   }
+}
+
+function atualizarSugestaoReceitaLocal(clfServer) {
+  const box = document.getElementById('pr-sugestao-box');
+  if (!box) return;
+  const tipo = document.getElementById('pr-tipo')?.value || 'branca';
+  renderDecisionHeroPrevia(box, {
+    tipo,
+    clfServer,
+    extras: _previaDadosExtrasAtual,
+    scrollContainerSelector: '#modal-captura-receita .previa-modal-body'
+  });
 }
 
 async function confirmarPreviaReceitaRecepcao(aplicarSetorSugerido = false) {
@@ -1162,10 +1174,10 @@ function renderFotoAtivaPreviaModal() {
   if (btnRec && btnEsp && btnAmb) {
     const tipoGeral = window._previaModalDadosAtuais?.previa?.tipo_receita;
     const isExm = catAtiva === 'exame';
-    const isEnc = catAtiva === 'encaminhamento';
     const isAzul = catAtiva === 'receita_azul' || (!catAtiva && tipoGeral === 'azul');
+    const isEnc = catAtiva === 'encaminhamento' || (!isExm && !isAzul && tipoGeral === 'sisreg');
     if (btnLab) btnLab.classList.toggle('destaque', isExm);
-    btnAmb.classList.toggle('destaque', isEnc);
+    btnAmb.classList.toggle('destaque', !isExm && isEnc);
     btnEsp.classList.toggle('destaque', !isExm && !isEnc && isAzul);
     btnRec.classList.toggle('destaque', !isExm && !isEnc && !isAzul);
   }
@@ -1237,6 +1249,11 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
   document.getElementById('vp-sem-img').textContent = '⏳ Carregando arquivo...';
   const navBar = document.getElementById('vp-nav-bar');
   const strip = document.getElementById('vp-thumbs-strip');
+  const heroVp = document.getElementById('vp-scan-result-hero');
+  if (heroVp) {
+    heroVp.style.display = 'none';
+    heroVp.innerHTML = '';
+  }
   if (navBar) navBar.style.display = 'none';
   if (strip) { strip.style.display = 'none'; strip.innerHTML = ''; }
 
@@ -1319,13 +1336,23 @@ async function abrirModalVerPreviaReceita(patientId, nomePaciente, setor) {
 
     const destBanner = document.getElementById('vp-destino-ia-banner');
     if (destBanner) {
-      const ehSis = pr.tipo_receita === 'sisreg' || pr.dados_extras?.destino_ia === 'sisreg';
-      if (ehSis) {
-        destBanner.style.display = 'block';
-        destBanner.innerHTML = `<strong>📋 Documento de Regulação / SISREG</strong>${pr.dados_extras?.especialidade ? `: ${escSafe(pr.dados_extras.especialidade)}` : ''}.`;
-      } else {
-        destBanner.style.display = 'none';
-      }
+      destBanner.style.display = 'none';
+    }
+    const heroVpEl = document.getElementById('vp-scan-result-hero');
+    if (heroVpEl) {
+      const clfFallback = pr.classificacao || {
+        categoria_destino: (pr.tipo_receita === 'sisreg' || pr.dados_extras?.destino_ia === 'sisreg') ? 'sisreg' : 'receita',
+        fila_destino: pr.fila_sugerida || (pr.tipo_receita === 'azul' ? 'Médico' : pr.tipo_receita === 'odonto' ? 'Odontologia' : 'Médico'),
+        data_vencimento: pr.data_vencimento || null,
+        dias_restantes: pr.dias_restantes ?? null,
+        urgencia: pr.urgencia || 'normal'
+      };
+      renderDecisionHeroPrevia(heroVpEl, {
+        tipo: pr.tipo_receita || 'branca',
+        clfServer: clfFallback,
+        extras: pr.dados_extras || {},
+        scrollContainerSelector: '#modal-ver-previa-receita .previa-modal-body'
+      });
     }
 
     renderFotoAtivaPreviaModal();

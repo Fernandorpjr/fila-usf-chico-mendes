@@ -705,7 +705,7 @@ test('Sala de Agendamento (Admin-only manual), Atendidos e SISREG invariants are
   assert.equal(indexHtml.includes('id="sm-busca-vaga"'), true);
   assert.equal(indexHtml.includes('formularios-pec.js?v=2.2'), true);
   assert.equal(indexHtml.includes('dispositivos.js?v=5.4'), true);
-  assert.equal(indexHtml.includes('receitas-previa.js?v=2.4'), true);
+  assert.equal(indexHtml.includes('receitas-previa.js?v=2.5'), true);
   assert.equal(indexHtml.includes('app.js?v=8.9'), true);
   const dispFront = fs.readFileSync(path.join(__dirname, '..', 'public', 'dispositivos.js'), 'utf8');
   assert.equal(dispFront.includes('bloqueio_total_emergencia'), true);

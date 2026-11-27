@@ -2941,19 +2941,94 @@
     .previa-modal-body::-webkit-scrollbar-track, .previa-modal-card::-webkit-scrollbar-track, .previa-side-panel::-webkit-scrollbar-track, .sisreg-table-wrap::-webkit-scrollbar-track, .sisreg-dev-lista::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
     .previa-modal-body::-webkit-scrollbar-thumb, .previa-modal-card::-webkit-scrollbar-thumb, .previa-side-panel::-webkit-scrollbar-thumb, .sisreg-table-wrap::-webkit-scrollbar-thumb, .sisreg-dev-lista::-webkit-scrollbar-thumb { background: #64748b; border-radius: 8px; border: 2px solid #e2e8f0; }
     .previa-modal-body::-webkit-scrollbar-thumb:hover, .previa-modal-card::-webkit-scrollbar-thumb:hover, .previa-side-panel::-webkit-scrollbar-thumb:hover, .sisreg-table-wrap::-webkit-scrollbar-thumb:hover, .sisreg-dev-lista::-webkit-scrollbar-thumb:hover { background: #334155; }
-    .previa-split-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: stretch; }
-    .previa-side-panel { display: flex; flex-direction: column; gap: 10px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px; max-height: calc(94vh - 102px); overflow-y: auto; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
-    .previa-img-stage { background: #0f172a; border-radius: 12px; height: calc(94vh - 155px); min-height: 460px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 10px; position: relative; cursor: grab; touch-action: none; user-select: none; }
+    .previa-split-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: start; }
+    #modal-ver-previa-receita .previa-modal-body { background: #f1f5f9; padding: 16px 20px; }
+    .previa-side-panel { display: flex; flex-direction: column; gap: 12px; background: transparent; border: none; border-radius: 12px; padding: 0; max-height: none; overflow: visible; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
+    .previa-img-stage { background: #0f172a; border-radius: 14px; height: calc(94vh - 245px); min-height: 360px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 10px; position: relative; cursor: grab; touch-action: none; user-select: none; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.14); }
     .previa-img-stage.grabbing { cursor: grabbing; }
     .previa-img-stage img { max-width: 96%; max-height: 96%; transition: transform 0.08s ease-out; border-radius: 6px; pointer-events: none; user-select: none; will-change: transform; }
     .previa-img-stage.grabbing img { transition: none; }
-    .previa-zoom-pill { background: #e2e8f0; color: #0f172a; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; }
+    .vp-toolbar-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+    }
+    .vp-toolbar-bar .btn { min-height: 34px; padding: 6px 11px; border-radius: 9px; font-size: 12px; font-weight: 800; }
+    .vp-info-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 13px;
+      padding: 13px 14px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+    .vp-info-card--rx { background: #eff6ff; border-color: #bfdbfe; }
+    .previa-zoom-pill { background: #e2e8f0; color: #0f172a; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; font-variant-numeric: tabular-nums; }
     .previa-pan-hint { font-size: 11px; color: #64748b; font-weight: 700; margin-left: auto; }
-    .vp-forms-box { background: linear-gradient(135deg, #f0f9ff, #eff6ff); border: 1.5px solid #93c5fd; border-radius: 12px; padding: 10px 12px; }
-    .vp-forms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
-    .btn-form-transfer { padding: 9px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; text-align: center; }
+    .vp-forms-box { background: #ffffff; border: 1.5px solid #93c5fd; border-radius: 14px; padding: 13px 14px; box-shadow: 0 3px 12px rgba(29, 78, 216, 0.08); }
+    .vp-forms-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .vp-forms-hint-pill { font-size: 10.5px; font-weight: 900; color: #1e40af; background: #dbeafe; border: 1px solid #93c5fd; padding: 2px 8px; border-radius: 999px; }
+    .vp-forms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 10px; }
+    .btn-form-transfer { min-height: 44px; padding: 10px 12px; border-radius: 11px; border: 1.5px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; text-align: center; }
     .btn-form-transfer:hover { border-color: #2563eb; background: #dbeafe; color: #1e40af; transform: translateY(-1px); }
-    .btn-form-transfer.destaque { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; border-color: #1e40af; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28); }
+    @keyframes vpFormPulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.65), 0 6px 16px rgba(29, 78, 216, 0.35);
+        filter: brightness(1);
+      }
+      50% {
+        transform: scale(1.03);
+        box-shadow: 0 0 0 8px rgba(56, 189, 248, 0), 0 8px 22px rgba(37, 99, 235, 0.55);
+        filter: brightness(1.12);
+      }
+    }
+    .btn-form-transfer.destaque {
+      position: relative;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      border: 2px solid #93c5fd;
+      box-shadow: 0 6px 16px rgba(29, 78, 216, 0.35);
+      animation: vpFormPulse 1.35s ease-in-out infinite;
+    }
+    .btn-form-transfer.destaque::after {
+      content: 'SUGERIDO';
+      font-size: 9.5px;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+      background: #fde047;
+      color: #1e293b;
+      padding: 2px 6px;
+      border-radius: 999px;
+      margin-left: 4px;
+    }
+    .vp-footer-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+    .vp-action-btn {
+      min-height: 46px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 13.5px;
+      font-weight: 900;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
+    }
+    .vp-action-btn--sisreg { background: linear-gradient(135deg, #0f766e, #0d9488); color: #ffffff; border: none; box-shadow: 0 4px 12px rgba(15, 118, 110, 0.28); }
+    .vp-action-btn--sisreg:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15, 118, 110, 0.38); }
+    .vp-action-btn--edit { background: #ffffff; color: #1e293b; border: 1.5px solid #cbd5e1; }
+    .vp-action-btn--edit:hover { background: #f8fafc; border-color: #2563eb; color: #1e40af; transform: translateY(-1px); }
+    .vp-action-btn--ready { flex: 1; background: linear-gradient(135deg, #16a34a, #15803d); color: #ffffff; border: none; box-shadow: 0 5px 14px rgba(22, 163, 74, 0.3); }
+    .vp-action-btn--ready:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(22, 163, 74, 0.4); }
     .fila-forms-mini { display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 2px 4px; }
     .btn-fila-form { border: none; background: transparent; cursor: pointer; font-size: 13px; padding: 3px 5px; border-radius: 6px; line-height: 1; transition: background 0.12s; }
     .btn-fila-form:hover { background: #dbeafe; }
@@ -6135,6 +6210,8 @@
       <button type="button" class="previa-btn-close-red" onclick="fecharModalVerPreviaReceita()" title="Fechar esta tela (não use o botão Voltar do navegador)">✕ Fechar</button>
     </div>
     <div class="previa-modal-body">
+      <div id="vp-scan-result-hero" class="pr-decision-hero" role="region" aria-live="polite" aria-label="Resultado do escaneamento"></div>
+
       <div class="previa-split-grid">
         <div>
           <div id="vp-nav-bar" class="vp-nav-bar">
@@ -6143,7 +6220,7 @@
             <span id="vp-foto-cat-badge" style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#0ea5e9;color:#fff;"></span>
             <button type="button" id="vp-btn-next" class="btn btn-sm" style="background:#334155;color:#fff;border:1px solid #475569;margin-left:auto;" onclick="navegarFotoPrevia(1)">Próxima ▶</button>
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <div class="vp-toolbar-bar">
             <span id="vp-img-controls" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1;">
               <button type="button" class="btn btn-outline btn-sm" onclick="zoomPreviaImg(-0.25)">➖ Zoom</button>
               <button type="button" class="btn btn-outline btn-sm" onclick="zoomPreviaImg(0.25)">➕ Zoom</button>
@@ -6163,23 +6240,23 @@
         </div>
         <div class="previa-side-panel">
           <div id="vp-destino-ia-banner" style="display:none;background:#f0fdfa;border:1.5px solid #5eead4;border-radius:10px;padding:9px 12px;font-size:12px;color:#115e59;"></div>
-          <div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:12px;">
+          <div class="vp-info-card">
             <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;">Paciente (Documento)</div>
-            <div id="vp-nome-pac" style="font-size:15px;font-weight:900;color:#0f172a;margin-top:2px;">—</div>
+            <div id="vp-nome-pac" style="font-size:15.5px;font-weight:900;color:#0f172a;margin-top:2px;">—</div>
             <div id="vp-prof-direcionado-row" style="display:none;margin-top:6px;padding:5px 9px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;font-size:12px;font-weight:800;color:#1e3a8a;">
               👨‍⚕️ Profissional Direcionado: <span id="vp-prof-direcionado">—</span>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1;">
               <div>
                 <div style="font-size:11px;font-weight:800;color:#64748b;">CNS / CPF (para localizar no PEC)</div>
-                <div id="vp-cns" style="font-size:14px;font-weight:800;color:#1d4ed8;font-family:monospace;">—</div>
+                <div id="vp-cns" style="font-size:14.5px;font-weight:800;color:#1d4ed8;font-family:monospace;">—</div>
               </div>
               <button type="button" class="btn btn-primary btn-sm" onclick="copiarTextoPrevia('vp-cns','CNS/CPF')">📋 Copiar CNS</button>
             </div>
             <div id="vp-contato-row" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0;font-size:12px;color:#334155;line-height:1.45;"></div>
           </div>
 
-          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;">
+          <div class="vp-info-card vp-info-card--rx">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
               <span style="font-size:11px;font-weight:800;color:#1e40af;text-transform:uppercase;">💊 Medicamentos / Pedido Extraído</span>
               <button type="button" class="btn btn-outline btn-sm" onclick="copiarTextoPrevia('vp-medicamentos','Medicamentos')">📋 Copiar</button>
@@ -6188,26 +6265,29 @@
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px;">
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+            <div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:9px 10px;">
               <div style="color:#64748b;font-weight:700;font-size:11px;">Tipo</div>
               <div id="vp-tipo" style="font-weight:800;color:#0f172a;">—</div>
             </div>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+            <div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:9px 10px;">
               <div style="color:#64748b;font-weight:700;font-size:11px;">Emissão / Vencimento</div>
-              <div style="font-weight:800;color:#0f172a;"><span id="vp-emissao">—</span> → <span id="vp-vencimento">—</span></div>
+              <div style="font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums;"><span id="vp-emissao">—</span> → <span id="vp-vencimento">—</span></div>
             </div>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+            <div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:9px 10px;">
               <div style="color:#64748b;font-weight:700;font-size:11px;">Emitente Anterior</div>
               <div id="vp-medico" style="font-weight:800;color:#0f172a;">—</div>
             </div>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+            <div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:9px 10px;">
               <div style="color:#64748b;font-weight:700;font-size:11px;">Observações</div>
               <div id="vp-obs" style="font-weight:700;color:#334155;">—</div>
             </div>
           </div>
 
           <div id="vp-formularios-box" class="vp-forms-box">
-            <div style="font-size:11.5px;font-weight:900;color:#1e3a8a;text-transform:uppercase;">🖨️ Transferir para Formulário (PEC Offline / Reimpressão)</div>
+            <div class="vp-forms-head">
+              <div style="font-size:11.5px;font-weight:900;color:#1e3a8a;text-transform:uppercase;">🖨️ Transferir para Formulário (PEC Offline / Reimpressão)</div>
+              <span class="vp-forms-hint-pill">✨ Sugerido piscando</span>
+            </div>
             <div class="vp-forms-grid">
               <button type="button" id="vp-btn-form-rec" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('receituario')">📄 Receituário</button>
               <button type="button" id="vp-btn-form-esp" class="btn-form-transfer" onclick="abrirFormularioDaPrevia('controle-especial')">🔵 Controle Especial</button>
@@ -6219,10 +6299,10 @@
             </div>
           </div>
 
-          <div class="modal-actions-row" style="margin-top:4px;">
-            <button type="button" id="vp-btn-copiloto-sisreg" class="btn btn-sm" style="background:#0f766e;color:#fff;font-weight:800;display:none;" onclick="abrirCopilotoDaPrevia()">🔎 Consultar SISREG</button>
-            <button type="button" id="vp-btn-editar-anexos" class="btn btn-outline btn-sm" style="font-weight:800;" onclick="editarPreviaDoModalVer()">📎 + Anexar / Editar</button>
-            <button type="button" id="vp-btn-revisar" class="btn btn-primary" style="flex:1;background:#16a34a;border-color:#15803d;" onclick="alternarStatusRevisaoPrevia()">✅ Marcar Receita Pronta</button>
+          <div class="vp-footer-actions">
+            <button type="button" id="vp-btn-copiloto-sisreg" class="vp-action-btn vp-action-btn--sisreg" style="display:none;" onclick="abrirCopilotoDaPrevia()">🔎 Consultar SISREG</button>
+            <button type="button" id="vp-btn-editar-anexos" class="vp-action-btn vp-action-btn--edit" onclick="editarPreviaDoModalVer()">📎 + Anexar / Editar</button>
+            <button type="button" id="vp-btn-revisar" class="vp-action-btn vp-action-btn--ready" onclick="alternarStatusRevisaoPrevia()">✅ Marcar Receita Pronta</button>
           </div>
         </div>
       </div>
@@ -6558,7 +6638,7 @@
 <script src="exames-tubos.js?v=1.0"></script>
 <script src="historico.js?v=5.2"></script>
 <script src="dispositivos.js?v=5.4"></script>
-<script src="receitas-previa.js?v=2.4"></script>
+<script src="receitas-previa.js?v=2.5"></script>
 <script src="formularios-pec.js?v=2.2"></script>
 <script src="regulacao-sisreg.js?v=2.4"></script>
 <script src="app.js?v=8.9"></script>
