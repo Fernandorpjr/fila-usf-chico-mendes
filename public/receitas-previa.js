@@ -11,6 +11,147 @@ const CATEGORIAS_ANEXO_LABEL = {
 
 window._previaReceitaPendente = null;
 window._previaModalDadosAtuais = null;
+window._previaCapturaEmAndamento = false;
+
+const RECEPCAO_DRAFT_STORAGE_KEY = 'usf_recepcao_draft_v1';
+const RECEPCAO_DRAFT_TTL_MS = 15 * 60 * 1000;
+let _capturaAndamentoTimer = null;
+let _inlineCameraStream = null;
+
+function marcarCapturaPreviaEmAndamento(ativo) {
+  if (_capturaAndamentoTimer) {
+    clearTimeout(_capturaAndamentoTimer);
+    _capturaAndamentoTimer = null;
+  }
+  window._previaCapturaEmAndamento = Boolean(ativo);
+  if (ativo) {
+    _capturaAndamentoTimer = setTimeout(() => {
+      window._previaCapturaEmAndamento = false;
+      _capturaAndamentoTimer = null;
+    }, 45000);
+  }
+}
+
+function limparRascunhoRecepcaoPrevia() {
+  try {
+    sessionStorage.removeItem(RECEPCAO_DRAFT_STORAGE_KEY);
+  } catch (_) {}
+}
+
+function salvarRascunhoRecepcaoPrevia(modalAberto = false) {
+  try {
+    const val = (id) => (document.getElementById(id)?.value || '');
+    const nome = val('input-nome').trim();
+    const setor = val('input-setor').trim();
+    const motivo = val('input-motivo-primeira-escuta').trim();
+    const prIds = [
+      'pr-tipo', 'pr-paciente-nome', 'pr-paciente-cns', 'pr-paciente-cpf',
+      'pr-paciente-telefone', 'pr-paciente-cep', 'pr-paciente-bairro',
+      'pr-medicamentos', 'pr-data-emissao', 'pr-medico-emitente', 'pr-observacoes'
+    ];
+    const prFields = {};
+    let temCampoPr = false;
+    prIds.forEach(id => {
+      const v = val(id);
+      prFields[id] = v;
+      if (id !== 'pr-tipo' && v.trim()) temCampoPr = true;
+    });
+    if (!modalAberto && !nome && !setor && !motivo && !temCampoPr) {
+      limparRascunhoRecepcaoPrevia();
+      return;
+    }
+    const condicoes = Array.from(document.querySelectorAll('#condicoes-especiais-recepcao input[type="checkbox"]:checked'))
+      .map(c => c.value);
+    const payload = {
+      ts: Date.now(),
+      modalAberto: Boolean(modalAberto),
+      recepcao: {
+        nome: val('input-nome'),
+        idade: val('input-idade'),
+        horario_marcado: val('input-horario-marcado'),
+        setor: val('input-setor'),
+        prioridade: val('input-prioridade') || 'geral',
+        tipo_prioridade: val('input-tipo-prioridade'),
+        tipo_atendimento: val('input-tipo-atendimento'),
+        profissional: val('input-profissional'),
+        equipe: val('input-equipe-paciente'),
+        motivo: val('input-motivo-primeira-escuta'),
+        condicoes
+      },
+      prFields
+    };
+    sessionStorage.setItem(RECEPCAO_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+  } catch (_) {}
+}
+
+function restaurarRascunhoRecepcaoPrevia() {
+  try {
+    const raw = sessionStorage.getItem(RECEPCAO_DRAFT_STORAGE_KEY);
+    if (!raw) return false;
+    const draft = JSON.parse(raw);
+    if (!draft || !draft.ts || (Date.now() - draft.ts) > RECEPCAO_DRAFT_TTL_MS) {
+      limparRascunhoRecepcaoPrevia();
+      return false;
+    }
+    const rec = draft.recepcao || {};
+    const nomeAtual = (document.getElementById('input-nome')?.value || '').trim();
+    const setorAtual = (document.getElementById('input-setor')?.value || '').trim();
+    if (!nomeAtual && !setorAtual) {
+      const setVal = (id, v) => {
+        const el = document.getElementById(id);
+        if (el && v !== undefined && v !== null && String(v) !== '') el.value = v;
+      };
+      setVal('input-nome', rec.nome);
+      setVal('input-idade', rec.idade);
+      setVal('input-horario-marcado', rec.horario_marcado);
+      setVal('input-motivo-primeira-escuta', rec.motivo);
+      if (rec.prioridade) {
+        setVal('input-prioridade', rec.prioridade);
+        if (typeof togglePrioridadeDetalhes === 'function') togglePrioridadeDetalhes();
+      }
+      setVal('input-tipo-prioridade', rec.tipo_prioridade);
+      if (Array.isArray(rec.condicoes) && rec.condicoes.length > 0) {
+        document.querySelectorAll('#condicoes-especiais-recepcao input[type="checkbox"]').forEach(cb => {
+          cb.checked = rec.condicoes.includes(cb.value);
+        });
+      }
+      if (rec.equipe && typeof selecionarEquipeRecepcao === 'function') {
+        selecionarEquipeRecepcao(rec.equipe);
+      }
+      if (rec.setor) {
+        if (typeof selecionarSetorRapidoRecepcao === 'function') {
+          selecionarSetorRapidoRecepcao(rec.setor);
+        } else {
+          setVal('input-setor', rec.setor);
+          if (typeof toggleTipoAtendimento === 'function') toggleTipoAtendimento();
+        }
+        setVal('input-tipo-atendimento', rec.tipo_atendimento);
+        setVal('input-profissional', rec.profissional);
+      }
+    }
+
+    const modalEstaAberto = document.getElementById('modal-captura-receita')?.classList.contains('show');
+    if (draft.modalAberto && !modalEstaAberto) {
+      abrirModalCapturaReceita();
+      const pf = draft.prFields || {};
+      Object.keys(pf).forEach(id => {
+        const el = document.getElementById(id);
+        if (el && pf[id]) el.value = pf[id];
+      });
+      atualizarSugestaoReceitaLocal();
+    }
+    if (typeof showToast === 'function') {
+      showToast('📋 Rascunho da Recepção restaurado automaticamente!');
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+window.salvarRascunhoRecepcaoPrevia = salvarRascunhoRecepcaoPrevia;
+window.restaurarRascunhoRecepcaoPrevia = restaurarRascunhoRecepcaoPrevia;
+window.limparRascunhoRecepcaoPrevia = limparRascunhoRecepcaoPrevia;
 
 let _previaAnexosCaptura = [];
 let _previaDadosExtrasAtual = null;
@@ -325,10 +466,125 @@ async function abrirModalCapturaReceitaPaciente(patientId, nomePaciente, setor) 
   } catch (_) {}
 }
 
+function fecharCameraInlinePrevia() {
+  if (_inlineCameraStream) {
+    try {
+      _inlineCameraStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+    } catch (_) {}
+    _inlineCameraStream = null;
+  }
+  const video = document.getElementById('pr-inline-video');
+  if (video) {
+    try { video.pause(); } catch (_) {}
+    video.srcObject = null;
+  }
+  const box = document.getElementById('pr-inline-camera-box');
+  if (box) box.style.display = 'none';
+}
+
+async function abrirCameraInlinePrevia() {
+  const box = document.getElementById('pr-inline-camera-box');
+  const video = document.getElementById('pr-inline-video');
+  if (!box || !video || !navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Câmera no navegador indisponível neste aparelho. Use o botão principal Tirar Foto (Câmera).', true);
+    }
+    return;
+  }
+  fecharCameraInlinePrevia();
+  salvarRascunhoRecepcaoPrevia(true);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 }, height: { ideal: 1200 } },
+      audio: false
+    });
+    _inlineCameraStream = stream;
+    video.srcObject = stream;
+    box.style.display = 'block';
+    try { await video.play(); } catch (_) {}
+  } catch (err) {
+    fecharCameraInlinePrevia();
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Não foi possível abrir a câmera no navegador. Use o botão 📸 Tirar Foto (Câmera).', true);
+    }
+  }
+}
+
+function capturarFotoCameraInline() {
+  const video = document.getElementById('pr-inline-video');
+  if (!video || !video.videoWidth || !video.videoHeight) {
+    if (typeof showToast === 'function') showToast('⏳ Aguarde a câmera carregar a imagem...', true);
+    return;
+  }
+  const MAX = 1050;
+  let w = video.videoWidth;
+  let h = video.videoHeight;
+  if (w > MAX || h > MAX) {
+    if (w > h) { h = Math.round(h * (MAX / w)); w = MAX; }
+    else { w = Math.round(w * (MAX / h)); h = MAX; }
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  try {
+    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+    canvas.toBlob((blob) => {
+      fecharCameraInlinePrevia();
+      if (!blob) {
+        if (typeof showToast === 'function') showToast('Erro ao capturar foto da câmera.', true);
+        return;
+      }
+      let arquivo = blob;
+      try {
+        arquivo = new File([blob], `receita_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      } catch (_) {
+        arquivo.name = `receita_${Date.now()}.jpg`;
+      }
+      processarListaImagensReceita([arquivo]);
+    }, 'image/jpeg', 0.78);
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+}
+
+function acionarCameraNativaPrevia() {
+  fecharCameraInlinePrevia();
+  salvarRascunhoRecepcaoPrevia(true);
+  marcarCapturaPreviaEmAndamento(true);
+  const onFocusBack = () => {
+    window.removeEventListener('focus', onFocusBack);
+    setTimeout(() => {
+      if (_previaAnalisesAtivas === 0) marcarCapturaPreviaEmAndamento(false);
+    }, 1800);
+  };
+  window.addEventListener('focus', onFocusBack, { once: true });
+  document.getElementById('pr-file-camera')?.click();
+}
+
+function acionarUploadArquivoPrevia() {
+  fecharCameraInlinePrevia();
+  salvarRascunhoRecepcaoPrevia(true);
+  document.getElementById('pr-file-upload')?.click();
+}
+
+window.acionarCameraNativaPrevia = acionarCameraNativaPrevia;
+window.acionarUploadArquivoPrevia = acionarUploadArquivoPrevia;
+window.abrirCameraInlinePrevia = abrirCameraInlinePrevia;
+window.capturarFotoCameraInline = capturarFotoCameraInline;
+window.fecharCameraInlinePrevia = fecharCameraInlinePrevia;
+
 function fecharModalCapturaReceita() {
+  fecharCameraInlinePrevia();
+  marcarCapturaPreviaEmAndamento(false);
   document.getElementById('modal-captura-receita')?.classList.remove('show');
   _previaCapturaTargetPatient = null;
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) fecharCameraInlinePrevia();
+});
+window.addEventListener('pagehide', fecharCameraInlinePrevia);
 
 function atualizarBotaoCameraCaptura() {
   const btnCam = document.getElementById('pr-btn-camera');
@@ -413,7 +669,34 @@ function atualizarTipoGlobalPorAnexos() {
   atualizarSugestaoReceitaLocal();
 }
 
-function comprimirFotoReceita(file) {
+async function comprimirFotoReceita(file) {
+  const MAX = 1050;
+  if (typeof createImageBitmap === 'function') {
+    let bitmap = null;
+    const canvas = document.createElement('canvas');
+    try {
+      bitmap = await createImageBitmap(file, { resizeWidth: MAX, resizeQuality: 'medium' });
+      let w = bitmap.width || MAX;
+      let h = bitmap.height || MAX;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * (MAX / w)); w = MAX; }
+        else { w = Math.round(w * (MAX / h)); h = MAX; }
+      }
+      canvas.width = Math.max(1, w);
+      canvas.height = Math.max(1, h);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.72);
+    } catch (_) {
+      // Fallback para Image/ObjectURL caso o formato ou navegador não suporte resizeWidth em createImageBitmap
+    } finally {
+      if (bitmap && typeof bitmap.close === 'function') {
+        try { bitmap.close(); } catch (_) {}
+      }
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const objUrl = typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(file) : null;
     if (!objUrl) {
@@ -438,24 +721,23 @@ function comprimirFotoReceita(file) {
     img.onerror = () => finalizar(() => reject(new Error('Não foi possível decodificar a foto capturada.')));
     img.onload = () => {
       finalizar(() => {
+        const canvas = document.createElement('canvas');
         try {
-          const MAX = 1050;
           let w = img.naturalWidth || img.width || MAX;
           let h = img.naturalHeight || img.height || MAX;
           if (w > MAX || h > MAX) {
             if (w > h) { h = Math.round(h * (MAX / w)); w = MAX; }
             else { w = Math.round(w * (MAX / h)); h = MAX; }
           }
-          const canvas = document.createElement('canvas');
           canvas.width = w;
           canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
-          canvas.width = 0;
-          canvas.height = 0;
-          resolve(dataUrl);
+          resolve(canvas.toDataURL('image/jpeg', 0.72));
         } catch (err) {
           reject(err);
+        } finally {
+          canvas.width = 0;
+          canvas.height = 0;
         }
       });
     };
@@ -572,51 +854,57 @@ async function processarListaImagensReceita(fileList) {
   const novosAnexos = [];
   let falhasLeituraLocal = 0;
 
-  // Passo 1: comprimir e exibir imediatamente todos os anexos (evita perda da 2ª foto da câmera)
-  for (let i = 0; i < selecionados.length; i++) {
-    const file = selecionados[i];
-    const ehPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-    try {
-      if (statusEl) {
+  marcarCapturaPreviaEmAndamento(true);
+  try {
+    // Passo 1: comprimir e exibir imediatamente todos os anexos (evita perda da 2ª foto da câmera)
+    for (let i = 0; i < selecionados.length; i++) {
+      const file = selecionados[i];
+      const ehPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+      try {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.className = 'pr-status-box loading';
+          statusEl.textContent = ehPdf
+            ? '⏳ Preparando PDF...'
+            : (selecionados.length > 1
+              ? `⏳ Preparando foto ${i + 1} de ${selecionados.length}...`
+              : '⏳ Preparando foto capturada...');
+        }
+        const b64 = ehPdf ? await lerPdfBase64Previa(file) : await comprimirFotoReceita(file);
+        const novoAnexo = {
+          id: `anx_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}_${i + 1}`,
+          categoria: setorRecepcao === 'Regulação' ? 'encaminhamento' : normalizarCategoriaAnexoFront(tipoAtual),
+          rotulo: ehPdf ? 'PDF' : null,
+          imagem_base64: b64,
+          ocr: null
+        };
+        if (ehPdf) {
+          novoAnexo.mime_type = 'application/pdf';
+          novoAnexo.nome_arquivo = file.name || 'documento.pdf';
+        }
+        _previaAnexosCaptura.push(novoAnexo);
+        novosAnexos.push({ anexo: novoAnexo, b64, ehPdf });
+        renderGaleriaCapturaReceita();
+      } catch (err) {
+        falhasLeituraLocal++;
+        showToast(err?.message || 'Erro ao preparar arquivo selecionado.', true);
+      }
+    }
+
+    if (novosAnexos.length === 0) {
+      if (statusEl && falhasLeituraLocal > 0) {
         statusEl.style.display = 'block';
-        statusEl.className = 'pr-status-box loading';
-        statusEl.textContent = ehPdf
-          ? '⏳ Preparando PDF...'
-          : (selecionados.length > 1
-            ? `⏳ Preparando foto ${i + 1} de ${selecionados.length}...`
-            : '⏳ Preparando foto capturada...');
+        statusEl.className = 'pr-status-box warn';
+        statusEl.textContent = '⚠️ Não foi possível ler a imagem selecionada.';
       }
-      const b64 = ehPdf ? await lerPdfBase64Previa(file) : await comprimirFotoReceita(file);
-      const novoAnexo = {
-        id: `anx_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}_${i + 1}`,
-        categoria: setorRecepcao === 'Regulação' ? 'encaminhamento' : normalizarCategoriaAnexoFront(tipoAtual),
-        rotulo: ehPdf ? 'PDF' : null,
-        imagem_base64: b64,
-        ocr: null
-      };
-      if (ehPdf) {
-        novoAnexo.mime_type = 'application/pdf';
-        novoAnexo.nome_arquivo = file.name || 'documento.pdf';
-      }
-      _previaAnexosCaptura.push(novoAnexo);
-      novosAnexos.push({ anexo: novoAnexo, b64, ehPdf });
-      renderGaleriaCapturaReceita();
-    } catch (err) {
-      falhasLeituraLocal++;
-      showToast(err?.message || 'Erro ao preparar arquivo selecionado.', true);
+      return;
     }
-  }
 
-  if (novosAnexos.length === 0) {
-    if (statusEl && falhasLeituraLocal > 0) {
-      statusEl.style.display = 'block';
-      statusEl.className = 'pr-status-box warn';
-      statusEl.textContent = '⚠️ Não foi possível ler a imagem selecionada.';
-    }
-    return;
+    await executarOcrEmListaPrevia(novosAnexos);
+    salvarRascunhoRecepcaoPrevia(true);
+  } finally {
+    marcarCapturaPreviaEmAndamento(false);
   }
-
-  await executarOcrEmListaPrevia(novosAnexos);
 }
 
 async function reanalisarAnexosPendentesReceita() {

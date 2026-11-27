@@ -55,6 +55,8 @@ const {
   isPublicApiRoute,
   verifySameOriginMutation,
   getSessionFromRequest,
+  shouldRefreshSession,
+  warnIfWeakSessionSecret,
   setSessionCookie,
   clearSessionCookie,
   getClientIp,
@@ -65,6 +67,15 @@ const {
   buildCorsOptions,
   securityHeadersMiddleware
 } = require('./lib/seguranca');
+
+warnIfWeakSessionSecret();
+
+const SQL_HOJE_RECIFE_RANGE = `(created_at >= (date_trunc('day', NOW() AT TIME ZONE 'America/Recife') AT TIME ZONE 'America/Recife') AND created_at < ((date_trunc('day', NOW() AT TIME ZONE 'America/Recife') + INTERVAL '1 day') AT TIME ZONE 'America/Recife'))`;
+
+function responderErroInterno(res, contexto, error, fallbackMsg = 'Erro interno no servidor. Tente novamente em instantes.') {
+  console.error(`❌ [${contexto}]`, error?.message || error);
+  return res.status(500).json({ error: fallbackMsg });
+}
 
 const PORT = process.env.PORT || 3000;
 
@@ -514,6 +525,7 @@ async function initDB() {
     const verRes = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'db_schema_version'`);
     if (verRes.rows[0]?.valor === DB_SCHEMA_VERSION) {
       _colunasEscutaGarantidas = true;
+      await garantirIndicesPerformance(pool);
       return;
     }
 
@@ -1039,6 +1051,7 @@ async function initDB() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_patients_status_created ON patients (status, created_at)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_call_history_created_at ON call_history (created_at DESC)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_channels_canal_id ON chat_channels (canal, id DESC)`);
+    await garantirIndicesPerformance(pool);
 
     await pool.query(
       `INSERT INTO configuracoes (chave, valor)
@@ -1050,6 +1063,21 @@ async function initDB() {
     console.log('✅ Banco de dados inicializado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao inicializar banco de dados:', error.message);
+  }
+}
+
+let _indicesPerformanceGarantidos = false;
+async function garantirIndicesPerformance(dbClientOrPool) {
+  if (_indicesPerformanceGarantidos) return;
+  const runner = dbClientOrPool || pool;
+  try {
+    await runner.query(`CREATE INDEX IF NOT EXISTS idx_agendamentos_data_horario ON agendamentos (data_agendamento, horario)`);
+    await runner.query(`CREATE INDEX IF NOT EXISTS idx_notificacoes_setor_dismissed ON notificacoes (setor, dismissed)`);
+    await runner.query(`CREATE INDEX IF NOT EXISTS idx_pending_voice_calls_proc_created ON pending_voice_calls (processed, created_at)`);
+    await runner.query(`CREATE INDEX IF NOT EXISTS idx_ctrl_agendamentos_mes_ano ON ctrl_agendamentos (ano_agendamento, mes_agendamento)`);
+    _indicesPerformanceGarantidos = true;
+  } catch (e) {
+    console.warn('[garantirIndicesPerformance] Aviso ao garantir índices:', e.message);
   }
 }
 
@@ -1248,10 +1276,15 @@ app.get('/api/auth/session', async (req, res) => {
   } catch (_) {}
 
   const blockedNonAdmin = Boolean(estado.bloqueadoDefinitivo && (!sess || sess.role !== 'admin'));
+  let effectiveExp = sess && !blockedNonAdmin ? sess.exp : null;
+  if (sess && !blockedNonAdmin && shouldRefreshSession(sess)) {
+    setSessionCookie(res, sess.role);
+    effectiveExp = Date.now() + SESSION_TTL_MS;
+  }
   res.json({
     authenticated: Boolean(sess && !blockedNonAdmin),
     role: sess && !blockedNonAdmin ? sess.role : null,
-    exp: sess && !blockedNonAdmin ? sess.exp : null,
+    exp: effectiveExp,
     deviceId: estado.deviceId || null,
     deviceBlocked: Boolean(estado.bloqueadoDefinitivo),
     emergencyBlocked: Boolean(estado.emergenciaBloqueada),
@@ -1836,7 +1869,7 @@ app.get('/api/queues', async (req, res) => {
 
     const result = await pool.query(
       `SELECT *,
-              ROUND(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0, 1) AS espera_minutos
+              FLOOR(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0)::int AS espera_minutos
        FROM patients
        WHERE status NOT IN ('atendido', 'desistencia')
        ORDER BY
@@ -3269,12 +3302,12 @@ app.get('/api/history', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT * FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC, id DESC`
+       WHERE ${SQL_HOJE_RECIFE_RANGE}
+       ORDER BY created_at DESC, id DESC`
     );
     responderJsonComEtag(req, res, result.rows);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'GET /api/history', error);
   }
 });
 
@@ -3284,14 +3317,14 @@ app.get('/api/tv/history', async (req, res) => {
     const result = await pool.query(
       `SELECT id, nome, setor, horario_chamada, medico, prioridade, tipo_prioridade, consultorio, profissional, created_at
        FROM call_history
-       WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       WHERE ${SQL_HOJE_RECIFE_RANGE}
          AND COALESCE(profissional, '') NOT LIKE '➡️ Encaminhado%'
-       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC, id DESC
+       ORDER BY created_at DESC, id DESC
        LIMIT 30`
     );
     responderJsonComEtag(req, res, result.rows);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'GET /api/tv/history', error);
   }
 });
 
@@ -3306,13 +3339,13 @@ app.get('/api/history/filtered', async (req, res) => {
     let idx = 1;
 
     if (inicio) {
-      query += ` AND DATE(created_at AT TIME ZONE 'America/Recife') >= $${idx}::date`;
-      params.push(inicio);
+      query += ` AND created_at >= ($${idx}::timestamp AT TIME ZONE 'America/Recife')`;
+      params.push(`${inicio} 00:00:00`);
       idx++;
     }
 
     if (fim) {
-      query += ` AND DATE(created_at AT TIME ZONE 'America/Recife') <= $${idx}::date`;
+      query += ` AND created_at < (($${idx}::date + 1)::timestamp AT TIME ZONE 'America/Recife')`;
       params.push(fim);
       idx++;
     }
@@ -3348,7 +3381,7 @@ app.get('/api/history/filtered', async (req, res) => {
     });
     res.json(deduplicarAtendimentosPorDiaSetor(enriched));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'GET /api/history/filtered', error);
   }
 });
 
@@ -3358,14 +3391,19 @@ app.get('/api/history/monthly', async (req, res) => {
     const { mes, ano } = req.query;
     const month = parseInt(mes) || new Date().getMonth() + 1;
     const year = parseInt(ano) || new Date().getFullYear();
-    
+    const padMes = String(Math.max(1, Math.min(12, month))).padStart(2, '0');
+    const inicioMesStr = `${year}-${padMes}-01 00:00:00`;
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    const fimMesStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01 00:00:00`;
+
     const result = await pool.query(
       `SELECT * FROM call_history
-       WHERE EXTRACT(MONTH FROM created_at AT TIME ZONE 'America/Sao_Paulo') = $1
-       AND EXTRACT(YEAR FROM created_at AT TIME ZONE 'America/Sao_Paulo') = $2
-       AND ${SQL_ONLY_REAL_ATTEND}
-       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`,
-      [month, year]
+       WHERE created_at >= ($1::timestamp AT TIME ZONE 'America/Recife')
+         AND created_at < ($2::timestamp AT TIME ZONE 'America/Recife')
+         AND ${SQL_ONLY_REAL_ATTEND}
+       ORDER BY created_at DESC`,
+      [inicioMesStr, fimMesStr]
     );
     
     const seenMonthly = new Set();
@@ -3409,7 +3447,7 @@ app.get('/api/attended', async (req, res) => {
       `SELECT * FROM (
          SELECT DISTINCT ON (setor, ${SQL_PATIENT_KEY}) *
          FROM call_history
-         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+         WHERE ${SQL_HOJE_RECIFE_RANGE}
            AND ${SQL_ONLY_REAL_ATTEND}
          ORDER BY setor, ${SQL_PATIENT_KEY}, created_at DESC
        ) dedup
@@ -3417,7 +3455,7 @@ app.get('/api/attended', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'GET /api/attended', error);
   }
 });
 
@@ -3439,14 +3477,14 @@ app.get('/api/current-calling', async (req, res) => {
        atend AS (
          SELECT COUNT(DISTINCT ${SQL_PATIENT_KEY} || '|' || setor)::int AS cnt
          FROM call_history
-         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+         WHERE ${SQL_HOJE_RECIFE_RANGE}
            AND ${SQL_ONLY_REAL_ATTEND}
        ),
        desist AS (
          SELECT COUNT(*)::int AS cnt
          FROM patients
          WHERE status = 'desistencia'
-           AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+           AND ${SQL_HOJE_RECIFE_RANGE}
        ),
        pausa AS (
          SELECT valor FROM configuracoes WHERE chave = 'sistema_pausado' LIMIT 1
@@ -3896,19 +3934,45 @@ app.post('/api/chat', async (req, res) => {
 
 // ====== CHAT AVANÇADO COM CANAIS ======
 
-// GET mensagens de um canal
+// GET mensagens de um canal (leve: omite anexo_base64 para não estourar payload de 4.5MB da Vercel)
 app.get('/api/chat/canais/:canal', async (req, res) => {
   try {
     const { canal } = req.params;
     const result = await pool.query(
       `SELECT * FROM (
-         SELECT * FROM chat_channels WHERE canal = $1 ORDER BY created_at DESC LIMIT 100
+         SELECT id, canal, autor, texto, urgente, anexo_nome, created_at,
+                (anexo_base64 IS NOT NULL AND LENGTH(anexo_base64) > 0) AS tem_anexo
+         FROM chat_channels
+         WHERE canal = $1
+         ORDER BY created_at DESC
+         LIMIT 100
        ) sub ORDER BY created_at ASC`,
       [canal]
     );
-    res.json(result.rows);
+    responderJsonComEtag(req, res, result.rows);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'GET /api/chat/canais/:canal', error);
+  }
+});
+
+// GET anexo do chat sob demanda (evita trafegar centenas de KB/MB no polling normal do canal)
+app.get('/api/chat/anexo/:id', async (req, res) => {
+  try {
+    const msgId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(msgId) || msgId <= 0) {
+      return res.status(400).json({ error: 'ID de mensagem inválido.' });
+    }
+    const r = await pool.query(
+      'SELECT id, canal, anexo_nome, anexo_base64 FROM chat_channels WHERE id = $1',
+      [msgId]
+    );
+    if (!r.rows.length || !r.rows[0].anexo_base64) {
+      return res.status(404).json({ error: 'Anexo não encontrado para esta mensagem.' });
+    }
+    res.set('Cache-Control', 'private, max-age=3600');
+    res.json(r.rows[0]);
+  } catch (error) {
+    responderErroInterno(res, 'GET /api/chat/anexo/:id', error);
   }
 });
 
@@ -3949,8 +4013,8 @@ app.post('/api/chat/canais/:canal', async (req, res) => {
 app.post('/api/chat/canais/:canal/clear', async (req, res) => {
   try {
     const { canal } = req.params;
-    const { senha } = req.body;
-    if (!isValidAdminPass(senha)) {
+    const { senha } = req.body || {};
+    if (!isAdminAuthorized(req) && !isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     await pool.query('DELETE FROM chat_channels WHERE canal = $1', [canal]);
@@ -3958,7 +4022,7 @@ app.post('/api/chat/canais/:canal/clear', async (req, res) => {
     io.emit('chatChannelClear', { canal });
     res.json({ message: `Canal ${canal} limpo com sucesso` });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'POST /api/chat/canais/:canal/clear', error);
   }
 });
 
@@ -5293,11 +5357,11 @@ app.get('/api/agendamentos', async (req, res) => {
       idx++;
     }
 
-    query += ' ORDER BY data_agendamento ASC, horario ASC';
+    query += ' ORDER BY data_agendamento ASC, horario ASC LIMIT 500';
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'GET /api/agendamentos', error);
   }
 });
 
@@ -5812,23 +5876,29 @@ app.post('/api/agendamentos/:id/enviar-fila', async (req, res) => {
 // DELETE – excluir agendamento via painel de lembretes D-1 (sem senha, com confirmação no front)
 app.delete('/api/agendamentos/:id', async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'ID de agendamento inválido' });
+    }
     const result = await pool.query('DELETE FROM agendamentos WHERE id = $1 RETURNING *', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Agendamento não encontrado' });
     }
     res.json({ message: 'Agendamento excluído', agendamento: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'DELETE /api/agendamentos/:id', error);
   }
 });
 
 // DELETE – excluir agendamento (admin)
 app.post('/api/agendamentos/:id/delete', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { senha } = req.body;
-    if (!isValidAdminPass(senha)) {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'ID de agendamento inválido' });
+    }
+    const { senha } = req.body || {};
+    if (!isAdminAuthorized(req) && !isValidAdminPass(senha)) {
       return res.status(403).json({ error: 'Senha administrativa incorreta' });
     }
     const result = await pool.query('DELETE FROM agendamentos WHERE id = $1 RETURNING *', [id]);
@@ -5837,7 +5907,7 @@ app.post('/api/agendamentos/:id/delete', async (req, res) => {
     }
     res.json({ message: 'Agendamento excluído', agendamento: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    responderErroInterno(res, 'POST /api/agendamentos/:id/delete', error);
   }
 });
 
@@ -5902,7 +5972,7 @@ app.get('/api/acolhimento/fluxo', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT *,
-              ROUND(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0, 1) AS espera_minutos
+              FLOOR(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0)::int AS espera_minutos
        FROM patients
        WHERE setor = 'Acolhimento' AND status NOT IN ('atendido', 'desistencia')
        ORDER BY

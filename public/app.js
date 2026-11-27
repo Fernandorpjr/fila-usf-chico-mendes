@@ -10,6 +10,34 @@ function isModoTV() {
 let isGateAuthenticated = false;
 let _dadosAutenticadosIniciados = false;
 let _modoTvIniciado = false;
+let _confirmandoSessaoExpiradaPromise = null;
+
+function confirmarETratarSessaoExpirada() {
+  if (_confirmandoSessaoExpiradaPromise) return _confirmandoSessaoExpiradaPromise;
+  _confirmandoSessaoExpiradaPromise = (async () => {
+    try {
+      const sr = await originalFetch(`${API_URL}/auth/session`, {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      if (sr.status === 401) {
+        handleSessaoExpirada();
+        return;
+      }
+      if (sr.ok) {
+        const data = await sr.json().catch(() => null);
+        if (data && data.authenticated === false) {
+          handleSessaoExpirada();
+        }
+      }
+    } catch (_) {
+      // Erro transitório de rede ao retomar do background não deve deslogar a equipe
+    } finally {
+      _confirmandoSessaoExpiradaPromise = null;
+    }
+  })();
+  return _confirmandoSessaoExpiradaPromise;
+}
 
 window.fetch = function(resource, config) {
   let nextConfig = config;
@@ -40,18 +68,24 @@ window.fetch = function(resource, config) {
   const promise = originalFetch(resource, nextConfig);
   if (isApiCall) {
     return promise.then(res => {
+      const isRotaIsenta401 =
+        resource.includes('/auth/') ||
+        resource.includes('/verify-admin') ||
+        resource.includes('/config/pausa') ||
+        resource.includes('/config/mutirao-hoje') ||
+        resource.includes('/config/jingle') ||
+        resource.includes('/config/metas-dia') ||
+        resource.includes('/ctrl-agendamentos') ||
+        resource.includes('/agendamentos/') ||
+        resource.includes('/clear') ||
+        resource.includes('/admin/');
       if (
         res.status === 401 &&
         isGateAuthenticated &&
         !isModoTV() &&
-        !resource.includes('/auth/') &&
-        !resource.includes('/verify-admin') &&
-        !resource.includes('/config/pausa') &&
-        !resource.includes('/config/mutirao-hoje') &&
-        !resource.includes('/config/jingle') &&
-        !resource.includes('/config/metas-dia')
+        !isRotaIsenta401
       ) {
-        handleSessaoExpirada();
+        confirmarETratarSessaoExpirada();
       } else if (res.status === 423 && !isModoTV()) {
         res.clone().json().catch(() => ({})).then(body => {
           if (typeof window.mostrarAlertaDispositivoBloqueado === 'function') {
@@ -201,6 +235,64 @@ function iniciarCarregamentoAutenticado() {
   }
 }
 
+function temIndicioSessaoRecente() {
+  try {
+    if (sessionStorage.getItem('usf_gate_auth') !== 'true') return false;
+    const savedAt = parseInt(sessionStorage.getItem('usf_gate_time') || '0', 10);
+    return Number.isFinite(savedAt) && savedAt > 0 && (Date.now() - savedAt) < GATE_EXPIRY_MS;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function fetchSessionComRetry(tentativas = 3) {
+  const delays = [350, 900, 1500];
+  let lastErr = null;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      const r = await originalFetch(`${API_URL}/auth/session`, {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      if (r.status >= 500 && i < tentativas - 1) {
+        await new Promise(res => setTimeout(res, delays[i] || 600));
+        continue;
+      }
+      return { res: r, networkError: false };
+    } catch (e) {
+      lastErr = e;
+      if (i < tentativas - 1) {
+        await new Promise(res => setTimeout(res, delays[i] || 600));
+      }
+    }
+  }
+  return { res: null, networkError: true, error: lastErr };
+}
+
+let _silentSessionRetryTimer = null;
+function agendarRevalidacaoSessaoSilenciosa() {
+  if (_silentSessionRetryTimer) return;
+  _silentSessionRetryTimer = setTimeout(async () => {
+    _silentSessionRetryTimer = null;
+    if (!isGateAuthenticated || isModoTV()) return;
+    const { res } = await fetchSessionComRetry(2);
+    if (!res) {
+      agendarRevalidacaoSessaoSilenciosa();
+      return;
+    }
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data && data.authenticated === false) {
+        handleSessaoExpirada();
+      } else if (data && data.authenticated === true) {
+        iniciarCarregamentoAutenticado();
+      }
+    } else if (res.status === 401) {
+      handleSessaoExpirada();
+    }
+  }, 4000);
+}
+
 async function checkGateSession() {
   // Exceção: Painel TV
   if (isModoTV()) {
@@ -215,16 +307,24 @@ async function checkGateSession() {
   }
 
   // Restaurar imediatamente bloqueio temporário salvo localmente enquanto valida no servidor
+  let hasTempLock = false;
   try {
     const savedUntil = parseInt(localStorage.getItem(GATE_LOCK_STORAGE_KEY) || '0', 10);
     if (savedUntil > Date.now()) {
+      hasTempLock = true;
       aplicarBloqueioTemporarioPortal(new Date(savedUntil).toISOString(), '⏳ Aparelho em bloqueio temporário de segurança.');
     }
   } catch (e) {}
 
-  try {
-    const r = await fetch(`${API_URL}/auth/session`, { credentials: 'same-origin' });
-    if (r.ok) {
+  const indicioSessao = !hasTempLock && temIndicioSessaoRecente();
+  const gateEl = document.getElementById('gate-overlay');
+  if (indicioSessao && gateEl) {
+    gateEl.classList.add('gate-checking');
+  }
+
+  const { res: r, networkError } = await fetchSessionComRetry(3);
+  if (r && r.ok) {
+    try {
       const data = await r.json();
       if (data && data.deviceId) {
         try { localStorage.setItem('usf_device_id', data.deviceId); } catch (e) {}
@@ -266,14 +366,31 @@ async function checkGateSession() {
         } catch (e) {}
         hideGate();
         iniciarCarregamentoAutenticado();
+        if (typeof window.restaurarRascunhoRecepcaoPrevia === 'function') {
+          setTimeout(() => { window.restaurarRascunhoRecepcaoPrevia(); }, 120);
+        }
         setTimeout(() => {
           const sm = document.getElementById('sound-modal');
           if (sm) sm.style.display = 'flex';
         }, 600);
         return;
       }
+    } catch (e) {}
+  }
+
+  // Se falhou por queda momentânea de rede / 5xx ao voltar da câmera e havia sessão recente válida, não deslogar
+  if ((networkError || (r && r.status >= 500)) && indicioSessao) {
+    isGateAuthenticated = true;
+    hideGate();
+    if (typeof window.restaurarRascunhoRecepcaoPrevia === 'function') {
+      setTimeout(() => { window.restaurarRascunhoRecepcaoPrevia(); }, 120);
     }
-  } catch (e) {}
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Conexão instável ao retomar — reconectando em segundo plano...', true);
+    }
+    agendarRevalidacaoSessaoSilenciosa();
+    return;
+  }
 
   isGateAuthenticated = false;
   try {
@@ -286,14 +403,20 @@ async function checkGateSession() {
 function showGate() {
   const gate = document.getElementById('gate-overlay');
   const wrapper = document.getElementById('app-wrapper');
-  if (gate) gate.classList.remove('hidden');
+  if (gate) {
+    gate.classList.remove('gate-checking');
+    gate.classList.remove('hidden');
+  }
   if (wrapper) wrapper.style.display = 'none';
 }
 
 function hideGate() {
   const gate = document.getElementById('gate-overlay');
   const wrapper = document.getElementById('app-wrapper');
-  if (gate) gate.classList.add('hidden');
+  if (gate) {
+    gate.classList.remove('gate-checking');
+    gate.classList.add('hidden');
+  }
   if (wrapper) wrapper.style.display = '';
 }
 
@@ -1800,7 +1923,7 @@ function showScreen(name) {
     loadHistoricoAgendamentos();
     loadResponsaveisSetor();
     // Se a sub-aba histórica estiver ativa, recarrega-a
-    const btnHist = document.getElementById('btn-subtab-historico');
+    const btnHist = document.getElementById('subtab-btn-historico') || document.getElementById('btn-subtab-historico');
     if (btnHist && btnHist.classList.contains('active') && typeof carregarHistorico === 'function') {
       carregarHistorico();
     }
@@ -1827,8 +1950,8 @@ function showScreen(name) {
 
 // Alternar entre Sub-Aba 1 (Agendamentos) e Sub-Aba 2 (Histórico)
 function alternarSubAbaAgendamento(tab) {
-  const btnPrincipal = document.getElementById('btn-subtab-principal');
-  const btnHistorico = document.getElementById('btn-subtab-historico');
+  const btnPrincipal = document.getElementById('subtab-btn-principal') || document.getElementById('btn-subtab-principal');
+  const btnHistorico = document.getElementById('subtab-btn-historico') || document.getElementById('btn-subtab-historico');
   const contentPrincipal = document.getElementById('subtab-content-principal');
   const contentHistorico = document.getElementById('subtab-content-historico');
 
@@ -2200,6 +2323,7 @@ async function addPatient(btn) {
     // Exibir banner rápido na recepção para marcar Busca ativa (alumIA) se necessário
     mostrarBannerPosCadastroAlumia(newPatient);
     if (typeof limparPreviaReceitaPendente === 'function') limparPreviaReceitaPendente();
+    if (typeof window.limparRascunhoRecepcaoPrevia === 'function') window.limparRascunhoRecepcaoPrevia();
 
     await loadQueues();
     if (setor === 'Acolhimento') loadAcolhimentoFluxo();
@@ -2208,6 +2332,7 @@ async function addPatient(btn) {
     if ((navigator.onLine === false || (typeof isErroDeRede === 'function' && isErroDeRede(e))) && typeof enfileirarPacienteOffline === 'function') {
       enfileirarPacienteOffline(patientPayload, nomeSetorOriginal);
       limparFormularioRecepcaoPosEnvio();
+      if (typeof window.limparRascunhoRecepcaoPrevia === 'function') window.limparRascunhoRecepcaoPrevia();
       showToast(`🔴 Sem internet! ${nome} guardado na fila offline e será enviado automaticamente quando o sinal voltar.`, true);
       document.getElementById('input-nome')?.focus();
     } else {
@@ -3404,6 +3529,7 @@ async function loadQueues() {
 }
 async function loadCurrentCalling() { try { const r = await fetch(`${API_URL}/current-calling`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const d = await r.json(); registrarSucessoRede(); if (typeof d.sistemaPausado === 'boolean' && d.sistemaPausado !== isPausado) { aplicarEstadoPausa(d.sistemaPausado, d.pausaMotivo); } if (typeof processarAvisoSilencioRemoto === 'function') { processarAvisoSilencioRemoto(d.avisoSilencio); } currentCalling = d.current; totalAtendidos = d.totalAtendidos || 0; totalDesistencias = d.totalDesistencias || 0; updateBanners(); updatePainel(); updateStats(); } catch (e) { registrarFalhaRede(e); console.error(e); } }
 async function loadHistory() {
+  const { skipDerived = false } = arguments[0] || {};
   const reqSeq = ++_historySeq;
   try {
     const endpoint = (!isGateAuthenticated && isModoTV()) ? `${API_URL}/tv/history` : `${API_URL}/history`;
@@ -3468,8 +3594,10 @@ async function loadHistory() {
       lastSpokenCallId = 0;
     }
     updatePainel();
-    renderAllSectorAttended();
-    if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais();
+    if (!skipDerived) {
+      renderAllSectorAttended();
+      if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais();
+    }
   } catch (e) { console.error(e); }
 }
 async function loadAttended() {
@@ -3718,6 +3846,19 @@ function renderBlocoBuscaAtivaEquipe(p, setorContexto) {
     </div>
     <div>${itensHtml}</div>
   </div>`;
+}
+
+const _lastHtmlByIdCache = {};
+function setHtmlIfChanged(elOrId, html) {
+  const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+  if (!el) return false;
+  const key = el.id || '';
+  if (key && _lastHtmlByIdCache[key] === html) {
+    return false;
+  }
+  el.innerHTML = html;
+  if (key) _lastHtmlByIdCache[key] = html;
+  return true;
 }
 
 const _lastQueueHtmlCache = {};
@@ -4136,7 +4277,10 @@ function updateRecent() {
   const el = document.getElementById('recent-list');
   if (!el) return;
   const all = []; SETORES.forEach(s => all.push(...(queues[s] || [])));
-  if (!all.length) { el.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>'; return; }
+  if (!all.length) {
+    setHtmlIfChanged(el, '<div class="empty-state" style="padding:16px;"><div class="es-icon">🗒️</div><p>Nenhum cadastro ainda</p></div>');
+    return;
+  }
   const sorted = all.sort((a, b) => safeDate(b.created_at) - safeDate(a.created_at)).slice(0, 6);
   const rowsHtml = sorted.map((p, idx) => {
     const cfg = SECTOR_CONFIG[p.setor] || {};
@@ -4163,7 +4307,7 @@ function updateRecent() {
     </tr>`;
   }).join('');
 
-  el.innerHTML = `<div class="fila-table-wrap">
+  const html = `<div class="fila-table-wrap">
     <table class="fila-clean-table">
       <thead>
         <tr>
@@ -4177,6 +4321,7 @@ function updateRecent() {
       <tbody>${rowsHtml}</tbody>
     </table>
   </div>`;
+  setHtmlIfChanged(el, html);
 }
 
 function updateBanners() {
@@ -4253,7 +4398,8 @@ function updatePainel() {
     }
     _lastPainelCallKey = callKey;
 
-    main.innerHTML = `
+    main.classList && void 0;
+    const mainHtml = `
       <div class="painel-call-pill"><span class="painel-call-dot"></span> CHAMANDO AGORA</div>
       <div class="painel-call-name">${escapeText(l.nome)}</div>
       <div class="painel-gate-box">
@@ -4263,16 +4409,17 @@ function updatePainel() {
       ${profLine}
       ${prioBadge}
     `;
+    setHtmlIfChanged(main, mainHtml);
   } else {
-    main.innerHTML = '<div class="painel-empty">⏳ Aguardando chamadas...</div>';
+    setHtmlIfChanged(main, '<div class="painel-empty">⏳ Aguardando chamadas...</div>');
   }
 
   const histEl = document.getElementById('painel-history');
   if (!callsOnly.length) {
-    histEl.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:32px;font-size:14px;font-weight:600;">Nenhuma chamada registrada</div>';
+    setHtmlIfChanged(histEl, '<div style="text-align:center;color:rgba(255,255,255,0.35);padding:32px;font-size:14px;font-weight:600;">Nenhuma chamada registrada</div>');
     return;
   }
-  histEl.innerHTML = callsOnly.map((p, i) => {
+  const histHtml = callsOnly.map((p, i) => {
     const prioBadge = p.prioridade === 'prioritario' ? ' <span style="color:#fbbf24;font-weight:800;">⭐</span>' : '';
     const destino = formatarDestinoPainel(p);
     const profText = p.profissional ? p.profissional : (p.medico ? String(p.medico).replace(/\s*\(sem designa[çc][aã]o\)/gi, '').trim() : '');
@@ -4292,6 +4439,7 @@ function updatePainel() {
       </div>
     </div>`;
   }).join('');
+  setHtmlIfChanged(histEl, histHtml);
 }
 
 // ====== SECTOR ATTENDED HISTORY & METAS EDITÁVEIS DO DIA ======
@@ -4517,7 +4665,7 @@ function renderResumoProfissionais() {
       ? `${escapeText(meta.tipoDia)} · Meta editável`
       : `Manhã: ${meta.manha} · Tarde: ${meta.tarde} (turno ${meta.turnoAtual === 'tarde' ? 'tarde' : 'manhã'})`;
 
-    container.innerHTML = `
+    const resumoHtml = `
       <div class="prof-summary-card">
         <div class="prof-summary-head">
           <div class="prof-summary-title">
@@ -4561,6 +4709,7 @@ function renderResumoProfissionais() {
         ${miniStripHtml}
       </div>
     `;
+    setHtmlIfChanged(container, resumoHtml);
   });
 
   if (typeof atualizarAlertaIntercorrenciaRecepcao === 'function') {
@@ -4816,11 +4965,11 @@ function renderAllSectorAttended() {
     if (cntEl) cntEl.textContent = items.length;
 
     if (!items.length) {
-      el.innerHTML = '<div class="empty-state" style="padding:16px;"><div class="es-icon">✅</div><p>Nenhum atendido ainda</p></div>';
+      setHtmlIfChanged(el, '<div class="empty-state" style="padding:16px;"><div class="es-icon">✅</div><p>Nenhum atendido ainda</p></div>');
       return;
     }
 
-    el.innerHTML = items.map((p, i) => {
+    const htmlAttended = items.map((p, i) => {
       const prioBadge = p.prioridade === 'prioritario' ? `<span class="priority-badge">⭐</span>` : '';
       const prof = p.profissional || '';
       const profLabel = prof ? `<span style="font-size:11px;color:var(--gray-600);"> · ${escapeText(prof)}</span>` : '';
@@ -4839,6 +4988,7 @@ function renderAllSectorAttended() {
         </div>
       </div>`;
     }).join('');
+    setHtmlIfChanged(el, htmlAttended);
   });
 }
 
@@ -5582,6 +5732,57 @@ function formatarRotuloDataChatRecife(dateObj) {
   return dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Recife', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const _chatAnexoCache = {};
+
+async function carregarAnexoChatSobDemanda(msgId, anexoNome, modo = 'auto', triggerBtn = null) {
+  const idNum = parseInt(msgId, 10);
+  if (!Number.isInteger(idNum) || idNum <= 0) return;
+  const cached = _chatAnexoCache[idNum];
+  const abrirResultado = (base64Data, nomeArquivo) => {
+    const nomeFinal = nomeArquivo || anexoNome || 'anexo';
+    const isImg = /\.(jpeg|jpg|png|gif|webp|bmp)$/i.test(nomeFinal) || String(base64Data || '').startsWith('data:image/');
+    if (modo === 'img' || (modo === 'auto' && isImg)) {
+      abrirImagemChatModal(base64Data, nomeFinal);
+    } else {
+      const a = document.createElement('a');
+      a.href = base64Data;
+      a.download = nomeFinal;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
+  if (cached && cached.anexo_base64) {
+    abrirResultado(cached.anexo_base64, cached.anexo_nome);
+    return;
+  }
+
+  const origHtml = triggerBtn ? triggerBtn.innerHTML : '';
+  if (triggerBtn) {
+    triggerBtn.disabled = true;
+    triggerBtn.innerHTML = '⏳ Carregando...';
+  }
+  try {
+    const r = await fetch(`${API_URL}/chat/anexo/${idNum}`);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || 'Falha ao carregar anexo');
+    }
+    const data = await r.json();
+    if (!data || !data.anexo_base64) throw new Error('Anexo indisponível.');
+    _chatAnexoCache[idNum] = data;
+    abrirResultado(data.anexo_base64, data.anexo_nome || anexoNome);
+  } catch (e) {
+    showToast(e.message || 'Erro ao carregar anexo do chat.', true);
+  } finally {
+    if (triggerBtn) {
+      triggerBtn.disabled = false;
+      triggerBtn.innerHTML = origHtml;
+    }
+  }
+}
+
 function renderChannelChat(forceScroll = false) {
   const c = document.getElementById('chat-messages'); if (!c) return;
   const allMsgs = channelMessages[activeCanal] || [];
@@ -5615,17 +5816,28 @@ function renderChannelChat(forceScroll = false) {
       const urgTag = m.urgente ? '<span style="color:var(--red);font-weight:800;">🚨 URGENTE</span> ' : '';
       
       let anexoHtml = '';
-      if (m.anexo_base64 && m.anexo_nome) {
-        const isImg = /\.(jpeg|jpg|png|gif|webp|bmp)$/i.test(m.anexo_nome) || String(m.anexo_base64).startsWith('data:image/');
+      const cachedAnexo = _chatAnexoCache[m.id];
+      const base64Anexo = m.anexo_base64 || (cachedAnexo && cachedAnexo.anexo_base64) || null;
+      if (base64Anexo && m.anexo_nome) {
+        const isImg = /\.(jpeg|jpg|png|gif|webp|bmp)$/i.test(m.anexo_nome) || String(base64Anexo).startsWith('data:image/');
         const safeAnexoNome = escapeText(m.anexo_nome).replace(/'/g, "\\'");
         if (isImg) {
-          anexoHtml = `<div style="margin-top:8px;"><img src="${m.anexo_base64}" alt="${escapeText(m.anexo_nome)}" style="max-width:100%; max-height:260px; border-radius:10px; cursor:pointer; border:1px solid rgba(0,0,0,0.1);" onclick="abrirImagemChatModal(this.src, '${safeAnexoNome}')"></div>`;
+          anexoHtml = `<div style="margin-top:8px;"><img src="${base64Anexo}" alt="${escapeText(m.anexo_nome)}" style="max-width:100%; max-height:260px; border-radius:10px; cursor:pointer; border:1px solid rgba(0,0,0,0.1);" onclick="abrirImagemChatModal(this.src, '${safeAnexoNome}')"></div>`;
         } else {
           anexoHtml = `<div style="margin-top:8px; background:rgba(0,0,0,0.06); padding:8px; border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
             <span style="font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px;">📎 ${escapeText(m.anexo_nome)}</span>
-            <a href="${m.anexo_base64}" download="${escapeText(m.anexo_nome)}" class="btn btn-sm btn-primary" style="padding:4px 8px; font-size:11px; text-decoration:none;">⬇️ Baixar</a>
+            <a href="${base64Anexo}" download="${escapeText(m.anexo_nome)}" class="btn btn-sm btn-primary" style="padding:4px 8px; font-size:11px; text-decoration:none;">⬇️ Baixar</a>
           </div>`;
         }
+      } else if (m.tem_anexo && m.anexo_nome) {
+        const isImg = /\.(jpeg|jpg|png|gif|webp|bmp)$/i.test(m.anexo_nome);
+        const safeAnexoNome = escapeText(m.anexo_nome).replace(/'/g, "\\'");
+        const btnLabel = isImg ? '🖼️ Ver imagem anexada' : '⬇️ Baixar arquivo';
+        const modoCall = isImg ? 'img' : 'download';
+        anexoHtml = `<div style="margin-top:8px; background:rgba(15,23,42,0.06); padding:8px 10px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <span style="font-size:12px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px;">📎 ${escapeText(m.anexo_nome)}</span>
+          <button type="button" class="btn btn-sm btn-primary" style="padding:5px 10px; font-size:11.5px; font-weight:800;" onclick="carregarAnexoChatSobDemanda(${Number(m.id)}, '${safeAnexoNome}', '${modoCall}', this)">${btnLabel}</button>
+        </div>`;
       }
 
       const safePinTxt = (m.texto || m.anexo_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
@@ -7849,7 +8061,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
   const el = document.getElementById('acol-list-' + etapa);
   if (!el) return;
   if (!pacientes.length) {
-    el.innerHTML = '<div style="text-align:center;padding:24px;color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;">Nenhum paciente nesta etapa</div>';
+    setHtmlIfChanged(el, '<div style="text-align:center;padding:24px;color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;">Nenhum paciente nesta etapa</div>');
     return;
   }
   const cardsHtml = pacientes.map((p, i) => {
@@ -7950,7 +8162,7 @@ function renderAcolhimentoEtapa(etapa, pacientes) {
     </div>`;
   }).join('');
 
-  el.innerHTML = cardsHtml;
+  setHtmlIfChanged(el, cardsHtml);
 }
 
 function filtrarAcolhimento(filtro) {
@@ -8797,7 +9009,7 @@ function renderAcsEscutaScreen() {
     else badge.classList.remove('badge-pulse');
   }
 
-  container.innerHTML = ACS_LIST.map(acs => {
+  const acsHtml = ACS_LIST.map(acs => {
     const emAtendimento = primeiraEscuta.filter(p => p.acs_responsavel && p.acs_responsavel.startsWith(acs));
     const emAtendCount = emAtendimento.length;
 
@@ -8883,6 +9095,7 @@ function renderAcsEscutaScreen() {
       <div class="acs-patient-list">${patientsHtml}</div>
     </div>`;
   }).join('');
+  setHtmlIfChanged(container, acsHtml);
 }
 
 async function chamarProximoParaAcs(acs, btn) {
@@ -9018,7 +9231,7 @@ function renderSegundaEscutaScreen() {
   }
 
   if (!pacientes.length) {
-    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(255,255,255,0.45);font-size:14px;font-weight:700;">Nenhum paciente aguardando 2ª escuta</div>';
+    setHtmlIfChanged(container, '<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(255,255,255,0.45);font-size:14px;font-weight:700;">Nenhum paciente aguardando 2ª escuta</div>');
     return;
   }
 
@@ -9031,7 +9244,7 @@ function renderSegundaEscutaScreen() {
     groups[key].push(p);
   });
 
-  container.innerHTML = Object.entries(groups).map(([prof, list]) => {
+  const segHtml = Object.entries(groups).map(([prof, list]) => {
     const tipo = list[0]?.tipo_profissional_destino || '';
     const tipoIcon = prof === 'Se dirija à 2ª Escuta' ? '📍' : (tipo === 'medico' ? '🩺' : tipo === 'enfermagem' ? '👩‍⚕️' : tipo === 'odontologia' ? '🦷' : '👨‍⚕️');
 
@@ -9122,6 +9335,7 @@ function renderSegundaEscutaScreen() {
       </div>
     </div>`;
   }).join('');
+  setHtmlIfChanged(container, segHtml);
 }
 
 async function chamarSegundaEscutaPaciente(id, nome, prof, btn) {
@@ -10003,6 +10217,10 @@ function startPolling1() {
   if (pollingTimer1) clearTimeout(pollingTimer1);
   // ZERO polling sem autenticação (exceto TV), fora do expediente OU em pausa
   if ((!isGateAuthenticated && !isModoTV()) || isPausado || !isDentroDoHorario()) return;
+  if (window._previaCapturaEmAndamento) {
+    pollingTimer1 = setTimeout(() => { startPolling1(); }, 4000);
+    return;
+  }
   const emTelaTv = isModoTV() || Boolean(document.getElementById('screen-painel')?.classList.contains('active'));
   const interval1 = emTelaTv ? (document.hidden ? 6000 : 3500) : (document.hidden ? 30000 : 5000);
   pollingTimer1 = setTimeout(() => { loopData1(); }, interval1);
@@ -10012,6 +10230,10 @@ function startPolling2() {
   if (pollingTimer2) clearTimeout(pollingTimer2);
   // ZERO polling sem autenticação, fora do expediente OU em pausa
   if (!isGateAuthenticated || isPausado || !isDentroDoHorario()) return;
+  if (window._previaCapturaEmAndamento) {
+    pollingTimer2 = setTimeout(() => { startPolling2(); }, 4000);
+    return;
+  }
   const interval2 = document.hidden ? 60000 : 8000;
   pollingTimer2 = setTimeout(() => { loopData2(); }, interval2);
 }
@@ -10022,6 +10244,10 @@ function startAdaptivePolling() {
 }
 
 async function loopData1() {
+  if (window._previaCapturaEmAndamento) {
+    startPolling1();
+    return;
+  }
   if (!isGateAuthenticated && isModoTV()) {
     await Promise.all([
       loadCurrentCalling(), loadHistory(), loadPendingVoiceCalls()
@@ -10031,18 +10257,38 @@ async function loopData1() {
   }
   if (!isGateAuthenticated) return;
   await Promise.all([
-    loadQueues(), loadCurrentCalling(), loadHistory(), loadAttended(), loadAcolhimentoFluxo(), loadNotificacoes(), loadPendingVoiceCalls()
+    loadQueues(), loadCurrentCalling(), loadHistory({ skipDerived: true }), loadAttended(), loadAcolhimentoFluxo(), loadNotificacoes(), loadPendingVoiceCalls()
   ].map(p => p.catch(() => {})));
   startPolling1();
 }
 
 async function loopData2() {
   if (!isGateAuthenticated) return;
+  if (window._previaCapturaEmAndamento) {
+    startPolling2();
+    return;
+  }
   await loadAllChannels().catch(() => {});
   startPolling2();
 }
 
-document.addEventListener('visibilitychange', startAdaptivePolling);
+let _visibilityResumeTimer = null;
+function onVisibilityChangeDebounced() {
+  if (_visibilityResumeTimer) {
+    clearTimeout(_visibilityResumeTimer);
+    _visibilityResumeTimer = null;
+  }
+  if (document.hidden) {
+    startAdaptivePolling();
+    return;
+  }
+  // Aguarda 1,2s ao voltar para a aba (ex: retorno da câmera nativa no celular) antes de retomar rajadas de polling
+  _visibilityResumeTimer = setTimeout(() => {
+    _visibilityResumeTimer = null;
+    startAdaptivePolling();
+  }, 1200);
+}
+document.addEventListener('visibilitychange', onVisibilityChangeDebounced);
 
 /* Eventos Socket.IO removidos para economia na Vercel */
 

@@ -828,6 +828,18 @@
       font-family: 'Nunito', sans-serif;
     }
     .gate-overlay.hidden { display: none; }
+    .gate-overlay.gate-checking .gate-card { opacity: 0; pointer-events: none; }
+    .gate-overlay.gate-checking::after {
+      content: '🔄 Reconectando sessão...';
+      position: fixed;
+      color: #e2e8f0;
+      font-size: 16px;
+      font-weight: 800;
+      background: rgba(15, 23, 42, 0.72);
+      padding: 12px 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
     .gate-card {
       background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
       border-radius: 24px; padding: 48px 40px; max-width: 420px; width: 90%;
@@ -3585,8 +3597,6 @@
 
       .nav-tabs {
         overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scroll-snap-type: x proximity;
         scrollbar-width: none;
         padding: 0 10px;
       }
@@ -3650,12 +3660,57 @@
       }
       .acol-modal {
         width: 96vw;
-        max-height: 92dvh;
+        max-height: 92vh;
       }
       .acol-modal-footer button { min-height: 44px; }
     }
 
     @media (max-width: 768px) {
+      .card,
+      .acol-toolbar-box,
+      .acol-stage-col,
+      .wa-modal-overlay,
+      .acol-modal-overlay,
+      .reorder-modal-overlay,
+      .previa-modal-backdrop,
+      .modal-overlay,
+      .notif-overlay,
+      .gate-card,
+      .pause-card,
+      #sound-modal,
+      #qr-modal,
+      #modal-captura-receita.previa-modal-backdrop,
+      #modal-ver-previa-receita.previa-modal-backdrop,
+      #modal-captura-receita .previa-teste-pill,
+      #modal-ver-previa-receita .previa-teste-pill,
+      #modal-captura-receita .previa-btn-close-red,
+      #modal-ver-previa-receita .previa-btn-close-red {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+      .card,
+      .acol-toolbar-box,
+      .acol-stage-col {
+        background: rgba(15, 32, 86, 0.94);
+      }
+      .gate-card {
+        background: rgba(10, 26, 78, 0.96);
+      }
+      .pause-card {
+        background: rgba(6, 26, 17, 0.96);
+      }
+      #modal-captura-receita.previa-modal-backdrop,
+      #modal-ver-previa-receita.previa-modal-backdrop {
+        background: rgba(15, 23, 42, 0.92);
+      }
+      .queue-item,
+      .acol-card,
+      .acs-patient-card,
+      .seg-patient-card,
+      .painel-fids-row,
+      .badge-pulse {
+        animation: none !important;
+      }
       .card-white input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
       .card-white select,
       .card-white textarea,
@@ -3679,7 +3734,7 @@
     }
 
     @media (max-width: 640px) {
-      html, body { overflow-x: hidden; }
+      body { overflow-x: clip; }
       .main {
         padding: 12px 10px calc(88px + env(safe-area-inset-bottom, 0px)) !important;
       }
@@ -3705,6 +3760,8 @@
         z-index: 95;
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
         padding: 0 6px !important;
+        transform: translateZ(0);
+        backface-visibility: hidden;
       }
       .nav-tab { padding: 10px 12px; font-size: 13px; }
 
@@ -3751,16 +3808,20 @@
       #modal-ver-previa-receita.previa-modal-backdrop,
       #modal-formulario-oficial.previa-modal-backdrop,
       .acol-modal-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        height: 100% !important;
+        overflow: hidden !important;
         padding: 0 !important;
       }
       #modal-captura-receita .previa-modal-card,
       #modal-ver-previa-receita .previa-modal-card.wide,
       #modal-formulario-oficial .fo-modal-card,
       .acol-modal.acol-modal-wide {
-        width: 100vw !important;
-        max-width: 100vw !important;
-        height: 100dvh !important;
-        max-height: 100dvh !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
         border-radius: 0 !important;
         border: none !important;
       }
@@ -6551,8 +6612,16 @@
             <input type="file" id="pr-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarListaImagensReceita(fl);">
             <input type="file" id="pr-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarListaImagensReceita(fl);">
             <div class="pr-capture-grid">
-              <button type="button" id="pr-btn-camera" class="pr-action-btn pr-action-btn--camera" onclick="document.getElementById('pr-file-camera').click()">📸 Tirar Foto (Câmera)</button>
-              <button type="button" class="pr-action-btn pr-action-btn--upload" onclick="document.getElementById('pr-file-upload').click()">📄 Escolher Imagem / PDF (Ctrl+V)</button>
+              <button type="button" id="pr-btn-camera" class="pr-action-btn pr-action-btn--camera" onclick="acionarCameraNativaPrevia()">📸 Tirar Foto (Câmera)</button>
+              <button type="button" class="pr-action-btn pr-action-btn--upload" onclick="acionarUploadArquivoPrevia()">📄 Escolher Imagem / PDF (Ctrl+V)</button>
+            </div>
+            <button type="button" id="pr-btn-camera-inline" class="pr-btn-inline-cam" onclick="abrirCameraInlinePrevia()" style="width:100%;margin-top:8px;padding:8px 12px;border-radius:10px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">📱 Câmera rápida no navegador (alternativa sem sair da tela)</button>
+            <div id="pr-inline-camera-box" style="display:none;margin-top:10px;background:#0f172a;border-radius:12px;padding:10px;border:1.5px solid #334155;">
+              <video id="pr-inline-video" playsinline autoplay muted style="width:100%;max-height:260px;border-radius:8px;background:#000;object-fit:contain;"></video>
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <button type="button" onclick="capturarFotoCameraInline()" style="flex:1;min-height:42px;border:none;border-radius:9px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:900;cursor:pointer;">📸 Capturar Foto</button>
+                <button type="button" onclick="fecharCameraInlinePrevia()" style="min-height:42px;padding:0 14px;border:1px solid rgba(255,255,255,0.28);border-radius:9px;background:rgba(255,255,255,0.12);color:#fff;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">✕ Fechar</button>
+              </div>
             </div>
             <div class="pr-capture-hint">💡 Cole um print ou foto diretamente com <strong>Ctrl+V</strong>.</div>
             <div class="pr-capture-formats">

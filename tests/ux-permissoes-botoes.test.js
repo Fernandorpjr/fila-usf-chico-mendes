@@ -130,7 +130,7 @@ test('Correções de falhas: Pedir Silêncio sem duplicidade, fim da repetição
   // 1. Expediente do servidor alinhado para 18h, desempate por id DESC no histórico e janela de 90s para avisos pendentes
   assert.equal(serverSrc.includes('if (hour < 6 || hour >= 18) return false;'), true);
   assert.equal(serverSrc.includes('if (hour < 6 || hour >= 20) return false;'), false);
-  assert.equal(serverSrc.includes("ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC, id DESC"), true);
+  assert.equal(serverSrc.includes("ORDER BY created_at DESC, id DESC"), true);
   assert.equal(serverSrc.includes("AND created_at >= NOW() - INTERVAL '90 seconds'"), true);
 
   // 2. Rechamar restaura status='chamado' para ausente temporário
@@ -452,7 +452,7 @@ test('Responsividade Celular e Tablet (ACS) estritamente isolada em @media <= 10
   assert.equal(respSlice.includes('min-height: 44px;'), true);
   assert.equal(respSlice.includes('font-size: 16px !important;'), true);
   assert.equal(respSlice.includes('position: sticky;'), true);
-  assert.equal(respSlice.includes('height: 100dvh !important;'), true);
+  assert.equal(respSlice.includes('height: 100% !important;'), true);
   assert.equal(respSlice.includes('env(safe-area-inset-bottom, 0px)'), true);
 
   // 4. Correção mobile/tablet em dashboard.html estritamente dentro de @media <= 900px
