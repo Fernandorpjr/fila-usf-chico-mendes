@@ -376,8 +376,21 @@ test('Layout Recepção (botão Prévia em destaque, Setor/Destino maior + cores
   assert.equal(col2Slice.includes('<span class="sq-label">Dentista</span>'), true);
   assert.equal(col2Slice.includes('<span class="sq-sub">Odontologia</span>'), true);
 
-  // 3. Modal Prévia (#modal-captura-receita) estruturado em estação de trabalho 2 colunas, seções, labels for, rodapé e botão fechar refinado
+  // 3. Modal Prévia (#modal-captura-receita) estruturado em estação de trabalho 2 colunas, Decision Hero no topo, seções, labels for, rodapé e botão fechar refinado
   const modalCapturaSlice = extractSlice(indexHtml, 'id="modal-captura-receita"', '<!-- Modal 2: Consultório');
+  assert.equal(modalCapturaSlice.includes('class="pr-decision-hero"'), true);
+  const heroIdx = modalCapturaSlice.indexOf('id="pr-sugestao-box"');
+  const gridIdx = modalCapturaSlice.indexOf('class="pr-workstation-grid"');
+  assert.ok(heroIdx > 0 && gridIdx > heroIdx, 'Decision Hero #pr-sugestao-box deve ficar no topo acima de .pr-workstation-grid');
+  assert.equal(indexHtml.includes('.pr-decision-hero'), true);
+  assert.equal(indexHtml.includes('.pr-verdict-main'), true);
+  assert.equal(indexHtml.includes('.pr-verdict-cards'), true);
+  assert.equal(indexHtml.includes('.pr-status-vencida'), true);
+  assert.equal(previaSrc.includes('pr-verdict-head'), true);
+  assert.equal(previaSrc.includes('pr-verdict-cards'), true);
+  assert.equal(previaSrc.includes('SOMENTE MÉDICO PODE FAZER'), true);
+  assert.equal(previaSrc.includes('ENFERMEIRO PODE FAZER'), true);
+  assert.equal(previaSrc.includes('DENTISTA PODE FAZER'), true);
   assert.equal(modalCapturaSlice.includes('class="pr-workstation-grid"'), true);
   assert.equal(modalCapturaSlice.includes('class="pr-left-pane"'), true);
   assert.equal(modalCapturaSlice.includes('class="pr-right-pane"'), true);

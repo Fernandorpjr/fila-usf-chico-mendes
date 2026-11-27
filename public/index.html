@@ -2612,6 +2612,127 @@
       gap: 18px;
       align-items: start;
     }
+    .pr-decision-hero {
+      display: none;
+      border-radius: 18px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      border: 2px solid #93c5fd;
+      border-left-width: 7px;
+      background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
+    }
+    .pr-decision-hero.pr-verdict-medico { border-color: #60a5fa; border-left-color: #1d4ed8; background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%); }
+    .pr-decision-hero.pr-verdict-enfermagem { border-color: #34d399; border-left-color: #059669; background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%); }
+    .pr-decision-hero.pr-verdict-odonto { border-color: #f472b6; border-left-color: #db2777; background: linear-gradient(135deg, #ffffff 0%, #fdf2f8 100%); }
+    .pr-decision-hero.pr-verdict-sisreg { border-color: #818cf8; border-left-color: #4338ca; background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%); }
+    .pr-decision-hero.is-vencida { border-color: #f87171; border-left-color: #dc2626; box-shadow: 0 10px 28px rgba(220, 38, 38, 0.16); }
+    .pr-decision-hero.is-urgente { border-color: #fbbf24; border-left-color: #d97706; }
+    .pr-verdict-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+      border-bottom: 1.5px solid rgba(148, 163, 184, 0.25);
+    }
+    .pr-verdict-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pr-verdict-kicker {
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      background: #0f172a;
+      color: #ffffff;
+    }
+    .pr-verdict-main {
+      font-family: 'Nunito', sans-serif;
+      font-size: clamp(18px, 2vw, 22px);
+      font-weight: 900;
+      line-height: 1.2;
+      padding: 6px 14px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pr-verdict-main--medico { background: #1d4ed8; color: #ffffff; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.28); }
+    .pr-verdict-main--enfermagem { background: #059669; color: #ffffff; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.28); }
+    .pr-verdict-main--odonto { background: #db2777; color: #ffffff; box-shadow: 0 4px 12px rgba(219, 39, 119, 0.28); }
+    .pr-verdict-main--sisreg { background: #4338ca; color: #ffffff; box-shadow: 0 4px 12px rgba(67, 56, 202, 0.28); }
+    .pr-verdict-status-pill {
+      font-family: 'Nunito', sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      padding: 8px 16px;
+      border-radius: 999px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pr-status-vencida { background: #dc2626; color: #ffffff; box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35); }
+    .pr-status-urgente { background: #f59e0b; color: #1e293b; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.32); }
+    .pr-status-normal { background: #16a34a; color: #ffffff; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28); }
+    .pr-status-info { background: #e2e8f0; color: #1e293b; }
+    .pr-verdict-cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .pr-verdict-card {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 13px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .pr-verdict-card--danger { background: #fef2f2; border-color: #fca5a5; }
+    .pr-verdict-card--warn { background: #fffbeb; border-color: #fcd34d; }
+    .pr-verdict-card--ok { background: #f0fdf4; border-color: #86efac; }
+    .pr-verdict-card--info { background: #f8fafc; border-color: #cbd5e1; }
+    .pr-vc-label {
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.45px;
+      color: #475569;
+    }
+    .pr-vc-value {
+      font-family: 'Nunito', sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      color: #0f172a;
+      line-height: 1.35;
+      font-variant-numeric: tabular-nums;
+    }
+    .pr-vc-sub {
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      line-height: 1.4;
+    }
+    .pr-vc-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 900;
+      width: fit-content;
+    }
     .pr-left-pane,
     .pr-right-pane {
       display: flex;
@@ -2809,7 +2930,7 @@
     }
     .pr-footer-btn--teal:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(5, 150, 105, 0.38); }
     @media (max-width: 900px) {
-      .pr-workstation-grid { grid-template-columns: 1fr; }
+      .pr-workstation-grid, .pr-verdict-cards { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
       .pr-form-grid-2 { grid-template-columns: 1fr; }
@@ -5879,6 +6000,9 @@
       <button type="button" class="previa-btn-close-red" onclick="fecharModalCapturaReceita()" title="Fechar esta tela (não use o botão Voltar do navegador)" aria-label="Fechar prévia de documentos">✕ Fechar</button>
     </div>
     <div class="previa-modal-body">
+      <div id="pr-ocr-status" style="display:none;"></div>
+      <div id="pr-sugestao-box" class="pr-decision-hero" role="region" aria-live="polite" aria-label="Resultado do escaneamento"></div>
+
       <div class="pr-workstation-grid">
         <div class="pr-left-pane">
           <div class="pr-capture-zone">
@@ -5901,8 +6025,6 @@
             </div>
           </div>
 
-          <div id="pr-ocr-status" style="display:none;"></div>
-
           <div id="pr-galeria-wrap" style="display:none;background:#ffffff;border:1px solid #cbd5e1;border-radius:14px;padding:13px;box-shadow:0 2px 8px rgba(15,23,42,0.04);">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
               <span id="pr-galeria-count" style="font-size:12.5px;font-weight:900;color:#0f172a;">📎 0 / 6 arquivos anexados</span>
@@ -5910,8 +6032,6 @@
             </div>
             <div id="pr-galeria-grid" class="pr-galeria-grid"></div>
           </div>
-
-          <div id="pr-sugestao-box" style="display:none;padding:11px 14px;border-radius:14px;background:#eef2ff;border:1.5px solid #a5b4fc;color:#1e3a8a;font-size:12.5px;font-weight:700;line-height:1.45;"></div>
         </div>
 
         <div class="pr-right-pane">
@@ -6438,7 +6558,7 @@
 <script src="exames-tubos.js?v=1.0"></script>
 <script src="historico.js?v=5.2"></script>
 <script src="dispositivos.js?v=5.4"></script>
-<script src="receitas-previa.js?v=2.3"></script>
+<script src="receitas-previa.js?v=2.4"></script>
 <script src="formularios-pec.js?v=2.2"></script>
 <script src="regulacao-sisreg.js?v=2.4"></script>
 <script src="app.js?v=8.9"></script>

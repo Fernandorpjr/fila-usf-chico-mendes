@@ -758,53 +758,131 @@ function atualizarSugestaoReceitaLocal(clfServer) {
   if (!box) return;
   const tipo = document.getElementById('pr-tipo')?.value || 'branca';
   const ehSisreg = tipo === 'sisreg' || clfServer?.categoria_destino === 'sisreg' || _previaDadosExtrasAtual?.destino_ia === 'sisreg';
+
   if (ehSisreg) {
-    const esp = _previaDadosExtrasAtual?.especialidade ? ` · Pedido: <b>${escSafe(_previaDadosExtrasAtual.especialidade)}</b>` : '';
-    const tel = _previaDadosExtrasAtual?.paciente_telefone ? ` · Tel: <b>${escSafe(_previaDadosExtrasAtual.paciente_telefone)}</b>` : '';
-    box.innerHTML = `<strong>📋 Documento do SISREG</strong>${esp}${tel} · Setor sugerido: <b>Regulação</b>`;
+    const esp = _previaDadosExtrasAtual?.especialidade ? escSafe(_previaDadosExtrasAtual.especialidade) : 'Não informada no documento';
+    const tel = _previaDadosExtrasAtual?.paciente_telefone ? escSafe(_previaDadosExtrasAtual.paciente_telefone) : 'Não identificado';
+    box.className = 'pr-decision-hero pr-verdict-sisreg';
+    box.innerHTML = `
+      <div class="pr-verdict-head">
+        <div class="pr-verdict-title-wrap">
+          <span class="pr-verdict-kicker">📋 SISREG</span>
+          <span class="pr-verdict-main pr-verdict-main--sisreg">📋 ENCAMINHAR PARA REGULAÇÃO (SISREG)</span>
+        </div>
+        <span class="pr-verdict-status-pill pr-status-info">🎯 Setor: Regulação</span>
+      </div>
+      <div class="pr-verdict-cards">
+        <div class="pr-verdict-card pr-verdict-card--info">
+          <div class="pr-vc-label">📌 Pedido / Especialidade</div>
+          <div class="pr-vc-value">${esp}</div>
+        </div>
+        <div class="pr-verdict-card pr-verdict-card--info">
+          <div class="pr-vc-label">📞 Telefone Extraído</div>
+          <div class="pr-vc-value">${tel}</div>
+        </div>
+        <div class="pr-verdict-card pr-verdict-card--ok">
+          <div class="pr-vc-label">➡️ Encaminhamento</div>
+          <div class="pr-vc-value" style="color:#065f46;">Regulação</div>
+          <div class="pr-vc-sub">Use “Anexar + Usar Setor Sugerido” abaixo.</div>
+        </div>
+      </div>`;
     box.dataset.filaSugerida = 'Regulação';
     box.style.display = 'block';
+    if (clfServer) {
+      const bodyEl = document.querySelector('#modal-captura-receita .previa-modal-body');
+      if (bodyEl) bodyEl.scrollTop = 0;
+    }
     return;
   }
+
   let filaSug = clfServer?.fila_destino || (tipo === 'azul' ? 'Médico' : tipo === 'odonto' ? 'Odontologia' : 'Médico');
   const validadeTxt = clfServer?.regra_validade || (tipo === 'azul' ? '2 meses (Azul)' : '6 meses');
-  const profBadge = filaSug === 'Enfermagem'
-    ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:900;">🟢 ENFERMEIRO PODE FAZER (Enfermagem)</span>'
+  const tipoRotulo = tipo === 'azul' ? '💊 RECEITA AZUL' : tipo === 'odonto' ? '🦷 RECEITA ODONTO' : '💊 RECEITA';
+
+  const heroTema = filaSug === 'Enfermagem'
+    ? 'pr-verdict-enfermagem'
     : filaSug === 'Odontologia'
-      ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:900;">🦷 DENTISTA PODE FAZER (Odontologia)</span>'
-      : '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#dbeafe;color:#1e40af;font-weight:900;">🔵 SOMENTE MÉDICO PODE FAZER</span>';
-  const motivoHtml = clfServer?.motivo_profissional
-    ? `<div style="margin-top:4px;font-size:12px;color:#334155;">${escSafe(clfServer.motivo_profissional)}</div>`
+      ? 'pr-verdict-odonto'
+      : 'pr-verdict-medico';
+  const urgClass = (clfServer && clfServer.data_vencimento)
+    ? (clfServer.urgencia === 'vencida' ? 'is-vencida' : clfServer.urgencia === 'urgente' ? 'is-urgente' : '')
     : '';
-  const perfil = clfServer?.perfil_clinico;
-  const perfilMeds = Array.isArray(perfil?.medicamentos_base) && perfil.medicamentos_base.length > 0
-    ? ` <span style="font-weight:600;">(${escSafe(perfil.medicamentos_base.join(', '))})</span>`
-    : '';
-  const perfilHtml = perfil?.label
-    ? `<div style="margin-top:4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${perfil.hiperdia ? '#fef3c7' : '#f3e8ff'};color:${perfil.hiperdia ? '#92400e' : '#6b21a8'};font-size:12px;font-weight:900;">Perfil: ${escSafe(perfil.label)}</span>${perfilMeds}</div>`
-    : '';
-  const saldo = clfServer?.saldo_comprimidos;
-  const saldoHtml = saldo?.resumo
-    ? `<div style="margin-top:4px;font-size:12px;font-weight:800;color:${saldo.ainda_tem ? '#166534' : '#b91c1c'};">Comprimidos: ${escSafe(saldo.resumo)}</div>`
-    : '';
+  box.className = ['pr-decision-hero', heroTema, urgClass].filter(Boolean).join(' ');
+
+  const profVerdict = filaSug === 'Enfermagem'
+    ? '<span class="pr-verdict-main pr-verdict-main--enfermagem">🟢 ENFERMEIRO PODE FAZER (Enfermagem)</span>'
+    : filaSug === 'Odontologia'
+      ? '<span class="pr-verdict-main pr-verdict-main--odonto">🦷 DENTISTA PODE FAZER (Odontologia)</span>'
+      : '<span class="pr-verdict-main pr-verdict-main--medico">🔵 SOMENTE MÉDICO PODE FAZER</span>';
+
+  let statusPill = `<span class="pr-verdict-status-pill pr-status-info">🎯 Setor: ${escSafe(filaSug)}</span>`;
+  let validadeCardCls = 'pr-verdict-card--info';
+  let vencimentoHtml = `<div class="pr-vc-value">Setor sugerido: ${escSafe(filaSug)}</div><div class="pr-vc-sub">Validade padrão: ${escSafe(validadeTxt)}</div>`;
 
   if (clfServer && clfServer.data_vencimento) {
     const urgMap = {
-      vencida: '🔴 Vencida',
-      urgente: `🟠 Vence em ${clfServer.dias_restantes}d`,
-      normal: `🟢 Válida (${clfServer.dias_restantes}d)`
+      vencida: { cls: 'pr-status-vencida', cardCls: 'pr-verdict-card--danger', txt: '🔴 Receita Vencida', color: '#991b1b' },
+      urgente: { cls: 'pr-status-urgente', cardCls: 'pr-verdict-card--warn', txt: `🟠 Vence em ${clfServer.dias_restantes}d`, color: '#92400e' },
+      normal: { cls: 'pr-status-normal', cardCls: 'pr-verdict-card--ok', txt: `🟢 Válida (${clfServer.dias_restantes}d)`, color: '#166534' }
     };
-    const badgeUrg = urgMap[clfServer.urgencia] || '';
-    box.innerHTML = `<div><strong>💊 Receita</strong> · ${profBadge}</div>${perfilHtml}${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Vencimento: <b>${escSafe(clfServer.data_vencimento)}</b> ${badgeUrg}</div>${saldoHtml}`;
-    box.dataset.filaSugerida = filaSug;
+    const u = urgMap[clfServer.urgencia] || { cls: 'pr-status-info', cardCls: 'pr-verdict-card--info', txt: '', color: '#0f172a' };
+    statusPill = u.txt
+      ? `<span class="pr-verdict-status-pill ${u.cls}">${escSafe(u.txt)}</span>`
+      : `<span class="pr-verdict-status-pill pr-status-info">🎯 Setor: ${escSafe(filaSug)}</span>`;
+    validadeCardCls = u.cardCls;
+    vencimentoHtml = `<div class="pr-vc-value" style="font-size:17px;color:${u.color};">Vencimento: ${escSafe(clfServer.data_vencimento)}</div><div class="pr-vc-sub">Validade: ${escSafe(validadeTxt)}</div>`;
     box.dataset.dataVenc = clfServer.data_vencimento;
     box.dataset.diasRest = clfServer.dias_restantes ?? '';
     box.dataset.urgencia = clfServer.urgencia || 'normal';
-    box.style.display = 'block';
-  } else {
-    box.innerHTML = `<div><strong>💊 Receita ${tipo === 'azul' ? 'Azul (Controle Especial)' : tipo === 'odonto' ? 'Odontológica' : 'Branca (PEC)'}</strong> · ${profBadge}</div>${perfilHtml}${motivoHtml}<div style="margin-top:4px;font-size:12px;">Validade: ${validadeTxt} · Setor sugerido: <b>${escSafe(filaSug)}</b></div>${saldoHtml}`;
-    box.dataset.filaSugerida = filaSug;
-    box.style.display = 'block';
+  }
+
+  const perfil = clfServer?.perfil_clinico;
+  const perfilMeds = Array.isArray(perfil?.medicamentos_base) && perfil.medicamentos_base.length > 0
+    ? ` (${escSafe(perfil.medicamentos_base.join(', '))})`
+    : '';
+  const perfilHtml = perfil?.label
+    ? `<div><span class="pr-vc-pill" style="background:${perfil.hiperdia ? '#fef3c7' : '#f3e8ff'};color:${perfil.hiperdia ? '#92400e' : '#6b21a8'};border:1px solid ${perfil.hiperdia ? '#fcd34d' : '#d8b4fe'};">Perfil: ${escSafe(perfil.label)}</span>${perfilMeds ? `<span class="pr-vc-sub" style="display:inline-block;margin-top:4px;">${perfilMeds}</span>` : ''}</div>`
+    : '';
+  const motivoHtml = clfServer?.motivo_profissional
+    ? `<div class="pr-vc-value" style="font-size:14px;">${escSafe(clfServer.motivo_profissional)}</div>`
+    : (!perfil?.label ? `<div class="pr-vc-sub">Classificação aplicada pelo tipo de documento (${escSafe(filaSug)}).</div>` : '');
+
+  const saldo = clfServer?.saldo_comprimidos;
+  const saldoCardCls = saldo?.resumo
+    ? (saldo.ainda_tem ? 'pr-verdict-card--ok' : 'pr-verdict-card--danger')
+    : 'pr-verdict-card--info';
+  const saldoHtml = saldo?.resumo
+    ? `<div class="pr-vc-label">💊 Saldo de Comprimidos</div><div class="pr-vc-value" style="color:${saldo.ainda_tem ? '#166534' : '#991b1b'};">${escSafe(saldo.resumo)}</div>`
+    : `<div class="pr-vc-label">🎯 Direcionamento</div><div class="pr-vc-value">${escSafe(filaSug)}</div><div class="pr-vc-sub">Confira a data de emissão ao lado para cálculo exato de validade e saldo.</div>`;
+
+  box.innerHTML = `
+    <div class="pr-verdict-head">
+      <div class="pr-verdict-title-wrap">
+        <span class="pr-verdict-kicker">${tipoRotulo}</span>
+        ${profVerdict}
+      </div>
+      ${statusPill}
+    </div>
+    <div class="pr-verdict-cards">
+      <div class="pr-verdict-card">
+        <div class="pr-vc-label">🩺 Perfil &amp; Regra Clínica</div>
+        ${perfilHtml}
+        ${motivoHtml}
+      </div>
+      <div class="pr-verdict-card ${validadeCardCls}">
+        <div class="pr-vc-label">📅 Validade &amp; Vencimento</div>
+        ${vencimentoHtml}
+      </div>
+      <div class="pr-verdict-card ${saldoCardCls}">
+        ${saldoHtml}
+      </div>
+    </div>`;
+
+  box.dataset.filaSugerida = filaSug;
+  box.style.display = 'block';
+  if (clfServer) {
+    const bodyEl = document.querySelector('#modal-captura-receita .previa-modal-body');
+    if (bodyEl) bodyEl.scrollTop = 0;
   }
 }
 
