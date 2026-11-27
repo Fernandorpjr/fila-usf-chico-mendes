@@ -4671,7 +4671,8 @@ app.delete('/api/vagas-medicos/:id', async (req, res) => {
 const AVISOS_INSTITUCIONAIS_TOKENS = [
   '__AVISO_SILENCIO__',
   '__AVISO_DOCUMENTOS__',
-  '__AVISO_AGUARDE_PAINEL__'
+  '__AVISO_AGUARDE_PAINEL__',
+  '__AVISO_LEI_PRIORIDADE__'
 ];
 
 // POST /api/voice-call — Registrar chamada de voz pendente

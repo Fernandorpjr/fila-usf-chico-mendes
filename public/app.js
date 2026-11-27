@@ -1248,6 +1248,12 @@ function updateAdminUI() {
   document.querySelectorAll('.manager-or-admin-tab').forEach(t => {
     t.style.display = isManagerOrAdmin() ? 'inline-flex' : 'none';
   });
+  const activeScreenId = document.querySelector('.screen.active')?.id || '';
+  if (!isAdmin && activeScreenId === 'screen-dispositivos' && typeof showScreen === 'function') {
+    showScreen('recepcao');
+  } else if (!isManagerOrAdmin() && (activeScreenId === 'screen-atendidos' || activeScreenId === 'screen-admin_relatorios') && typeof showScreen === 'function') {
+    showScreen('recepcao');
+  }
   if (typeof updateAll === 'function') updateAll();
   if (typeof renderAcolhimentoFluxo === 'function') renderAcolhimentoFluxo();
   if (typeof renderAcsEscutaScreen === 'function') renderAcsEscutaScreen();
@@ -1774,6 +1780,14 @@ function initSortable(containerId, setor) {
 
 // ====== SCREEN NAV ======
 function showScreen(name) {
+  if ((name === 'atendidos' || name === 'admin_relatorios') && !isManagerOrAdmin()) {
+    showToast('🔒 Aba restrita ao Gerente ou Administrador.', true);
+    return;
+  }
+  if (name === 'dispositivos' && !isAdmin) {
+    showToast('🔒 Aba restrita ao Administrador.', true);
+    return;
+  }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   const screenEl = document.getElementById('screen-' + name);
@@ -3073,6 +3087,7 @@ function speakViaSynthesis(nome, setor, medico) {
 const AVISO_SILENCIO_TOKEN = '__AVISO_SILENCIO__';
 const AVISO_DOCUMENTOS_TOKEN = '__AVISO_DOCUMENTOS__';
 const AVISO_PAINEL_TOKEN = '__AVISO_AGUARDE_PAINEL__';
+const AVISO_PRIORIDADE_TOKEN = '__AVISO_LEI_PRIORIDADE__';
 const AVISOS_INSTITUCIONAIS_CONFIG = {
   [AVISO_SILENCIO_TOKEN]: {
     token: AVISO_SILENCIO_TOKEN,
@@ -3097,6 +3112,14 @@ const AVISOS_INSTITUCIONAIS_CONFIG = {
     chime: 'silence',
     vozTexto: 'Atenção, senhores usuários e pacientes. Aguardem o chamamento acompanhando seu nome no painel. As chamadas seguem a ordem de prioridade prevista em lei e os horários marcados.',
     toastEnviado: '⏳ Aviso sobre fila e painel enviado para a TV!'
+  },
+  [AVISO_PRIORIDADE_TOKEN]: {
+    token: AVISO_PRIORIDADE_TOKEN,
+    bannerTexto: '⚖️ Lei de Prioridade (Lei nº 10.048/2000): 1º Idosos 80+, seguidos por PCD, TEA, Gestantes, Lactantes, Criança de Colo, Mobilidade Reduzida, Obesidade e Idosos 60+. Consultas agendadas seguem a ordem do horário marcado e prioridade legal.',
+    bannerClasse: 'tv-silencio-banner--prioridade',
+    chime: 'silence',
+    vozTexto: 'Atenção, senhores usuários e pacientes. Informamos que o atendimento na U S F Chico Mendes segue a Lei de Prioridade número 10.048 de 2000. Têm prioridade especial os idosos com 80 anos ou mais, seguidos por pessoas com deficiência, pessoas com autismo, gestantes, lactantes, acompanhantes de criança de colo, pessoas com mobilidade reduzida, pessoas com obesidade e demais idosos a partir de 60 anos. Informamos também que os atendimentos agendados seguem a sequência do horário marcado, respeitando sempre a prioridade prevista em lei. Agradecemos a compreensão e colaboração de todos.',
+    toastEnviado: '⚖️ Aviso sobre Lei de Prioridade e Horário Marcado enviado para a TV!'
   }
 };
 let _silencioBannerTimer = null;
@@ -3140,7 +3163,7 @@ function mostrarBannerSilencioTV(token = AVISO_SILENCIO_TOKEN) {
   const banner = document.getElementById('tv-silencio-banner');
   if (!banner) return;
   const cfg = resolverConfigAvisoInstitucional(token);
-  banner.classList.remove('tv-silencio-banner--documentos', 'tv-silencio-banner--painel');
+  banner.classList.remove('tv-silencio-banner--documentos', 'tv-silencio-banner--painel', 'tv-silencio-banner--prioridade');
   if (cfg.bannerClasse) banner.classList.add(cfg.bannerClasse);
   const span = banner.querySelector('span');
   if (span) span.textContent = cfg.bannerTexto;
@@ -3149,7 +3172,7 @@ function mostrarBannerSilencioTV(token = AVISO_SILENCIO_TOKEN) {
   if (_silencioBannerTimer) clearTimeout(_silencioBannerTimer);
   _silencioBannerTimer = setTimeout(() => {
     banner.classList.remove('visible');
-  }, 15000);
+  }, cfg.token === AVISO_PRIORIDADE_TOKEN ? 22000 : 15000);
 }
 
 function executarAvisoInstitucionalLocal(token = AVISO_SILENCIO_TOKEN) {
@@ -3282,6 +3305,10 @@ function solicitarAvisoDocumentosSalaEspera(btnElement) {
 
 function solicitarAvisoPainelSalaEspera(btnElement) {
   return solicitarSilencioSalaEspera(btnElement, AVISO_PAINEL_TOKEN);
+}
+
+function solicitarAvisoPrioridadeSalaEspera(btnElement) {
+  return solicitarSilencioSalaEspera(btnElement, AVISO_PRIORIDADE_TOKEN);
 }
 
 function speakPatientName(btnElement) {

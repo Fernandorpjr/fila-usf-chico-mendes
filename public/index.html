@@ -111,9 +111,9 @@
     align-items: center;
     justify-content: flex-start;
     flex-wrap: wrap;
-    gap: 8px 12px;
-    padding: 9px 20px;
-    background: rgba(6, 17, 44, 0.72);
+    gap: 8px 10px;
+    padding: 10px 20px;
+    background: rgba(6, 17, 44, 0.78);
     border-top: 1px solid rgba(255, 255, 255, 0.14);
     width: 100%;
   }
@@ -147,12 +147,12 @@
   .admin-cat-pod {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     flex-wrap: wrap;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 11px;
-    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 12px;
+    padding: 5px 10px;
   }
   .admin-cat-pod--system { margin-left: auto; border-color: rgba(248, 113, 113, 0.28); background: rgba(127, 29, 29, 0.18); }
   .admin-cat-title {
@@ -160,10 +160,24 @@
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.7px;
-    color: rgba(219, 234, 254, 0.82);
+    color: rgba(219, 234, 254, 0.86);
     padding-right: 7px;
-    border-right: 1px solid rgba(255, 255, 255, 0.16);
+    border-right: 1px solid rgba(255, 255, 255, 0.18);
     white-space: nowrap;
+  }
+  .admin-tb-divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.22);
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+  .admin-toolbar .btn-palestra {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'Nunito', sans-serif;
   }
   .admin-tb-btn {
     min-height: 34px;
@@ -193,6 +207,8 @@
   .admin-tb-btn--warn:hover:not(:disabled) { background: rgba(245, 158, 11, 0.36); border-color: #fbbf24; color: #fff; }
   .admin-tb-btn--blue { background: rgba(37, 99, 235, 0.26); border-color: rgba(96, 165, 250, 0.55); color: #dbeafe; }
   .admin-tb-btn--blue:hover:not(:disabled) { background: rgba(37, 99, 235, 0.45); border-color: #93c5fd; color: #fff; }
+  .admin-tb-btn--purple { background: rgba(139, 92, 246, 0.28); border-color: rgba(196, 181, 253, 0.62); color: #ede9fe; }
+  .admin-tb-btn--purple:hover:not(:disabled) { background: rgba(139, 92, 246, 0.48); border-color: #ddd6fe; color: #fff; }
   .admin-tb-btn--danger { background: rgba(220, 38, 38, 0.22); border-color: rgba(248, 113, 113, 0.52); color: #fecaca; }
   .admin-tb-btn--danger:hover:not(:disabled) { background: rgba(220, 38, 38, 0.42); border-color: #fca5a5; color: #fff; }
 
@@ -548,6 +564,7 @@
   .tv-silencio-banner { display: none; align-items: center; justify-content: center; gap: 14px; padding: 14px 22px; margin-bottom: 14px; border-radius: 14px; background: linear-gradient(135deg, #b45309, #d97706); border: 2.5px solid #fde047; color: #fff; font-size: clamp(18px, 2vw, 26px); font-weight: 900; text-align: center; box-shadow: 0 8px 26px rgba(217, 119, 6, 0.45); animation: fadeIn 0.25s ease-out; }
   .tv-silencio-banner--documentos { background: linear-gradient(135deg, #1d4ed8, #1e40af); border-color: #93c5fd; box-shadow: 0 8px 26px rgba(37, 99, 235, 0.45); }
   .tv-silencio-banner--painel { background: linear-gradient(135deg, #0f766e, #0d9488); border-color: #5eead4; box-shadow: 0 8px 26px rgba(13, 148, 136, 0.45); }
+  .tv-silencio-banner--prioridade { background: linear-gradient(135deg, #5b21b6, #7c3aed); border-color: #ddd6fe; box-shadow: 0 8px 26px rgba(124, 58, 237, 0.48); font-size: clamp(15px, 1.5vw, 21px); }
   .tv-silencio-banner.visible { display: flex; }
   .painel-ticker-msg { font-size: 13px; font-weight: 700; color: #cbd5e1; }
   .painel-controls-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -3949,6 +3966,8 @@
       <button type="button" id="btn-pedir-silencio-admin" class="admin-tb-btn admin-tb-btn--amber manager-or-admin-tab" style="display:none;" onclick="solicitarSilencioSalaEspera(this)" title="Emitir aviso sonoro e banner na TV pedindo silêncio na sala de espera (Gerente/Admin)">🤫 Pedir Silêncio</button>
       <button type="button" id="btn-aviso-documentos-admin" class="admin-tb-btn admin-tb-btn--blue manager-or-admin-tab" style="display:none;" onclick="solicitarAvisoDocumentosSalaEspera(this)" title="Emitir aviso na TV pedindo documento com foto, CPF ou Cartão SUS em mãos (Gerente/Admin)">🪪 Pedir Documentos</button>
       <button type="button" id="btn-aviso-painel-admin" class="admin-tb-btn admin-tb-btn--teal manager-or-admin-tab" style="display:none;" onclick="solicitarAvisoPainelSalaEspera(this)" title="Emitir aviso na TV orientando aguardar chamada pela ordem de prioridade legal e horário marcado (Gerente/Admin)">⏳ Aviso Fila / Painel</button>
+      <button type="button" id="btn-aviso-prioridade-admin" class="admin-tb-btn admin-tb-btn--purple manager-or-admin-tab" style="display:none;" onclick="solicitarAvisoPrioridadeSalaEspera(this)" title="Emitir aviso na TV explicando a Lei de Prioridade (Lei 10.048/2000), sequência 80+ ao 60+ e ordem por horário marcado (Gerente/Admin)">⚖️ Lei de Prioridade &amp; Horário</button>
+      <span class="admin-tb-divider admin-strict-only" aria-hidden="true"></span>
       <!-- === MELHORIA F: BOTÃO PAUSA PALESTRA === -->
       <button id="btn-palestra" class="btn-palestra admin-strict-only" onclick="togglePausaPalestra()" title="Pausar atendimento em todos os computadores e TVs (Somente Admin)">🎙️ Pausar</button>
       <!-- === FIM MELHORIA F === -->
@@ -3980,6 +3999,7 @@
         <option value="atencao">📢 Atenção, Nome (Direto)</option>
         <option value="atencao_setor">📢 Atenção + Paciente/Usuário</option>
       </select>
+      <button type="button" class="admin-tb-btn admin-tb-btn--teal" onclick="testarVozSistema()" title="Testar voz e jingle configurados neste aparelho">🔊 Testar Voz</button>
     </div>
 
     <div class="admin-cat-pod">
@@ -4024,7 +4044,7 @@
   <button class="nav-tab admin-only-tab" onclick="showScreen('dispositivos')" id="tab-dispositivos" style="display:none;">💻 Dispositivos</button>
   <button class="nav-tab manager-or-admin-tab" onclick="showScreen('admin_relatorios')" id="tab-admin_relatorios" style="display:none;">📡 Prioridade &amp; alumIA</button>
   <button class="nav-tab" onclick="showScreen('painel')" id="tab-painel">📺 Painel TV</button>
-  <button class="nav-tab" onclick="showScreen('atendidos')" id="tab-atendidos">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
+  <button class="nav-tab manager-or-admin-tab" onclick="showScreen('atendidos')" id="tab-atendidos" style="display:none;">✅ Atendidos <span class="tab-badge green" id="attended-count">0</span></button>
 </nav>
 
 <main class="main" id="main-content">
@@ -4916,6 +4936,7 @@
           <button type="button" id="btn-pedir-silencio-painel" class="btn-3d manager-or-admin-tab" onclick="solicitarSilencioSalaEspera(this)" style="display:none;background:rgba(217,119,6,0.3);color:#fef3c7;border:1.5px solid rgba(251,191,36,0.65);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;align-items:center;gap:6px;" title="Tocar aviso pedindo silêncio na sala de espera (Exclusivo Gerente/Admin)">🤫 Pedir Silêncio</button>
           <button type="button" id="btn-aviso-documentos-painel" class="btn-3d manager-or-admin-tab" onclick="solicitarAvisoDocumentosSalaEspera(this)" style="display:none;background:rgba(37,99,235,0.32);color:#dbeafe;border:1.5px solid rgba(96,165,250,0.65);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;align-items:center;gap:6px;" title="Tocar aviso pedindo documentos, CPF ou Cartão SUS em mãos (Exclusivo Gerente/Admin)">🪪 Documentos</button>
           <button type="button" id="btn-aviso-painel-painel" class="btn-3d manager-or-admin-tab" onclick="solicitarAvisoPainelSalaEspera(this)" style="display:none;background:rgba(13,148,136,0.32);color:#ccfbf1;border:1.5px solid rgba(45,212,191,0.65);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;align-items:center;gap:6px;" title="Tocar aviso orientando aguardar chamada no painel e ordem de prioridade (Exclusivo Gerente/Admin)">⏳ Aviso Fila</button>
+          <button type="button" id="btn-aviso-prioridade-painel" class="btn-3d manager-or-admin-tab" onclick="solicitarAvisoPrioridadeSalaEspera(this)" style="display:none;background:rgba(124,58,237,0.34);color:#ede9fe;border:1.5px solid rgba(196,181,253,0.68);border-radius:10px;padding:10px 15px;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:800;cursor:pointer;align-items:center;gap:6px;" title="Tocar aviso explicando a Lei de Prioridade (Lei 10.048/2000) e sequência de horário marcado (Exclusivo Gerente/Admin)">⚖️ Prioridade &amp; Horário</button>
           <div class="admin-only" style="align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:6px 10px;">
             <select id="select-voz-painel" onchange="alterarVozPreferida(this.value, true)" style="background:rgba(15,23,42,0.9);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:6px 10px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;">
               <option value="feminina_br">🇧🇷👩 Francisca (Feminina Padrão)</option>

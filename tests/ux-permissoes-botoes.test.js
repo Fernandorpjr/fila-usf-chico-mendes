@@ -513,3 +513,30 @@ test('Resumo do Dia público, Metas Editáveis (Admin), Agendados/Histórico Pro
   assert.equal(dashHtml.includes('function getChartImageFit('), true);
   assert.equal(dashHtml.includes('transition:all'), false);
 });
+
+test('Aba Atendidos restrita a Gerente/Admin, barra Admin organizada e Aviso Lei de Prioridade & Horário Marcado', () => {
+  const dashHtml = fs.readFileSync(path.join(ROOT, 'public', 'dashboard.html'), 'utf8');
+
+  // 1. #tab-atendidos restrita a Gerente e Admin na barra e nos guardas JS
+  assert.equal(indexHtml.includes('<button class="nav-tab manager-or-admin-tab" onclick="showScreen(\'atendidos\')" id="tab-atendidos" style="display:none;">'), true);
+  const showScreenFn = extractSlice(appSrc, 'function showScreen(name)', 'function alternarSubAbaAgendamento(');
+  assert.equal(showScreenFn.includes("name === 'atendidos'"), true);
+  assert.equal(showScreenFn.includes('!isManagerOrAdmin()'), true);
+  const updateUiFn = extractSlice(appSrc, 'function updateAdminUI()', 'const AdminGuard');
+  assert.equal(updateUiFn.includes("activeScreenId === 'screen-atendidos'"), true);
+
+  // 2. Barra Admin organizada e novo botão em Operação & Sala + espelhos no Painel TV e Dashboard
+  const toolbarSlice = extractSlice(indexHtml, '<div class="admin-toolbar" id="admin-toolbar">', '</header>');
+  assert.equal(toolbarSlice.includes('id="btn-aviso-prioridade-admin"'), true);
+  assert.equal(toolbarSlice.includes('admin-tb-btn--purple'), true);
+  assert.equal(toolbarSlice.includes('admin-tb-divider'), true);
+  assert.equal(toolbarSlice.includes('testarVozSistema()'), true);
+  assert.equal(indexHtml.includes('id="btn-aviso-prioridade-painel"'), true);
+
+  // 3. Backend e Frontend configuram __AVISO_LEI_PRIORIDADE__
+  assert.equal(serverSrc.includes("'__AVISO_LEI_PRIORIDADE__'"), true);
+  assert.equal(appSrc.includes("const AVISO_PRIORIDADE_TOKEN = '__AVISO_LEI_PRIORIDADE__';"), true);
+  assert.equal(appSrc.includes('function solicitarAvisoPrioridadeSalaEspera('), true);
+  assert.equal(appSrc.includes('Lei de Prioridade número 10.048 de 2000'), true);
+  assert.equal(dashHtml.includes("'__AVISO_LEI_PRIORIDADE__'"), true);
+});

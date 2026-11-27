@@ -248,6 +248,7 @@
       <button type="button" class="btn-hdr" style="background:rgba(217,119,6,0.32);border-color:rgba(251,191,36,0.55);color:#fef3c7;" onclick="emitirAvisoTvDashboard('__AVISO_SILENCIO__', this)">🤫 Silêncio TV</button>
       <button type="button" class="btn-hdr" style="background:rgba(37,99,235,0.32);border-color:rgba(96,165,250,0.55);color:#dbeafe;" onclick="emitirAvisoTvDashboard('__AVISO_DOCUMENTOS__', this)">🪪 Documentos</button>
       <button type="button" class="btn-hdr" style="background:rgba(13,148,136,0.32);border-color:rgba(45,212,191,0.55);color:#ccfbf1;" onclick="emitirAvisoTvDashboard('__AVISO_AGUARDE_PAINEL__', this)">⏳ Aviso Fila</button>
+      <button type="button" class="btn-hdr" style="background:rgba(124,58,237,0.34);border-color:rgba(196,181,253,0.62);color:#ede9fe;" onclick="emitirAvisoTvDashboard('__AVISO_LEI_PRIORIDADE__', this)">⚖️ Prioridade</button>
     </div>
     <button class="btn-hdr" onclick="manualRefreshDash()" title="Atualizar todos os dados agora">🔄 Atualizar</button>
     <button class="btn-hdr" id="btnToggleAuto" onclick="toggleAutoRefresh()">⏸️ Pausar Auto</button>
@@ -1014,7 +1015,8 @@ async function emitirAvisoTvDashboard(token, btn) {
     const labels = {
       '__AVISO_SILENCIO__': '🤫 Pedido de silêncio enviado para todas as TVs!',
       '__AVISO_DOCUMENTOS__': '🪪 Aviso para separar documentos/SUS enviado para todas as TVs!',
-      '__AVISO_AGUARDE_PAINEL__': '⏳ Aviso sobre painel e prioridade enviado para todas as TVs!'
+      '__AVISO_AGUARDE_PAINEL__': '⏳ Aviso sobre painel e prioridade enviado para todas as TVs!',
+      '__AVISO_LEI_PRIORIDADE__': '⚖️ Aviso sobre Lei de Prioridade e Horário Marcado enviado para todas as TVs!'
     };
     setDashStatusBanner(labels[token] || '✅ Aviso enviado para a TV!');
     setTimeout(() => setDashStatusBanner(''), 4500);
