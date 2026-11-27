@@ -462,3 +462,54 @@ test('Responsividade Celular e Tablet (ACS) estritamente isolada em @media <= 10
   assert.equal(dashMediaSlice.includes('@media(max-width:640px){'), true);
   assert.equal(dashMediaSlice.includes('@media(max-width:420px){'), true);
 });
+
+test('Resumo do Dia público, Metas Editáveis (Admin), Agendados/Histórico Pro, Auditoria Dashboard e PDFs com 1ª e 2ª Escuta', () => {
+  const dashHtml = fs.readFileSync(path.join(ROOT, 'public', 'dashboard.html'), 'utf8');
+  const histFront = fs.readFileSync(path.join(ROOT, 'public', 'historico.js'), 'utf8');
+
+  // 1. Resumo do Dia visível para todos os usuários + botão Editar Meta exclusivo Gerente/Admin
+  const profSummaryWrapRule = extractSlice(indexHtml, '.prof-summary-wrap {', '.prof-summary-head-right');
+  assert.equal(profSummaryWrapRule.includes('display: block;'), true);
+  assert.equal(profSummaryWrapRule.includes('display: none;'), false);
+  const profSummaryCss = extractSlice(indexHtml, '.prof-summary-wrap {', '.prof-summary-card {');
+  assert.equal(profSummaryCss.includes('body.admin-active .btn-editar-meta-dia'), true);
+
+  // 2. Backend + Frontend para Metas do Dia (8 Manhã / 5 Tarde, Hiperdia 12/15, Pré-Natal 5)
+  assert.equal(serverSrc.includes("app.get('/api/config/metas-dia'"), true);
+  assert.equal(serverSrc.includes("app.post('/api/config/metas-dia'"), true);
+  assert.equal(serverSrc.includes("'metas_dia_profissionais'"), true);
+  assert.equal(indexHtml.includes('id="modal-config-metas-dia"'), true);
+  assert.equal(indexHtml.includes("aplicarPresetMetaDia('hiperdia12'"), true);
+  assert.equal(indexHtml.includes("aplicarPresetMetaDia('prenatal5'"), true);
+  assert.equal(appSrc.includes('function obterMetaProfissionalDia('), true);
+  assert.equal(appSrc.includes('function salvarConfigMetasDia('), true);
+
+  // 3. Aba Agendados & Histórico com botões profissionais e KPI cards
+  assert.equal(indexHtml.includes('.agend-action-btn--fila'), true);
+  assert.equal(indexHtml.includes('.hist-kpi-card'), true);
+  assert.equal(indexHtml.includes('.hist-btn-action--pdf'), true);
+  assert.equal(appSrc.includes('agend-action-btn--wa'), true);
+  assert.equal(histFront.includes('hist-vaga-pill'), true);
+
+  // 4. Relatórios PDF do Acolhimento e Dashboard Fechamento preservam e exibem 1ª Escuta + 2ª Escuta
+  assert.equal(serverSrc.includes('AS texto_primeira_escuta'), true);
+  assert.equal(serverSrc.includes('AS texto_segunda_escuta'), true);
+  const fin2Backend = extractSlice(serverSrc, "app.put('/api/acolhimento/:id/finalizar'", '// ====== API: PROFISSIONAIS CADASTRO');
+  assert.equal(fin2Backend.includes('observacao_segunda_escuta'), true);
+  assert.equal(fin2Backend.includes('motivo_primeira_escuta'), true);
+
+  const fin2Front = extractSlice(appSrc, 'async function confirmarFinalizacaoEscuta2()', 'let lastAcolhimentoReportData');
+  assert.equal(fin2Front.includes('observacao_segunda_escuta'), true);
+  assert.equal(fin2Front.includes('motivo_primeira_escuta'), true);
+
+  const acolPdfFront = extractSlice(appSrc, 'function exportarRelatorioAcolhimentoPDF()', '// ====== AUXILIARES DE AGENDAMENTO');
+  assert.equal(acolPdfFront.includes('1ª Escuta (ACS)'), true);
+  assert.equal(acolPdfFront.includes('2ª Escuta (Profissional)'), true);
+
+  const fechDash = extractSlice(dashHtml, 'async function exportarFechamentoPDF()', '// ====== PRIORIDADES & ALUMIA');
+  assert.equal(fechDash.includes('/acolhimento/relatorio?data='), true);
+  assert.equal(fechDash.includes('1ª Escuta (ACS)'), true);
+  assert.equal(fechDash.includes('2ª Escuta (Profissional)'), true);
+  assert.equal(dashHtml.includes('function getChartImageFit('), true);
+  assert.equal(dashHtml.includes('transition:all'), false);
+});

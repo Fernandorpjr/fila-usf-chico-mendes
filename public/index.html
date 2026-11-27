@@ -23,12 +23,64 @@
   body { font-family: 'Nunito Sans', sans-serif; background: var(--blue-bg); min-height: 100vh; color: var(--white); }
   button, a, select, input, textarea { touch-action: manipulation; }
 
-  /* Sub-abas e Histórico */
-  .sub-tabs-bar { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--gray-200); padding-bottom: 10px; flex-wrap: wrap; }
-  .sub-tab-btn { background: #fff; border: 1px solid var(--gray-300); border-radius: 8px; padding: 10px 18px; font-weight: 800; font-size: 13px; color: var(--gray-700); cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s; }
-  .sub-tab-btn:hover { background: var(--gray-100); }
-  .sub-tab-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 2px 8px rgba(26,79,196,0.3); }
-  .hist-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  /* Sub-abas, Agendados e Histórico Pro */
+  .sub-tabs-bar { display: inline-flex; gap: 6px; margin-bottom: 20px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18); padding: 6px; border-radius: 14px; flex-wrap: wrap; max-width: 100%; }
+  .sub-tab-btn { background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 10px 18px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13.5px; color: #dbeafe; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s; }
+  .sub-tab-btn:hover { background: rgba(255, 255, 255, 0.14); color: #ffffff; }
+  .sub-tab-btn.active { background: #ffffff; color: #0f3491; border-color: #ffffff; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22); }
+
+  .agend-d1-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; border-left: 5px solid var(--blue); box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05); margin-bottom: 10px; flex-wrap: wrap; transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease; }
+  .agend-d1-card:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1); border-color: #bfdbfe; }
+  .agend-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .agend-action-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #1e293b; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
+  .agend-action-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12); background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+  .agend-action-btn--icon { width: 32px; min-width: 32px; padding: 5px; font-size: 13.5px; }
+  .agend-action-btn--fila { background: linear-gradient(135deg, #0f766e, #0d9488); border-color: #0f766e; color: #ffffff; box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25); }
+  .agend-action-btn--fila:hover { background: linear-gradient(135deg, #115e59, #0f766e); color: #ffffff; border-color: #115e59; }
+  .agend-action-btn--wa { background: linear-gradient(135deg, #16a34a, #15803d); border-color: #15803d; color: #ffffff; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25); }
+  .agend-action-btn--wa:hover { background: linear-gradient(135deg, #15803d, #166534); color: #ffffff; border-color: #166534; }
+  .agend-action-btn--reagendar { background: #fff7ed; border-color: #fdba74; color: #c2410c; }
+  .agend-action-btn--reagendar:hover { background: #ea580c; border-color: #ea580c; color: #ffffff; }
+  .agend-action-btn--cancelar { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+  .agend-action-btn--cancelar:hover { background: #dc2626; border-color: #dc2626; color: #ffffff; }
+  .agend-action-btn--confirm { background: #f0fdf4; border-color: #86efac; color: #166534; }
+  .agend-action-btn--confirm:hover { background: #16a34a; border-color: #16a34a; color: #ffffff; }
+  .agend-action-btn--lembrete { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+  .agend-action-btn--lembrete:hover { background: #2563eb; border-color: #2563eb; color: #ffffff; }
+  .agend-action-btn--compareceu { background: #dcfce7; border-color: #4ade80; color: #15803d; }
+  .agend-action-btn--compareceu:hover { background: #16a34a; border-color: #16a34a; color: #ffffff; }
+  .agend-action-btn--faltou { background: #fee2e2; border-color: #f87171; color: #b91c1c; }
+  .agend-action-btn--faltou:hover { background: #dc2626; border-color: #dc2626; color: #ffffff; }
+  .agend-action-btn--delete { background: #fff5f5; border-color: #fecaca; color: #dc2626; }
+  .agend-action-btn--delete:hover { background: #dc2626; border-color: #dc2626; color: #ffffff; }
+
+  .hist-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .hist-kpi-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06); }
+  .hist-kpi-card--canc { border-left: 5px solid #ef4444; }
+  .hist-kpi-card--reag { border-left: 5px solid #f59e0b; }
+  .hist-kpi-card--vaga { border-left: 5px solid #10b981; }
+  .hist-kpi-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .hist-kpi-label { font-size: 11.5px; color: #475569; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; }
+  .hist-kpi-val { font-family: 'Nunito', sans-serif; font-size: 28px; font-weight: 900; line-height: 1.1; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .hist-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .hist-btn-action { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 7px 13px; border-radius: 9px; font-family: 'Nunito', sans-serif; font-size: 12.5px; font-weight: 800; cursor: pointer; border: 1.5px solid #cbd5e1; background: #f8fafc; color: #1e293b; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
+  .hist-btn-action:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1); }
+  .hist-btn-action--csv { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+  .hist-btn-action--csv:hover { background: #059669; border-color: #059669; color: #ffffff; }
+  .hist-btn-action--pdf { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
+  .hist-btn-action--pdf:hover { background: #1d4ed8; border-color: #1d4ed8; color: #ffffff; }
+  .hist-btn-action--config { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
+  .hist-btn-action--config:hover { background: #334155; border-color: #334155; color: #ffffff; }
+  .hist-btn-action--danger { background: #dc2626; border-color: #b91c1c; color: #ffffff; }
+  .hist-btn-action--danger:hover { background: #b91c1c; }
+  .hist-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .hist-filter-grid .form-group { margin-bottom: 0; }
+  .hist-filter-grid label { display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.35px; margin-bottom: 4px; }
+  .hist-filter-grid input, .hist-filter-grid select { width: 100%; min-height: 38px; padding: 7px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-family: 'Nunito Sans', sans-serif; font-size: 13px; font-weight: 700; }
+  .hist-filter-grid input:focus, .hist-filter-grid select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(26, 79, 196, 0.12); }
+  .hist-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid #cbd5e1; background: #ffffff; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06); }
+  .hist-vaga-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11.5px; font-weight: 800; cursor: pointer; user-select: none; }
+  .hist-vaga-pill.sim { background: #dcfce7; border-color: #86efac; color: #166534; }
   @media (max-width: 768px) {
     .hist-desktop-view { display: none !important; }
     .hist-mobile-view { display: block !important; }
@@ -2280,9 +2332,37 @@
       border-left: 4px solid #f59e0b !important;
     }
 
-    /* ====== PAINEL RESUMO DO PROFISSIONAL (GERENTE E ADMIN) ====== */
-    .prof-summary-wrap { display: none; margin-bottom: 18px; }
-    body.admin-active .prof-summary-wrap, body.manager-active .prof-summary-wrap { display: block; }
+    /* ====== PAINEL RESUMO DO PROFISSIONAL (PÚBLICO PARA TODA A EQUIPE + EDIÇÃO DE METAS ADMIN/GERENTE) ====== */
+    .prof-summary-wrap { display: block; margin-bottom: 18px; }
+    .prof-summary-head-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .btn-editar-meta-dia {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(253, 224, 71, 0.65);
+      background: rgba(245, 158, 11, 0.25);
+      color: #fef3c7;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: background-color 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
+    }
+    .btn-editar-meta-dia:hover { background: rgba(245, 158, 11, 0.45); border-color: #fde047; color: #fff; transform: translateY(-1px); }
+    body.admin-active .btn-editar-meta-dia, body.manager-active .btn-editar-meta-dia { display: inline-flex; }
+    .meta-preset-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+    .meta-preset-chip { padding: 7px 11px; border-radius: 999px; border: 1.5px solid #cbd5e1; background: #f8fafc; color: #1e293b; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+    .meta-preset-chip:hover { border-color: var(--blue); background: #eff6ff; color: var(--blue-dark); }
+    .meta-preset-chip.active { background: #1e3a8a; border-color: #1e3a8a; color: #fff; }
+    .meta-stepper-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .meta-stepper-box { background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px 12px; }
+    .meta-stepper-box label { display: block; font-size: 11px; font-weight: 900; color: #334155; text-transform: uppercase; margin-bottom: 6px; }
+    .meta-stepper-ctrl { display: flex; align-items: center; gap: 6px; }
+    .meta-step-btn { width: 36px; height: 36px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-size: 17px; font-weight: 900; cursor: pointer; flex-shrink: 0; }
+    .meta-step-btn:hover { background: #eff6ff; border-color: var(--blue); color: var(--blue-dark); }
+    .meta-stepper-ctrl input { flex: 1; min-width: 0; text-align: center; height: 36px; border-radius: 9px; border: 1.5px solid #cbd5e1; font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 900; color: #0f172a; background: #fff; }
     .prof-summary-card {
       border-radius: 16px;
       border: 1.5px solid #cbd5e1;
@@ -3904,6 +3984,7 @@
 
     <div class="admin-cat-pod">
       <span class="admin-cat-title">Gestão &amp; Equipe</span>
+      <button type="button" class="admin-tb-btn admin-tb-btn--amber manager-or-admin-tab" style="display:none;" onclick="abrirModalConfigMetasDia()" title="Editar meta de agendados (Manhã/Tarde, Hiperdia 12/15, Pré-Natal 5) e limite de intercorrências">🎯 Metas do Dia</button>
       <button type="button" class="admin-tb-btn admin-tb-btn--teal manager-or-admin-tab" style="display:none;" onclick="abrirModalEquipeMutirao()" title="Gerenciar médicos, enfermeiros e plantonistas de mutirão">👥 Equipe / Mutirão</button>
       <button type="button" class="admin-tb-btn admin-tb-btn--warn manager-or-admin-tab" style="display:none;" onclick="abrirModalContingenciaOffline('contingencia')" title="Imprimir Folha de Contingência da fila atual (Segunda Tela)">
         🖨️ Contingência / Fila <span id="contingencia-offline-badge" style="display:none;background:#dc2626;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;margin-left:2px;">0</span>
@@ -4657,13 +4738,102 @@
     </div>
   </div>
 
+  <!-- Modal: Configurar Metas Diárias de Agendados & Intercorrências (Admin/Gerente) -->
+  <div class="reorder-modal-overlay" id="modal-config-metas-dia" role="dialog" aria-modal="true" aria-labelledby="modal-config-metas-title" onclick="if(event.target===this)fecharModalConfigMetasDia()">
+    <div class="reorder-modal" style="max-width:600px;width:95vw;max-height:90vh;overflow-y:auto;text-align:left;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <h3 id="modal-config-metas-title" style="margin:0;">🎯 Configurar Metas do Dia (Agendados &amp; Intercorrências)</h3>
+        <button type="button" class="wa-modal-close" onclick="fecharModalConfigMetasDia()" title="Fechar janela" aria-label="Fechar configuração de metas">✕</button>
+      </div>
+      <p style="font-size:12.5px;color:var(--gray-600);margin-bottom:12px;line-height:1.45;">
+        Ajuste a meta de agendados para hoje conforme o perfil do dia (Manhã 8 / Tarde 5, Hiperdia 12 ou 15, Pré-Natal 5, etc.) para toda a unidade ou para um profissional específico.
+      </p>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label for="meta-dia-alvo" style="font-size:11.5px;font-weight:800;color:#334155;">Aplicar configuração para:</label>
+        <select id="meta-dia-alvo" onchange="carregarAlvoMetaDiaNoModal()" style="width:100%;padding:9px 11px;border:1.5px solid #cbd5e1;border-radius:10px;font-weight:800;font-size:13.5px;">
+          <option value="__PADRAO__">🌐 Padrão Geral da Unidade (Todos sem regra própria)</option>
+        </select>
+      </div>
+
+      <div style="font-size:11px;font-weight:900;color:#475569;text-transform:uppercase;margin-bottom:6px;">Perfis Rápidos do Dia</div>
+      <div class="meta-preset-chips">
+        <button type="button" class="meta-preset-chip" onclick="aplicarPresetMetaDia('padrao', this)">📋 Padrão (8 Manhã · 5 Tarde)</button>
+        <button type="button" class="meta-preset-chip" onclick="aplicarPresetMetaDia('hiperdia12', this)">💊 Hiperdia (12 Agendados)</button>
+        <button type="button" class="meta-preset-chip" onclick="aplicarPresetMetaDia('hiperdia15', this)">💊 Hiperdia Intensivo (15)</button>
+        <button type="button" class="meta-preset-chip" onclick="aplicarPresetMetaDia('prenatal5', this)">🤰 Pré-Natal / Gestante (5)</button>
+        <button type="button" class="meta-preset-chip" onclick="aplicarPresetMetaDia('puericultura6', this)">👶 Puericultura (6)</button>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label for="meta-dia-modo" style="font-size:11.5px;font-weight:800;color:#334155;">Modo de contagem no Resumo do Dia</label>
+        <select id="meta-dia-modo" onchange="atualizarVisibilidadeModoMetaDia()" style="width:100%;padding:9px 11px;border:1.5px solid #cbd5e1;border-radius:10px;font-weight:700;font-size:13px;">
+          <option value="turno">☀️/🌙 Por Turno (Manhã até 12h · Tarde após 12h)</option>
+          <option value="fixo">🎯 Meta Única do Dia (Hiperdia, Pré-Natal, Demanda Especial)</option>
+        </select>
+      </div>
+
+      <div class="meta-stepper-row" id="meta-dia-turno-fields">
+        <div class="meta-stepper-box">
+          <label for="meta-dia-manha">☀️ Agendados Manhã (até 12h)</label>
+          <div class="meta-stepper-ctrl">
+            <button type="button" class="meta-step-btn" onclick="ajustarInputMetaDia('meta-dia-manha', -1)">−</button>
+            <input type="number" id="meta-dia-manha" min="1" max="60" value="8">
+            <button type="button" class="meta-step-btn" onclick="ajustarInputMetaDia('meta-dia-manha', 1)">+</button>
+          </div>
+        </div>
+        <div class="meta-stepper-box">
+          <label for="meta-dia-tarde">🌙 Agendados Tarde (após 12h)</label>
+          <div class="meta-stepper-ctrl">
+            <button type="button" class="meta-step-btn" onclick="ajustarInputMetaDia('meta-dia-tarde', -1)">−</button>
+            <input type="number" id="meta-dia-tarde" min="1" max="60" value="5">
+            <button type="button" class="meta-step-btn" onclick="ajustarInputMetaDia('meta-dia-tarde', 1)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta-stepper-row" id="meta-dia-fixo-fields" style="display:none;grid-template-columns:1fr;">
+        <div class="meta-stepper-box">
+          <label for="meta-dia-fixa">🎯 Meta Única de Agendados (Dia Especial — ex.: 12, 15 ou 5)</label>
+          <div class="meta-stepper-ctrl">
+            <button type="button" class="meta-step-btn" onclick="ajustarInputMetaDia('meta-dia-fixa', -1)">−</button>
+            <input type="number" id="meta-dia-fixa" min="1" max="80" value="12">
+            <button type="button" class="meta-step-btn" onclick="ajustarInputMetaDia('meta-dia-fixa', 1)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta-stepper-row">
+        <div class="meta-stepper-box">
+          <label for="meta-dia-interc">🚨 Limite de Intercorrências</label>
+          <div class="meta-stepper-ctrl">
+            <button type="button" class="meta-step-btn" onclick="ajustarInputMetaDia('meta-dia-interc', -1)">−</button>
+            <input type="number" id="meta-dia-interc" min="0" max="30" value="4">
+            <button type="button" class="meta-step-btn" onclick="ajustarInputMetaDia('meta-dia-interc', 1)">+</button>
+          </div>
+        </div>
+        <div class="meta-stepper-box">
+          <label for="meta-dia-label">🏷️ Rótulo do Dia (ex.: Hiperdia)</label>
+          <input type="text" id="meta-dia-label" maxlength="60" placeholder="Ex: Hiperdia, Pré-Natal..." style="width:100%;height:36px;padding:6px 10px;border-radius:9px;border:1.5px solid #cbd5e1;font-weight:700;font-size:13px;">
+        </div>
+      </div>
+
+      <div id="meta-dia-custom-list" style="margin-bottom:14px;"></div>
+
+      <div class="reorder-modal-actions">
+        <button type="button" class="btn btn-primary" onclick="salvarConfigMetasDia()" style="background:linear-gradient(135deg,#0f3491,#1d4ed8);">💾 Salvar Meta do Dia</button>
+        <button type="button" class="btn" style="background:var(--gray-100);color:var(--gray-600);border:2px solid var(--gray-200);" onclick="fecharModalConfigMetasDia()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Relatório Acolhimento -->
   <div class="acol-modal-overlay" id="acol-relatorio-modal" role="dialog" aria-modal="true" aria-labelledby="acol-relatorio-title">
-    <div class="acol-modal" style="max-width:650px;">
-      <h3 id="acol-relatorio-title">📊 Relatório do Acolhimento – Hoje</h3>
+    <div class="acol-modal" style="max-width:980px;width:96vw;">
+      <h3 id="acol-relatorio-title">📊 Relatório do Acolhimento – Hoje (1ª &amp; 2ª Escuta)</h3>
       <div id="acol-relatorio-content" style="font-size:14px;color:var(--gray-700);line-height:1.7;"></div>
       <div style="display:flex;gap:12px;margin-top:20px;">
-        <button class="btn btn-primary" style="flex:1;" onclick="exportarRelatorioAcolhimentoPDF()">📄 Exportar PDF</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="exportarRelatorioAcolhimentoPDF()">📄 Exportar PDF Completo (1ª &amp; 2ª Escuta)</button>
         <button class="btn btn-ghost" style="width:auto;border:2px solid var(--gray-200);color:var(--gray-600);" onclick="document.getElementById('acol-relatorio-modal').classList.remove('show')">Fechar</button>
       </div>
     </div>
@@ -4991,13 +5161,15 @@
               </button>
             </div>
           </div>
-          <div class="filter-row" style="margin-bottom:16px;">
-            <div class="form-group"><label>Data</label><input type="date" id="agend-filter-data"></div>
-            <div class="form-group"><label>Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="reagendado">Reagendado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
-            <button class="btn btn-primary btn-sm" onclick="loadAgendamentos()">🔍 Filtrar</button>
-            <button class="btn btn-green btn-sm" onclick="exportarListaAgendamentosPDF()" title="Gerar PDF da lista de agendamentos filtrada">📄 Gerar PDF</button>
+          <div class="filter-row" style="margin-bottom:16px;background:#f8fafc;padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;">
+            <div class="form-group"><label for="agend-filter-data">Data</label><input type="date" id="agend-filter-data"></div>
+            <div class="form-group"><label for="agend-filter-status">Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="reagendado">Reagendado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button type="button" class="hist-btn-action hist-btn-action--pdf" onclick="loadAgendamentos()">🔍 Filtrar</button>
+              <button type="button" class="hist-btn-action hist-btn-action--csv" onclick="exportarListaAgendamentosPDF()" title="Gerar PDF da lista de agendamentos filtrada">📄 Gerar PDF</button>
+            </div>
           </div>
-          <div style="overflow-x:auto;">
+          <div class="hist-table-wrap">
             <table class="agend-table" id="agend-table"><thead><tr><th>Paciente</th><th>Data</th><th>Hora</th><th>Profissional</th><th>Status</th><th>Ações</th></tr></thead><tbody id="agend-tbody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr></tbody></table>
           </div>
         </div>
@@ -5006,10 +5178,12 @@
       <!-- Relatório de Mensagens Enviadas -->
       <div class="card-white" style="margin-top:20px; padding:20px;">
         <div class="card-title"><span>📊</span> Relatório de Mensagens Enviadas</div>
-        <div class="filter-row" style="margin-bottom:16px;">
-          <div class="form-group"><label>Data</label><input type="date" id="rel-msg-data" onchange="loadRelatorioMensagens()"></div>
-          <button class="btn btn-primary btn-sm" onclick="loadRelatorioMensagens()">🔍 Consultar</button>
-          <button class="btn btn-green btn-sm" onclick="exportarRelatorioMensagensPDF()" title="Gerar PDF do relatório de mensagens">📄 Gerar PDF</button>
+        <div class="filter-row" style="margin-bottom:16px;background:#f8fafc;padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;">
+          <div class="form-group"><label for="rel-msg-data">Data</label><input type="date" id="rel-msg-data" onchange="loadRelatorioMensagens()"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button type="button" class="hist-btn-action hist-btn-action--pdf" onclick="loadRelatorioMensagens()">🔍 Consultar</button>
+            <button type="button" class="hist-btn-action hist-btn-action--csv" onclick="exportarRelatorioMensagensPDF()" title="Gerar PDF do relatório de mensagens">📄 Gerar PDF</button>
+          </div>
         </div>
         <div id="rel-msg-content">
           <div style="text-align:center;padding:24px;color:var(--gray-600);">Selecione uma data e clique em Consultar</div>
@@ -5048,18 +5222,27 @@
     <div id="subtab-content-historico" style="display:none;">
 
       <!-- Cards de Resumo Agregado -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px;margin-bottom:18px;">
-        <div class="card-white" style="padding:16px;border-left:5px solid #ef4444;">
-          <div style="font-size:12px;color:var(--gray-600);font-weight:700;text-transform:uppercase;">Total Cancelamentos</div>
-          <div style="font-size:28px;font-weight:900;color:#dc2626;margin-top:4px;" id="hist-card-total-canc">0</div>
+      <div class="hist-kpi-grid">
+        <div class="hist-kpi-card hist-kpi-card--canc">
+          <div class="hist-kpi-icon" style="background:#fee2e2;color:#dc2626;">❌</div>
+          <div>
+            <div class="hist-kpi-label">Total Cancelamentos</div>
+            <div class="hist-kpi-val" style="color:#dc2626;" id="hist-card-total-canc">0</div>
+          </div>
         </div>
-        <div class="card-white" style="padding:16px;border-left:5px solid #f59e0b;">
-          <div style="font-size:12px;color:var(--gray-600);font-weight:700;text-transform:uppercase;">Total Reagendamentos</div>
-          <div style="font-size:28px;font-weight:900;color:#d97706;margin-top:4px;" id="hist-card-total-reag">0</div>
+        <div class="hist-kpi-card hist-kpi-card--reag">
+          <div class="hist-kpi-icon" style="background:#fef3c7;color:#d97706;">🔄</div>
+          <div>
+            <div class="hist-kpi-label">Total Reagendamentos</div>
+            <div class="hist-kpi-val" style="color:#d97706;" id="hist-card-total-reag">0</div>
+          </div>
         </div>
-        <div class="card-white" style="padding:16px;border-left:5px solid #10b981;">
-          <div style="font-size:12px;color:var(--gray-600);font-weight:700;text-transform:uppercase;">Vagas Reaproveitadas</div>
-          <div style="font-size:28px;font-weight:900;color:#059669;margin-top:4px;" id="hist-card-total-vagas">0</div>
+        <div class="hist-kpi-card hist-kpi-card--vaga">
+          <div class="hist-kpi-icon" style="background:#dcfce7;color:#059669;">♻️</div>
+          <div>
+            <div class="hist-kpi-label">Vagas Reaproveitadas</div>
+            <div class="hist-kpi-val" style="color:#059669;" id="hist-card-total-vagas">0</div>
+          </div>
         </div>
       </div>
 
@@ -5071,7 +5254,7 @@
       <div class="card-white" style="padding:20px;margin-bottom:20px;">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <div><span>📊</span> Indicadores Gráficos</div>
-          <button class="btn btn-outline btn-sm" onclick="const g = document.getElementById('hist-graficos-area'); g.style.display = g.style.display === 'none' ? 'grid' : 'none';" style="font-size:11px;">Alternar Visualização</button>
+          <button class="hist-btn-action hist-btn-action--config" onclick="const g = document.getElementById('hist-graficos-area'); g.style.display = g.style.display === 'none' ? 'grid' : 'none';">👁️ Alternar Visualização</button>
         </div>
         <div id="hist-graficos-area" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
           <div style="background:#f9fafb;padding:12px;border-radius:10px;border:1px solid var(--gray-200);">
@@ -5091,36 +5274,36 @@
 
       <!-- Barra de Filtros Combináveis -->
       <div class="card-white" style="padding:20px;margin-bottom:20px;">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
           <div><span>🔍</span> Filtros do Histórico</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn btn-outline btn-sm" onclick="exportarCsvHistorico()" title="Exportar CSV">📥 CSV</button>
-            <button class="btn btn-outline btn-sm" onclick="imprimirHistorico()" title="Imprimir relatório em A4">🖨️ Imprimir (A4)</button>
-            <button class="btn btn-outline btn-sm" onclick="abrirModalConfigRetencao()" title="Configurar retenção automática">⚙️ Retenção</button>
-            <button class="btn btn-sm" id="hist-btn-excluir-lote" onclick="abrirModalExcluirLote()" style="display:none;background:var(--red);color:#fff;">🗑️ Excluir Selecionados</button>
+          <div class="hist-toolbar-actions">
+            <button type="button" class="hist-btn-action hist-btn-action--csv" onclick="exportarCsvHistorico()" title="Exportar CSV">📥 Exportar CSV</button>
+            <button type="button" class="hist-btn-action hist-btn-action--pdf" onclick="imprimirHistorico()" title="Gerar PDF profissional em A4">📄 Gerar PDF (A4)</button>
+            <button type="button" class="hist-btn-action hist-btn-action--config" onclick="abrirModalConfigRetencao()" title="Configurar retenção automática">⚙️ Retenção</button>
+            <button type="button" class="hist-btn-action hist-btn-action--danger" id="hist-btn-excluir-lote" onclick="abrirModalExcluirLote()" style="display:none;">🗑️ Excluir Selecionados</button>
           </div>
         </div>
 
         <div class="hist-filter-grid">
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Data Início:</label>
-            <input type="date" id="hist-filtro-inicio" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-inicio">Data Início</label>
+            <input type="date" id="hist-filtro-inicio" onchange="carregarHistorico()">
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Data Fim:</label>
-            <input type="date" id="hist-filtro-fim" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-fim">Data Fim</label>
+            <input type="date" id="hist-filtro-fim" onchange="carregarHistorico()">
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Tipo:</label>
-            <select id="hist-filtro-tipo" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-tipo">Tipo</label>
+            <select id="hist-filtro-tipo" onchange="carregarHistorico()">
               <option value="">Todos os tipos</option>
               <option value="cancelado">Cancelado</option>
               <option value="reagendado">Reagendado</option>
             </select>
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Profissional:</label>
-            <select id="hist-filtro-prof" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-prof">Profissional</label>
+            <select id="hist-filtro-prof" onchange="carregarHistorico()">
               <option value="">Todos</option>
               <option value="Dr. Israel Christian">Dr. Israel Christian</option>
               <option value="Dr. Joene Halan">Dr. Joene Halan</option>
@@ -5133,8 +5316,8 @@
             </select>
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Equipe:</label>
-            <select id="hist-filtro-equipe" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-equipe">Equipe</label>
+            <select id="hist-filtro-equipe" onchange="carregarHistorico()">
               <option value="">Todas</option>
               <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
               <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
@@ -5143,8 +5326,8 @@
             </select>
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Atendimento:</label>
-            <select id="hist-filtro-atend" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-atend">Atendimento</label>
+            <select id="hist-filtro-atend" onchange="carregarHistorico()">
               <option value="">Todos</option>
               <option value="Consulta">Consulta</option>
               <option value="Clínico Geral">Clínico Geral</option>
@@ -5158,20 +5341,20 @@
             </select>
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Motivo:</label>
-            <input type="text" id="hist-filtro-motivo" placeholder="Filtrar por motivo..." oninput="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-motivo">Motivo</label>
+            <input type="text" id="hist-filtro-motivo" placeholder="Filtrar por motivo..." oninput="carregarHistorico()">
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Dispositivo:</label>
-            <input type="text" id="hist-filtro-dispositivo" placeholder="Nome do aparelho..." oninput="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-dispositivo">Dispositivo</label>
+            <input type="text" id="hist-filtro-dispositivo" placeholder="Nome do aparelho..." oninput="carregarHistorico()">
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Busca Paciente/Fone:</label>
-            <input type="text" id="hist-filtro-busca" placeholder="Nome ou telefone..." oninput="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-busca">Busca Paciente/Fone</label>
+            <input type="text" id="hist-filtro-busca" placeholder="Nome ou telefone..." oninput="carregarHistorico()">
           </div>
           <div class="form-group">
-            <label style="font-size:11px;font-weight:700;">Arquivo:</label>
-            <select id="hist-filtro-arquivado" onchange="carregarHistorico()" style="padding:6px 8px;font-size:12px;">
+            <label for="hist-filtro-arquivado">Arquivo</label>
+            <select id="hist-filtro-arquivado" onchange="carregarHistorico()">
               <option value="false">Somente Ativos</option>
               <option value="true">Somente Arquivados</option>
               <option value="todos">Todos</option>
@@ -5179,11 +5362,11 @@
           </div>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray-200);">
-          <div id="hist-contador" style="font-size:12px;font-weight:800;color:var(--gray-600);">Carregando registros...</div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-primary btn-sm" onclick="carregarHistorico()">🔍 Atualizar</button>
-            <button class="btn btn-outline btn-sm" onclick="limparFiltrosHistorico()">🧹 Limpar filtros</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:10px;padding-top:12px;border-top:1px solid var(--gray-200);">
+          <div id="hist-contador" style="font-size:12.5px;font-weight:800;color:var(--gray-600);">Carregando registros...</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="hist-btn-action hist-btn-action--pdf" onclick="carregarHistorico()">🔍 Atualizar</button>
+            <button type="button" class="hist-btn-action hist-btn-action--config" onclick="limparFiltrosHistorico()">🧹 Limpar filtros</button>
           </div>
         </div>
       </div>

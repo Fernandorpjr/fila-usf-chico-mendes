@@ -1612,6 +1612,85 @@ app.post('/api/config/pausa', async (req, res) => {
   }
 });
 
+// Metas editáveis de agendados (Manhã/Tarde/Hiperdia/Pré-Natal) e intercorrências por profissional
+const DEFAULT_METAS_DIA = {
+  padrao: {
+    manha: 8,
+    tarde: 5,
+    intercorrencias: 4,
+    modo: 'turno', // 'turno' (Manhã <12h / Tarde >=12h) ou 'fixo' (dia inteiro ex: Hiperdia 12/15, Pré-Natal 5)
+    meta_fixa: 13,
+    tipo_dia: 'Padrão (8 Manhã · 5 Tarde)'
+  },
+  por_profissional: {}
+};
+
+function sanitizarBlocoMetaDia(src, fallback = DEFAULT_METAS_DIA.padrao) {
+  const s = (src && typeof src === 'object') ? src : {};
+  const clampInt = (val, def, min, max) => {
+    const n = parseInt(val, 10);
+    if (!Number.isFinite(n)) return def;
+    return Math.max(min, Math.min(max, n));
+  };
+  const modo = s.modo === 'fixo' ? 'fixo' : 'turno';
+  const manha = clampInt(s.manha, fallback.manha ?? 8, 1, 60);
+  const tarde = clampInt(s.tarde, fallback.tarde ?? 5, 1, 60);
+  const meta_fixa = clampInt(s.meta_fixa, fallback.meta_fixa ?? (manha + tarde), 1, 80);
+  const intercorrencias = clampInt(s.intercorrencias, fallback.intercorrencias ?? 4, 0, 30);
+  const tipo_dia = s.tipo_dia ? String(s.tipo_dia).trim().slice(0, 60) : (fallback.tipo_dia || 'Personalizado');
+  return { manha, tarde, meta_fixa, intercorrencias, modo, tipo_dia };
+}
+
+function normalizarMetasDiaConfig(raw) {
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw); } catch { obj = {}; }
+  }
+  if (!obj || typeof obj !== 'object') obj = {};
+  const padrao = sanitizarBlocoMetaDia(obj.padrao, DEFAULT_METAS_DIA.padrao);
+  const porProf = {};
+  if (obj.por_profissional && typeof obj.por_profissional === 'object') {
+    for (const [nome, cfg] of Object.entries(obj.por_profissional)) {
+      const nomeLimpo = String(nome || '').trim().slice(0, 80);
+      if (!nomeLimpo || !cfg || typeof cfg !== 'object') continue;
+      porProf[nomeLimpo] = sanitizarBlocoMetaDia(cfg, padrao);
+    }
+  }
+  return { padrao, por_profissional: porProf };
+}
+
+app.get('/api/config/metas-dia', async (req, res) => {
+  res.set('Cache-Control', 'no-cache, must-revalidate');
+  try {
+    const r = await pool.query(`SELECT valor FROM configuracoes WHERE chave = 'metas_dia_profissionais' LIMIT 1`);
+    res.json(normalizarMetasDiaConfig(r.rows[0]?.valor || ''));
+  } catch {
+    res.json(normalizarMetasDiaConfig(null));
+  }
+});
+
+app.post('/api/config/metas-dia', async (req, res) => {
+  try {
+    const senha = req.body?.senha || req.headers['x-admin-password'];
+    if (!isManagerOrAdminAuthorized(req) && !isValidAdminPass(senha) && !isValidManagerPass(senha)) {
+      return res.status(401).json({ error: 'Senha de Administrador ou Gerente necessária para alterar metas.' });
+    }
+    const config = normalizarMetasDiaConfig(req.body?.config || req.body);
+    await pool.query(
+      `INSERT INTO configuracoes (chave, valor)
+       VALUES ('metas_dia_profissionais', $1)
+       ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+      [JSON.stringify(config)]
+    );
+    if (typeof io !== 'undefined' && io && typeof io.emit === 'function') {
+      io.emit('configUpdate');
+    }
+    res.json({ success: true, config });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all queues (sorted: priority level first, then arrival order)
 // ====== ORDEM PADRÃO DA FILA (única fonte de verdade para tela, QR Code e reordenação) ======
 // - sort_order (posição manual, fixação de prioridade no topo ou exceção de 3ª posição) vem sempre primeiro;
@@ -5844,16 +5923,71 @@ app.get('/api/acolhimento/fluxo', async (req, res) => {
   }
 });
 
-// GET relatório do acolhimento
+// GET relatório do acolhimento (suporta ?data=YYYY-MM-DD opcional e retorna 1ª + 2ª Escuta completas)
 app.get('/api/acolhimento/relatorio', async (req, res) => {
   try {
-    // Finalizados hoje
-    const finalizados = await pool.query(
-      `SELECT * FROM call_history
-       WHERE setor = 'Acolhimento'
-       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       ORDER BY created_at AT TIME ZONE 'America/Sao_Paulo' DESC`
+    await garantirColunasEscuta(pool);
+    const dataParam = typeof req.query?.data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.data)
+      ? req.query.data
+      : null;
+    const sqlDataAlvo = dataParam ? `$1::date` : `(NOW() AT TIME ZONE 'America/Sao_Paulo')::date`;
+    const queryParams = dataParam ? [dataParam] : [];
+
+    // Registros de Acolhimento do dia com junção em patients para preservar sempre 1ª e 2ª Escuta
+    const finalizadosRaw = await pool.query(
+      `SELECT
+         ch.*,
+         COALESCE(NULLIF(TRIM(ch.motivo_primeira_escuta), ''), NULLIF(TRIM(p.motivo_primeira_escuta), ''), NULLIF(TRIM(ch.queixa), ''), NULLIF(TRIM(p.queixa), '')) AS texto_primeira_escuta,
+         COALESCE(NULLIF(TRIM(ch.observacao_segunda_escuta), ''), NULLIF(TRIM(p.observacao_segunda_escuta), '')) AS texto_segunda_escuta,
+         COALESCE(NULLIF(TRIM(ch.equipe_paciente), ''), NULLIF(TRIM(p.equipe_paciente), '')) AS equipe_paciente_completa,
+         COALESCE(NULLIF(TRIM(ch.acs_responsavel), ''), NULLIF(TRIM(p.acs_responsavel), '')) AS acs_responsavel_completo,
+         COALESCE(NULLIF(TRIM(ch.profissional), ''), NULLIF(TRIM(p.profissional_destino), ''), NULLIF(TRIM(ch.medico), '')) AS profissional_exibicao,
+         COALESCE(ch.gravidade_final, p.gravidade_final) AS gravidade_final_completa,
+         COALESCE(ch.risco_clinico, p.risco_clinico) AS risco_clinico_completo,
+         COALESCE(ch.agendamento_realizado, p.agendamento_realizado, false) AS agendamento_completo,
+         COALESCE(ch.condicoes_especiais, p.condicoes_especiais) AS condicoes_completas,
+         p.setor_destino AS setor_destino_paciente,
+         p.etapa_fluxo AS etapa_fluxo_paciente,
+         COALESCE(ch.is_intercorrencia_acolhimento, p.is_intercorrencia_acolhimento, false) AS is_intercorrencia_completa
+       FROM call_history ch
+       LEFT JOIN patients p ON p.id = ch.patient_id
+       WHERE ch.setor = 'Acolhimento'
+         AND DATE(ch.created_at AT TIME ZONE 'America/Sao_Paulo') = ${sqlDataAlvo}
+       ORDER BY ch.created_at AT TIME ZONE 'America/Sao_Paulo' DESC, ch.id DESC`,
+      queryParams
     );
+
+    // Deduplica por paciente priorizando o registro mais rico (2ª escuta / encaminhamento / finalização)
+    const mapaPacientes = new Map();
+    for (const row of finalizadosRaw.rows) {
+      const normalized = {
+        ...row,
+        equipe_paciente: row.equipe_paciente_completa || row.equipe_paciente || null,
+        acs_responsavel: row.acs_responsavel_completo || row.acs_responsavel || null,
+        profissional: row.profissional_exibicao || row.profissional || row.medico || null,
+        gravidade_final: row.gravidade_final_completa || row.gravidade_final || null,
+        risco_clinico: row.risco_clinico_completo || row.risco_clinico || null,
+        agendamento_realizado: Boolean(row.agendamento_completo),
+        condicoes_especiais: row.condicoes_completas || row.condicoes_especiais || null,
+        motivo_primeira_escuta: row.texto_primeira_escuta || row.motivo_primeira_escuta || row.queixa || null,
+        observacao_segunda_escuta: row.texto_segunda_escuta || row.observacao_segunda_escuta || null,
+        is_intercorrencia_acolhimento: Boolean(row.is_intercorrencia_completa)
+      };
+      const key = row.patient_id ? `id:${row.patient_id}` : `nome:${String(row.nome || '').trim().toLowerCase()}|${row.horario_chamada || row.id}`;
+      const score =
+        (normalized.observacao_segunda_escuta ? 8 : 0) +
+        (normalized.gravidade_final ? 4 : 0) +
+        (normalized.is_intercorrencia_acolhimento ? 4 : 0) +
+        (normalized.motivo_primeira_escuta ? 2 : 0) +
+        (normalized.acs_responsavel ? 1 : 0);
+      const prev = mapaPacientes.get(key);
+      if (!prev || score > prev._score) {
+        normalized._score = score;
+        mapaPacientes.set(key, normalized);
+      }
+    }
+    const finalizadosUnicos = Array.from(mapaPacientes.values()).map(({ _score, ...rest }) => rest);
+
     // Ativos agora
     const ativos = await pool.query(
       `SELECT etapa_fluxo, risco_clinico, COUNT(*) as total
@@ -5866,16 +6000,18 @@ app.get('/api/acolhimento/relatorio', async (req, res) => {
       `SELECT acs_responsavel, COUNT(*) as total
        FROM patients
        WHERE setor = 'Acolhimento' AND acs_responsavel IS NOT NULL
-       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       GROUP BY acs_responsavel`
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${sqlDataAlvo}
+       GROUP BY acs_responsavel`,
+      queryParams
     );
     // Por profissional destino
     const porProf = await pool.query(
       `SELECT profissional_destino, tipo_profissional_destino, COUNT(*) as total
        FROM patients
        WHERE setor = 'Acolhimento' AND profissional_destino IS NOT NULL
-       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       GROUP BY profissional_destino, tipo_profissional_destino`
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${sqlDataAlvo}
+       GROUP BY profissional_destino, tipo_profissional_destino`,
+      queryParams
     );
     // Tempo médio por etapa
     const tempoMedio = await pool.query(
@@ -5884,19 +6020,22 @@ app.get('/api/acolhimento/relatorio', async (req, res) => {
          AVG(CASE WHEN etapa_fluxo = 'segunda_escuta' OR etapa_fluxo = 'finalizado' THEN EXTRACT(EPOCH FROM (updated_at - inicio_etapa))/60 END) as avg_escuta_min
        FROM patients
        WHERE setor = 'Acolhimento'
-       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${sqlDataAlvo}`,
+      queryParams
     );
     // Risco por cor (include all non-green/non-null)
     const riscoCor = await pool.query(
       `SELECT risco_clinico, COUNT(*) as total
        FROM patients
        WHERE setor = 'Acolhimento' AND risco_clinico IS NOT NULL
-       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       GROUP BY risco_clinico`
+       AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = ${sqlDataAlvo}
+       GROUP BY risco_clinico`,
+      queryParams
     );
     res.json({
-      finalizados: finalizados.rows,
-      totalFinalizados: finalizados.rows.length,
+      data: dataParam || null,
+      finalizados: finalizadosUnicos,
+      totalFinalizados: finalizadosUnicos.length,
       ativos: ativos.rows,
       porAcs: porAcs.rows,
       porProf: porProf.rows,
@@ -6313,6 +6452,7 @@ app.post('/api/acolhimento/:id/chamar', async (req, res) => {
 app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
   const client = await pool.connect();
   try {
+    await garantirColunasEscuta(client);
     const { id } = req.params;
     const { queixa, cpf, cartao_sus, agendamento_realizado, condicoes_especiais } = req.body;
     await client.query('BEGIN');
@@ -6323,14 +6463,17 @@ app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Paciente não encontrado na 1ª Escuta' });
     }
-    
-    // Atualiza patient e finaliza
+    const existingPatient = pResult.rows[0];
+    const queixaLimpa = queixa && String(queixa).trim() ? String(queixa).trim() : (existingPatient.motivo_primeira_escuta || existingPatient.queixa || null);
+
+    // Atualiza patient e finaliza preservando motivo_primeira_escuta
     const updtResult = await client.query(
       `UPDATE patients SET 
         etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP,
-        queixa = $2, cpf = $3, cartao_sus = $4, agendamento_realizado = $5, condicoes_especiais = COALESCE($6, condicoes_especiais)
+        queixa = $2, motivo_primeira_escuta = COALESCE(NULLIF(TRIM($2), ''), motivo_primeira_escuta, queixa),
+        cpf = $3, cartao_sus = $4, agendamento_realizado = $5, condicoes_especiais = COALESCE($6, condicoes_especiais)
        WHERE id = $1 RETURNING *`,
-      [id, queixa || null, cpf || null, cartao_sus || null, agendamento_realizado || false, condicoes_especiais || null]
+      [id, queixaLimpa, cpf || null, cartao_sus || null, agendamento_realizado || false, condicoes_especiais || null]
     );
     const patient = updtResult.rows[0];
 
@@ -6338,15 +6481,33 @@ app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
     const historyCheck = await client.query(`SELECT id FROM call_history WHERE patient_id = $1 AND setor = 'Acolhimento' ORDER BY created_at DESC LIMIT 1`, [patient.id]);
     if (historyCheck.rows.length > 0) {
       await client.query(
-        `UPDATE call_history SET profissional = $1, cpf = $2, cartao_sus = $3, acs_responsavel = $4, agendamento_realizado = $5, condicoes_especiais = $6, queixa = $7, risco_clinico = $8 WHERE id = $9`,
-        [patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico, historyCheck.rows[0].id]
+        `UPDATE call_history
+         SET profissional = $1, cpf = $2, cartao_sus = $3, acs_responsavel = $4, agendamento_realizado = $5,
+             condicoes_especiais = $6, queixa = $7, risco_clinico = $8,
+             equipe_paciente = COALESCE($9, equipe_paciente),
+             motivo_primeira_escuta = COALESCE($10, motivo_primeira_escuta)
+         WHERE id = $11`,
+        [
+          patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel,
+          patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico,
+          patient.equipe_paciente || null, patient.motivo_primeira_escuta || patient.queixa || null,
+          historyCheck.rows[0].id
+        ]
       );
     } else {
       const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
       await client.query(
-        `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, agendamento_realizado, condicoes_especiais, queixa, risco_clinico)
-         VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico]
+        `INSERT INTO call_history (
+           patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus,
+           acs_responsavel, agendamento_realizado, condicoes_especiais, queixa, risco_clinico, equipe_paciente, motivo_primeira_escuta
+         )
+         VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [
+          patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade,
+          patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel,
+          patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico,
+          patient.equipe_paciente || null, patient.motivo_primeira_escuta || patient.queixa || null
+        ]
       );
     }
     await client.query('COMMIT');
@@ -6361,12 +6522,19 @@ app.put('/api/acolhimento/:id/finalizar-escuta1', async (req, res) => {
   }
 });
 
-// PUT finalizar – segunda_escuta -> finalizado (registra no call_history)
+// PUT finalizar – segunda_escuta -> finalizado (registra no call_history preservando 1ª e 2ª Escuta)
 app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
   const client = await pool.connect();
   try {
+    await garantirColunasEscuta(client);
     const { id } = req.params;
-    const { gravidade_final, agendamento_realizado, condicoes_especiais } = req.body;
+    const {
+      gravidade_final,
+      agendamento_realizado,
+      condicoes_especiais,
+      observacao_segunda_escuta,
+      motivo_primeira_escuta
+    } = req.body;
     await client.query('BEGIN');
     const pResult = await client.query(
       `SELECT * FROM patients WHERE id = $1 AND setor = 'Acolhimento' AND etapa_fluxo = 'segunda_escuta'`,
@@ -6376,42 +6544,81 @@ app.put('/api/acolhimento/:id/finalizar', async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Paciente não encontrado ou não está na 2ª Escuta' });
     }
-    
-    // Use data from the initial check to provide fallbacks for editing
-    const existingPatient = pResult.rows[0];
 
-    // Mark as finalized and update edited fields
+    const existingPatient = pResult.rows[0];
+    const motivo1Preservado =
+      (existingPatient.motivo_primeira_escuta && String(existingPatient.motivo_primeira_escuta).trim()) ||
+      (motivo_primeira_escuta && String(motivo_primeira_escuta).trim()) ||
+      (existingPatient.queixa && String(existingPatient.queixa).trim()) ||
+      (req.body.queixa && String(req.body.queixa).trim()) ||
+      null;
+
+    const queixaEnviada = req.body.queixa && String(req.body.queixa).trim() ? String(req.body.queixa).trim() : null;
+    let obs2Final = observacao_segunda_escuta && String(observacao_segunda_escuta).trim()
+      ? String(observacao_segunda_escuta).trim()
+      : (existingPatient.observacao_segunda_escuta ? String(existingPatient.observacao_segunda_escuta).trim() : null);
+    if (!obs2Final && queixaEnviada && motivo1Preservado && queixaEnviada !== motivo1Preservado) {
+      obs2Final = queixaEnviada;
+    }
+
     const updtResult = await client.query(
       `UPDATE patients SET 
         etapa_fluxo = 'finalizado', status = 'atendido', updated_at = CURRENT_TIMESTAMP,
         gravidade_final = $2, agendamento_realizado = $3,
-        queixa = $4, cpf = $5, cartao_sus = $6, condicoes_especiais = COALESCE($7, condicoes_especiais)
+        queixa = $4, motivo_primeira_escuta = $5, observacao_segunda_escuta = $6,
+        cpf = $7, cartao_sus = $8, condicoes_especiais = COALESCE($9, condicoes_especiais)
        WHERE id = $1 RETURNING *`,
       [
-        id, 
-        gravidade_final || null, 
-        agendamento_realizado || false, 
-        req.body.queixa || existingPatient.queixa, 
-        req.body.cpf || existingPatient.cpf, 
+        id,
+        gravidade_final || null,
+        agendamento_realizado || false,
+        queixaEnviada || motivo1Preservado || existingPatient.queixa,
+        motivo1Preservado,
+        obs2Final,
+        req.body.cpf || existingPatient.cpf,
         req.body.cartao_sus || existingPatient.cartao_sus,
         condicoes_especiais || null
       ]
     );
     const patient = updtResult.rows[0];
 
-    // Add to history
+    // Add to history preservando sempre 1ª Escuta + 2ª Escuta
     const historyCheck = await client.query(`SELECT id FROM call_history WHERE patient_id = $1 AND setor = 'Acolhimento' ORDER BY created_at DESC LIMIT 1`, [patient.id]);
     if (historyCheck.rows.length > 0) {
       await client.query(
-        `UPDATE call_history SET profissional = $1, cpf = $2, cartao_sus = $3, acs_responsavel = $4, gravidade_final = $5, agendamento_realizado = $6, condicoes_especiais = $7, queixa = $8, risco_clinico = $9 WHERE id = $10`,
-        [patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.gravidade_final, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico, historyCheck.rows[0].id]
+        `UPDATE call_history
+         SET profissional = $1, cpf = $2, cartao_sus = $3, acs_responsavel = $4, gravidade_final = $5,
+             agendamento_realizado = $6, condicoes_especiais = $7, queixa = $8, risco_clinico = $9,
+             equipe_paciente = COALESCE($10, equipe_paciente),
+             motivo_primeira_escuta = COALESCE($11, motivo_primeira_escuta),
+             observacao_segunda_escuta = COALESCE($12, observacao_segunda_escuta)
+         WHERE id = $13`,
+        [
+          patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel,
+          patient.gravidade_final, patient.agendamento_realizado, patient.condicoes_especiais,
+          patient.queixa, patient.risco_clinico, patient.equipe_paciente || null,
+          patient.motivo_primeira_escuta || motivo1Preservado,
+          patient.observacao_segunda_escuta || obs2Final,
+          historyCheck.rows[0].id
+        ]
       );
     } else {
       const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
       await client.query(
-        `INSERT INTO call_history (patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus, acs_responsavel, gravidade_final, agendamento_realizado, condicoes_especiais, queixa, risco_clinico)
-         VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-        [patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade, patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel, patient.gravidade_final, patient.agendamento_realizado, patient.condicoes_especiais, patient.queixa, patient.risco_clinico]
+        `INSERT INTO call_history (
+           patient_id, nome, setor, horario_chamada, prioridade, tipo_prioridade, profissional, cpf, cartao_sus,
+           acs_responsavel, gravidade_final, agendamento_realizado, condicoes_especiais, queixa, risco_clinico,
+           equipe_paciente, motivo_primeira_escuta, observacao_segunda_escuta
+         )
+         VALUES ($1, $2, 'Acolhimento', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+        [
+          patient.id, patient.nome, horarioChamada, patient.prioridade, patient.tipo_prioridade,
+          patient.profissional_destino, patient.cpf, patient.cartao_sus, patient.acs_responsavel,
+          patient.gravidade_final, patient.agendamento_realizado, patient.condicoes_especiais,
+          patient.queixa, patient.risco_clinico, patient.equipe_paciente || null,
+          patient.motivo_primeira_escuta || motivo1Preservado,
+          patient.observacao_segunda_escuta || obs2Final
+        ]
       );
     }
     await client.query('COMMIT');

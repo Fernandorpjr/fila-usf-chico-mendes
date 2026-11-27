@@ -48,7 +48,8 @@ window.fetch = function(resource, config) {
         !resource.includes('/verify-admin') &&
         !resource.includes('/config/pausa') &&
         !resource.includes('/config/mutirao-hoje') &&
-        !resource.includes('/config/jingle')
+        !resource.includes('/config/jingle') &&
+        !resource.includes('/config/metas-dia')
       ) {
         handleSessaoExpirada();
       } else if (res.status === 423 && !isModoTV()) {
@@ -181,6 +182,7 @@ function iniciarCarregamentoAutenticado() {
   if (typeof loadResponsaveisSetor === 'function') loadResponsaveisSetor();
   if (typeof loadChatPresenca === 'function') loadChatPresenca();
   if (typeof carregarJinglePreferido === 'function') carregarJinglePreferido();
+  if (typeof loadMetasDiaConfig === 'function') loadMetasDiaConfig();
   if (!_dadosAutenticadosIniciados) {
     _dadosAutenticadosIniciados = true;
     setTimeout(() => {
@@ -4265,9 +4267,84 @@ function updatePainel() {
   }).join('');
 }
 
-// ====== SECTOR ATTENDED HISTORY ======
-const LIMITE_AGENDADOS_PROF = 8;
-const LIMITE_INTERCORRENCIAS_PROF = 4;
+// ====== SECTOR ATTENDED HISTORY & METAS EDITÁVEIS DO DIA ======
+let metasDiaConfig = {
+  padrao: {
+    manha: 8,
+    tarde: 5,
+    intercorrencias: 4,
+    modo: 'turno',
+    meta_fixa: 13,
+    tipo_dia: 'Padrão (8 Manhã · 5 Tarde)'
+  },
+  por_profissional: {}
+};
+
+function obterTurnoAtualRecife() {
+  try {
+    const h = parseInt(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Recife',
+      hour: '2-digit',
+      hour12: false
+    }).format(new Date()), 10);
+    return Number.isFinite(h) && h >= 12 ? 'tarde' : 'manha';
+  } catch {
+    return new Date().getHours() >= 12 ? 'tarde' : 'manha';
+  }
+}
+
+function obterMetaProfissionalDia(setor, profNome) {
+  const pad = metasDiaConfig?.padrao || { manha: 8, tarde: 5, intercorrencias: 4, modo: 'turno', meta_fixa: 13, tipo_dia: 'Padrão (8 Manhã · 5 Tarde)' };
+  const custom = (profNome && metasDiaConfig?.por_profissional && metasDiaConfig.por_profissional[profNome]) || null;
+  const fonte = custom || pad;
+  const turnoAtual = obterTurnoAtualRecife();
+  const modo = fonte.modo === 'fixo' ? 'fixo' : 'turno';
+  const manha = Math.max(1, parseInt(fonte.manha, 10) || 8);
+  const tarde = Math.max(1, parseInt(fonte.tarde, 10) || 5);
+  const metaFixa = Math.max(1, parseInt(fonte.meta_fixa, 10) || (manha + tarde));
+  const intercorrencias = Math.max(0, Number.isFinite(parseInt(fonte.intercorrencias, 10)) ? parseInt(fonte.intercorrencias, 10) : 4);
+  const metaAgendados = modo === 'fixo' ? metaFixa : (turnoAtual === 'tarde' ? tarde : manha);
+  const tipoDia = fonte.tipo_dia || (modo === 'fixo' ? `Dia Especial (${metaFixa})` : `Padrão (${manha}M · ${tarde}T)`);
+  const turnoLabel = turnoAtual === 'tarde' ? 'Tarde' : 'Manhã';
+  const labelResumo = modo === 'fixo'
+    ? `🎯 Meta ${tipoDia}: ${metaAgendados} Agend. | Limite: ${intercorrencias} Interc.`
+    : `📊 Meta (${turnoLabel}): ${metaAgendados} Agend. (${manha}M / ${tarde}T) | Limite: ${intercorrencias} Interc.`;
+  return {
+    metaAgendados,
+    limiteIntercorrencias: intercorrencias,
+    manha,
+    tarde,
+    metaFixa,
+    modo,
+    tipoDia,
+    turnoAtual,
+    labelResumo,
+    ehCustom: Boolean(custom)
+  };
+}
+
+let _loadingMetasDia = false;
+async function loadMetasDiaConfig() {
+  if (_loadingMetasDia) return;
+  _loadingMetasDia = true;
+  try {
+    const r = await fetch(`${API_URL}/config/metas-dia`);
+    if (r.ok) {
+      const data = await r.json();
+      if (data && data.padrao) {
+        metasDiaConfig = {
+          padrao: data.padrao,
+          por_profissional: data.por_profissional && typeof data.por_profissional === 'object' ? data.por_profissional : {}
+        };
+        if (typeof renderResumoProfissionais === 'function') renderResumoProfissionais();
+      }
+    }
+  } catch (e) {
+    /* fallback mantém padrão 8 Manhã / 5 Tarde */
+  } finally {
+    _loadingMetasDia = false;
+  }
+}
 
 function isRegistroRechamadaOuEncaminhamento(rec) {
   const prof = String(rec?.profissional || '');
@@ -4362,18 +4439,21 @@ function renderResumoProfissionais() {
       ? (cfg.profissionais?.[0] || 'Dra. Juliana Cavalcante')
       : (sectorFilters[cfg.key] || null);
     const resumo = calcularResumoProfissionalDia(setor, profSelecionado);
+    const meta = obterMetaProfissionalDia(setor, profSelecionado);
+    const limiteAgend = meta.metaAgendados;
+    const limiteInterc = meta.limiteIntercorrencias;
     const tituloProf = profSelecionado || `Todos de ${setor}`;
 
-    const pctAgend = Math.min(100, Math.round((resumo.agendados / LIMITE_AGENDADOS_PROF) * 100));
-    const pctInterc = Math.min(100, Math.round((resumo.intercorrencias / LIMITE_INTERCORRENCIAS_PROF) * 100));
-    const corInterc = resumo.intercorrencias > LIMITE_INTERCORRENCIAS_PROF
+    const pctAgend = Math.min(100, Math.round((resumo.agendados / Math.max(1, limiteAgend)) * 100));
+    const pctInterc = limiteInterc > 0 ? Math.min(100, Math.round((resumo.intercorrencias / limiteInterc) * 100)) : (resumo.intercorrencias > 0 ? 100 : 0);
+    const corInterc = resumo.intercorrencias > limiteInterc
       ? '#dc2626'
-      : resumo.intercorrencias >= 3
+      : resumo.intercorrencias >= Math.max(1, limiteInterc - 1)
         ? '#d97706'
         : '#16a34a';
-    const bgInterc = resumo.intercorrencias > LIMITE_INTERCORRENCIAS_PROF
+    const bgInterc = resumo.intercorrencias > limiteInterc
       ? 'background:#fef2f2;border-color:#fca5a5;'
-      : resumo.intercorrencias >= 3
+      : resumo.intercorrencias >= Math.max(1, limiteInterc - 1)
         ? 'background:#fffbeb;border-color:#fcd34d;'
         : 'background:#f0fdf4;border-color:#bbf7d0;';
 
@@ -4381,28 +4461,34 @@ function renderResumoProfissionais() {
     let miniStripHtml = '';
 
     if (profSelecionado) {
-      if (resumo.intercorrencias > LIMITE_INTERCORRENCIAS_PROF) {
-        alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>LIMITE EXCEDIDO: <strong>${escapeText(profSelecionado)}</strong> já possui <strong>${resumo.intercorrencias} intercorrências</strong> hoje (limite previsto: ${LIMITE_INTERCORRENCIAS_PROF}).</span></div>`;
-      } else if (resumo.intercorrencias === LIMITE_INTERCORRENCIAS_PROF) {
-        alertHtml = `<div class="prof-alert-banner">⚠️ <span>ATENÇÃO: <strong>${escapeText(profSelecionado)}</strong> atingiu o limite de <strong>${LIMITE_INTERCORRENCIAS_PROF} intercorrências</strong> hoje.</span></div>`;
+      if (resumo.intercorrencias > limiteInterc) {
+        alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>LIMITE EXCEDIDO: <strong>${escapeText(profSelecionado)}</strong> já possui <strong>${resumo.intercorrencias} intercorrências</strong> hoje (limite previsto: ${limiteInterc}).</span></div>`;
+      } else if (limiteInterc > 0 && resumo.intercorrencias === limiteInterc) {
+        alertHtml = `<div class="prof-alert-banner">⚠️ <span>ATENÇÃO: <strong>${escapeText(profSelecionado)}</strong> atingiu o limite de <strong>${limiteInterc} intercorrências</strong> hoje.</span></div>`;
       }
     } else if (cfg.profissionais && cfg.profissionais.length > 1) {
       const excedidos = [];
       miniStripHtml = `<div class="prof-mini-strip">` + cfg.profissionais.map(pNome => {
         const rp = calcularResumoProfissionalDia(setor, pNome);
+        const mp = obterMetaProfissionalDia(setor, pNome);
         let cls = '';
-        if (rp.intercorrencias > LIMITE_INTERCORRENCIAS_PROF) {
+        if (rp.intercorrencias > mp.limiteIntercorrencias) {
           cls = 'over-limit';
           excedidos.push(`${pNome} (${rp.intercorrencias})`);
-        } else if (rp.intercorrencias === LIMITE_INTERCORRENCIAS_PROF) {
+        } else if (mp.limiteIntercorrencias > 0 && rp.intercorrencias === mp.limiteIntercorrencias) {
           cls = 'at-limit';
         }
-        return `<button type="button" class="prof-mini-pill ${cls}" onclick="filterSector('${cfg.key}','${pNome.replace(/'/g, "\\'")}')" title="Filtrar ${escapeText(pNome)}">👤 ${escapeText(pNome)} · Agend: ${rp.agendados}/${LIMITE_AGENDADOS_PROF} · Interc: ${rp.intercorrencias}/${LIMITE_INTERCORRENCIAS_PROF}</button>`;
+        return `<button type="button" class="prof-mini-pill ${cls}" onclick="filterSector('${cfg.key}','${pNome.replace(/'/g, "\\'")}')" title="Filtrar ${escapeText(pNome)}">👤 ${escapeText(pNome)} · Agend: ${rp.agendados}/${mp.metaAgendados} · Interc: ${rp.intercorrencias}/${mp.limiteIntercorrencias}</button>`;
       }).join('') + `</div>`;
       if (excedidos.length > 0) {
-        alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>Acima do limite de ${LIMITE_INTERCORRENCIAS_PROF} intercorrências hoje: <strong>${escapeText(excedidos.join(', '))}</strong></span></div>`;
+        alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>Acima do limite de intercorrências hoje: <strong>${escapeText(excedidos.join(', '))}</strong></span></div>`;
       }
     }
+
+    const alvoMetaBtn = (profSelecionado || '__PADRAO__').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const subAgendText = meta.modo === 'fixo'
+      ? `${escapeText(meta.tipoDia)} · Meta editável`
+      : `Manhã: ${meta.manha} · Tarde: ${meta.tarde} (turno ${meta.turnoAtual === 'tarde' ? 'tarde' : 'manhã'})`;
 
     container.innerHTML = `
       <div class="prof-summary-card">
@@ -4410,7 +4496,10 @@ function renderResumoProfissionais() {
           <div class="prof-summary-title">
             <span>📊 Resumo do Dia — ${escapeText(tituloProf)}</span>
           </div>
-          <span class="prof-summary-meta-pill">🔒 Visão Admin · Meta: ${LIMITE_AGENDADOS_PROF} Agendados | Limite: ${LIMITE_INTERCORRENCIAS_PROF} Intercorrências</span>
+          <div class="prof-summary-head-right">
+            <span class="prof-summary-meta-pill">${escapeText(meta.labelResumo)}</span>
+            <button type="button" class="btn-editar-meta-dia" onclick="abrirModalConfigMetasDia('${alvoMetaBtn}')" title="Editar meta de agendados e limite de intercorrências (Gerente/Admin)">⚙️ Editar Meta</button>
+          </div>
         </div>
         <div class="prof-kpi-grid">
           <div class="prof-kpi-box" style="background:#f8fafc;">
@@ -4425,13 +4514,13 @@ function renderResumoProfissionais() {
           </div>
           <div class="prof-kpi-box" style="background:#eff6ff;border-color:#bfdbfe;">
             <div class="prof-kpi-label">📅 Agendados</div>
-            <div class="prof-kpi-val" style="color:#1e40af;">${resumo.agendados} <span style="font-size:13px;color:#64748b;font-weight:800;">/ ${LIMITE_AGENDADOS_PROF}</span></div>
+            <div class="prof-kpi-val" style="color:#1e40af;">${resumo.agendados} <span style="font-size:13px;color:#64748b;font-weight:800;">/ ${limiteAgend}</span></div>
             <div class="prof-progress-track"><div class="prof-progress-fill" style="width:${pctAgend}%;background:#2563eb;"></div></div>
-            <div class="prof-kpi-sub">Consultas e atendimentos agendados</div>
+            <div class="prof-kpi-sub">${subAgendText}</div>
           </div>
           <div class="prof-kpi-box" style="${bgInterc}">
             <div class="prof-kpi-label">🚨 Intercorrências</div>
-            <div class="prof-kpi-val" style="color:${corInterc};">${resumo.intercorrencias} <span style="font-size:13px;color:#64748b;font-weight:800;">/ ${LIMITE_INTERCORRENCIAS_PROF}</span></div>
+            <div class="prof-kpi-val" style="color:${corInterc};">${resumo.intercorrencias} <span style="font-size:13px;color:#64748b;font-weight:800;">/ ${limiteInterc}</span></div>
             <div class="prof-progress-track"><div class="prof-progress-fill" style="width:${pctInterc}%;background:${corInterc};"></div></div>
             <div class="prof-kpi-sub">Acolh.: ${resumo.intercAcolhimento} · Direto: ${resumo.intercFila}</div>
           </div>
@@ -4477,12 +4566,213 @@ function atualizarAlertaIntercorrenciaRecepcao() {
     return;
   }
   const resumo = calcularResumoProfissionalDia(setor, prof);
-  if (resumo.intercorrencias >= LIMITE_INTERCORRENCIAS_PROF) {
+  const meta = obterMetaProfissionalDia(setor, prof);
+  if (resumo.intercorrencias >= meta.limiteIntercorrencias) {
     box.className = 'show';
-    box.innerHTML = `<span style="font-size:16px;">🚨</span><div><strong>Alerta Admin (${escapeText(prof)}):</strong> Já possui <strong>${resumo.intercorrencias} intercorrências</strong> hoje (limite previsto: ${LIMITE_INTERCORRENCIAS_PROF}). Este paciente de intercorrência elevará para <strong>${resumo.intercorrencias + 1}</strong>.</div>`;
+    box.innerHTML = `<span style="font-size:16px;">🚨</span><div><strong>Alerta Admin (${escapeText(prof)}):</strong> Já possui <strong>${resumo.intercorrencias} intercorrências</strong> hoje (limite previsto: ${meta.limiteIntercorrencias}). Este paciente de intercorrência elevará para <strong>${resumo.intercorrencias + 1}</strong>.</div>`;
   } else {
     box.className = '';
     box.innerHTML = '';
+  }
+}
+
+function popularSelectAlvoMetaDia(alvoSelecionado) {
+  const sel = document.getElementById('meta-dia-alvo');
+  if (!sel) return;
+  const opts = ['<option value="__PADRAO__">🌐 Padrão Geral da Unidade (Todos sem regra própria)</option>'];
+  SETORES_HORARIO_MARCADO.forEach(setor => {
+    const cfg = SECTOR_CONFIG[setor];
+    if (!cfg || !Array.isArray(cfg.profissionais)) return;
+    cfg.profissionais.forEach(pNome => {
+      const temCustom = Boolean(metasDiaConfig?.por_profissional?.[pNome]);
+      opts.push(`<option value="${escapeText(pNome)}">${escapeText(setor)} · ${escapeText(pNome)}${temCustom ? ' ★' : ''}</option>`);
+    });
+  });
+  sel.innerHTML = opts.join('');
+  if (alvoSelecionado && Array.from(sel.options).some(o => o.value === alvoSelecionado)) {
+    sel.value = alvoSelecionado;
+  } else {
+    sel.value = '__PADRAO__';
+  }
+}
+
+function atualizarVisibilidadeModoMetaDia() {
+  const modo = document.getElementById('meta-dia-modo')?.value || 'turno';
+  const elTurno = document.getElementById('meta-dia-turno-fields');
+  const elFixo = document.getElementById('meta-dia-fixo-fields');
+  if (elTurno) elTurno.style.display = modo === 'fixo' ? 'none' : 'grid';
+  if (elFixo) elFixo.style.display = modo === 'fixo' ? 'grid' : 'none';
+}
+
+function ajustarInputMetaDia(inputId, delta) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  const min = parseInt(el.min || '0', 10);
+  const max = parseInt(el.max || '80', 10);
+  const atual = parseInt(el.value || '0', 10);
+  const novo = Math.max(min, Math.min(max, (Number.isFinite(atual) ? atual : 0) + delta));
+  el.value = String(novo);
+}
+
+function aplicarPresetMetaDia(preset, btn) {
+  document.querySelectorAll('#modal-config-metas-dia .meta-preset-chip').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = String(v); };
+  if (preset === 'padrao') {
+    setVal('meta-dia-modo', 'turno');
+    setVal('meta-dia-manha', 8);
+    setVal('meta-dia-tarde', 5);
+    setVal('meta-dia-fixa', 13);
+    setVal('meta-dia-interc', 4);
+    setVal('meta-dia-label', 'Padrão (8 Manhã · 5 Tarde)');
+  } else if (preset === 'hiperdia12') {
+    setVal('meta-dia-modo', 'fixo');
+    setVal('meta-dia-fixa', 12);
+    setVal('meta-dia-manha', 12);
+    setVal('meta-dia-tarde', 12);
+    setVal('meta-dia-interc', 4);
+    setVal('meta-dia-label', 'Hiperdia (12 Agendados)');
+  } else if (preset === 'hiperdia15') {
+    setVal('meta-dia-modo', 'fixo');
+    setVal('meta-dia-fixa', 15);
+    setVal('meta-dia-manha', 15);
+    setVal('meta-dia-tarde', 15);
+    setVal('meta-dia-interc', 4);
+    setVal('meta-dia-label', 'Hiperdia Intensivo (15)');
+  } else if (preset === 'prenatal5') {
+    setVal('meta-dia-modo', 'fixo');
+    setVal('meta-dia-fixa', 5);
+    setVal('meta-dia-manha', 5);
+    setVal('meta-dia-tarde', 5);
+    setVal('meta-dia-interc', 4);
+    setVal('meta-dia-label', 'Pré-Natal / Gestante (5)');
+  } else if (preset === 'puericultura6') {
+    setVal('meta-dia-modo', 'fixo');
+    setVal('meta-dia-fixa', 6);
+    setVal('meta-dia-manha', 6);
+    setVal('meta-dia-tarde', 6);
+    setVal('meta-dia-interc', 4);
+    setVal('meta-dia-label', 'Puericultura (6)');
+  }
+  atualizarVisibilidadeModoMetaDia();
+}
+
+function renderListaCustomMetasDia() {
+  const box = document.getElementById('meta-dia-custom-list');
+  if (!box) return;
+  const entries = Object.entries(metasDiaConfig?.por_profissional || {});
+  if (!entries.length) {
+    box.innerHTML = '';
+    return;
+  }
+  box.innerHTML = `
+    <div style="font-size:11px;font-weight:900;color:#475569;text-transform:uppercase;margin-bottom:6px;">Regras Específicas Ativas Hoje</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${entries.map(([nome, cfg]) => {
+        const desc = cfg.modo === 'fixo' ? `${cfg.meta_fixa} (${cfg.tipo_dia || 'Especial'})` : `${cfg.manha}M / ${cfg.tarde}T`;
+        const safeNome = nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#eff6ff;border:1px solid #93c5fd;color:#1e3a8a;font-size:11.5px;font-weight:800;">
+          👤 ${escapeText(nome)}: ${escapeText(desc)} · Interc: ${cfg.intercorrencias}
+          <button type="button" onclick="removerMetaCustomProfissional('${safeNome}')" title="Remover regra específica" style="background:transparent;border:none;color:#dc2626;font-weight:900;cursor:pointer;">✕</button>
+        </span>`;
+      }).join('')}
+    </div>`;
+}
+
+function carregarAlvoMetaDiaNoModal() {
+  const alvo = document.getElementById('meta-dia-alvo')?.value || '__PADRAO__';
+  const cfg = (alvo !== '__PADRAO__' && metasDiaConfig?.por_profissional?.[alvo])
+    ? metasDiaConfig.por_profissional[alvo]
+    : (metasDiaConfig?.padrao || { manha: 8, tarde: 5, meta_fixa: 13, intercorrencias: 4, modo: 'turno', tipo_dia: 'Padrão (8 Manhã · 5 Tarde)' });
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = String(v); };
+  setVal('meta-dia-modo', cfg.modo === 'fixo' ? 'fixo' : 'turno');
+  setVal('meta-dia-manha', cfg.manha ?? 8);
+  setVal('meta-dia-tarde', cfg.tarde ?? 5);
+  setVal('meta-dia-fixa', cfg.meta_fixa ?? 12);
+  setVal('meta-dia-interc', cfg.intercorrencias ?? 4);
+  setVal('meta-dia-label', cfg.tipo_dia || '');
+  document.querySelectorAll('#modal-config-metas-dia .meta-preset-chip').forEach(b => b.classList.remove('active'));
+  atualizarVisibilidadeModoMetaDia();
+  renderListaCustomMetasDia();
+}
+
+function abrirModalConfigMetasDia(alvoInicial = '__PADRAO__') {
+  if (!isManagerOrAdmin()) {
+    pedirSenhaGerenteOuAdmin('Configurar Metas de Agendados do Dia', () => abrirModalConfigMetasDia(alvoInicial));
+    return;
+  }
+  popularSelectAlvoMetaDia(alvoInicial || '__PADRAO__');
+  carregarAlvoMetaDiaNoModal();
+  const modal = document.getElementById('modal-config-metas-dia');
+  if (modal) modal.classList.add('show');
+}
+
+function fecharModalConfigMetasDia() {
+  const modal = document.getElementById('modal-config-metas-dia');
+  if (modal) modal.classList.remove('show');
+}
+
+async function persistirMetasDiaNoServidor(novoConfig) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (adminPassword) headers['x-admin-password'] = adminPassword;
+  const r = await fetch(`${API_URL}/config/metas-dia`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ config: novoConfig, senha: adminPassword || undefined })
+  });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401 || r.status === 403) {
+    pedirSenhaGerenteOuAdmin('Salvar Metas do Dia', () => persistirMetasDiaNoServidor(novoConfig));
+    return false;
+  }
+  if (!r.ok) {
+    showToast(data.error || 'Erro ao salvar metas do dia!', true);
+    return false;
+  }
+  if (data.config) metasDiaConfig = data.config;
+  renderResumoProfissionais();
+  renderListaCustomMetasDia();
+  return true;
+}
+
+async function salvarConfigMetasDia() {
+  const alvo = document.getElementById('meta-dia-alvo')?.value || '__PADRAO__';
+  const modo = document.getElementById('meta-dia-modo')?.value === 'fixo' ? 'fixo' : 'turno';
+  const manha = Math.max(1, Math.min(60, parseInt(document.getElementById('meta-dia-manha')?.value || '8', 10) || 8));
+  const tarde = Math.max(1, Math.min(60, parseInt(document.getElementById('meta-dia-tarde')?.value || '5', 10) || 5));
+  const meta_fixa = Math.max(1, Math.min(80, parseInt(document.getElementById('meta-dia-fixa')?.value || '12', 10) || 12));
+  const intercorrencias = Math.max(0, Math.min(30, parseInt(document.getElementById('meta-dia-interc')?.value ?? '4', 10)));
+  const tipo_dia = (document.getElementById('meta-dia-label')?.value || '').trim() || (modo === 'fixo' ? `Especial (${meta_fixa})` : `Turno (${manha}M · ${tarde}T)`);
+
+  const bloco = { manha, tarde, meta_fixa, intercorrencias, modo, tipo_dia };
+  const nextConfig = {
+    padrao: { ...(metasDiaConfig?.padrao || {}) },
+    por_profissional: { ...(metasDiaConfig?.por_profissional || {}) }
+  };
+  if (alvo === '__PADRAO__') {
+    nextConfig.padrao = bloco;
+  } else {
+    nextConfig.por_profissional[alvo] = bloco;
+  }
+
+  const ok = await persistirMetasDiaNoServidor(nextConfig);
+  if (ok) {
+    showToast(`✅ Meta salva para ${alvo === '__PADRAO__' ? 'toda a unidade' : alvo}!`);
+    fecharModalConfigMetasDia();
+  }
+}
+
+async function removerMetaCustomProfissional(profNome) {
+  const nextConfig = {
+    padrao: { ...(metasDiaConfig?.padrao || {}) },
+    por_profissional: { ...(metasDiaConfig?.por_profissional || {}) }
+  };
+  delete nextConfig.por_profissional[profNome];
+  const ok = await persistirMetasDiaNoServidor(nextConfig);
+  if (ok) {
+    popularSelectAlvoMetaDia('__PADRAO__');
+    carregarAlvoMetaDiaNoModal();
+    showToast(`ℹ️ Regra específica de ${profNome} removida (voltou ao padrão).`);
   }
 }
 
@@ -6336,38 +6626,28 @@ function renderLembretesD1(list, dataAmanha) {
     // Imagem do tipo (para preview rápido)
     const imgSrc = getImagemTipoConsulta(a.tipo_atendimento, a.profissional);
 
-    return `<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:white;border-radius:12px;border-left:5px solid ${corTipo.color};box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:8px;transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.06)'">
+    return `<div class="agend-d1-card" style="border-left-color:${corTipo.color};">
       <!-- Thumbnail da imagem -->
-      <div style="flex-shrink:0;width:60px;height:40px;border-radius:6px;overflow:hidden;border:1px solid var(--gray-200);">
-        <img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;" alt="${tipoLabel}" />
+      <div style="flex-shrink:0;width:62px;height:42px;border-radius:8px;overflow:hidden;border:1px solid var(--gray-200);">
+        <img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;" alt="${escapeText(tipoLabel)}" />
       </div>
       <!-- Info do paciente -->
-      <div style="flex:1;min-width:0;">
-        <div style="font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--blue-dark);margin-bottom:2px;">${a.nome}</div>
-        <div style="font-size:12px;color:var(--gray-600);font-weight:600;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-          <span>⏰ ${a.horario}</span>
-          <span>👨‍⚕️ ${profCompleto}</span>
-          <span style="background:${corTipo.bg};color:${corTipo.color};padding:1px 8px;border-radius:10px;font-size:10px;font-weight:800;">${tipoLabel}</span>
+      <div style="flex:1;min-width:190px;">
+        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:14.5px;color:var(--blue-dark);margin-bottom:3px;">${escapeText(a.nome)}</div>
+        <div style="font-size:12px;color:var(--gray-600);font-weight:700;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+          <span>⏰ ${escapeText(a.horario || '-')}</span>
+          <span>👨‍⚕️ ${escapeText(profCompleto)}</span>
+          <span style="background:${corTipo.bg};color:${corTipo.color};padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:800;">${escapeText(tipoLabel)}</span>
           ${statusHtml}
         </div>
       </div>
       <!-- Ações -->
-      <div style="display:flex;gap:6px;flex-shrink:0;">
-        <button onclick="openWaPreview(${a.id}, 'lembrete_d1')" title="Enviar Lembrete D-1 via WhatsApp" style="background:#25D366;color:white;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(37,211,102,0.3);transition:all 0.15s;" onmouseover="this.style.background='#1fb855'" onmouseout="this.style.background='#25D366'">
-          📲 Lembrete
-        </button>
-        <button onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta" style="background:var(--red);color:white;border:none;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(229,57,53,0.3);transition:all 0.15s;">
-          ❌ Cancelar
-        </button>
-        <button onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta" style="background:#e67e22;color:white;border:none;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(230,126,34,0.3);transition:all 0.15s;">
-          🔄 Reagendar
-        </button>
-        <button onclick="_waCurrentImageSrc=getImagemTipoConsulta('${(a.tipo_atendimento||'').replace(/'/g, "\\'")}','${(a.profissional||'').replace(/'/g, "\\'")}');copyWaImageToClipboard()" title="Copiar imagem de confirmação" style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='var(--gray-200)'" onmouseout="this.style.background='var(--gray-100)'">
-          🖼️
-        </button>
-        <button onclick="excluirLembreteD1(${a.id}, '${(a.nome||'').replace(/'/g, "\\'")}')" title="Excluir lembrete" style="background:rgba(229,57,53,0.1);border:1px solid rgba(229,57,53,0.25);border-radius:8px;padding:8px 10px;font-size:14px;cursor:pointer;transition:all 0.15s;color:var(--red);" onmouseover="this.style.background='rgba(229,57,53,0.2)'" onmouseout="this.style.background='rgba(229,57,53,0.1)'">
-          🗑️
-        </button>
+      <div class="agend-actions">
+        <button type="button" class="agend-action-btn agend-action-btn--wa" onclick="openWaPreview(${a.id}, 'lembrete_d1')" title="Enviar Lembrete D-1 via WhatsApp">📲 Lembrete</button>
+        <button type="button" class="agend-action-btn agend-action-btn--cancelar" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta">❌ Cancelar</button>
+        <button type="button" class="agend-action-btn agend-action-btn--reagendar" onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta">🔄 Reagendar</button>
+        <button type="button" class="agend-action-btn agend-action-btn--icon" onclick="_waCurrentImageSrc=getImagemTipoConsulta('${(a.tipo_atendimento||'').replace(/'/g, "\\'")}','${(a.profissional||'').replace(/'/g, "\\'")}');copyWaImageToClipboard()" title="Copiar imagem de confirmação" aria-label="Copiar imagem de confirmação">🖼️</button>
+        <button type="button" class="agend-action-btn agend-action-btn--icon agend-action-btn--delete" onclick="excluirLembreteD1(${a.id}, '${(a.nome||'').replace(/'/g, "\\'")}')" title="Excluir lembrete" aria-label="Excluir lembrete">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -6398,37 +6678,49 @@ function renderAgendamentos(list) {
   tbody.innerHTML = list.map(a => {
     const dataIsoDate = (a.data_agendamento || '').split('T')[0];
     const dataFmt = dataIsoDate ? new Date(dataIsoDate + 'T12:00:00').toLocaleDateString('pt-BR') : '';
-    const statusCls = a.status.replace(/\s+/g,'_');
-    
+    const statusCls = String(a.status || '').replace(/\s+/g,'_');
+    const statusLabels = {
+      pendente: '⏳ Pendente',
+      lembrete_enviado: '📨 Lembrete Enviado',
+      confirmado: '✅ Confirmado',
+      reagendado: '🔄 Reagendado',
+      realizado: '🎉 Realizado',
+      faltou: '⚠️ Faltou',
+      cancelado: '❌ Cancelado'
+    };
+    const statusLabel = statusLabels[statusCls] || a.status;
+
     let extraBtns = '';
     if (['pendente', 'lembrete_enviado', 'confirmado', 'reagendado'].includes(a.status)) {
       const nomeSafeAg = String(a.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-      extraBtns += `<button onclick="enviarAgendamentoParaFila(${a.id},'${nomeSafeAg}',this)" title="Paciente chegou — enviar direto para a fila do setor" style="background:linear-gradient(135deg,#0f766e,#0d9488);color:white;padding:4px 8px;font-size:11px;font-weight:800;border:none;border-radius:6px;cursor:pointer;">🏥 Enviar p/ Fila</button>`;
+      extraBtns += `<button type="button" class="agend-action-btn agend-action-btn--fila" onclick="enviarAgendamentoParaFila(${a.id},'${nomeSafeAg}',this)" title="Paciente chegou — enviar direto para a fila do setor">🏥 Enviar p/ Fila</button>`;
     }
     if (a.tipo_atendimento === 'Coleta de Sangue' && ['pendente', 'lembrete_enviado', 'confirmado'].includes(a.status)) {
       extraBtns += `
-        <button onclick="updateAgendStatus(${a.id},'realizado')" title="Compareceu (Realizado)" style="background:var(--green);color:white;padding:2px 6px;font-size:11px;">✅ Compareceu</button>
-        <button onclick="updateAgendStatus(${a.id},'faltou')" title="Faltou" style="background:var(--red);color:white;padding:2px 6px;font-size:11px;">❌ Faltou</button>
+        <button type="button" class="agend-action-btn agend-action-btn--compareceu" onclick="updateAgendStatus(${a.id},'realizado')" title="Compareceu (Realizado)">✅ Compareceu</button>
+        <button type="button" class="agend-action-btn agend-action-btn--faltou" onclick="updateAgendStatus(${a.id},'faltou')" title="Faltou">❌ Faltou</button>
       `;
     }
 
     return `<tr>
       <td>
-        <b>${a.nome}</b><br>
-        <span style="font-size:11px;color:var(--gray-600);">${a.telefone}</span><br>
-        <span style="font-size:10px;background:var(--gray-200);padding:2px 6px;border-radius:4px;font-weight:700;display:inline-block;margin-top:4px;">${a.tipo_atendimento||'Consulta'}</span>
+        <div style="font-weight:900;color:#0f172a;">${escapeText(a.nome)}</div>
+        <div style="font-size:11.5px;color:#475569;font-weight:700;">${escapeText(a.telefone || '-')}</div>
+        <span style="font-size:10.5px;background:#e2e8f0;color:#1e293b;padding:2px 8px;border-radius:999px;font-weight:800;display:inline-block;margin-top:4px;">${escapeText(a.tipo_atendimento || 'Consulta')}</span>
       </td>
-      <td>${dataFmt}</td><td>${a.horario}</td><td>${a.profissional||'-'}</td>
-      <td><span class="agend-status ${statusCls}">${a.status}</span></td>
-      <td><div class="agend-actions" style="display:flex;gap:4px;flex-wrap:wrap;">
+      <td style="font-weight:800;color:#1e293b;white-space:nowrap;">${escapeText(dataFmt)}</td>
+      <td style="font-weight:800;color:#1d4ed8;white-space:nowrap;">${escapeText(a.horario || '-')}</td>
+      <td style="font-weight:700;color:#334155;">${escapeText(a.profissional || '—')}</td>
+      <td><span class="agend-status ${statusCls}">${escapeText(statusLabel)}</span></td>
+      <td><div class="agend-actions">
         ${extraBtns}
-        <button class="btn-editar-envio" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta" style="background:var(--red);color:#fff;padding:4px 8px;font-size:11px;font-weight:700;border:none;border-radius:6px;cursor:pointer;">❌ Cancelar</button>
-        <button class="btn-editar-envio" onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta" style="background:#e67e22;color:#fff;padding:4px 8px;font-size:11px;font-weight:700;border:none;border-radius:6px;cursor:pointer;">🔄 Reagendar</button>
-        <button onclick="openWaPreview(${a.id})" title="WhatsApp">📲</button>
-        <button onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar lembrete">📨</button>
-        <button onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmado">✅</button>
-        <button onclick="abrirEdicaoAgendamento(${a.id}, '${a.nome.replace(/'/g,"\\'").trim()}', '${a.telefone.replace(/'/g,"\\'").trim()}')" title="Editar Contato">✏️</button>
-        <button onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" style="color:var(--red);">🗑️</button>
+        <button type="button" class="agend-action-btn agend-action-btn--wa" onclick="openWaPreview(${a.id})" title="Enviar WhatsApp">📲 WhatsApp</button>
+        <button type="button" class="agend-action-btn agend-action-btn--reagendar" onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta">🔄 Reagendar</button>
+        <button type="button" class="agend-action-btn agend-action-btn--cancelar" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta">❌ Cancelar</button>
+        <button type="button" class="agend-action-btn agend-action-btn--lembrete agend-action-btn--icon" onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar Lembrete Enviado" aria-label="Marcar lembrete enviado">📨</button>
+        <button type="button" class="agend-action-btn agend-action-btn--confirm agend-action-btn--icon" onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmar Presença" aria-label="Confirmar agendamento">✅</button>
+        <button type="button" class="agend-action-btn agend-action-btn--icon" onclick="abrirEdicaoAgendamento(${a.id}, '${a.nome.replace(/'/g,"\\'").trim()}', '${a.telefone.replace(/'/g,"\\'").trim()}')" title="Editar Nome/Telefone" aria-label="Editar agendamento">✏️</button>
+        <button type="button" class="agend-action-btn agend-action-btn--icon agend-action-btn--delete" onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" aria-label="Apagar agendamento">🗑️</button>
       </div></td></tr>`;
   }).join('');
 }
@@ -8139,6 +8431,9 @@ async function confirmarFinalizacaoEscuta2() {
   const id = document.getElementById('acol-escuta2-id').value;
   const agendamento = document.querySelector('input[name="acol-escuta2-agend"]:checked')?.value === 'true';
   const queixa = document.getElementById('acol-escuta2-queixa').value.trim();
+  const observacao_segunda_escuta = (document.getElementById('acol-escuta2-obs-segunda')?.value || '').trim();
+  const viewMotivo1Txt = (document.getElementById('acol-escuta2-view-motivo1')?.textContent || '').trim();
+  const motivo_primeira_escuta = (viewMotivo1Txt && !viewMotivo1Txt.startsWith('Sem queixa')) ? viewMotivo1Txt : '';
   const cpf = document.getElementById('acol-escuta2-cpf').value.trim();
   const cartao_sus = document.getElementById('acol-escuta2-sus').value.trim();
   const condicoes_especiais = getCondicoesFromContainer('condicoes-especiais-escuta2');
@@ -8151,7 +8446,12 @@ async function confirmarFinalizacaoEscuta2() {
       body: JSON.stringify({ 
         gravidade_final: selectedGravidade, 
         agendamento_realizado: agendamento,
-        queixa, cpf, cartao_sus, condicoes_especiais
+        queixa,
+        motivo_primeira_escuta: motivo_primeira_escuta || null,
+        observacao_segunda_escuta: observacao_segunda_escuta || null,
+        cpf,
+        cartao_sus,
+        condicoes_especiais
       })
     });
     if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
@@ -8164,6 +8464,16 @@ async function confirmarFinalizacaoEscuta2() {
 
 let lastAcolhimentoReportData = null;
 
+function formatarCondicoesAcolhimentoTexto(raw) {
+  try {
+    const arr = JSON.parse(raw || '[]');
+    if (!Array.isArray(arr) || !arr.length) return '—';
+    return arr.map(c => c === 'hipertenso' ? 'HAS' : c === 'diabetico' ? 'DM' : c === 'gestante' ? 'Gestante' : c === 'crianca_colo' ? 'Criança Colo' : c).join(', ');
+  } catch {
+    return '—';
+  }
+}
+
 async function gerarRelatorioAcolhimento() {
   try {
     const r = await fetch(`${API_URL}/acolhimento/relatorio`);
@@ -8173,21 +8483,6 @@ async function gerarRelatorioAcolhimento() {
     const el = document.getElementById('acol-relatorio-content');
     const avgRec = data.tempoMedio?.avg_recepcao_min ? Math.round(data.tempoMedio.avg_recepcao_min) : '—';
     const avgEsc = data.tempoMedio?.avg_escuta_min ? Math.round(data.tempoMedio.avg_escuta_min) : '—';
-    let riscoHtml = '';
-    if (data.riscoCor && data.riscoCor.length) {
-      riscoHtml = data.riscoCor.map(r => {
-        const emoji = r.risco_clinico === 'vermelho' ? '🔴' : r.risco_clinico === 'amarelo' ? '🟡' : r.risco_clinico === 'azul' ? '🟦' : '🟢';
-        return `${emoji} ${r.risco_clinico}: <b>${r.total}</b>`;
-      }).join(' · ');
-    }
-    let acsHtml = '<div style="color:var(--gray-600);">Nenhum ACS registrado</div>';
-    if (data.porAcs && data.porAcs.length) {
-      acsHtml = data.porAcs.map(a => `<div>👤 ${a.acs_responsavel}: <b>${a.total}</b> pacientes</div>`).join('');
-    }
-    let profHtml = '<div style="color:var(--gray-600);">Nenhum encaminhamento</div>';
-    if (data.porProf && data.porProf.length) {
-      profHtml = data.porProf.map(p => `<div>👨‍⚕️ ${p.profissional_destino} (${p.tipo_profissional_destino || '—'}): <b>${p.total}</b></div>`).join('');
-    }
 
     // Ativos por etapa
     let ativosHtml = '';
@@ -8195,64 +8490,81 @@ async function gerarRelatorioAcolhimento() {
       const etapas = {};
       data.ativos.forEach(a => {
         if (!etapas[a.etapa_fluxo]) etapas[a.etapa_fluxo] = 0;
-        etapas[a.etapa_fluxo] += parseInt(a.total);
+        etapas[a.etapa_fluxo] += parseInt(a.total, 10);
       });
       const labels = { recepcao: '🟢 Recep.', primeira_escuta: '🟡 1ª Esc.', segunda_escuta: '🔴 2ª Esc.' };
       ativosHtml = Object.entries(etapas).map(([k, v]) => `${labels[k] || k}: <b>${v}</b>`).join(' · ');
     }
 
-    // Tabela detalhada de finalizados
-    let finalizadosHtml = '<div style="color:var(--gray-600);text-align:center;padding:12px;">Nenhum finalizado hoje</div>';
+    let finalizadosHtml = '<div style="color:var(--gray-600);text-align:center;padding:14px;">Nenhum atendimento registrado hoje no Acolhimento.</div>';
     let countEscuta1 = 0;
     let countEscuta2 = 0;
 
     if (data.finalizados && data.finalizados.length) {
       data.finalizados.forEach(f => {
-        if (f.gravidade_final) countEscuta2++;
+        if (f.gravidade_final || f.observacao_segunda_escuta || f.is_intercorrencia_acolhimento) countEscuta2++;
         else countEscuta1++;
       });
 
       finalizadosHtml = `
         <table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left;">
-          <thead><tr style="border-bottom:2px solid var(--gray-200);background:var(--gray-100);"><th style="padding:8px;">Paciente</th><th style="padding:8px;">Risco</th><th style="padding:8px;">ACS</th><th style="padding:8px;">Profissional (2ª)</th><th style="padding:8px;">Hora</th><th style="padding:8px;">Agend.</th><th style="padding:8px;">Condições</th></tr></thead>
+          <thead>
+            <tr style="border-bottom:2px solid var(--gray-200);background:#f1f5f9;">
+              <th style="padding:8px;">Paciente</th>
+              <th style="padding:8px;">💬 1ª Escuta (ACS)</th>
+              <th style="padding:8px;">🩺 2ª Escuta (Profissional)</th>
+              <th style="padding:8px;">Risco / Conduta</th>
+              <th style="padding:8px;">ACS / Profissional</th>
+              <th style="padding:8px;">Hora / Agend.</th>
+            </tr>
+          </thead>
           <tbody>
             ${data.finalizados.map(f => {
-              const riscoLabel = f.gravidade_final === 'vermelho' ? '🔴 Vermelho' : f.gravidade_final === 'amarelo' ? '🟡 Amarelo' : f.gravidade_final === 'verde' ? '🟢 Verde' : f.gravidade_final === 'azul' ? '🟦 Azul' : '—';
-              let condLabel = '';
-              try { const arr = JSON.parse(f.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'💙 HAS':c==='diabetico'?'🧡 DM':c==='gestante'?'💜 GEST':c).join(', '); } catch {}
-              const agendLabel = f.agendamento_realizado ? '✅ Sim' : '—';
-              return `<tr style="border-bottom:1px solid #efefef;">
-                <td style="padding:8px;"><b>${escapeText(f.nome)}</b><br><span style="font-size:10px;color:var(--gray-600);">CPF: ${escapeText(f.cpf||'-')}</span></td>
+              const texto1 = (f.texto_primeira_escuta || f.motivo_primeira_escuta || f.queixa || '').trim() || '—';
+              const texto2 = (f.texto_segunda_escuta || f.observacao_segunda_escuta || '').trim() || (f.is_intercorrencia_acolhimento ? 'Encaminhado como intercorrência' : '—');
+              const riscoLabel = f.gravidade_final === 'vermelho' ? '🔴 Vermelho' : f.gravidade_final === 'amarelo' ? '🟡 Amarelo' : f.gravidade_final === 'verde' ? '🟢 Verde' : f.gravidade_final === 'azul' ? '🟦 Azul' : '🟡 1ª Escuta';
+              const condLabel = formatarCondicoesAcolhimentoTexto(f.condicoes_especiais);
+              const agendLabel = f.agendamento_realizado ? '✅ Agend.' : '—';
+              const profTxt = f.profissional_exibicao || f.profissional || f.medico || '—';
+              return `<tr style="border-bottom:1px solid #e2e8f0;vertical-align:top;">
+                <td style="padding:8px;">
+                  <b>${escapeText(f.nome)}</b>
+                  ${f.equipe_paciente ? `<div style="font-size:10.5px;color:#1d4ed8;font-weight:700;">🏥 ${escapeText(f.equipe_paciente)}</div>` : ''}
+                  <div style="font-size:10px;color:var(--gray-600);">CPF: ${escapeText(f.cpf || '-')} · Cond.: ${escapeText(condLabel)}</div>
+                </td>
+                <td style="padding:8px;max-width:220px;color:#0f172a;">${escapeText(texto1)}</td>
+                <td style="padding:8px;max-width:220px;color:#9a3412;font-weight:600;">${escapeText(texto2)}</td>
                 <td style="padding:8px;">${riscoLabel}</td>
-                <td style="padding:8px;">${escapeText(f.acs_responsavel||'—')}</td>
-                <td style="padding:8px;">${escapeText(f.profissional||'—')}</td>
-                <td style="padding:8px;">${escapeText(f.horario_chamada || '-')}</td>
-                <td style="padding:8px;">${agendLabel}</td>
-                <td style="padding:8px;font-size:11px;">${escapeText(condLabel||'—')}</td>
-              </tr>`}).join('')}
+                <td style="padding:8px;">
+                  <div><b>ACS:</b> ${escapeText(f.acs_responsavel || '—')}</div>
+                  <div style="font-size:11px;color:#334155;"><b>2ª:</b> ${escapeText(profTxt)}</div>
+                </td>
+                <td style="padding:8px;white-space:nowrap;">${escapeText(f.horario_chamada || '-')}<br><span style="font-size:11px;">${agendLabel}</span></td>
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       `;
     }
 
     el.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-        <div style="background:var(--gray-100);padding:16px;border-radius:12px;text-align:center;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px;border-radius:12px;text-align:center;">
           <div style="font-size:28px;font-weight:900;color:var(--green);">${data.totalFinalizados}</div>
-          <div style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;">Finalizados Hoje</div>
+          <div style="font-size:11.5px;font-weight:800;color:#166534;text-transform:uppercase;">Atendimentos Hoje</div>
         </div>
-        <div style="background:var(--gray-100);padding:16px;border-radius:12px;text-align:center;">
-          <div style="font-size:18px;font-weight:900;color:var(--blue-dark);">${countEscuta1} 1ª Esc. / ${countEscuta2} 2ª Esc.</div>
-          <div style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;">Fluxo de Equipe</div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:14px;border-radius:12px;text-align:center;">
+          <div style="font-size:18px;font-weight:900;color:var(--blue-dark);">${countEscuta1} (1ª Esc.) · ${countEscuta2} (2ª Esc.)</div>
+          <div style="font-size:11.5px;font-weight:800;color:#1e40af;text-transform:uppercase;">Fluxo 1ª &amp; 2ª Escuta</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-        <div style="background:rgba(26,79,196,0.05);padding:12px;border-radius:12px;font-size:13px;"><b>Ativos agora:</b> ${ativosHtml || '0'}</div>
-        <div style="background:rgba(142,36,170,0.05);padding:12px;border-radius:12px;font-size:13px;"><b>Tempos Médios:</b> ${avgRec}m recip. / ${avgEsc}m esc.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+        <div style="background:rgba(26,79,196,0.06);padding:11px 13px;border-radius:10px;font-size:13px;"><b>Ativos agora:</b> ${ativosHtml || '0'}</div>
+        <div style="background:rgba(142,36,170,0.06);padding:11px 13px;border-radius:10px;font-size:13px;"><b>Tempos Médios:</b> ${avgRec}m recep. · ${avgEsc}m escuta</div>
       </div>
-      <div style="border-top:2px solid var(--gray-200);padding-top:16px;">
-        <h4 style="margin-bottom:12px;color:var(--blue-dark);display:flex;justify-content:space-between;">📋 Detalhamento dos Atendimentos</h4>
-        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;">${finalizadosHtml}</div>
+      <div style="border-top:2px solid var(--gray-200);padding-top:14px;">
+        <h4 style="margin-bottom:10px;color:var(--blue-dark);display:flex;justify-content:space-between;align-items:center;">📋 Detalhamento Completo (1ª Escuta + 2ª Escuta)</h4>
+        <div style="max-height:300px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:10px;">${finalizadosHtml}</div>
       </div>
     `;
     document.getElementById('acol-relatorio-modal').classList.add('show');
@@ -8262,47 +8574,97 @@ async function gerarRelatorioAcolhimento() {
 function exportarRelatorioAcolhimentoPDF() {
   if (!window.jspdf || !window.jspdf.jsPDF) { showToast('Carregando biblioteca PDF...', true); return; }
   if (!lastAcolhimentoReportData) { showToast('Carregue o relatório primeiro!', true); return; }
-  
+
   const d = lastAcolhimentoReportData;
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('l'); // Landscape
-  
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const dataHoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Recife' });
+  const horaAgora = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
+
+  doc.setFillColor(109, 40, 217);
+  doc.rect(0, 0, pageWidth, 24, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('Relatório de Acolhimento Diário', 148, 15, { align: 'center' });
-  doc.setFontSize(11);
+  doc.setFontSize(15);
+  doc.text('Relatório Diário do Acolhimento — 1ª e 2ª Escuta', pageWidth / 2, 10.5, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.text(`USF Chico Mendes | ${new Date().toLocaleDateString('pt-BR')}`, 148, 22, { align: 'center' });
-  
-  doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('Resumo Diário', 14, 32);
-  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-  doc.text(`Total Finalizados: ${d.totalFinalizados}`, 14, 39);
-  
+  doc.setFontSize(9.5);
+  doc.text(`USF Chico Mendes  |  Data: ${dataHoje}  |  Emitido às ${horaAgora}  |  Total de Atendimentos: ${d.totalFinalizados || 0}`, pageWidth / 2, 17.5, { align: 'center' });
+
+  const lista = Array.isArray(d.finalizados) ? d.finalizados : [];
+  let count1 = 0;
+  let count2 = 0;
+  lista.forEach(f => {
+    if (f.gravidade_final || f.texto_segunda_escuta || f.observacao_segunda_escuta || f.is_intercorrencia_acolhimento) count2++;
+    else count1++;
+  });
   const avgRec = d.tempoMedio?.avg_recepcao_min ? Math.round(d.tempoMedio.avg_recepcao_min) : '-';
   const avgEsc = d.tempoMedio?.avg_escuta_min ? Math.round(d.tempoMedio.avg_escuta_min) : '-';
-  doc.text(`Tempo Médio (Recepção / Escuta): ${avgRec} / ${avgEsc} min`, 14, 45);
-  
-  const finalizadosData = (d.finalizados || []).map(f => {
-    let condLabel = '-';
-    try { const arr = JSON.parse(f.condicoes_especiais||'[]'); condLabel = arr.map(c => c==='hipertenso'?'HAS':c==='diabetico'?'DM':c==='gestante'?'GEST':c).join(', ') || '-'; } catch {}
-    const risco = f.gravidade_final ? f.gravidade_final.toUpperCase() : '1ª ESCUTA';
-    const agend = f.agendamento_realizado ? 'Sim' : 'Não';
-    return [f.nome, f.cpf || '-', f.queixa || '-', risco, f.acs_responsavel || '-', f.profissional || '-', f.horario_chamada || '-', agend, condLabel];
+
+  doc.setTextColor(30, 41, 59);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, 28, pageWidth - 28, 12, 2, 2, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.text(
+    `1ª Escuta Direta: ${count1}   |   Com 2ª Escuta / Conduta Clínica: ${count2}   |   Tempo Médio Recepção: ${avgRec} min   |   Tempo Médio Escuta: ${avgEsc} min`,
+    pageWidth / 2,
+    35.5,
+    { align: 'center' }
+  );
+
+  const finalizadosData = lista.map((f, idx) => {
+    const condLabel = formatarCondicoesAcolhimentoTexto(f.condicoes_especiais);
+    const escuta1 = (f.texto_primeira_escuta || f.motivo_primeira_escuta || f.queixa || '').trim() || 'Não informado';
+    const escuta2 = (f.texto_segunda_escuta || f.observacao_segunda_escuta || '').trim() ||
+      (f.is_intercorrencia_acolhimento ? `Encaminhado p/ ${f.setor_destino_paciente || 'setor'} (Intercorrência)` : 'Sem registro na 2ª Escuta');
+    const risco = f.gravidade_final
+      ? `${String(f.gravidade_final).toUpperCase()}${f.is_intercorrencia_acolhimento ? ' (Interc.)' : ''}`
+      : (f.is_intercorrencia_acolhimento ? 'INTERCORRÊNCIA' : '1ª ESCUTA');
+    const profTxt = f.profissional_exibicao || f.profissional || f.medico || '-';
+    const pacCol = `${f.nome || '-'}\n${f.equipe_paciente || 'Sem equipe'}${f.cpf ? ' · CPF: ' + f.cpf : ''}`;
+    const equipeAtendCol = `ACS: ${f.acs_responsavel || '-'}\n2ª Esc.: ${profTxt}`;
+    const statusCol = `${f.horario_chamada || '-'}\nAgend: ${f.agendamento_realizado ? 'Sim' : 'Não'}\nCond: ${condLabel}`;
+    return [idx + 1, pacCol, escuta1, escuta2, risco, equipeAtendCol, statusCol];
   });
+
+  if (finalizadosData.length === 0) {
+    finalizadosData.push(['-', 'Nenhum atendimento finalizado hoje', '-', '-', '-', '-', '-']);
+  }
 
   doc.autoTable({
-    startY: 52,
-    head: [['Paciente', 'CPF/SUS', 'Queixa', 'Risco', 'ACS', 'Profissional', 'Horário', 'Agendado?', 'Condições']],
+    startY: 44,
+    head: [['Nº', 'Paciente / Equipe', '1ª Escuta (ACS)', '2ª Escuta (Profissional)', 'Risco / Conduta', 'Profissionais', 'Hora / Status']],
     body: finalizadosData,
     theme: 'grid',
-    headStyles: { fillColor: [142,36,170], fontSize: 8 },
-    bodyStyles: { fontSize: 8 },
-    alternateRowStyles: { fillColor: [248,240,255] },
-    columnStyles: { 2:{cellWidth:45} }
+    styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak', valign: 'top' },
+    headStyles: { fillColor: [109, 40, 217], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 245, 255] },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 44 },
+      2: { cellWidth: 66 },
+      3: { cellWidth: 66 },
+      4: { cellWidth: 26, halign: 'center' },
+      5: { cellWidth: 34 },
+      6: { cellWidth: 24 }
+    },
+    margin: { left: 14, right: 14 }
   });
 
-  doc.save(`acolhimento_relatorio_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
-  showToast('✅ PDF do Acolhimento gerado com sucesso!');
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text(`USF Chico Mendes — Relatório do Acolhimento (1ª & 2ª Escuta) | Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+  }
+
+  doc.save(`acolhimento_relatorio_${dataHoje.replace(/\//g, '-')}.pdf`);
+  showToast('✅ PDF completo do Acolhimento gerado com sucesso!');
 }
 
 // ====== AUXILIARES DE AGENDAMENTO (Melhorias) ======
@@ -9282,15 +9644,21 @@ function exportarAgendamentosPDF() {
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l');
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
     const dataHoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife' }).format(new Date());
+    const horaAgora = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' }).format(new Date());
 
+    doc.setFillColor(15, 52, 145);
+    doc.rect(0, 0, pageWidth, 24, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text('Controle de Agendamentos (Acolhimento PEC Recife) — USF Chico Mendes', 148, 14, { align: 'center' });
+    doc.setFontSize(15);
+    doc.text('Controle de Agendamentos (Acolhimento PEC Recife) — USF Chico Mendes', pageWidth / 2, 10.5, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Emitido em: ${dataHoje} | Total de registros: ${lista.length}`, 148, 21, { align: 'center' });
+    doc.setFontSize(9.5);
+    doc.text(`Emitido em: ${dataHoje} às ${horaAgora}  |  Total de registros: ${lista.length}`, pageWidth / 2, 17.5, { align: 'center' });
 
     const bodyRows = lista.map((a, idx) => [
       idx + 1,
@@ -9304,13 +9672,15 @@ function exportarAgendamentosPDF() {
     ]);
 
     doc.autoTable({
-      startY: 27,
-      head: [['Nº', 'Data', 'Hora', 'Paciente', 'Equipe', 'CPF (6)', 'Motivo / Queixa', 'Status']],
+      startY: 30,
+      head: [['Nº', 'Data', 'Hora', 'Paciente', 'Equipe', 'CPF (6)', 'Motivo / Queixa (1ª & 2ª Escuta)', 'Status']],
       body: bodyRows,
       theme: 'grid',
-      headStyles: { fillColor: [26, 79, 196], fontSize: 8.5 },
-      bodyStyles: { fontSize: 8 },
-      alternateRowStyles: { fillColor: [240, 244, 255] }
+      styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+      headStyles: { fillColor: [26, 79, 196], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 244, 255] },
+      columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 6: { cellWidth: 72 } },
+      margin: { left: 14, right: 14 }
     });
 
     const equipeTotals = {};
@@ -9324,7 +9694,8 @@ function exportarAgendamentosPDF() {
 
     const equipeKeys = Object.keys(equipeTotals).sort();
     if (equipeKeys.length > 0) {
-      const nextY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 30) + 10;
+      let nextY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 30) + 10;
+      if (nextY > pageHeight - 40) { doc.addPage(); nextY = 20; }
       let grandPendente = 0, grandAgendado = 0, grandTotal = 0;
       const resumoRows = equipeKeys.map(eq => {
         const t = equipeTotals[eq];
@@ -9335,17 +9706,28 @@ function exportarAgendamentosPDF() {
       });
       resumoRows.push(['TOTAL GERAL', grandPendente, grandAgendado, grandTotal]);
 
+      doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
+      doc.setFontSize(11.5);
       doc.text('Resumo por Equipe', 14, nextY);
       doc.autoTable({
         startY: nextY + 4,
         head: [['Equipe', 'Pendentes', 'Agendados', 'Total']],
         body: resumoRows,
         theme: 'grid',
-        headStyles: { fillColor: [15, 118, 110], fontSize: 9 },
-        bodyStyles: { fontSize: 8.5 }
+        headStyles: { fillColor: [15, 118, 110], textColor: 255, fontSize: 9 },
+        bodyStyles: { fontSize: 8.5 },
+        margin: { left: 14, right: 14 }
       });
+    }
+
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`USF Chico Mendes — Sala de Agendamento (PEC Recife) | Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
     }
 
     doc.save(`controle_agendamentos_${dataHoje.replace(/\//g, '-')}.pdf`);
@@ -9961,17 +10343,24 @@ function exportarListaAgendamentosPDF() {
     return;
   }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('l');
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const dataFiltro = document.getElementById('agend-filter-data')?.value || '';
   const statusFiltro = document.getElementById('agend-filter-status')?.value || 'Todos';
-  const dataRef = dataFiltro ? dataFiltro.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
+  const dataRef = dataFiltro ? dataFiltro.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Recife' });
+  const horaAgora = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
+  const statusTrad = { pendente: 'Pendente', lembrete_enviado: 'Lembrete Enviado', confirmado: 'Confirmado', reagendado: 'Reagendado', realizado: 'Realizado', faltou: 'Faltou', cancelado: 'Cancelado' };
 
+  doc.setFillColor(15, 52, 145);
+  doc.rect(0, 0, pageWidth, 24, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('Relatório de Agendamentos — USF Chico Mendes', 148, 14, { align: 'center' });
+  doc.setFontSize(15);
+  doc.text('Relatório de Agendamentos — USF Chico Mendes', pageWidth / 2, 10.5, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Data: ${dataRef} | Status: ${statusFiltro || 'Todos'} | Total: ${_agendamentosAtuais.length}`, 148, 21, { align: 'center' });
+  doc.setFontSize(9.5);
+  doc.text(`Data ref.: ${dataRef}  |  Status: ${statusTrad[statusFiltro] || statusFiltro || 'Todos'}  |  Total: ${_agendamentosAtuais.length}  |  Emitido às ${horaAgora}`, pageWidth / 2, 17.5, { align: 'center' });
 
   const rows = _agendamentosAtuais.map((a, i) => [
     i + 1,
@@ -9979,20 +10368,31 @@ function exportarListaAgendamentosPDF() {
     a.telefone || '-',
     a.data_agendamento ? String(a.data_agendamento).split('T')[0].split('-').reverse().join('/') : '-',
     a.horario || '-',
-    a.profissional || '-',
-    a.tipo_atendimento || '-',
-    a.status || '-'
+    a.profissional || '—',
+    a.tipo_atendimento || 'Consulta',
+    statusTrad[a.status] || a.status || '-'
   ]);
 
   doc.autoTable({
-    startY: 27,
+    startY: 30,
     head: [['Nº', 'Paciente', 'Telefone', 'Data', 'Hora', 'Profissional', 'Tipo', 'Status']],
     body: rows,
     theme: 'grid',
-    headStyles: { fillColor: [26, 79, 196], fontSize: 9 },
-    bodyStyles: { fontSize: 8.5 },
-    alternateRowStyles: { fillColor: [240, 244, 255] }
+    styles: { fontSize: 8.5, cellPadding: 2.5, overflow: 'linebreak' },
+    headStyles: { fillColor: [26, 79, 196], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [240, 244, 255] },
+    columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 3: { cellWidth: 24, halign: 'center' }, 4: { cellWidth: 16, halign: 'center' } },
+    margin: { left: 14, right: 14 }
   });
+
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text(`USF Chico Mendes — Agenda de Consultas | Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+  }
 
   doc.save(`agendamentos_${dataRef.replace(/\//g, '-')}.pdf`);
   showToast('✅ PDF de agendamentos gerado com sucesso!');
@@ -10013,24 +10413,37 @@ async function exportarRelatorioMensagensPDF() {
   const rel = _ultimoRelatorioMensagens;
   const dataFmt = new Date(rel.data + 'T12:00:00').toLocaleDateString('pt-BR');
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('p');
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
+  doc.setFillColor(15, 52, 145);
+  doc.rect(0, 0, pageWidth, 24, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text('Relatório de Mensagens Enviadas (WhatsApp)', 105, 16, { align: 'center' });
+  doc.setFontSize(14.5);
+  doc.text('Relatório de Mensagens Enviadas (WhatsApp)', pageWidth / 2, 10.5, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`USF Chico Mendes | Data: ${dataFmt} | Total de Disparos: ${rel.total}`, 105, 23, { align: 'center' });
+  doc.setFontSize(9.5);
+  doc.text(`USF Chico Mendes  |  Data: ${dataFmt}  |  Total de Disparos: ${rel.total}`, pageWidth / 2, 17.5, { align: 'center' });
 
   const rows = (rel.porProfissional || []).map((p, i) => [i + 1, p.profissional, p.total]);
+  rows.push(['', 'TOTAL GERAL', rel.total]);
   doc.autoTable({
-    startY: 30,
+    startY: 32,
     head: [['Nº', 'Profissional', 'Mensagens Enviadas']],
     body: rows,
     theme: 'grid',
-    headStyles: { fillColor: [26, 79, 196], fontSize: 10 },
-    bodyStyles: { fontSize: 9.5 }
+    headStyles: { fillColor: [26, 79, 196], textColor: 255, fontSize: 10 },
+    bodyStyles: { fontSize: 9.5 },
+    columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 2: { cellWidth: 44, halign: 'center', fontStyle: 'bold' } },
+    margin: { left: 14, right: 14 }
   });
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(100, 116, 139);
+  doc.text('USF Chico Mendes — Controle de Disparos WhatsApp | Página 1 de 1', pageWidth / 2, pageHeight - 6, { align: 'center' });
 
   doc.save(`relatorio_mensagens_${dataFmt.replace(/\//g, '-')}.pdf`);
   showToast('✅ PDF do relatório de mensagens gerado!');
@@ -12071,6 +12484,10 @@ document.addEventListener('keydown', (e) => {
 
   if (document.getElementById('modal-contingencia-offline')?.classList.contains('show')) {
     fecharModalContingenciaOffline();
+    return;
+  }
+  if (document.getElementById('modal-config-metas-dia')?.classList.contains('show')) {
+    fecharModalConfigMetasDia();
     return;
   }
   if (document.getElementById('modal-config-pausa')?.classList.contains('show')) {

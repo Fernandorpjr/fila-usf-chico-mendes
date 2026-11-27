@@ -143,13 +143,13 @@ function renderizarHistorico(lista, container) {
           <div style="font-size:10px;color:var(--gray-400);">Em: ${dtCriado}</div>
         </td>
         <td style="padding:10px 8px;text-align:center;">
-          <label style="cursor:pointer;font-size:11px;display:inline-flex;align-items:center;gap:4px;user-select:none;">
+          <label class="hist-vaga-pill ${item.vaga_reaproveitada ? 'sim' : ''}">
             <input type="checkbox" ${item.vaga_reaproveitada ? 'checked' : ''} onchange="alternarVagaReaproveitada(${item.id}, this.checked)">
-            <span style="font-weight:700;color:${item.vaga_reaproveitada ? '#15803d' : '#6b7280'};">${item.vaga_reaproveitada ? 'Sim' : 'Não'}</span>
+            <span>${item.vaga_reaproveitada ? '✅ Sim' : 'Não'}</span>
           </label>
         </td>
         <td style="padding:10px 8px;text-align:center;">
-          <button class="btn btn-outline btn-sm" onclick="abrirModalExcluirIndividual(${item.id}, '${escHtml(item.paciente)}')" title="Excluir do Histórico" style="color:var(--red);border-color:#fca5a5;padding:4px 8px;font-size:12px;">
+          <button type="button" class="agend-action-btn agend-action-btn--icon agend-action-btn--delete" onclick="abrirModalExcluirIndividual(${item.id}, '${escHtml(item.paciente)}')" title="Excluir do Histórico" aria-label="Excluir do histórico">
             🗑️
           </button>
         </td>
@@ -185,11 +185,11 @@ function renderizarHistorico(lista, container) {
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--gray-100);font-size:11px;">
-          <label style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+          <label class="hist-vaga-pill ${item.vaga_reaproveitada ? 'sim' : ''}">
             <input type="checkbox" ${item.vaga_reaproveitada ? 'checked' : ''} onchange="alternarVagaReaproveitada(${item.id}, this.checked)">
             <span>Vaga reaproveitada? <b>${item.vaga_reaproveitada ? 'Sim' : 'Não'}</b></span>
           </label>
-          <button class="btn btn-outline btn-sm" onclick="abrirModalExcluirIndividual(${item.id}, '${escHtml(item.paciente)}')" style="color:var(--red);border-color:#fca5a5;padding:3px 8px;font-size:11px;">
+          <button type="button" class="agend-action-btn agend-action-btn--delete" onclick="abrirModalExcluirIndividual(${item.id}, '${escHtml(item.paciente)}')">
             🗑️ Excluir
           </button>
         </div>
@@ -199,8 +199,8 @@ function renderizarHistorico(lista, container) {
 
   container.innerHTML = `
     <!-- Tabela Desktop -->
-    <div class="hist-desktop-view" style="overflow-x:auto;">
-      <table class="agend-table" style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;">
+    <div class="hist-desktop-view hist-table-wrap">
+      <table class="agend-table" style="width:100%;border-collapse:collapse;background:#fff;">
         <thead>
           <tr style="background:var(--blue);color:white;">
             <th style="width:36px;text-align:center;padding:10px 8px;">
@@ -505,13 +505,34 @@ function imprimirHistorico() {
 
   if (window.jspdf && window.jspdf.jsPDF) {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l');
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const totalCanc = _historicoDados.filter(i => i.novo_status === 'cancelado').length;
+    const totalReag = _historicoDados.filter(i => i.novo_status === 'reagendado').length;
+    const totalReap = _historicoDados.filter(i => i.vaga_reaproveitada).length;
+
+    doc.setFillColor(15, 52, 145);
+    doc.rect(0, 0, pageWidth, 24, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text('USF Chico Mendes — Histórico de Cancelamentos e Reagendamentos', 148, 14, { align: 'center' });
+    doc.setFontSize(14.5);
+    doc.text('USF Chico Mendes — Histórico de Cancelamentos e Reagendamentos', pageWidth / 2, 10.5, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
-    doc.text(`${filtrosInfo} | Total: ${_historicoDados.length} | Emitido em: ${agora}`, 148, 21, { align: 'center' });
+    doc.setFontSize(9);
+    doc.text(`${filtrosInfo}  |  Emitido em: ${agora}`, pageWidth / 2, 17.5, { align: 'center' });
+
+    doc.setTextColor(30, 41, 59);
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(14, 27, pageWidth - 28, 10, 2, 2, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(
+      `Registros: ${_historicoDados.length}   |   Cancelamentos: ${totalCanc}   |   Reagendamentos: ${totalReag}   |   Vagas Reaproveitadas: ${totalReap}`,
+      pageWidth / 2,
+      33.5,
+      { align: 'center' }
+    );
 
     const rows = _historicoDados.map((item, idx) => {
       const statusLabel = item.novo_status === 'cancelado' ? 'Cancelado' : 'Reagendado';
@@ -526,20 +547,31 @@ function imprimirHistorico() {
         `${item.tipo_atendimento || 'Consulta'}\n${item.profissional || '-'}`,
         statusLabel,
         datasTxt,
-        item.motivo || '-',
+        `${item.motivo || 'Não informado'}\nDisp: ${item.dispositivo_nome || 'Sem nome'}`,
         item.vaga_reaproveitada ? 'Sim' : 'Não'
       ];
     });
 
     doc.autoTable({
-      startY: 27,
-      head: [['Nº', 'Paciente / Tel', 'Atendimento / Profissional', 'Status', 'Datas', 'Motivo', 'Reaproveitada']],
+      startY: 41,
+      head: [['Nº', 'Paciente / Tel', 'Atendimento / Profissional', 'Status', 'Datas', 'Motivo / Dispositivo', 'Reaproveitada']],
       body: rows,
       theme: 'grid',
-      headStyles: { fillColor: [26, 79, 196], fontSize: 8.5 },
-      bodyStyles: { fontSize: 8 },
-      alternateRowStyles: { fillColor: [240, 244, 255] }
+      styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+      headStyles: { fillColor: [26, 79, 196], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 244, 255] },
+      columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 6: { cellWidth: 24, halign: 'center' } },
+      margin: { left: 14, right: 14 }
     });
+
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`USF Chico Mendes — Histórico de Cancelamentos e Reagendamentos | Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+    }
 
     doc.save(`historico_cancelamentos_reagendamentos_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
     if (typeof showToast === 'function') showToast('✅ PDF do histórico gerado com sucesso!');
