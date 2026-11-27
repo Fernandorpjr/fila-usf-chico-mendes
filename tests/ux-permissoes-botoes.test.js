@@ -376,11 +376,16 @@ test('Layout Recepção (botão Prévia em destaque, Setor/Destino maior + cores
   assert.equal(col2Slice.includes('<span class="sq-label">Dentista</span>'), true);
   assert.equal(col2Slice.includes('<span class="sq-sub">Odontologia</span>'), true);
 
-  // 3. Modal Prévia (#modal-captura-receita) estruturado com zona de captura, seções, labels for e rodapé fixo
+  // 3. Modal Prévia (#modal-captura-receita) estruturado em estação de trabalho 2 colunas, seções, labels for, rodapé e botão fechar refinado
   const modalCapturaSlice = extractSlice(indexHtml, 'id="modal-captura-receita"', '<!-- Modal 2: Consultório');
+  assert.equal(modalCapturaSlice.includes('class="pr-workstation-grid"'), true);
+  assert.equal(modalCapturaSlice.includes('class="pr-left-pane"'), true);
+  assert.equal(modalCapturaSlice.includes('class="pr-right-pane"'), true);
   assert.equal(modalCapturaSlice.includes('class="pr-capture-zone"'), true);
   assert.equal(modalCapturaSlice.includes('class="pr-form-section"'), true);
   assert.equal(modalCapturaSlice.includes('class="pr-modal-footer"'), true);
+  assert.equal(modalCapturaSlice.includes('class="pr-footer-actions"'), true);
+  assert.equal(indexHtml.includes('background: rgba(255, 255, 255, 0.12);'), true);
   assert.equal(modalCapturaSlice.includes('for="pr-tipo"'), true);
   assert.equal(modalCapturaSlice.includes('for="pr-paciente-nome"'), true);
   assert.equal(modalCapturaSlice.includes('for="pr-medicamentos"'), true);
