@@ -359,3 +359,32 @@ test('Prorrogação de +2h hoje, nova tela de pausa e melhorias da auditoria vis
   assert.equal(dashHtml.includes('<main class="main" id="dashContent"'), true);
   assert.equal(dashHtml.includes('transition:all'), false);
 });
+
+test('Layout Recepção (botão Prévia em destaque, Setor/Destino maior + cores, e Modal Prévia profissional)', () => {
+  // 1. #recepcao-previa-receita-bar na Coluna 1 (abaixo de #prioridade-detalhes e antes da Coluna 2)
+  const col1Slice = extractSlice(indexHtml, 'id="prioridade-detalhes"', '<!-- COLUNA 2: DESTINO / ENCAMINHAMENTO INICIAL -->');
+  assert.equal(col1Slice.includes('id="recepcao-previa-receita-bar"'), true);
+  assert.equal(col1Slice.includes('id="btn-abrir-previa-recepcao"'), true);
+  const col2Slice = extractSlice(indexHtml, '<!-- COLUNA 2: DESTINO / ENCAMINHAMENTO INICIAL -->', '<!-- COLUNA 3:');
+  assert.equal(col2Slice.includes('id="recepcao-previa-receita-bar"'), false);
+  assert.equal(indexHtml.includes('min-height: 52px;'), true);
+
+  // 2. Botões Setor / Fila de Destino com letra maior e cores distintas entre Médico e Dentista/Odontologia
+  assert.equal(indexHtml.includes('font-size: 15px;'), true);
+  assert.equal(indexHtml.includes('.setor-quick-btn[data-setor="Médico"]'), true);
+  assert.equal(indexHtml.includes('.setor-quick-btn[data-setor="Odontologia"]'), true);
+  assert.equal(col2Slice.includes('<span class="sq-label">Dentista</span>'), true);
+  assert.equal(col2Slice.includes('<span class="sq-sub">Odontologia</span>'), true);
+
+  // 3. Modal Prévia (#modal-captura-receita) estruturado com zona de captura, seções, labels for e rodapé fixo
+  const modalCapturaSlice = extractSlice(indexHtml, 'id="modal-captura-receita"', '<!-- Modal 2: Consultório');
+  assert.equal(modalCapturaSlice.includes('class="pr-capture-zone"'), true);
+  assert.equal(modalCapturaSlice.includes('class="pr-form-section"'), true);
+  assert.equal(modalCapturaSlice.includes('class="pr-modal-footer"'), true);
+  assert.equal(modalCapturaSlice.includes('for="pr-tipo"'), true);
+  assert.equal(modalCapturaSlice.includes('for="pr-paciente-nome"'), true);
+  assert.equal(modalCapturaSlice.includes('for="pr-medicamentos"'), true);
+  for (const reqId of ['pr-btn-camera', 'pr-btn-confirmar', 'pr-btn-confirmar-sugerido', 'pr-btn-nova-analise']) {
+    assert.equal(modalCapturaSlice.includes(`id="${reqId}"`), true, `ID obrigatório ausente no modal de prévia: ${reqId}`);
+  }
+});

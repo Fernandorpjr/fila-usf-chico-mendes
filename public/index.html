@@ -1367,10 +1367,10 @@
     .setor-quick-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 10px;
+      gap: 10px;
+      margin-bottom: 12px;
     }
-    @media (max-width: 600px) {
+    @media (max-width: 640px) {
       .setor-quick-grid { grid-template-columns: repeat(2, 1fr); }
     }
     .setor-quick-btn {
@@ -1379,33 +1379,68 @@
       align-items: center;
       justify-content: center;
       gap: 4px;
-      padding: 10px 8px;
-      border-radius: 10px;
-      border: 2px solid #e2e8f0;
+      min-height: 76px;
+      padding: 11px 10px;
+      border-radius: 13px;
+      border: 2px solid #cbd5e1;
+      border-left-width: 5px;
       background: #fff;
-      color: #334155;
+      color: #1e293b;
       font-family: 'Nunito', sans-serif;
-      font-size: 12px;
-      font-weight: 800;
+      font-size: 15px;
+      font-weight: 900;
       cursor: pointer;
       transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
       text-align: center;
-      line-height: 1.2;
+      line-height: 1.15;
+      letter-spacing: 0.1px;
     }
     .setor-quick-btn .sq-icon {
-      font-size: 18px;
+      font-size: 25px;
+      line-height: 1;
+    }
+    .setor-quick-btn .sq-label {
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.15;
+    }
+    .setor-quick-btn .sq-sub {
+      font-size: 11px;
+      font-weight: 800;
+      opacity: 0.82;
+      line-height: 1.1;
     }
     .setor-quick-btn:hover {
-      border-color: var(--blue);
-      background: #f8fafc;
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 14px rgba(15, 23, 42, 0.12);
     }
     .setor-quick-btn.active {
-      border-color: var(--blue);
-      background: linear-gradient(135deg, rgba(26, 79, 196, 0.12), rgba(26, 79, 196, 0.05));
-      color: var(--blue-dark);
-      box-shadow: 0 3px 10px rgba(26, 79, 196, 0.18);
+      color: #ffffff !important;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.24);
+      transform: translateY(-1px);
     }
+    .setor-quick-btn.active .sq-sub {
+      color: rgba(255, 255, 255, 0.92);
+      opacity: 1;
+    }
+    .setor-quick-btn[data-setor="Médico"] { background: #eff6ff; border-color: #93c5fd; border-left-color: #1d4ed8; color: #1e3a8a; }
+    .setor-quick-btn[data-setor="Médico"].active { background: linear-gradient(135deg, #1d4ed8, #1e40af); border-color: #1e40af; }
+    .setor-quick-btn[data-setor="Odontologia"] { background: #fdf2f8; border-color: #f9a8d4; border-left-color: #db2777; color: #9d174d; }
+    .setor-quick-btn[data-setor="Odontologia"].active { background: linear-gradient(135deg, #db2777, #be185d); border-color: #be185d; }
+    .setor-quick-btn[data-setor="Enfermagem"] { background: #f0fdfa; border-color: #5eead4; border-left-color: #0d9488; color: #115e59; }
+    .setor-quick-btn[data-setor="Enfermagem"].active { background: linear-gradient(135deg, #0d9488, #0f766e); border-color: #0f766e; }
+    .setor-quick-btn[data-setor="Acolhimento"] { background: #faf5ff; border-color: #d8b4fe; border-left-color: #7e22ce; color: #581c87; }
+    .setor-quick-btn[data-setor="Acolhimento"].active { background: linear-gradient(135deg, #7e22ce, #6b21a8); border-color: #6b21a8; }
+    .setor-quick-btn[data-setor="Acolhimento ACS"] { background: #fff7ed; border-color: #fdba74; border-left-color: #ea580c; color: #9a3412; }
+    .setor-quick-btn[data-setor="Acolhimento ACS"].active { background: linear-gradient(135deg, #ea580c, #c2410c); border-color: #c2410c; }
+    .setor-quick-btn[data-setor="Acolhimento 2ª Escuta"] { background: #fef2f2; border-color: #fca5a5; border-left-color: #dc2626; color: #991b1b; }
+    .setor-quick-btn[data-setor="Acolhimento 2ª Escuta"].active { background: linear-gradient(135deg, #dc2626, #b91c1c); border-color: #b91c1c; }
+    .setor-quick-btn[data-setor="Farmácia"] { background: #f0fdf4; border-color: #86efac; border-left-color: #16a34a; color: #166534; }
+    .setor-quick-btn[data-setor="Farmácia"].active { background: linear-gradient(135deg, #16a34a, #15803d); border-color: #15803d; }
+    .setor-quick-btn[data-setor="Regulação"] { background: #eef2ff; border-color: #a5b4fc; border-left-color: #4338ca; color: #312e81; }
+    .setor-quick-btn[data-setor="Regulação"].active { background: linear-gradient(135deg, #4338ca, #3730a3); border-color: #3730a3; }
+    .setor-quick-btn[data-setor="Téc. Enfermagem"] { background: #ecfeff; border-color: #67e8f9; border-left-color: #0284c7; color: #075985; }
+    .setor-quick-btn[data-setor="Téc. Enfermagem"].active { background: linear-gradient(135deg, #0284c7, #0369a1); border-color: #0369a1; }
     .motivo-quick-chips {
       display: flex;
       gap: 6px;
@@ -2349,44 +2384,96 @@
     }
     /* ====== PRÉVIA DE RECEITA (HIPERDIA / RENOVAÇÃO / ODONTO) ====== */
     .recepcao-previa-bar {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1.5px dashed #93c5fd;
-      background: #eff6ff;
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 2px solid #93c5fd;
+      background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%);
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.12);
       display: none;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
     }
     .recepcao-previa-bar.destaque-receita {
-      border-color: #3b82f6;
-      border-style: solid;
-      background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
-      box-shadow: 0 2px 10px rgba(37, 99, 235, 0.12);
+      border-color: #2563eb;
+      background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.22);
+    }
+    .recepcao-previa-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .recepcao-previa-kicker {
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.45px;
+      color: #0369a1;
+    }
+    .recepcao-previa-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      color: #92400e;
+      font-size: 10.5px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .recepcao-previa-sub {
+      font-size: 12px;
+      color: #1e3a8a;
+      font-weight: 700;
+      line-height: 1.4;
     }
     .btn-previa-recepcao {
-      background: linear-gradient(135deg, #0284c7, #0369a1);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 7px 12px;
+      width: 100%;
+      min-height: 52px;
+      padding: 13px 18px;
+      border-radius: 12px;
       font-family: 'Nunito', sans-serif;
-      font-size: 12px;
-      font-weight: 800;
+      font-size: 15.5px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.34);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+    }
+    .btn-previa-recepcao:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 22px rgba(29, 78, 216, 0.42);
+      background: linear-gradient(135deg, #0369a1 0%, #1e40af 100%);
+    }
+    .btn-previa-recepcao:active {
+      transform: translateY(0);
     }
     .recepcao-previa-anexada {
       display: none;
+      width: 100%;
       align-items: center;
-      gap: 6px;
+      justify-content: space-between;
+      gap: 8px;
       background: #dcfce7;
-      border: 1px solid #86efac;
+      border: 1.5px solid #86efac;
       color: #166534;
-      padding: 4px 10px;
+      padding: 7px 12px;
       border-radius: 999px;
-      font-size: 11.5px;
+      font-size: 12px;
       font-weight: 800;
     }
     .previa-row-box { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 5px; }
@@ -2434,6 +2521,152 @@
     .previa-btn-close-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: 1.5px solid #fecaca; border-radius: 9px; padding: 6px 13px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 10px rgba(220,38,38,0.42); transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s; flex-shrink: 0; }
     .previa-btn-close-red:hover { background: #b91c1c; border-color: #fff; transform: scale(1.04); }
     .previa-modal-body { padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; flex: 1; scrollbar-width: auto; scrollbar-color: #475569 #e2e8f0; }
+    #modal-captura-receita .previa-modal-card { max-width: 820px; border-radius: 20px; overflow: hidden; }
+    #modal-captura-receita .previa-modal-head { padding: 14px 20px; }
+    #modal-captura-receita .previa-modal-body { padding: 16px 20px; }
+    #modal-captura-receita input[type="text"],
+    #modal-captura-receita select,
+    #modal-captura-receita textarea {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13.5px;
+      font-weight: 700;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      color: #0f172a;
+      font-family: 'Nunito Sans', sans-serif;
+    }
+    #modal-captura-receita input[type="text"]:focus,
+    #modal-captura-receita select:focus,
+    #modal-captura-receita textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+      outline: none;
+    }
+    .pr-capture-zone {
+      background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+      border: 2px dashed #93c5fd;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .pr-capture-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .pr-action-btn {
+      min-height: 54px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 14.5px;
+      font-weight: 900;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
+    }
+    .pr-action-btn--camera {
+      background: linear-gradient(135deg, #1d4ed8, #0f3491);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 5px 14px rgba(29, 78, 216, 0.3);
+    }
+    .pr-action-btn--camera:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(29, 78, 216, 0.4);
+    }
+    .pr-action-btn--upload {
+      background: #ffffff;
+      color: #0f2c73;
+      border: 2px solid #93c5fd;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+    .pr-action-btn--upload:hover {
+      background: #eff6ff;
+      border-color: #2563eb;
+      transform: translateY(-2px);
+    }
+    .pr-capture-hint {
+      font-size: 12px;
+      color: #475569;
+      font-weight: 700;
+      margin-top: 9px;
+      text-align: center;
+    }
+    .pr-form-section {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 13px;
+      padding: 13px 14px;
+      margin-bottom: 12px;
+    }
+    .pr-section-title {
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.55px;
+      color: #1e3a8a;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pr-form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .pr-modal-footer {
+      background: #f8fafc;
+      border-top: 1.5px solid #e2e8f0;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .pr-footer-btn {
+      min-height: 48px;
+      padding: 11px 18px;
+      border-radius: 12px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 14px;
+      font-weight: 900;
+      flex: 1;
+      min-width: 190px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+    }
+    .pr-footer-btn--primary {
+      background: linear-gradient(135deg, #1d4ed8, #0f3491);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 5px 14px rgba(29, 78, 216, 0.3);
+    }
+    .pr-footer-btn--primary:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(29, 78, 216, 0.4); }
+    .pr-footer-btn--teal {
+      background: linear-gradient(135deg, #0f766e, #047857);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 5px 14px rgba(15, 118, 110, 0.3);
+    }
+    .pr-footer-btn--teal:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15, 118, 110, 0.4); }
+    @media (max-width: 640px) {
+      .pr-capture-grid, .pr-form-grid-2 { grid-template-columns: 1fr; }
+      .pr-footer-btn { min-width: 100%; }
+    }
     .previa-modal-body::-webkit-scrollbar, .previa-modal-card::-webkit-scrollbar, .previa-side-panel::-webkit-scrollbar, .sisreg-table-wrap::-webkit-scrollbar, .sisreg-dev-lista::-webkit-scrollbar { width: 14px; height: 14px; }
     .previa-modal-body::-webkit-scrollbar-track, .previa-modal-card::-webkit-scrollbar-track, .previa-side-panel::-webkit-scrollbar-track, .sisreg-table-wrap::-webkit-scrollbar-track, .sisreg-dev-lista::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
     .previa-modal-body::-webkit-scrollbar-thumb, .previa-modal-card::-webkit-scrollbar-thumb, .previa-side-panel::-webkit-scrollbar-thumb, .sisreg-table-wrap::-webkit-scrollbar-thumb, .sisreg-dev-lista::-webkit-scrollbar-thumb { background: #64748b; border-radius: 8px; border: 2px solid #e2e8f0; }
@@ -3191,7 +3424,20 @@
               </select>
             </div>
 
-            <div id="recepcao-bloco-equipe" class="escuta1-only" style="margin-top:4px;">
+            <div id="recepcao-previa-receita-bar" class="recepcao-previa-bar">
+              <div class="recepcao-previa-head">
+                <span class="recepcao-previa-kicker">📎 Documentos &amp; Receitas</span>
+                <span class="recepcao-previa-badge">🧪 Teste</span>
+              </div>
+              <button type="button" id="btn-abrir-previa-recepcao" class="btn-previa-recepcao" onclick="abrirModalCapturaReceita()" title="Prévia (Liberado para teste) — Anexar receita, exame ou encaminhamento">📷 Prévia (Liberado para teste)</button>
+              <span id="recepcao-previa-subtxt" class="recepcao-previa-sub">Anexe receita, exame ou encaminhamento (foto ou PDF) para qualquer fila</span>
+              <div id="recepcao-previa-anexada-pill" class="recepcao-previa-anexada">
+                <span id="recepcao-previa-anexada-txt">📄 Prévia anexada</span>
+                <button type="button" onclick="limparPreviaReceitaPendente()" style="background:transparent;border:none;color:#991b1b;font-weight:900;cursor:pointer;" title="Remover prévia" aria-label="Remover prévia anexada">✕</button>
+              </div>
+            </div>
+
+            <div id="recepcao-bloco-equipe" class="escuta1-only" style="margin-top:10px;">
               <label style="display:block;margin-bottom:6px;">🏥 Equipe de Saúde da Família (Território)</label>
               <input type="hidden" id="input-equipe-paciente" value="">
               <div class="equipe-quick-grid" id="recepcao-equipe-grid">
@@ -3238,39 +3484,48 @@
               <div class="setor-quick-grid" id="recepcao-setor-quick-grid">
                 <button type="button" class="setor-quick-btn" data-setor="Acolhimento" onclick="selecionarSetorRapidoRecepcao('Acolhimento')">
                   <span class="sq-icon">💜</span>
-                  <span>Acolhimento</span>
+                  <span class="sq-label">Acolhimento</span>
+                  <span class="sq-sub">Recepção</span>
                 </button>
                 <button type="button" class="setor-quick-btn" data-setor="Acolhimento ACS" onclick="selecionarSetorRapidoRecepcao('Acolhimento ACS')">
                   <span class="sq-icon">🧡</span>
-                  <span>1ª Escuta (ACS)</span>
+                  <span class="sq-label">1ª Escuta</span>
+                  <span class="sq-sub">ACS</span>
                 </button>
                 <button type="button" class="setor-quick-btn" data-setor="Acolhimento 2ª Escuta" onclick="selecionarSetorRapidoRecepcao('Acolhimento 2ª Escuta')">
                   <span class="sq-icon">🔴</span>
-                  <span>2ª Escuta</span>
+                  <span class="sq-label">2ª Escuta</span>
+                  <span class="sq-sub">Triagem Clínica</span>
                 </button>
                 <button type="button" class="setor-quick-btn" data-setor="Médico" onclick="selecionarSetorRapidoRecepcao('Médico')">
                   <span class="sq-icon">🩺</span>
-                  <span>Médico</span>
+                  <span class="sq-label">Médico</span>
+                  <span class="sq-sub">Consultório Médico</span>
                 </button>
                 <button type="button" class="setor-quick-btn" data-setor="Enfermagem" onclick="selecionarSetorRapidoRecepcao('Enfermagem')">
                   <span class="sq-icon">👩‍⚕️</span>
-                  <span>Enfermagem</span>
+                  <span class="sq-label">Enfermagem</span>
+                  <span class="sq-sub">Enfermeiro(a)</span>
                 </button>
                 <button type="button" class="setor-quick-btn" data-setor="Odontologia" onclick="selecionarSetorRapidoRecepcao('Odontologia')">
                   <span class="sq-icon">🦷</span>
-                  <span>Odontologia</span>
+                  <span class="sq-label">Dentista</span>
+                  <span class="sq-sub">Odontologia</span>
                 </button>
                 <button type="button" class="setor-quick-btn" data-setor="Farmácia" onclick="selecionarSetorRapidoRecepcao('Farmácia')">
                   <span class="sq-icon">💊</span>
-                  <span>Farmácia</span>
+                  <span class="sq-label">Farmácia</span>
+                  <span class="sq-sub">Dispensação</span>
                 </button>
                 <button type="button" class="setor-quick-btn" data-setor="Regulação" onclick="selecionarSetorRapidoRecepcao('Regulação')">
                   <span class="sq-icon">📋</span>
-                  <span>Regulação</span>
+                  <span class="sq-label">Regulação</span>
+                  <span class="sq-sub">SISREG</span>
                 </button>
                 <button type="button" class="setor-quick-btn" data-setor="Téc. Enfermagem" onclick="selecionarSetorRapidoRecepcao('Téc. Enfermagem')">
                   <span class="sq-icon">🩹</span>
-                  <span>Téc. Enferm.</span>
+                  <span class="sq-label">Téc. Enferm.</span>
+                  <span class="sq-sub">Coleta / Proc.</span>
                 </button>
               </div>
 
@@ -3348,16 +3603,6 @@
                 <div id="recepcao-coleta-tubos-resumo" style="font-size:11.5px;color:#334155;font-weight:700;">Nenhum tubo selecionado (pode preencher na recepção ou direto na sala de coleta).</div>
               </div>
               <div id="recepcao-interc-alerta"></div>
-              <div id="recepcao-previa-receita-bar" class="recepcao-previa-bar">
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                  <button type="button" id="btn-abrir-previa-recepcao" class="btn-previa-recepcao" onclick="abrirModalCapturaReceita()" title="Prévia (Liberado para teste) — Anexar receita, exame ou encaminhamento">📷 Anexar Prévia</button>
-                  <span id="recepcao-previa-subtxt" style="font-size:11.5px;color:#1e3a8a;font-weight:700;">Anexe receita, exame ou encaminhamento (foto ou PDF) para qualquer fila</span>
-                </div>
-                <div id="recepcao-previa-anexada-pill" class="recepcao-previa-anexada">
-                  <span id="recepcao-previa-anexada-txt">📄 Prévia anexada</span>
-                  <button type="button" onclick="limparPreviaReceitaPendente()" style="background:transparent;border:none;color:#991b1b;font-weight:900;cursor:pointer;" title="Remover prévia" aria-label="Remover prévia anexada">✕</button>
-                </div>
-              </div>
             </div>
 
             <!-- Botão Cadastrar Direto (exibido na Coluna 2 quando em Modo Direto sem 1ª Escuta) -->
@@ -5472,75 +5717,87 @@
 </div>
 
 <!-- Modal 1: Recepção — Capturar Prévia da Receita / Encaminhamento (Opcional) -->
-<div id="modal-captura-receita" class="previa-modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)fecharModalCapturaReceita()">
+<div id="modal-captura-receita" class="previa-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pr-modal-titulo" onclick="if(event.target===this)fecharModalCapturaReceita()">
   <div class="previa-modal-card">
     <div class="previa-modal-head">
       <div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <div id="pr-modal-titulo" style="font-weight:900;font-size:15px;">📎 Prévia de Documentos (Foto ou PDF — até 6 arquivos)</div>
+          <div id="pr-modal-titulo" style="font-weight:900;font-size:16px;">📎 Prévia de Documentos (Foto ou PDF — até 6 arquivos)</div>
           <span class="previa-teste-pill">🧪 Liberado para teste</span>
         </div>
-        <div style="font-size:11.5px;opacity:0.85;">Envie fotos ou PDFs (ou cole com Ctrl+V) · Preenchimento e classificação automáticos</div>
+        <div style="font-size:12px;opacity:0.9;margin-top:2px;">Envie fotos ou PDFs (ou cole com Ctrl+V) · Leitura e direcionamento automáticos</div>
       </div>
-      <button type="button" class="previa-btn-close-red" onclick="fecharModalCapturaReceita()" title="Fechar esta tela (não use o botão Voltar do navegador)">✕ Fechar</button>
+      <button type="button" class="previa-btn-close-red" onclick="fecharModalCapturaReceita()" title="Fechar esta tela (não use o botão Voltar do navegador)" aria-label="Fechar prévia de documentos">✕ Fechar</button>
     </div>
     <div class="previa-modal-body">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <div class="pr-capture-zone">
         <input type="file" id="pr-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarListaImagensReceita(fl);">
         <input type="file" id="pr-file-upload" accept="image/*,application/pdf" multiple style="display:none;" onchange="const fl=this.files?Array.from(this.files):[];this.value='';if(fl.length)processarListaImagensReceita(fl);">
-        <button type="button" id="pr-btn-camera" class="btn btn-primary btn-sm" onclick="document.getElementById('pr-file-camera').click()">📸 Tirar Foto (Câmera)</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('pr-file-upload').click()">📄 Escolher Imagem / PDF (Ctrl+V)</button>
+        <div class="pr-capture-grid">
+          <button type="button" id="pr-btn-camera" class="pr-action-btn pr-action-btn--camera" onclick="document.getElementById('pr-file-camera').click()">📸 Tirar Foto (Câmera)</button>
+          <button type="button" class="pr-action-btn pr-action-btn--upload" onclick="document.getElementById('pr-file-upload').click()">📄 Escolher Imagem / PDF (Ctrl+V)</button>
+        </div>
+        <div class="pr-capture-hint">💡 Dica: você também pode colar um print ou foto diretamente com <strong>Ctrl+V</strong>.</div>
       </div>
 
       <div id="pr-ocr-status" style="display:none;"></div>
 
-      <div id="pr-galeria-wrap" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:10px;margin-bottom:12px;">
+      <div id="pr-galeria-wrap" style="display:none;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;padding:12px;margin-bottom:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-          <span id="pr-galeria-count" style="font-size:12px;font-weight:900;color:#0f172a;">📎 0 / 6 arquivos anexados</span>
-          <button type="button" onclick="limparTodasFotosCaptura()" style="background:transparent;border:none;color:#dc2626;font-size:12px;font-weight:800;cursor:pointer;padding:0;">🗑️ Limpar todos</button>
+          <span id="pr-galeria-count" style="font-size:12.5px;font-weight:900;color:#0f172a;">📎 0 / 6 arquivos anexados</span>
+          <button type="button" onclick="limparTodasFotosCaptura()" style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12px;font-weight:800;cursor:pointer;padding:4px 10px;">🗑️ Limpar todos</button>
         </div>
         <div id="pr-galeria-grid" class="pr-galeria-grid"></div>
       </div>
 
-      <div id="pr-sugestao-box" style="display:none;padding:9px 12px;border-radius:10px;background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;font-size:12px;margin-bottom:12px;"></div>
+      <div id="pr-sugestao-box" style="display:none;padding:10px 13px;border-radius:12px;background:#eef2ff;border:1.5px solid #a5b4fc;color:#1e3a8a;font-size:12.5px;font-weight:700;margin-bottom:12px;"></div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-group" style="margin:0;">
-          <label>Tipo de Documento</label>
-          <select id="pr-tipo" onchange="atualizarSugestaoReceitaLocal()">
-            <option value="branca">⚪ Receita Branca (PEC — 6 meses)</option>
-            <option value="azul">🔵 Receita Azul (Controle Especial — 2 meses)</option>
-            <option value="odonto">🦷 Receita Odontológica</option>
-            <option value="sisreg">📋 SISREG / Ficha Ambulatorial / Encaminhamento</option>
-          </select>
+      <div class="pr-form-section">
+        <div class="pr-section-title">📋 Classificação do Documento</div>
+        <div class="pr-form-grid-2">
+          <div class="form-group" style="margin:0;">
+            <label for="pr-tipo">Tipo de Documento</label>
+            <select id="pr-tipo" onchange="atualizarSugestaoReceitaLocal()">
+              <option value="branca">⚪ Receita Branca (PEC — 6 meses)</option>
+              <option value="azul">🔵 Receita Azul (Controle Especial — 2 meses)</option>
+              <option value="odonto">🦷 Receita Odontológica</option>
+              <option value="sisreg">📋 SISREG / Ficha Ambulatorial / Encaminhamento</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="pr-data-emissao">Data de Emissão</label>
+            <input type="text" id="pr-data-emissao" placeholder="DD/MM/AAAA">
+          </div>
         </div>
-        <div class="form-group" style="margin:0;">
-          <label>Data de Emissão</label>
-          <input type="text" id="pr-data-emissao" placeholder="DD/MM/AAAA">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>Nome Extraído</label>
-          <input type="text" id="pr-paciente-nome" placeholder="Nome completo">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>Cartão SUS (CNS)</label>
-          <input type="text" id="pr-paciente-cns" placeholder="Cartão SUS (15 dígitos)">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>CPF</label>
-          <input type="text" id="pr-paciente-cpf" placeholder="000.000.000-00">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>Telefone</label>
-          <input type="text" id="pr-paciente-telefone" placeholder="(81) 9XXXX-XXXX">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>CEP</label>
-          <input type="text" id="pr-paciente-cep" placeholder="50000-000">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>Bairro</label>
-          <input type="text" id="pr-paciente-bairro" list="bairros-usf-list" placeholder="Caçote, Areias ou Estância">
+      </div>
+
+      <div class="pr-form-section">
+        <div class="pr-section-title">👤 Identificação do Paciente</div>
+        <div class="pr-form-grid-2">
+          <div class="form-group" style="margin:0;">
+            <label for="pr-paciente-nome">Nome Extraído</label>
+            <input type="text" id="pr-paciente-nome" placeholder="Nome completo">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="pr-paciente-cns">Cartão SUS (CNS)</label>
+            <input type="text" id="pr-paciente-cns" inputmode="numeric" placeholder="Cartão SUS (15 dígitos)">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="pr-paciente-cpf">CPF</label>
+            <input type="text" id="pr-paciente-cpf" inputmode="numeric" placeholder="000.000.000-00">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="pr-paciente-telefone">Telefone</label>
+            <input type="text" id="pr-paciente-telefone" inputmode="numeric" placeholder="(81) 9XXXX-XXXX">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="pr-paciente-cep">CEP</label>
+            <input type="text" id="pr-paciente-cep" inputmode="numeric" placeholder="50000-000">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="pr-paciente-bairro">Bairro</label>
+            <input type="text" id="pr-paciente-bairro" list="bairros-usf-list" placeholder="Caçote, Areias ou Estância">
+          </div>
         </div>
       </div>
       <datalist id="bairros-usf-list">
@@ -5548,26 +5805,29 @@
         <option value="Areias"></option>
         <option value="Estância"></option>
       </datalist>
-      <div class="form-group" style="margin-top:10px;">
-        <label>Medicamentos / Procedimento Solicitado</label>
-        <textarea id="pr-medicamentos" rows="2" placeholder="Ex.: Losartana 50mg, Metformina 850mg ou USG Tireoide, Cardiologia..."></textarea>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-group" style="margin:0;">
-          <label>Emitente anterior (Opcional)</label>
-          <input type="text" id="pr-medico-emitente" placeholder="Médico / CRM">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label>Observações (Opcional)</label>
-          <input type="text" id="pr-observacoes" placeholder="Posologia ou recado">
-        </div>
-      </div>
 
-      <div class="modal-actions-row">
-        <button type="button" id="pr-btn-nova-analise" class="btn btn-outline" style="display:none;flex:1;" onclick="limparTodasFotosCaptura()">🔄 Nova Análise</button>
-        <button type="button" id="pr-btn-confirmar" class="btn btn-primary" style="flex:1;" onclick="confirmarPreviaReceitaRecepcao(false)">✅ Anexar na Fila Atual</button>
-        <button type="button" id="pr-btn-confirmar-sugerido" class="btn" style="flex:1;background:#0f766e;color:#fff;" onclick="confirmarPreviaReceitaRecepcao(true)">🎯 Anexar + Usar Setor Sugerido</button>
+      <div class="pr-form-section" style="margin-bottom:4px;">
+        <div class="pr-section-title">💊 Conteúdo Clínico &amp; Observações</div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label for="pr-medicamentos">Medicamentos / Procedimento Solicitado</label>
+          <textarea id="pr-medicamentos" rows="2" placeholder="Ex.: Losartana 50mg, Metformina 850mg ou USG Tireoide, Cardiologia..."></textarea>
+        </div>
+        <div class="pr-form-grid-2">
+          <div class="form-group" style="margin:0;">
+            <label for="pr-medico-emitente">Emitente anterior (Opcional)</label>
+            <input type="text" id="pr-medico-emitente" placeholder="Médico / CRM">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="pr-observacoes">Observações (Opcional)</label>
+            <input type="text" id="pr-observacoes" placeholder="Posologia ou recado">
+          </div>
+        </div>
       </div>
+    </div>
+    <div class="pr-modal-footer">
+      <button type="button" id="pr-btn-nova-analise" class="btn btn-outline pr-footer-btn" style="display:none;" onclick="limparTodasFotosCaptura()">🔄 Nova Análise</button>
+      <button type="button" id="pr-btn-confirmar" class="pr-footer-btn pr-footer-btn--primary" onclick="confirmarPreviaReceitaRecepcao(false)">✅ Anexar na Fila Atual</button>
+      <button type="button" id="pr-btn-confirmar-sugerido" class="pr-footer-btn pr-footer-btn--teal" onclick="confirmarPreviaReceitaRecepcao(true)">🎯 Anexar + Usar Setor Sugerido</button>
     </div>
   </div>
 </div>
