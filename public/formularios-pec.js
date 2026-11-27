@@ -869,11 +869,39 @@ function obterSetorKeyFormulario(setor) {
 
 function isPainelFormulariosRecolhido(setorKey) {
   try {
-    return localStorage.getItem(`usf_pec_forms_collapsed_${setorKey}`) === '1';
+    return localStorage.getItem(`usf_pec_forms_collapsed_${setorKey}`) !== '0';
+  } catch (_) {
+    return true;
+  }
+}
+
+function isPainelApoioClinicoExpandido(setorKey) {
+  try {
+    return localStorage.getItem(`usf_apoio_clinico_expanded_${setorKey}`) === '1';
   } catch (_) {
     return false;
   }
 }
+
+function togglePainelApoioClinico(setorKey) {
+  const body = document.getElementById(`clinical-deck-body-${setorKey}`);
+  const btn = document.getElementById(`clinical-deck-toggle-${setorKey}`);
+  const header = document.getElementById(`clinical-deck-header-${setorKey}`);
+  if (!body) return;
+  const expandir = body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', !expandir);
+  if (btn) {
+    btn.setAttribute('aria-expanded', expandir ? 'true' : 'false');
+    btn.textContent = expandir ? '▾ Minimizar' : '▸ Abrir';
+  }
+  if (header) {
+    header.setAttribute('aria-expanded', expandir ? 'true' : 'false');
+  }
+  try {
+    localStorage.setItem(`usf_apoio_clinico_expanded_${setorKey}`, expandir ? '1' : '0');
+  } catch (_) {}
+}
+window.togglePainelApoioClinico = togglePainelApoioClinico;
 
 function togglePainelFormulariosSetor(btn, setorKey) {
   const grid = document.getElementById(`clinical-forms-grid-${setorKey}`);
@@ -900,6 +928,7 @@ function renderBarraFormulariosSetor(setor) {
   }).join('');
   const primeiro = lista[0] || 'receituario';
   const recolhido = isPainelFormulariosRecolhido(setorKey);
+  const apoioExpandido = isPainelApoioClinicoExpandido(setorKey);
 
   const btnAnalisarReceita = ['Médico', 'Enfermagem', 'Odontologia'].includes(setor)
     ? `<button type="button" class="pec-form-btn receita" onclick="abrirModalAnalisarReceituario('${setor}')" title="Tirar foto ou enviar PDF de receituário para análise completa (Enfermeiro/Médico, Hiperdia, validade e comprimidos)">💊 Analisar Receituário</button>`
@@ -910,28 +939,40 @@ function renderBarraFormulariosSetor(setor) {
     : '';
   const btnDevolucoes = `<button type="button" class="pec-form-btn devolucao" onclick="abrirModalDevolucoesProfissional('${setor}')" title="Ver e comentar devoluções do SISREG direcionadas para ${setor}">↩️ Devoluções SISREG <span class="sisreg-dev-count sisreg-dev-badge-setor" data-setor="${setor}" style="display:none;">0</span></button>`;
 
-  return `<div class="pec-forms-bar clinical-tools-deck">
-    <div class="clinical-tools-zone">
-      <div class="clinical-zone-head">
-        <span class="clinical-zone-label">🩺 Apoio Clínico &amp; Regulação (SISREG)</span>
+  return `<div class="pec-forms-bar clinical-tools-deck" id="clinical-deck-${setorKey}" data-setor="${setor}" data-setor-key="${setorKey}">
+    <div class="clinical-deck-header" id="clinical-deck-header-${setorKey}" role="button" tabindex="0" aria-expanded="${apoioExpandido ? 'true' : 'false'}" onclick="togglePainelApoioClinico('${setorKey}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePainelApoioClinico('${setorKey}');}" title="${apoioExpandido ? 'Clique para minimizar Apoio Clínico, Regulação e Formulários' : 'Clique para abrir Apoio Clínico, Regulação e Formulários'}">
+      <div class="clinical-deck-title">
+        <span>🩺 Apoio Clínico, Regulação &amp; Formulários</span>
       </div>
-      <div class="clinical-quick-row">
-        ${btnAnalisarReceita}
-        ${btnSisregBusca}
-        ${btnSisregLeitor}
-        ${btnDevolucoes}
+      <div class="clinical-deck-alerts">
+        <button type="button" class="clinical-alert-pill clinical-alert-pill--sisreg" data-setor="${setor}" style="display:none;" onclick="event.stopPropagation();abrirModalDevolucoesProfissional('${setor}')" title="Há devoluções do SISREG pendentes para este setor">🔔 <span class="sisreg-dev-badge-setor-header" data-setor="${setor}">0</span> SISREG</button>
+        <button type="button" class="clinical-alert-pill clinical-alert-pill--chat" data-setor="${setor}" style="display:none;" onclick="abrirChatDoAlertaSetor(event, '${setor}')" title="Nova mensagem no chat para este setor">💬 Nova msg</button>
+        <button type="button" id="clinical-deck-toggle-${setorKey}" class="clinical-deck-toggle-btn" aria-expanded="${apoioExpandido ? 'true' : 'false'}" onclick="event.stopPropagation();togglePainelApoioClinico('${setorKey}')">${apoioExpandido ? '▾ Minimizar' : '▸ Abrir'}</button>
       </div>
     </div>
-    <div class="clinical-tools-zone clinical-forms-zone">
-      <div class="clinical-zone-head">
-        <span class="clinical-zone-label">🖨️ Formulários Oficiais (PEC Offline)</span>
-        <div class="clinical-zone-actions">
-          <button type="button" class="pec-form-btn branco clinical-blank-btn" onclick="abrirFormularioAvulsoSetor('${setor}','${primeiro}',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
-          <button type="button" class="clinical-forms-toggle-btn" aria-expanded="${recolhido ? 'false' : 'true'}" onclick="togglePainelFormulariosSetor(this,'${setorKey}')" title="Expandir ou recolher modelos de formulários">${recolhido ? '▸ Mostrar formulários' : '▾ Recolher formulários'}</button>
+    <div id="clinical-deck-body-${setorKey}" class="clinical-deck-body${apoioExpandido ? '' : ' collapsed'}">
+      <div class="clinical-tools-zone">
+        <div class="clinical-zone-head">
+          <span class="clinical-zone-label">🩺 Apoio Clínico &amp; Regulação (SISREG)</span>
+        </div>
+        <div class="clinical-quick-row">
+          ${btnAnalisarReceita}
+          ${btnSisregBusca}
+          ${btnSisregLeitor}
+          ${btnDevolucoes}
         </div>
       </div>
-      <div id="clinical-forms-grid-${setorKey}" class="clinical-forms-grid${recolhido ? ' collapsed' : ''}">
-        ${botoes}
+      <div class="clinical-tools-zone clinical-forms-zone">
+        <div class="clinical-zone-head">
+          <span class="clinical-zone-label">🖨️ Formulários Oficiais (PEC Offline)</span>
+          <div class="clinical-zone-actions">
+            <button type="button" class="pec-form-btn branco clinical-blank-btn" onclick="abrirFormularioAvulsoSetor('${setor}','${primeiro}',true)" title="Abrir formulário totalmente em branco para impressão">📃 Em Branco</button>
+            <button type="button" class="clinical-forms-toggle-btn" aria-expanded="${recolhido ? 'false' : 'true'}" onclick="togglePainelFormulariosSetor(this,'${setorKey}')" title="Expandir ou recolher modelos de formulários">${recolhido ? '▸ Mostrar formulários' : '▾ Recolher formulários'}</button>
+          </div>
+        </div>
+        <div id="clinical-forms-grid-${setorKey}" class="clinical-forms-grid${recolhido ? ' collapsed' : ''}">
+          ${botoes}
+        </div>
       </div>
     </div>
   </div>`;

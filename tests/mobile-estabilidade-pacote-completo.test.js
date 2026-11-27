@@ -121,3 +121,41 @@ test('Câmera Mobile & CSS Anti-Flickering: draft, createImageBitmap, inline opc
   assert.equal(indexHtml.includes('id="pr-inline-camera-box"'), true);
   assert.equal(indexHtml.includes('onclick="acionarCameraNativaPrevia()"'), true);
 });
+
+test('Painéis Retráteis (Médico, Enfermagem, Dentista): minimizados por padrão com alertas mesmo fechados', () => {
+  const formsSrc = fs.readFileSync(path.join(ROOT, 'public', 'formularios-pec.js'), 'utf8');
+  const sisregSrc = fs.readFileSync(path.join(ROOT, 'public', 'regulacao-sisreg.js'), 'utf8');
+
+  // 1. Resumo do Dia minimizado por padrão (só abre com === '1') e com alertas de intercorrência no cabeçalho
+  assert.equal(appSrc.includes('function isResumoDiaExpandido(setorKey)'), true);
+  assert.equal(appSrc.includes('function toggleResumoDiaSetor(setorKey)'), true);
+  assert.equal(appSrc.includes('prof-summary-body${expandido ? \'\' : \' collapsed\'}'), true);
+  assert.equal(appSrc.includes('prof-head-alert-pill--${headAlertNivel}'), true);
+  assert.equal(appSrc.includes('prof-summary-quick-stats'), true);
+
+  // 2. Bloco Atendidos Hoje nas abas de setor minimizado por padrão em <details>
+  assert.equal(appSrc.includes('<details class="sector-attended-collapse"'), true);
+  assert.equal(appSrc.includes('<details class="sector-attended-collapse" open'), false);
+
+  // 3. Apoio Clínico & Regulação + Formulários Oficiais minimizados por padrão com alertas SISREG e Chat visíveis no cabeçalho
+  assert.equal(formsSrc.includes("localStorage.getItem(`usf_pec_forms_collapsed_${setorKey}`) !== '0'"), true);
+  assert.equal(formsSrc.includes('function isPainelApoioClinicoExpandido(setorKey)'), true);
+  assert.equal(formsSrc.includes('function togglePainelApoioClinico(setorKey)'), true);
+  assert.equal(formsSrc.includes('clinical-deck-body${apoioExpandido ? \'\' : \' collapsed\'}'), true);
+  assert.equal(formsSrc.includes('clinical-alert-pill--sisreg'), true);
+  assert.equal(formsSrc.includes('clinical-alert-pill--chat'), true);
+
+  // 4. Sincronização de alertas (SISREG + Chat) no cabeçalho minimizado
+  assert.equal(appSrc.includes('function atualizarAlertasMinimizadosSetores()'), true);
+  assert.equal(appSrc.includes('function abrirChatDoAlertaSetor(event, setor)'), true);
+  assert.equal(sisregSrc.includes('.clinical-alert-pill--sisreg'), true);
+  assert.equal(sisregSrc.includes('atualizarAlertasMinimizadosSetores'), true);
+
+  // 5. CSS de colapso e destaques de alerta preservando contratos anteriores
+  assert.equal(indexHtml.includes('.prof-summary-body.collapsed { display: none; }'), true);
+  assert.equal(indexHtml.includes('.clinical-deck-body.collapsed { display: none; }'), true);
+  assert.equal(indexHtml.includes('.clinical-alert-pill--sisreg'), true);
+  assert.equal(indexHtml.includes('.clinical-alert-pill--chat'), true);
+  assert.equal(indexHtml.includes('.prof-head-alert-pill--danger'), true);
+});
+

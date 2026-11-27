@@ -1246,13 +1246,16 @@ function initSectorScreens() {
           <span class="sector-count" style="background:${cfg.color};" id="cnt2-${cfg.key}">0</span>
         </div>
         <div class="queue-list" id="queue-${cfg.key}"></div>
-        <div style="margin-top:24px;padding-top:20px;border-top:2px solid var(--gray-200);">
-          <div class="sector-header">
+        <details class="sector-attended-collapse" id="attended-collapse-${cfg.key}">
+          <summary class="sector-attended-summary">
             <div class="sector-name"><div class="sector-dot" style="background:var(--green);"></div>✅ Atendidos Hoje</div>
-            <span class="sector-count" style="background:var(--green);" id="cnt-attended-${cfg.key}">0</span>
-          </div>
-          <div class="queue-list" id="attended-${cfg.key}"></div>
-        </div>
+            <div class="sector-attended-right">
+              <span class="sector-count" style="background:var(--green);" id="cnt-attended-${cfg.key}">0</span>
+              <span class="sector-attended-hint">Abrir / fechar ▾</span>
+            </div>
+          </summary>
+          <div class="queue-list" id="attended-${cfg.key}" style="margin-top:12px;"></div>
+        </details>
       </div>`;
   });
   if (typeof initCopilotoRegulacao === 'function') {
@@ -1260,6 +1263,9 @@ function initSectorScreens() {
   }
   if (typeof carregarDevolucoesSisreg === 'function') {
     carregarDevolucoesSisreg();
+  }
+  if (typeof window.atualizarAlertasMinimizadosSetores === 'function') {
+    window.atualizarAlertasMinimizadosSetores();
   }
 }
 
@@ -4603,6 +4609,23 @@ function calcularResumoProfissionalDia(setor, profFiltro) {
   };
 }
 
+function isResumoDiaExpandido(setorKey) {
+  try {
+    return localStorage.getItem(`usf_resumo_dia_expanded_${setorKey}`) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function toggleResumoDiaSetor(setorKey) {
+  const proximo = !isResumoDiaExpandido(setorKey);
+  try {
+    localStorage.setItem(`usf_resumo_dia_expanded_${setorKey}`, proximo ? '1' : '0');
+  } catch (_) {}
+  renderResumoProfissionais();
+}
+window.toggleResumoDiaSetor = toggleResumoDiaSetor;
+
 function renderResumoProfissionais() {
   SETORES_HORARIO_MARCADO.forEach(setor => {
     const cfg = SECTOR_CONFIG[setor];
@@ -4634,15 +4657,22 @@ function renderResumoProfissionais() {
 
     let alertHtml = '';
     let miniStripHtml = '';
+    let headAlertNivel = '';
+    let headAlertTexto = '';
 
     if (profSelecionado) {
       if (resumo.intercorrencias > limiteInterc) {
+        headAlertNivel = 'danger';
+        headAlertTexto = `🚨 Interc. ${resumo.intercorrencias}/${limiteInterc} EXCEDIDO`;
         alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>LIMITE EXCEDIDO: <strong>${escapeText(profSelecionado)}</strong> já possui <strong>${resumo.intercorrencias} intercorrências</strong> hoje (limite previsto: ${limiteInterc}).</span></div>`;
       } else if (limiteInterc > 0 && resumo.intercorrencias === limiteInterc) {
+        headAlertNivel = 'warn';
+        headAlertTexto = `⚠️ Interc. ${resumo.intercorrencias}/${limiteInterc} no limite`;
         alertHtml = `<div class="prof-alert-banner">⚠️ <span>ATENÇÃO: <strong>${escapeText(profSelecionado)}</strong> atingiu o limite de <strong>${limiteInterc} intercorrências</strong> hoje.</span></div>`;
       }
     } else if (cfg.profissionais && cfg.profissionais.length > 1) {
       const excedidos = [];
+      const noLimite = [];
       miniStripHtml = `<div class="prof-mini-strip">` + cfg.profissionais.map(pNome => {
         const rp = calcularResumoProfissionalDia(setor, pNome);
         const mp = obterMetaProfissionalDia(setor, pNome);
@@ -4652,11 +4682,17 @@ function renderResumoProfissionais() {
           excedidos.push(`${pNome} (${rp.intercorrencias})`);
         } else if (mp.limiteIntercorrencias > 0 && rp.intercorrencias === mp.limiteIntercorrencias) {
           cls = 'at-limit';
+          noLimite.push(pNome);
         }
         return `<button type="button" class="prof-mini-pill ${cls}" onclick="filterSector('${cfg.key}','${pNome.replace(/'/g, "\\'")}')" title="Filtrar ${escapeText(pNome)}">👤 ${escapeText(pNome)} · Agend: ${rp.agendados}/${mp.metaAgendados} · Interc: ${rp.intercorrencias}/${mp.limiteIntercorrencias}</button>`;
       }).join('') + `</div>`;
       if (excedidos.length > 0) {
+        headAlertNivel = 'danger';
+        headAlertTexto = `🚨 ${excedidos.length} acima do limite`;
         alertHtml = `<div class="prof-alert-banner prof-alert-danger">🚨 <span>Acima do limite de intercorrências hoje: <strong>${escapeText(excedidos.join(', '))}</strong></span></div>`;
+      } else if (noLimite.length > 0) {
+        headAlertNivel = 'warn';
+        headAlertTexto = `⚠️ ${noLimite.length} no limite de interc.`;
       }
     }
 
@@ -4665,17 +4701,27 @@ function renderResumoProfissionais() {
       ? `${escapeText(meta.tipoDia)} · Meta editável`
       : `Manhã: ${meta.manha} · Tarde: ${meta.tarde} (turno ${meta.turnoAtual === 'tarde' ? 'tarde' : 'manhã'})`;
 
+    const expandido = isResumoDiaExpandido(cfg.key);
+    const headAlertPillHtml = headAlertNivel
+      ? `<span class="prof-head-alert-pill prof-head-alert-pill--${headAlertNivel}">${escapeText(headAlertTexto)}</span>`
+      : '';
+    const quickStatsHtml = `<span class="prof-summary-quick-stats">⏳ ${resumo.faltam} fila · 📅 ${resumo.agendados}/${limiteAgend} · ✅ ${resumo.atendidos}</span>`;
+
     const resumoHtml = `
-      <div class="prof-summary-card">
-        <div class="prof-summary-head">
+      <div class="prof-summary-card${headAlertNivel ? ' has-alert has-alert-' + headAlertNivel : ''}">
+        <div class="prof-summary-head" role="button" tabindex="0" aria-expanded="${expandido ? 'true' : 'false'}" onclick="toggleResumoDiaSetor('${cfg.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleResumoDiaSetor('${cfg.key}');}" title="${expandido ? 'Clique para minimizar o resumo do dia' : 'Clique para abrir o resumo detalhado do dia'}">
           <div class="prof-summary-title">
             <span>📊 Resumo do Dia — ${escapeText(tituloProf)}</span>
           </div>
           <div class="prof-summary-head-right">
+            ${headAlertPillHtml}
+            ${quickStatsHtml}
             <span class="prof-summary-meta-pill">${escapeText(meta.labelResumo)}</span>
-            <button type="button" class="btn-editar-meta-dia" onclick="abrirModalConfigMetasDia('${alvoMetaBtn}')" title="Editar meta de agendados e limite de intercorrências (Gerente/Admin)">⚙️ Editar Meta</button>
+            <button type="button" class="btn-editar-meta-dia" onclick="event.stopPropagation();abrirModalConfigMetasDia('${alvoMetaBtn}')" title="Editar meta de agendados e limite de intercorrências (Gerente/Admin)">⚙️ Editar Meta</button>
+            <button type="button" class="prof-summary-toggle-btn" aria-expanded="${expandido ? 'true' : 'false'}" onclick="event.stopPropagation();toggleResumoDiaSetor('${cfg.key}')">${expandido ? '▾ Minimizar' : '▸ Abrir'}</button>
           </div>
         </div>
+        <div class="prof-summary-body${expandido ? '' : ' collapsed'}">
         <div class="prof-kpi-grid">
           <div class="prof-kpi-box" style="background:#f8fafc;">
             <div class="prof-kpi-label">⏳ Faltam na Fila</div>
@@ -4707,6 +4753,7 @@ function renderResumoProfissionais() {
         </div>
         ${alertHtml}
         ${miniStripHtml}
+        </div>
       </div>
     `;
     setHtmlIfChanged(container, resumoHtml);
@@ -6152,6 +6199,56 @@ async function clearChatCanal() {
   });
 }
 
+const SETOR_CHAT_CANAIS_MAP = {
+  'Médico': ['medico', 'geral'],
+  'Enfermagem': ['enfermagem', 'geral'],
+  'Odontologia': ['odontologia', 'geral'],
+  'Téc. Enfermagem': ['enfermagem', 'geral'],
+  'Farmácia': ['farmacia', 'geral'],
+  'Regulação': ['regulacao', 'geral']
+};
+
+function atualizarAlertasMinimizadosSetores() {
+  document.querySelectorAll('.clinical-tools-deck[data-setor]').forEach(deck => {
+    const setor = deck.dataset.setor || '';
+    const canais = SETOR_CHAT_CANAIS_MAP[setor] || ['geral'];
+    const unreadSetor = (channelUnread[canais[0]] || 0);
+    const unreadGeral = (canais[1] ? (channelUnread[canais[1]] || 0) : 0);
+    const unreadCount = unreadSetor + unreadGeral;
+
+    const chatPill = deck.querySelector('.clinical-alert-pill--chat');
+    if (chatPill) {
+      if (unreadCount > 0) {
+        chatPill.style.display = 'inline-flex';
+        chatPill.textContent = unreadCount === 1 ? '💬 1 nova msg' : `💬 ${unreadCount} novas msgs`;
+      } else {
+        chatPill.style.display = 'none';
+      }
+    }
+
+    const sisregPill = deck.querySelector('.clinical-alert-pill--sisreg');
+    const devVisivel = Boolean(sisregPill && sisregPill.style.display !== 'none');
+    deck.classList.toggle('has-alert', devVisivel || unreadCount > 0);
+  });
+}
+
+function abrirChatDoAlertaSetor(event, setor) {
+  if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+  const canais = SETOR_CHAT_CANAIS_MAP[setor] || ['geral'];
+  const canalAlvo = (channelUnread[canais[0]] || 0) > 0
+    ? canais[0]
+    : ((canais[1] && (channelUnread[canais[1]] || 0) > 0) ? canais[1] : canais[0]);
+  if (!chatPanelOpen && typeof toggleChatPanel === 'function') {
+    toggleChatPanel();
+  }
+  if (typeof switchCanal === 'function') {
+    switchCanal(canalAlvo);
+  }
+}
+
+window.atualizarAlertasMinimizadosSetores = atualizarAlertasMinimizadosSetores;
+window.abrirChatDoAlertaSetor = abrirChatDoAlertaSetor;
+
 let _prevTotalUnreadChat = 0;
 function updateChatBadge() {
   const b = document.getElementById('badge-chat');
@@ -6177,6 +6274,7 @@ function updateChatBadge() {
   document.title = (total > 0 && !chatPanelOpen)
     ? `(${total}) 💬 Nova mensagem! - ${ORIGINAL_DOC_TITLE}`
     : ORIGINAL_DOC_TITLE;
+  atualizarAlertasMinimizadosSetores();
 }
 
 /* === MELHORIA C: PIN FUNCTIONS === */

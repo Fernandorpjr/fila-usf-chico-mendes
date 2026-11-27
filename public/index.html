@@ -2398,17 +2398,76 @@
       background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
       box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
       overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .prof-summary-card.has-alert-warn {
+      border-color: #f59e0b;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.18);
+    }
+    .prof-summary-card.has-alert-danger {
+      border-color: #ef4444;
+      box-shadow: 0 6px 22px rgba(220, 38, 38, 0.22);
     }
     .prof-summary-head {
       background: linear-gradient(135deg, #0f2c73 0%, #1a4fc4 100%);
       color: #fff;
-      padding: 11px 16px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      transition: filter 0.15s ease;
     }
+    .prof-summary-head:hover { filter: brightness(1.06); }
+    .prof-summary-quick-stats {
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #f8fafc;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .prof-head-alert-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 900;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .prof-head-alert-pill--danger {
+      background: #dc2626;
+      color: #fff;
+      border-color: #fecaca;
+      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.35);
+    }
+    .prof-head-alert-pill--warn {
+      background: #f59e0b;
+      color: #1e293b;
+      border-color: #fef08a;
+    }
+    .prof-summary-toggle-btn {
+      padding: 4px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .prof-summary-toggle-btn:hover { background: rgba(255, 255, 255, 0.28); }
+    .prof-summary-body.collapsed { display: none; }
     .prof-summary-title {
       font-family: 'Nunito', sans-serif;
       font-size: 14.5px;
@@ -3275,7 +3334,40 @@
     }
 
     .pec-forms-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: linear-gradient(135deg, #f8fafc, #eff6ff); border: 1.5px solid #bfdbfe; border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; }
-    .pec-forms-bar.clinical-tools-deck { flex-direction: column; align-items: stretch; gap: 12px; }
+    .pec-forms-bar.clinical-tools-deck { flex-direction: column; align-items: stretch; gap: 10px; transition: border-color 0.2s ease, background 0.2s ease; }
+    .pec-forms-bar.clinical-tools-deck.has-alert { border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb, #eff6ff); box-shadow: 0 4px 16px rgba(245, 158, 11, 0.16); }
+    .clinical-deck-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; min-height: 30px; }
+    .clinical-deck-title { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; color: #1e3a8a; display: flex; align-items: center; gap: 8px; }
+    .clinical-deck-alerts { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-left: auto; }
+    .clinical-alert-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 11px; border-radius: 999px;
+      font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 900;
+      cursor: pointer; border: 1.5px solid transparent; white-space: nowrap;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .clinical-alert-pill:hover { transform: translateY(-1px); }
+    .clinical-alert-pill--sisreg { background: #ffedd5; color: #9a3412; border-color: #fb923c; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.18); }
+    .clinical-alert-pill--chat { background: #dbeafe; color: #1e40af; border-color: #60a5fa; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.18); }
+    .clinical-deck-toggle-btn {
+      min-height: 30px; padding: 4px 12px; border-radius: 999px;
+      border: 1.5px solid #93c5fd; background: #ffffff; color: #1e3a8a;
+      font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 900;
+      cursor: pointer; white-space: nowrap;
+    }
+    .clinical-deck-toggle-btn:hover { background: #dbeafe; border-color: #2563eb; }
+    .clinical-deck-body { display: flex; flex-direction: column; gap: 12px; padding-top: 10px; border-top: 1px dashed #cbd5e1; }
+    .clinical-deck-body.collapsed { display: none; }
+    .sector-attended-collapse { margin-top: 20px; padding-top: 14px; border-top: 2px solid var(--gray-200); }
+    .sector-attended-summary {
+      list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 10px 14px; border-radius: 12px; background: #f8fafc; border: 1.5px solid #cbd5e1;
+      user-select: none; transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .sector-attended-summary::-webkit-details-marker { display: none; }
+    .sector-attended-summary:hover { background: #f0fdf4; border-color: #86efac; }
+    .sector-attended-right { display: flex; align-items: center; gap: 8px; }
+    .sector-attended-hint { font-size: 11.5px; font-weight: 800; color: #475569; background: #ffffff; border: 1px solid #cbd5e1; padding: 3px 9px; border-radius: 999px; }
     .clinical-tools-zone { display: flex; flex-direction: column; gap: 8px; }
     .clinical-forms-zone { padding-top: 10px; border-top: 1px dashed #cbd5e1; }
     .clinical-zone-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -3783,6 +3875,13 @@
       .setor-quick-btn { min-height: 70px; padding: 10px 8px; font-size: 14px; }
       .setor-quick-btn .sq-icon { font-size: 23px; }
       .btn-previa-recepcao { min-height: 52px; font-size: 15px; padding: 12px 14px; }
+      .prof-summary-head { padding: 10px 12px; }
+      .prof-summary-meta-pill { display: none; }
+      .prof-summary-quick-stats { font-size: 11px; padding: 3px 8px; }
+      .clinical-deck-header { gap: 8px; }
+      .clinical-deck-title { font-size: 12.5px; }
+      .clinical-deck-toggle-btn, .prof-summary-toggle-btn { min-height: 36px; padding: 5px 12px; }
+      .sector-attended-summary { padding: 10px 12px; }
 
       .sector-call-actions--hero .btn-call-hero {
         width: 100%;

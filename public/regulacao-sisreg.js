@@ -3094,6 +3094,20 @@
       el.style.display = count > 0 ? 'inline-flex' : 'none';
       el.textContent = String(count);
     });
+    document.querySelectorAll('.clinical-alert-pill--sisreg').forEach(pill => {
+      const setor = pill.dataset.setor || '';
+      const profAtivo = setor ? obterProfissionalAtivoTabSetorFront(setor) : '';
+      const count = todas.filter(x => {
+        if ((x.status || 'pendente') !== 'pendente') return false;
+        return pertenceAoProfissionalDevolucaoFront(x, setor || 'todos', profAtivo);
+      }).length;
+      pill.style.display = count > 0 ? 'inline-flex' : 'none';
+      const numEl = pill.querySelector('.sisreg-dev-badge-setor-header');
+      if (numEl) numEl.textContent = String(count);
+    });
+    if (typeof window.atualizarAlertasMinimizadosSetores === 'function') {
+      window.atualizarAlertasMinimizadosSetores();
+    }
   }
 
   async function carregarDevolucoesSisreg() {
