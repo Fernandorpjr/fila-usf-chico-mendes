@@ -6497,6 +6497,10 @@ function aplicarProfissionaisDinamicosNoSistema() {
     `<option value="">— Opcional —</option>` + todosUnicos.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('')
   );
   atualizarSelectPreservandoValor(
+    document.getElementById('agend-filter-profissional'),
+    `<option value="">Todos os profissionais</option>` + todosUnicos.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('')
+  );
+  atualizarSelectPreservandoValor(
     document.getElementById('hist-filtro-prof'),
     `<option value="">Todos</option>` + todosUnicos.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('')
   );
@@ -6867,6 +6871,69 @@ async function criarAgendamento() {
 }
 
 let _agendamentosAtuais = [];
+let _agendamentosFiltrados = [];
+
+function classificarCategoriaAgendamento(agend) {
+  if (!agend) return 'outros';
+  const tipo = String(agend.tipo_atendimento || '').toLowerCase();
+  const profNome = String(agend.profissional || '').trim();
+  const profissao = (typeof getProfissaoProfissional === 'function' ? getProfissaoProfissional(profNome) : '').toLowerCase();
+
+  if (tipo.includes('odont') || tipo.includes('dent') || profissao.includes('odont') || profissao.includes('dent')) {
+    return 'odontologia';
+  }
+  if (tipo.includes('coleta')) {
+    return 'coleta';
+  }
+  if (tipo.includes('pré-natal') || tipo.includes('pre-natal') || tipo.includes('puericultura') || profissao.includes('enferm')) {
+    return 'enfermagem';
+  }
+  if (tipo.includes('clínico') || tipo.includes('clinico') || tipo.includes('hiperdia') || profissao.includes('médic') || profissao.includes('medic')) {
+    return 'medico';
+  }
+  return 'outros';
+}
+
+function atualizarOpcoesFiltroProfissionalAgendamentos(lista) {
+  const select = document.getElementById('agend-filter-profissional');
+  if (!select) return;
+  const valorAtual = select.value;
+  const baseCadastro = [...document.querySelectorAll('#agend-profissional option')]
+    .map(opt => String(opt.value || '').trim())
+    .filter(Boolean);
+  const daLista = (Array.isArray(lista) ? lista : [])
+    .map(a => String(a.profissional || '').trim())
+    .filter(Boolean);
+  const todos = [...new Set([...baseCadastro, ...daLista])];
+  select.innerHTML = `<option value="">Todos os profissionais</option>` + todos.map(p => `<option value="${escapeText(p)}">${escapeText(p)}</option>`).join('');
+  if (valorAtual && todos.includes(valorAtual)) {
+    select.value = valorAtual;
+  } else {
+    select.value = '';
+  }
+}
+
+function atualizarContadoresCategoriasAgendamentos(lista) {
+  const safe = Array.isArray(lista) ? lista : [];
+  const counts = { todos: safe.length, medico: 0, enfermagem: 0, odontologia: 0, coleta: 0 };
+  safe.forEach(a => {
+    const cat = classificarCategoriaAgendamento(a);
+    if (Object.prototype.hasOwnProperty.call(counts, cat)) {
+      counts[cat] += 1;
+    }
+  });
+  const mapIds = {
+    todos: 'agend-cat-count-todos',
+    medico: 'agend-cat-count-medico',
+    enfermagem: 'agend-cat-count-enfermagem',
+    odontologia: 'agend-cat-count-odontologia',
+    coleta: 'agend-cat-count-coleta'
+  };
+  Object.entries(mapIds).forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(counts[k] || 0);
+  });
+}
 
 async function loadAgendamentos() {
   const data = document.getElementById('agend-filter-data')?.value || '';
@@ -6877,6 +6944,8 @@ async function loadAgendamentos() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const list = await r.json();
     _agendamentosAtuais = Array.isArray(list) ? list : [];
+    atualizarOpcoesFiltroProfissionalAgendamentos(_agendamentosAtuais);
+    atualizarContadoresCategoriasAgendamentos(_agendamentosAtuais);
     filtrarAgendamentosLocal();
     loadRelatorioMensagens();
     loadHistoricoAgendamentos();
@@ -6885,25 +6954,77 @@ async function loadAgendamentos() {
 }
 
 function filtrarAgendamentosLocal() {
+  const profFiltro = String(document.getElementById('agend-filter-profissional')?.value || '').trim().toLowerCase();
+  const catFiltro = String(document.getElementById('agend-filter-categoria')?.value || '').trim();
   const buscaRaw = (document.getElementById('agend-filter-busca')?.value || '').trim().toLowerCase();
-  if (!buscaRaw) {
-    renderAgendamentos(_agendamentosAtuais);
-    return;
-  }
   const buscaDigits = buscaRaw.replace(/\D/g, '');
-  const filtrados = _agendamentosAtuais.filter(a => {
-    const nome = String(a.nome || '').toLowerCase();
-    const prof = String(a.profissional || '').toLowerCase();
-    const tipo = String(a.tipo_atendimento || '').toLowerCase();
-    const tel = String(a.telefone || '').toLowerCase();
-    const telDigits = tel.replace(/\D/g, '');
-    return nome.includes(buscaRaw)
-      || prof.includes(buscaRaw)
-      || tipo.includes(buscaRaw)
-      || tel.includes(buscaRaw)
-      || (buscaDigits.length >= 2 && telDigits.includes(buscaDigits));
+
+  _agendamentosFiltrados = _agendamentosAtuais.filter(a => {
+    if (profFiltro) {
+      const profItem = String(a.profissional || '').trim().toLowerCase();
+      if (profItem !== profFiltro) return false;
+    }
+    if (catFiltro) {
+      if (catFiltro.startsWith('tipo:')) {
+        const tipoAlvo = catFiltro.slice(5).toLowerCase();
+        const tipoItem = String(a.tipo_atendimento || '').trim().toLowerCase();
+        if (tipoAlvo === 'consulta') {
+          if (tipoItem && tipoItem !== 'consulta' && tipoItem !== 'retorno') return false;
+        } else if (tipoItem !== tipoAlvo) {
+          return false;
+        }
+      } else if (classificarCategoriaAgendamento(a) !== catFiltro) {
+        return false;
+      }
+    }
+    if (buscaRaw) {
+      const nome = String(a.nome || '').toLowerCase();
+      const prof = String(a.profissional || '').toLowerCase();
+      const tipo = String(a.tipo_atendimento || '').toLowerCase();
+      const tel = String(a.telefone || '').toLowerCase();
+      const telDigits = tel.replace(/\D/g, '');
+      const bateBusca = nome.includes(buscaRaw)
+        || prof.includes(buscaRaw)
+        || tipo.includes(buscaRaw)
+        || tel.includes(buscaRaw)
+        || (buscaDigits.length >= 2 && telDigits.includes(buscaDigits));
+      if (!bateBusca) return false;
+    }
+    return true;
   });
-  renderAgendamentos(filtrados);
+
+  renderAgendamentos(_agendamentosFiltrados);
+}
+
+function atualizarPillsCategoriaAtiva(cat) {
+  document.querySelectorAll('#agend-cat-pills .agend-cat-pill').forEach(btn => {
+    btn.classList.toggle('active', (btn.dataset.cat || '') === (cat || ''));
+  });
+}
+
+function selecionarCategoriaFiltroAgend(cat) {
+  const sel = document.getElementById('agend-filter-categoria');
+  if (sel) sel.value = cat || '';
+  atualizarPillsCategoriaAtiva(cat || '');
+  filtrarAgendamentosLocal();
+}
+
+function sincronizarCategoriaFiltroSelect() {
+  const cat = document.getElementById('agend-filter-categoria')?.value || '';
+  const pillCats = ['', 'medico', 'enfermagem', 'odontologia', 'coleta'];
+  atualizarPillsCategoriaAtiva(pillCats.includes(cat) ? cat : '__none__');
+  filtrarAgendamentosLocal();
+}
+
+function limparFiltrosAgendamento() {
+  const selProf = document.getElementById('agend-filter-profissional');
+  const selCat = document.getElementById('agend-filter-categoria');
+  const inpBusca = document.getElementById('agend-filter-busca');
+  if (selProf) selProf.value = '';
+  if (selCat) selCat.value = '';
+  if (inpBusca) inpBusca.value = '';
+  atualizarPillsCategoriaAtiva('');
+  filtrarAgendamentosLocal();
 }
 
 // ====== LEMBRETES D-1 (Painel de lembretes para a próxima consulta útil: amanhã, ou segunda-feira na sexta) ======
@@ -10898,8 +11019,14 @@ async function loadRelatorioMensagens() {
 }
 
 function exportarListaAgendamentosPDF() {
-  if (!_agendamentosAtuais || _agendamentosAtuais.length === 0) {
-    showToast('Nenhum agendamento carregado para gerar PDF.', true);
+  const temFiltroLocal = Boolean(
+    (document.getElementById('agend-filter-profissional')?.value || '').trim()
+    || (document.getElementById('agend-filter-categoria')?.value || '').trim()
+    || (document.getElementById('agend-filter-busca')?.value || '').trim()
+  );
+  const listaExport = temFiltroLocal ? _agendamentosFiltrados : _agendamentosAtuais;
+  if (!listaExport || listaExport.length === 0) {
+    showToast('Nenhum agendamento encontrado para gerar PDF.', true);
     return;
   }
   if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -10912,6 +11039,9 @@ function exportarListaAgendamentosPDF() {
   const pageHeight = doc.internal.pageSize.getHeight();
   const dataFiltro = document.getElementById('agend-filter-data')?.value || '';
   const statusFiltro = document.getElementById('agend-filter-status')?.value || 'Todos';
+  const profFiltro = document.getElementById('agend-filter-profissional')?.value || '';
+  const catFiltroEl = document.getElementById('agend-filter-categoria');
+  const catFiltroLabel = catFiltroEl && catFiltroEl.value ? (catFiltroEl.options[catFiltroEl.selectedIndex]?.text || catFiltroEl.value).replace(/^[^\wÀ-ú]+/, '').trim() : '';
   const dataRef = dataFiltro ? dataFiltro.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Recife' });
   const horaAgora = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
   const statusTrad = { pendente: 'Pendente', lembrete_enviado: 'Lembrete Enviado', confirmado: 'Confirmado', reagendado: 'Reagendado', realizado: 'Realizado', faltou: 'Faltou', cancelado: 'Cancelado' };
@@ -10924,9 +11054,16 @@ function exportarListaAgendamentosPDF() {
   doc.text('Relatório de Agendamentos — USF Chico Mendes', pageWidth / 2, 10.5, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
-  doc.text(`Data ref.: ${dataRef}  |  Status: ${statusTrad[statusFiltro] || statusFiltro || 'Todos'}  |  Total: ${_agendamentosAtuais.length}  |  Emitido às ${horaAgora}`, pageWidth / 2, 17.5, { align: 'center' });
+  const metaPartes = [
+    `Data ref.: ${dataRef}`,
+    `Status: ${statusTrad[statusFiltro] || statusFiltro || 'Todos'}`
+  ];
+  if (catFiltroLabel) metaPartes.push(`Categoria: ${catFiltroLabel}`);
+  if (profFiltro) metaPartes.push(`Profissional: ${profFiltro}`);
+  metaPartes.push(`Total: ${listaExport.length}`, `Emitido às ${horaAgora}`);
+  doc.text(metaPartes.join('  |  '), pageWidth / 2, 17.5, { align: 'center' });
 
-  const rows = _agendamentosAtuais.map((a, i) => [
+  const rows = listaExport.map((a, i) => [
     i + 1,
     a.nome || '-',
     a.telefone || '-',

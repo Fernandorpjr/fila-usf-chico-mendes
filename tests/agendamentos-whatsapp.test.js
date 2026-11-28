@@ -141,3 +141,48 @@ test('Agendamentos UX Pro: remove Coleta de Sangue e Enviar p/ Fila, reorganiza 
   assert.equal(renderD1Slice.includes('agend-action-btn--img'), true);
   assert.equal(renderD1Slice.includes('openWaPreview('), true);
 });
+
+test('Agendamentos: formulário ajustado (.agend-form-card) e filtros por Profissional e Categoria (Odontologia, Médico, Enfermagem, Coleta)', () => {
+  // Formulário com largura confortável, seções claras e selects sem aperto de 2 colunas
+  assert.equal(indexHtml.includes('.agend-form-card'), true);
+  assert.equal(indexHtml.includes('grid-template-columns:390px minmax(0, 1fr)'), true);
+  assert.equal(indexHtml.includes('agend-form-section-label'), true);
+
+  // Filtros na lista Agendamentos & Disparos WhatsApp
+  assert.equal(indexHtml.includes('id="agend-cat-pills"'), true);
+  assert.equal(indexHtml.includes('id="agend-filter-profissional"'), true);
+  assert.equal(indexHtml.includes('id="agend-filter-categoria"'), true);
+  assert.equal(indexHtml.includes('limparFiltrosAgendamento()'), true);
+  assert.equal(indexHtml.includes("selecionarCategoriaFiltroAgend('odontologia')"), true);
+
+  // Classificação de categorias por tipo e por profissão do profissional
+  const catSlice = extractSlice(
+    appSrc,
+    'function classificarCategoriaAgendamento(agend)',
+    'function atualizarOpcoesFiltroProfissionalAgendamentos('
+  );
+  const ctx = {
+    getProfissaoProfissional(nome) {
+      const n = String(nome || '').toLowerCase();
+      if (n.includes('juliana')) return 'Dentista';
+      if (n.includes('israel') || n.includes('joene') || n.includes('mirela')) return 'Médico';
+      if (n.includes('mariana') || n.includes('jorge') || n.includes('lucelia')) return 'Enfermeira';
+      return '';
+    }
+  };
+  vm.runInNewContext(catSlice, ctx);
+
+  assert.equal(ctx.classificarCategoriaAgendamento({ tipo_atendimento: 'Odontologia', profissional: '' }), 'odontologia');
+  assert.equal(ctx.classificarCategoriaAgendamento({ tipo_atendimento: 'Consulta', profissional: 'Dra. Juliana Cavalcante' }), 'odontologia');
+  assert.equal(ctx.classificarCategoriaAgendamento({ tipo_atendimento: 'Pré-Natal', profissional: 'Mariana Vaz' }), 'enfermagem');
+  assert.equal(ctx.classificarCategoriaAgendamento({ tipo_atendimento: 'Consulta', profissional: 'Jorge Marcio' }), 'enfermagem');
+  assert.equal(ctx.classificarCategoriaAgendamento({ tipo_atendimento: 'Clínico Geral', profissional: 'Dr. Israel Christian' }), 'medico');
+  assert.equal(ctx.classificarCategoriaAgendamento({ tipo_atendimento: 'Hiperdia', profissional: '' }), 'medico');
+  assert.equal(ctx.classificarCategoriaAgendamento({ tipo_atendimento: 'Coleta de Sangue', profissional: '' }), 'coleta');
+
+  // PDF usa os agendamentos filtrados
+  const pdfSlice = extractSlice(appSrc, 'function exportarListaAgendamentosPDF()', 'function exportarRelatorioMensagensPDF()');
+  assert.equal(pdfSlice.includes('_agendamentosFiltrados'), true);
+  assert.equal(pdfSlice.includes('agend-filter-profissional'), true);
+  assert.equal(pdfSlice.includes('agend-filter-categoria'), true);
+});

@@ -706,9 +706,19 @@
   #chat-image-modal.show { display: flex; }
   #chat-image-modal img { max-width: 92vw; max-height: 80vh; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); background: #fff; }
 
-   .agend-grid{display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start;}
-   .agend-form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-   .agend-form-row-2 .form-group { margin-bottom: 0; }
+   .agend-grid{display:grid;grid-template-columns:390px minmax(0, 1fr);gap:20px;align-items:start;}
+   .agend-grid > .card-white { min-width: 0; }
+   .agend-form-card { padding: 20px !important; border-top: 4px solid var(--blue); }
+   .agend-form-card .agend-form-header { display: flex; flex-direction: column; gap: 3px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
+   .agend-form-card .agend-form-sub { font-size: 12px; color: #64748b; font-weight: 600; }
+   .agend-form-section-label { font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.6px; color: #1d4ed8; background: #eff6ff; border: 1px solid #dbeafe; border-radius: 7px; padding: 4px 10px; margin: 4px 0 10px; display: inline-flex; align-items: center; gap: 5px; }
+   .agend-form-card .form-group { margin-bottom: 10px; min-width: 0; gap: 4px; }
+   .agend-form-card label { font-size: 11.5px; font-weight: 800; color: #334155; letter-spacing: 0.35px; }
+   .agend-form-card input[type="text"], .agend-form-card input[type="date"], .agend-form-card select { width: 100%; min-width: 0; max-width: 100%; padding: 9px 12px; min-height: 40px; font-size: 13.5px; font-weight: 600; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #f8fafc; color: #0f172a; box-sizing: border-box; }
+   .agend-form-card input:focus, .agend-form-card select:focus { border-color: var(--blue); background: #ffffff; box-shadow: 0 0 0 3px rgba(26, 79, 196, 0.12); }
+   .agend-form-row-2 { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr); gap: 10px; margin-bottom: 10px; }
+   .agend-form-row-2 .form-group { margin-bottom: 0; min-width: 0; }
+   .agend-form-card .btn-green { margin-top: 6px; padding: 13px 18px; font-size: 15px; border-radius: 12px; }
    .agend-kpi-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
    .agend-kpi-pill { border-radius: 12px; padding: 10px 12px; border: 1px solid #e2e8f0; background: #f8fafc; display: flex; flex-direction: column; gap: 2px; border-left: 4px solid #3b82f6; }
    .agend-kpi-pill--total { background: #eff6ff; border-color: #bfdbfe; border-left-color: #1d4ed8; color: #1e3a8a; }
@@ -717,11 +727,22 @@
    .agend-kpi-pill--alterados { background: #fef2f2; border-color: #fecaca; border-left-color: #dc2626; color: #991b1b; }
    .agend-kpi-val { font-family: 'Nunito', sans-serif; font-size: 20px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
    .agend-kpi-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.35px; opacity: 0.85; }
-   .agend-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; background: #f8fafc; padding: 12px 14px; border-radius: 12px; border: 1px solid #e2e8f0; }
-   .agend-filter-bar .form-group { margin-bottom: 0; min-width: 145px; }
-   .agend-filter-bar .agend-filter-search { flex: 1; min-width: 180px; }
+   .agend-cat-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+   .agend-cat-pill { padding: 6px 12px; border-radius: 999px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #334155; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
+   .agend-cat-pill:hover { border-color: #94a3b8; background: #f8fafc; transform: translateY(-1px); }
+   .agend-cat-pill .agend-cat-count { padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 900; background: #e2e8f0; color: #334155; }
+   .agend-cat-pill.active { background: #1d4ed8; border-color: #1d4ed8; color: #ffffff; box-shadow: 0 3px 10px rgba(29, 78, 216, 0.25); }
+   .agend-cat-pill--medico.active { background: #2563eb; border-color: #2563eb; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25); }
+   .agend-cat-pill--enfermagem.active { background: #9333ea; border-color: #9333ea; box-shadow: 0 3px 10px rgba(147, 51, 234, 0.25); }
+   .agend-cat-pill--odontologia.active { background: #0d9488; border-color: #0d9488; box-shadow: 0 3px 10px rgba(13, 148, 136, 0.25); }
+   .agend-cat-pill--coleta.active { background: #dc2626; border-color: #dc2626; box-shadow: 0 3px 10px rgba(220, 38, 38, 0.25); }
+   .agend-cat-pill.active .agend-cat-count { background: rgba(255, 255, 255, 0.24); color: #ffffff; }
+   .agend-filter-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; align-items: end; margin-bottom: 16px; background: #f8fafc; padding: 12px 14px; border-radius: 12px; border: 1px solid #e2e8f0; }
+   .agend-filter-bar .form-group { margin-bottom: 0; min-width: 0; }
+   .agend-filter-bar .agend-filter-search { min-width: 170px; }
+   .agend-filter-bar .agend-filter-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; grid-column: 1 / -1; justify-content: flex-end; padding-top: 6px; border-top: 1px dashed #e2e8f0; }
    .agend-filter-bar label { display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.35px; margin-bottom: 4px; }
-   .agend-filter-bar input, .agend-filter-bar select { width: 100%; min-height: 36px; padding: 6px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-family: 'Nunito Sans', sans-serif; font-size: 13px; font-weight: 700; }
+   .agend-filter-bar input, .agend-filter-bar select { width: 100%; min-width: 0; min-height: 36px; padding: 6px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-family: 'Nunito Sans', sans-serif; font-size: 13px; font-weight: 700; box-sizing: border-box; }
    .agend-filter-bar input:focus, .agend-filter-bar select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(26, 79, 196, 0.12); }
    .agend-d1-collapse, .agend-secondary-collapse { overflow: hidden; }
    .agend-collapse-summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; user-select: none; }
@@ -760,9 +781,13 @@
     .wa-aviso-telefone { display: none; background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; font-size: 12.5px; font-weight: 800; text-align: left; }
     .wa-fallback-link { display: none; margin-top: 10px; text-align: center; padding: 11px 14px; border-radius: 12px; background: #eff6ff; border: 1.5px solid #93c5fd; color: #1d4ed8; font-weight: 800; font-size: 14px; text-decoration: none; }
     .wa-btn-send:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
-    @media (max-width: 1080px) { .agend-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 1120px) { .agend-grid { grid-template-columns: 1fr; } }
     @media (max-width: 768px) {
       .agend-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .agend-filter-bar { grid-template-columns: 1fr 1fr; }
+      .agend-filter-bar .agend-filter-search { grid-column: 1 / -1; }
+      .agend-filter-bar .agend-filter-actions { justify-content: stretch; }
+      .agend-filter-bar .agend-filter-actions .hist-btn-action { flex: 1; justify-content: center; }
       .agend-actions { width: 100%; align-items: stretch; }
       .agend-actions-primary { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 6px; width: 100%; }
       .agend-actions-utils { display: flex; gap: 6px; width: 100%; }
@@ -5335,50 +5360,53 @@
       <!-- ====== FIM PAINEL DE LEMBRETES D-1 ====== -->
 
       <div class="agend-grid">
-        <div class="card-white" style="padding:20px;">
-          <div class="card-title" style="margin-bottom:14px;"><span>📝</span> Novo Agendamento</div>
-          <div class="form-group" style="margin-bottom:12px;"><label>Nome do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-nome" placeholder="Nome completo" oninput="validarCampoAgend('agend-nome')"></div>
-          <div class="form-group" style="margin-bottom:12px;"><label>Telefone (WhatsApp) <span style="color:var(--red);">*</span></label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 81 99999-9999" oninput="validarCampoAgend('agend-telefone')"></div>
-          <div class="agend-form-row-2">
-            <div class="form-group"><label>Data <span style="color:var(--red);">*</span></label><input type="date" id="agend-data" style="width:100%;" onchange="handleAgendTipoChange();validarDataAgend()" min=""></div>
-            <div class="form-group"><label>Horário <span style="color:var(--red);">*</span></label><input type="text" id="agend-horario" value="08:00" placeholder="08:00" oninput="mascaraHorario(this)"></div>
+        <div class="card-white agend-form-card">
+          <div class="agend-form-header">
+            <div class="card-title" style="margin-bottom:0;"><span>📝</span> Novo Agendamento</div>
+            <div class="agend-form-sub">Preencha os dados para agendar e preparar a mensagem no WhatsApp</div>
           </div>
+
+          <div class="agend-form-section-label">👤 Dados do Paciente</div>
+          <div class="form-group"><label for="agend-nome">Nome do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-nome" placeholder="Nome completo" oninput="validarCampoAgend('agend-nome')"></div>
+          <div class="form-group"><label for="agend-telefone">Telefone (WhatsApp) <span style="color:var(--red);">*</span></label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 81 99999-9999" oninput="validarCampoAgend('agend-telefone')"></div>
           <div class="agend-form-row-2">
-            <div class="form-group"><label>Profissional</label>
-              <select id="agend-profissional" title="Profissional">
-                <option value="">— Opcional —</option>
-                <option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
-                <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Renata Célia</option><option>Dra. Juliana Cavalcante</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Equipe</label>
-              <select id="agend-equipe" title="Equipe">
-                <option value="">Sem equipe (Padrão)</option>
-                <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
-                <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
-                <option value="Eq 3 Aurora">Equipe 3 Aurora</option>
-              </select>
-            </div>
+            <div class="form-group"><label for="agend-data">Data <span style="color:var(--red);">*</span></label><input type="date" id="agend-data" onchange="handleAgendTipoChange();validarDataAgend()" min=""></div>
+            <div class="form-group"><label for="agend-horario">Horário <span style="color:var(--red);">*</span></label><input type="text" id="agend-horario" value="08:00" placeholder="08:00" oninput="mascaraHorario(this)"></div>
           </div>
-          <div class="agend-form-row-2">
-            <div class="form-group"><label>Tipo de Atendimento</label>
-              <select id="agend-tipo" title="Tipo atendimento" onchange="handleAgendTipoChange()"><option value="">— Opcional —</option><option>Consulta</option><option>Clínico Geral</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Puericultura</option><option>Odontologia</option><option>Hiperdia</option><option>Coleta de Sangue</option></select>
-            </div>
-            <div class="form-group"><label>Template WhatsApp</label>
-              <select id="agend-template" title="Template" onchange="toggleChecklistExames()">
-                <option value="lembrete">📋 Lembrete de Consulta</option>
-                <option value="confirmacao">✅ Confirmação de Agendamento</option>
-                <option value="reagendamento">🔄 Reagendamento</option>
-                <option value="cancelamento">❌ Cancelamento</option>
-                <option value="preparo_exames">🔬 Preparo para Exames</option>
-              </select>
-            </div>
+
+          <div class="agend-form-section-label">🏥 Atendimento &amp; Mensagem</div>
+          <div class="form-group"><label for="agend-profissional">Profissional</label>
+            <select id="agend-profissional" title="Profissional">
+              <option value="">— Opcional —</option>
+              <option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
+              <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Renata Célia</option><option>Dra. Juliana Cavalcante</option>
+            </select>
           </div>
-          <div class="form-group" style="margin-bottom:12px;display:none;" id="checklist-exames-grupo">
+          <div class="form-group"><label for="agend-tipo">Tipo de Atendimento</label>
+            <select id="agend-tipo" title="Tipo atendimento" onchange="handleAgendTipoChange()"><option value="">— Opcional —</option><option>Consulta</option><option>Clínico Geral</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Puericultura</option><option>Odontologia</option><option>Hiperdia</option><option>Coleta de Sangue</option></select>
+          </div>
+          <div class="form-group"><label for="agend-equipe">Equipe</label>
+            <select id="agend-equipe" title="Equipe">
+              <option value="">Sem equipe (Padrão)</option>
+              <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
+              <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
+              <option value="Eq 3 Aurora">Equipe 3 Aurora</option>
+            </select>
+          </div>
+          <div class="form-group"><label for="agend-template">Template WhatsApp</label>
+            <select id="agend-template" title="Template" onchange="toggleChecklistExames()">
+              <option value="lembrete">📋 Lembrete de Consulta</option>
+              <option value="confirmacao">✅ Confirmação de Agendamento</option>
+              <option value="reagendamento">🔄 Reagendamento</option>
+              <option value="cancelamento">❌ Cancelamento</option>
+              <option value="preparo_exames">🔬 Preparo para Exames</option>
+            </select>
+          </div>
+          <div class="form-group" style="display:none;" id="checklist-exames-grupo">
             <label>Exames (selecione):</label>
             <div id="checklist-exames" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
           </div>
-          <div class="form-group" style="margin-bottom:16px;"><label>Observações</label><input type="text" id="agend-obs" placeholder="Opcional"></div>
+          <div class="form-group" style="margin-bottom:14px;"><label for="agend-obs">Observações</label><input type="text" id="agend-obs" placeholder="Opcional"></div>
           <button class="btn btn-green" style="width:100%;justify-content:center;" onclick="criarAgendamento()">📅 Agendar</button>
         </div>
         <div class="card-white" style="padding:20px;">
@@ -5419,11 +5447,21 @@
               <div class="agend-kpi-lbl">🔄 Reag./Canc.</div>
             </div>
           </div>
+          <div class="agend-cat-pills" id="agend-cat-pills" role="group" aria-label="Filtrar agendamentos por categoria">
+            <button type="button" class="agend-cat-pill active" data-cat="" onclick="selecionarCategoriaFiltroAgend('')">📋 Todos <span class="agend-cat-count" id="agend-cat-count-todos">0</span></button>
+            <button type="button" class="agend-cat-pill agend-cat-pill--medico" data-cat="medico" onclick="selecionarCategoriaFiltroAgend('medico')">🩺 Médico <span class="agend-cat-count" id="agend-cat-count-medico">0</span></button>
+            <button type="button" class="agend-cat-pill agend-cat-pill--enfermagem" data-cat="enfermagem" onclick="selecionarCategoriaFiltroAgend('enfermagem')">👩‍⚕️ Enfermagem <span class="agend-cat-count" id="agend-cat-count-enfermagem">0</span></button>
+            <button type="button" class="agend-cat-pill agend-cat-pill--odontologia" data-cat="odontologia" onclick="selecionarCategoriaFiltroAgend('odontologia')">🦷 Odontologia <span class="agend-cat-count" id="agend-cat-count-odontologia">0</span></button>
+            <button type="button" class="agend-cat-pill agend-cat-pill--coleta" data-cat="coleta" onclick="selecionarCategoriaFiltroAgend('coleta')">🩸 Coleta <span class="agend-cat-count" id="agend-cat-count-coleta">0</span></button>
+          </div>
           <div class="agend-filter-bar">
             <div class="form-group"><label for="agend-filter-data">Data</label><input type="date" id="agend-filter-data"></div>
+            <div class="form-group"><label for="agend-filter-profissional">Profissional</label><select id="agend-filter-profissional" title="Filtrar por profissional" onchange="filtrarAgendamentosLocal()"><option value="">Todos os profissionais</option><option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option><option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Renata Célia</option><option>Dra. Juliana Cavalcante</option></select></div>
+            <div class="form-group"><label for="agend-filter-categoria">Categoria / Tipo</label><select id="agend-filter-categoria" title="Filtrar por categoria ou tipo" onchange="sincronizarCategoriaFiltroSelect()"><option value="">Todas as categorias</option><option value="medico">🩺 Médico / Clínico</option><option value="enfermagem">👩‍⚕️ Enfermagem</option><option value="odontologia">🦷 Odontologia</option><option value="coleta">🩸 Coleta de Sangue</option><option value="tipo:Pré-Natal">🤰 Pré-Natal</option><option value="tipo:Puericultura">👶 Puericultura</option><option value="tipo:Hiperdia">❤️ Hiperdia</option><option value="tipo:Exame">🔬 Exame</option><option value="tipo:Consulta">📋 Consulta / Retorno</option></select></div>
             <div class="form-group"><label for="agend-filter-status">Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="reagendado">Reagendado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
-            <div class="form-group agend-filter-search"><label for="agend-filter-busca">Busca rápida</label><input type="search" id="agend-filter-busca" placeholder="Nome, telefone ou profissional..." oninput="filtrarAgendamentosLocal()"></div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <div class="form-group agend-filter-search"><label for="agend-filter-busca">Busca rápida</label><input type="search" id="agend-filter-busca" placeholder="Nome, telefone..." oninput="filtrarAgendamentosLocal()"></div>
+            <div class="agend-filter-actions">
+              <button type="button" class="hist-btn-action hist-btn-action--config" onclick="limparFiltrosAgendamento()" title="Limpar filtro de profissional, categoria e busca">✖ Limpar</button>
               <button type="button" class="hist-btn-action hist-btn-action--pdf" onclick="loadAgendamentos()">🔍 Filtrar</button>
               <button type="button" class="hist-btn-action hist-btn-action--csv" onclick="exportarListaAgendamentosPDF()" title="Gerar PDF da lista de agendamentos filtrada">📄 Gerar PDF</button>
             </div>
