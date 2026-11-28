@@ -1103,6 +1103,11 @@ async function garantirColunasEscuta(dbClientOrPool) {
 
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS exames_coleta JSONB DEFAULT NULL`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS ausente_temporario BOOLEAN NOT NULL DEFAULT false`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS chamado_em TIMESTAMPTZ DEFAULT NULL`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS finalizado_em TIMESTAMPTZ DEFAULT NULL`);
+    await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS ausente_desde TIMESTAMPTZ DEFAULT NULL`);
+    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS finalizado_em TIMESTAMPTZ DEFAULT NULL`);
+    await runner.query(`ALTER TABLE call_history ADD COLUMN IF NOT EXISTS duracao_atendimento_seg INTEGER DEFAULT NULL`);
     await runner.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS client_request_id VARCHAR(64)`);
     await runner.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_patients_client_req_id ON patients (client_request_id) WHERE client_request_id IS NOT NULL`);
     await runner.query(`ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS patient_fila_id INTEGER DEFAULT NULL`);
@@ -1755,6 +1760,28 @@ const SQL_ONLY_REAL_ATTEND_CH = `COALESCE(ch.profissional, '') NOT LIKE '🔊 Re
 const SQL_PATIENT_KEY = `COALESCE(patient_id::text, LOWER(TRIM(nome)))`;
 const SQL_PATIENT_KEY_C = `COALESCE(c.patient_id::text, LOWER(TRIM(c.nome)))`;
 
+// Fecha automaticamente o último atendimento real em aberto no call_history (entrada -> saída), sem incluir espera
+async function fecharAtendimentoAnteriorNoHistorico(db, patientIds) {
+  const ids = (Array.isArray(patientIds) ? patientIds : [])
+    .map(Number)
+    .filter(n => Number.isInteger(n) && n > 0);
+  if (!ids.length) return;
+  await db.query(
+    `UPDATE call_history ch
+     SET finalizado_em = CURRENT_TIMESTAMP,
+         duracao_atendimento_seg = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - ch.created_at)))::int)
+     WHERE ch.id IN (
+       SELECT DISTINCT ON (patient_id) id
+       FROM call_history
+       WHERE patient_id = ANY($1::int[])
+         AND finalizado_em IS NULL
+         AND ${SQL_ONLY_REAL_ATTEND}
+       ORDER BY patient_id, created_at DESC, id DESC
+     )`,
+    [ids]
+  );
+}
+
 // Reordena automaticamente a fila do setor segundo a regra de prioridade (Lei nº 10.048/2000, 1 a 10):
 // 1º Preferenciais na ordem estrita de 1 a 10 (desempatando por horário marcado e chegada);
 // 2º Pacientes sem prioridade ordenados pelo Horário Marcado e depois pelo Horário de Chegada.
@@ -1869,11 +1896,20 @@ app.get('/api/queues', async (req, res) => {
 
     const result = await pool.query(
       `SELECT *,
-              FLOOR(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0)::int AS espera_minutos
+              FLOOR(EXTRACT(EPOCH FROM (NOW() - created_at)) / 60.0)::int AS espera_minutos,
+              CASE
+                WHEN COALESCE(ausente_temporario, false) = true AND ausente_desde IS NOT NULL
+                THEN GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - ausente_desde)) / 60.0)::int)
+                ELSE NULL
+              END AS ausente_minutos
        FROM patients
        WHERE status NOT IN ('atendido', 'desistencia')
        ORDER BY
-         CASE WHEN status = 'chamado' THEN 0 ELSE 1 END ASC,
+         CASE
+           WHEN status = 'chamado' THEN 0
+           WHEN COALESCE(ausente_temporario, false) = true THEN 2
+           ELSE 1
+         END ASC,
          ${SQL_ORDEM_FILA}`
     );
 
@@ -2308,12 +2344,13 @@ app.get('/api/patients/:id/status', async (req, res) => {
 app.post('/api/call-next/:setor', async (req, res) => {
   const client = await pool.connect();
   try {
+    await garantirColunasEscuta(client);
     const { setor } = req.params;
     const { medico, consultorio, profissional, filtro_profissional, filtro_etapa } = req.body || {};
 
     await client.query('BEGIN');
 
-    let baseWhere = `setor = $1 AND status = 'aguardando'`;
+    let baseWhere = `setor = $1 AND status = 'aguardando' AND COALESCE(ausente_temporario, false) = false`;
     const baseParams = [setor];
     if (filtro_profissional) {
       baseParams.push(filtro_profissional);
@@ -2472,15 +2509,48 @@ app.post('/api/call-next/:setor', async (req, res) => {
 
     // Update patient status and assign medico/consultorio/profissional (limpa sort_order e ausente_temporario ao ser chamado)
     await client.query(
-      "UPDATE patients SET status = 'chamado', sort_order = NULL, ausente_temporario = false, medico = $2, consultorio = $3, profissional = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      `UPDATE patients
+       SET status = 'chamado',
+           sort_order = NULL,
+           ausente_temporario = false,
+           ausente_desde = NULL,
+           chamado_em = CURRENT_TIMESTAMP,
+           finalizado_em = NULL,
+           medico = $2,
+           consultorio = $3,
+           profissional = $4,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
       [next.id, medicoFinal, consultorioFinal, profissionalFinal]
     );
 
-    // Mark previous called as atendido
-    await client.query(
-      "UPDATE patients SET status = 'atendido', updated_at = CURRENT_TIMESTAMP WHERE setor = $1 AND status = 'chamado' AND id != $2",
-      [setor, next.id]
-    );
+    // Encerra o paciente em atendimento anterior (mesmo profissional quando informado) e calcula a duração real do atendimento
+    let closedRes;
+    if (profissionalFinal && SETORES_HORARIO_MARCADO.includes(setor)) {
+      closedRes = await client.query(
+        `UPDATE patients
+         SET status = 'atendido',
+             finalizado_em = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE setor = $1 AND status = 'chamado' AND id != $2
+           AND (profissional = $3 OR profissional IS NULL OR profissional = '')
+         RETURNING id`,
+        [setor, next.id, profissionalFinal]
+      );
+    } else {
+      closedRes = await client.query(
+        `UPDATE patients
+         SET status = 'atendido',
+             finalizado_em = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE setor = $1 AND status = 'chamado' AND id != $2
+         RETURNING id`,
+        [setor, next.id]
+      );
+    }
+    if (closedRes.rows.length > 0) {
+      await fecharAtendimentoAnteriorNoHistorico(client, closedRes.rows.map(r => r.id));
+    }
 
     // Add to history (inclui horario_marcado e is_intercorrencia_acolhimento para resumo do profissional)
     const horarioChamada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
@@ -2551,7 +2621,9 @@ app.post('/api/patients/:id/rechamar', async (req, res) => {
     await pool.query(
       `UPDATE patients
        SET status = CASE WHEN status = 'aguardando' AND COALESCE(ausente_temporario, false) = true THEN 'chamado' ELSE status END,
+           chamado_em = CASE WHEN status = 'aguardando' AND COALESCE(ausente_temporario, false) = true THEN CURRENT_TIMESTAMP ELSE chamado_em END,
            ausente_temporario = false,
+           ausente_desde = NULL,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
       [id]
@@ -2931,7 +3003,7 @@ app.put('/api/patients/:id/exames-coleta', async (req, res) => {
   }
 });
 
-// PUT /api/patients/:id/ausente-temporario — Paciente não respondeu à chamada: volta p/ fila sem perder cadastro e libera próximo
+// PUT /api/patients/:id/ausente-temporario — Marca paciente (aguardando ou chamado) como ausente FIXADO até retornar
 app.put('/api/patients/:id/ausente-temporario', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -2948,9 +3020,9 @@ app.put('/api/patients/:id/ausente-temporario', async (req, res) => {
       return res.status(404).json({ error: 'Paciente não encontrado' });
     }
     const p = pRes.rows[0];
-    if (p.status !== 'chamado') {
+    if (p.status !== 'chamado' && p.status !== 'aguardando') {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Apenas paciente com chamada ativa pode ser marcado como ausente temporário.' });
+      return res.status(400).json({ error: 'Apenas paciente aguardando ou em chamada pode ser marcado como ausente.' });
     }
 
     const paramsFila = [p.setor, p.id];
@@ -2961,19 +3033,19 @@ app.put('/api/patients/:id/ausente-temporario', async (req, res) => {
     }
     const esperaRes = await client.query(
       `SELECT id FROM patients
-       WHERE setor = $1 AND status = 'aguardando' AND id <> $2${profFilter}
+       WHERE setor = $1 AND status = 'aguardando' AND COALESCE(ausente_temporario, false) = false AND id <> $2${profFilter}
        ORDER BY ${SQL_ORDEM_FILA}`,
       paramsFila
     );
     const ids = esperaRes.rows.map(r => r.id);
-    // Coloca logo após o 1º aguardando (posição 2) para destravar a chamada seguinte e ainda permitir rechamar rápido
-    const insertIdx = Math.min(1, ids.length);
-    ids.splice(insertIdx, 0, p.id);
 
     await client.query(
       `UPDATE patients
        SET status = 'aguardando',
            ausente_temporario = true,
+           ausente_desde = CURRENT_TIMESTAMP,
+           chamado_em = NULL,
+           sort_order = NULL,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
       [p.id]
@@ -2993,18 +3065,98 @@ app.put('/api/patients/:id/ausente-temporario', async (req, res) => {
       pacienteId: p.id,
       acao: 'ausente_temporario',
       setor: p.setor,
-      valorAnterior: 'chamado',
-      valorNovo: `aguardando (${insertIdx + 1}º lugar — ausente temporário)`,
-      motivo: req.body?.motivo || 'Não respondeu à chamada'
+      valorAnterior: p.status,
+      valorNovo: 'ausente fixado (aguardando retorno)',
+      motivo: req.body?.motivo || 'Paciente ausente temporariamente'
     });
 
     await client.query('COMMIT');
     const outRes = await pool.query('SELECT * FROM patients WHERE id = $1', [p.id]);
     io.emit('queueUpdate');
     res.json({
-      message: `${p.nome} aguardando rechamada (ausente temporário).`,
-      patient: outRes.rows[0],
-      posicao: insertIdx + 1
+      message: `${p.nome} fixado em Ausentes até retornar.`,
+      patient: outRes.rows[0]
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// PUT /api/patients/:id/retornar-ausente — Devolve o paciente ausente fixado para o topo da fila ativa ao retornar
+app.put('/api/patients/:id/retornar-ausente', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await garantirColunasEscuta(client);
+    const { id } = req.params;
+    if (!req.session && !isManagerOrAdminAuthorized(req)) {
+      return res.status(401).json({ error: 'Sessão não autenticada.' });
+    }
+
+    await client.query('BEGIN');
+    const pRes = await client.query('SELECT * FROM patients WHERE id = $1 FOR UPDATE', [id]);
+    if (pRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+    const p = pRes.rows[0];
+    if (p.status === 'atendido' || p.status === 'desistencia') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Atendimento já finalizado.' });
+    }
+
+    const paramsFila = [p.setor, p.id];
+    let profFilter = '';
+    if (p.profissional && String(p.profissional).trim()) {
+      paramsFila.push(String(p.profissional).trim());
+      profFilter = ` AND (profissional = $3 OR profissional IS NULL OR profissional = '')`;
+    }
+    const esperaRes = await client.query(
+      `SELECT id FROM patients
+       WHERE setor = $1 AND status = 'aguardando' AND COALESCE(ausente_temporario, false) = false AND id <> $2${profFilter}
+       ORDER BY ${SQL_ORDEM_FILA}`,
+      paramsFila
+    );
+    const ids = esperaRes.rows.map(r => r.id);
+    ids.unshift(p.id);
+
+    await client.query(
+      `UPDATE patients
+       SET status = 'aguardando',
+           ausente_temporario = false,
+           ausente_desde = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [p.id]
+    );
+    if (ids.length > 0) {
+      const ords = ids.map((_, idx) => idx + 1);
+      await client.query(
+        `UPDATE patients AS p
+         SET sort_order = u.ord
+         FROM unnest($1::int[], $2::int[]) AS u(id, ord)
+         WHERE p.id = u.id`,
+        [ids.map(Number), ords]
+      );
+    }
+
+    await registrarAuditoriaFila(client, req, {
+      pacienteId: p.id,
+      acao: 'retorno_ausente',
+      setor: p.setor,
+      valorAnterior: 'ausente fixado',
+      valorNovo: 'aguardando (retornou para 1º da fila ativa)',
+      motivo: req.body?.motivo || 'Paciente retornou'
+    });
+
+    await client.query('COMMIT');
+    const outRes = await pool.query('SELECT * FROM patients WHERE id = $1', [p.id]);
+    io.emit('queueUpdate');
+    res.json({
+      message: `${p.nome} retornou para o topo da fila!`,
+      patient: outRes.rows[0]
     });
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
@@ -3119,6 +3271,10 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
       ? normalizarPayloadExamesColeta(exames_coleta)
       : undefined;
 
+    if (patientAntes.status === 'chamado') {
+      await fecharAtendimentoAnteriorNoHistorico(client, [Number(id)]);
+    }
+
     const result = await client.query(
       `UPDATE patients
        SET setor = $2,
@@ -3145,6 +3301,8 @@ app.put('/api/patients/:id/transfer', async (req, res) => {
            exames_coleta = CASE WHEN $21::boolean THEN $22::jsonb ELSE exames_coleta END,
            status = 'aguardando',
            ausente_temporario = false,
+           ausente_desde = NULL,
+           chamado_em = NULL,
            created_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
@@ -4533,8 +4691,11 @@ app.post('/api/patients/:id/encaminhar-agendamento', async (req, res) => {
     );
 
     // 2. Marcar paciente como atendido (saiu da fila do setor original)
+    if (patient.status === 'chamado') {
+      await fecharAtendimentoAnteriorNoHistorico(client, [Number(id)]);
+    }
     await client.query(
-      `UPDATE patients SET status = 'atendido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      `UPDATE patients SET status = 'atendido', finalizado_em = CURRENT_TIMESTAMP, ausente_temporario = false, ausente_desde = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
       [id]
     );
 

@@ -1565,6 +1565,21 @@ function openContextMenu(event, id, nome, setor) {
     const el = document.getElementById(elId);
     if (el) el.style.display = temPermissaoMgr ? '' : 'none';
   });
+  const pacienteAtual = typeof encontrarPacienteEmCachePorId === 'function' ? encontrarPacienteEmCachePorId(id) : null;
+  const ausenteItem = document.getElementById('ctx-item-ausente');
+  if (ausenteItem) {
+    const estaAusente = Boolean(pacienteAtual && pacienteAtual.ausente_temporario);
+    ausenteItem.textContent = estaAusente ? '↩️ Voltou para a Fila' : '⏸️ Marcar Ausente';
+    ausenteItem.style.display = (pacienteAtual && (pacienteAtual.status === 'atendido' || pacienteAtual.status === 'desistencia')) ? 'none' : '';
+  }
+  const radarItem = document.getElementById('ctx-item-radar');
+  if (radarItem) {
+    radarItem.style.display = (pacienteAtual && pacienteAtual.busca_ativa) ? 'none' : '';
+  }
+  const removeItem = document.getElementById('ctx-item-remove');
+  const removeDiv = document.getElementById('ctx-divider-remove');
+  if (removeItem) removeItem.style.display = temPermissaoMgr ? '' : 'none';
+  if (removeDiv) removeDiv.style.display = temPermissaoMgr ? '' : 'none';
   // Posicionamento inteligente
   const vw = window.innerWidth, vh = window.innerHeight;
   let x = event.clientX, y = event.clientY;
@@ -1585,10 +1600,28 @@ function closeContextMenu() {
   }
 }
 
+function ctxToggleAusente() {
+  const id = _ctxPatientId;
+  const nome = _ctxPatientNome;
+  closeContextMenu();
+  const p = typeof encontrarPacienteEmCachePorId === 'function' ? encontrarPacienteEmCachePorId(id) : null;
+  if (p && p.ausente_temporario) {
+    retornarAusenteParaFila(id, nome);
+  } else {
+    marcarAusenteTemporarioFila(id, nome);
+  }
+}
+function ctxVerQrCode() { const id = _ctxPatientId; closeContextMenu(); showQrModalById(id); }
+function ctxAbrirRadar() {
+  const id = _ctxPatientId;
+  const setor = _ctxPatientSetor;
+  closeContextMenu();
+  if (typeof abrirModalBuscaAtiva === 'function') abrirModalBuscaAtiva(id, setor);
+}
 function ctxMoveToTop() { closeContextMenu(); moveToTop(_ctxPatientId, _ctxPatientSetor); }
 function ctxMoveToBottom() { closeContextMenu(); moveToBottom(_ctxPatientId, _ctxPatientSetor); }
 function ctxOpenPositionModal() { closeContextMenu(); openPositionModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
-function ctxTransfer() { closeContextMenu(); isPublicTransfer = false; openTransferModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
+function ctxTransfer() { closeContextMenu(); isPublicTransfer = false; if (isManagerOrAdmin()) openTransferModal(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); else abrirModalEncaminharPublico(_ctxPatientId, _ctxPatientNome, _ctxPatientSetor); }
 function ctxRemove() { closeContextMenu(); removePatient(_ctxPatientId, _ctxPatientNome); }
 function ctxRenamePatient() {
   closeContextMenu();
@@ -3893,6 +3926,68 @@ function setQueueHtmlPreservingScroll(el, html) {
   return true;
 }
 
+function formatarTempoAusente(p) {
+  let mins = p && p.ausente_minutos !== null && p.ausente_minutos !== undefined
+    ? Number(p.ausente_minutos)
+    : NaN;
+  if (!Number.isFinite(mins) && p && p.ausente_desde) {
+    mins = Math.max(0, Math.floor((Date.now() - new Date(p.ausente_desde).getTime()) / 60000));
+  }
+  if (!Number.isFinite(mins)) return 'Ausente fixado';
+  if (mins < 1) return 'Ausente agora';
+  if (mins >= 60) {
+    const h = Math.floor(mins / 60);
+    const r = mins % 60;
+    return `Ausente há ${h}h${r > 0 ? String(r).padStart(2, '0') + 'm' : ''}`;
+  }
+  return `Ausente há ${mins} min`;
+}
+
+function renderBlocoAusentesFixados(ausentesFixados, setor, { compacto = false } = {}) {
+  if (!Array.isArray(ausentesFixados) || ausentesFixados.length === 0) return '';
+  if (typeof document !== 'undefined' && document.body && document.body.classList.contains('modo-tv')) return '';
+
+  const itensHtml = ausentesFixados.map(p => {
+    const safeNome = String(p.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const safeMed = escapeText(p.medico || '').replace(/'/g, "\\'");
+    const profTag = p.profissional ? `<span>👨‍⚕️ ${escapeText(p.profissional)}</span>` : '';
+    const prioTag = renderPrioridadeIdadeBadge(p);
+    const tempoTxt = formatarTempoAusente(p);
+    const desistirBtn = isManagerOrAdmin()
+      ? `<button type="button" class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência" aria-label="Marcar desistência para ${escapeText(p.nome)}">🚶</button>`
+      : '';
+    const chamarBtn = !compacto
+      ? `<button type="button" class="btn-ausente-chamar" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${safeMed}')" title="Paciente retornou — chamar imediatamente no Painel">✅ Voltou (Chamar)</button>`
+      : '';
+    return `<div class="fila-ausente-item" data-id="${p.id}">
+      <div class="fila-ausente-info">
+        <div class="fila-ausente-nome"><span>${escapeText(p.nome)}</span>${prioTag}</div>
+        <div class="fila-ausente-meta">
+          <span style="color:#b45309;">⏸️ ${escapeText(tempoTxt)}</span>
+          ${p.horario_marcado ? `<span>📅 Marcado: ${escapeText(p.horario_marcado)}</span>` : ''}
+          ${profTag}
+        </div>
+      </div>
+      <div class="fila-ausente-actions">
+        ${chamarBtn}
+        <button type="button" class="btn-ausente-voltar" onclick="event.stopPropagation();retornarAusenteParaFila(${p.id},'${safeNome}')" title="Devolver para o topo da fila ativa sem perder a vez">↩️ Voltou p/ Fila</button>
+        ${desistirBtn}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="fila-ausentes-box">
+    <div class="fila-ausentes-head">
+      <div class="fila-ausentes-title">
+        <span>⏸️ Ausentes Aguardando Retorno</span>
+        <span class="fila-ausentes-count">${ausentesFixados.length}</span>
+      </div>
+      <div class="fila-ausentes-hint">Fixados aqui — ignorados pelo Chamar Próximo até voltarem</div>
+    </div>
+    <div class="fila-ausentes-list">${itensHtml}</div>
+  </div>`;
+}
+
 function renderQueueItems(containerId, setor, filterProfissional) {
   const el = document.getElementById(containerId); if (!el) return;
   let items = (queues[setor] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
@@ -3905,9 +4000,12 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     return;
   }
   const isSectorQueue = containerId.startsWith('queue-');
+  const ausentesFixados = items.filter(p => p.ausente_temporario && p.status === 'aguardando');
+  const ativosFila = items.filter(p => !(p.ausente_temporario && p.status === 'aguardando'));
+  const ausentesBoxHtml = renderBlocoAusentesFixados(ausentesFixados, setor, { compacto: false });
 
   let waitCounter = 0;
-  const rowsHtml = items.map((p) => {
+  const rowsHtml = ativosFila.map((p) => {
     const posLabel = p.status === 'chamado' ? '📢' : `#${++waitCounter}`;
     const isNextUp = p.status === 'aguardando' && waitCounter === 1;
     const nextUpBadge = isNextUp ? '<span class="badge-proximo-fila">👉 Próximo</span>' : '';
@@ -3915,10 +4013,10 @@ function renderQueueItems(containerId, setor, filterProfissional) {
     const prioBadge = renderPrioridadeIdadeBadge(p);
     const waitBadge = renderEsperaNormalBadge(p);
     let chamadoTempoBadge = '';
-    if (p.status === 'chamado' && (p.updated_at || p.created_at)) {
-      const minsChamado = Math.floor((Date.now() - new Date(p.updated_at || p.created_at).getTime()) / 60000);
+    if (p.status === 'chamado' && (p.chamado_em || p.updated_at || p.created_at)) {
+      const minsChamado = Math.floor((Date.now() - new Date(p.chamado_em || p.updated_at || p.created_at).getTime()) / 60000);
       if (minsChamado >= 5) {
-        chamadoTempoBadge = `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(239,68,68,0.14);color:#b91c1c;border:1px solid rgba(239,68,68,0.35);font-size:10.5px;font-weight:900;" title="Paciente chamado sem comparecimento até o momento">⏱️ Chamado há ${minsChamado} min</span></div>`;
+        chamadoTempoBadge = `<div style="margin-top:3px;"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(239,68,68,0.14);color:#b91c1c;border:1px solid rgba(239,68,68,0.35);font-size:10.5px;font-weight:900;" title="Paciente em atendimento / chamado há ${minsChamado} min">⏱️ ${minsChamado} min</span></div>`;
       }
     }
     const intercorrenciaBadge = renderIntercorrenciaAcolhimentoBadge(p);
@@ -3929,10 +4027,6 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       ? `<div style="font-size:12px;font-weight:800;color:var(--blue-dark);margin-bottom:2px;">👨‍⚕️ ${escapeText(p.profissional)}</div>`
       : `<div style="font-size:11px;font-weight:700;color:var(--gray-600);margin-bottom:2px;">📋 Fila Geral (${escapeText(setor)})</div>`;
     const condBadges = renderCondicoesBadges(p.condicoes_especiais);
-    const qrBtn = `<button type="button" class="btn-qr btn-icon-compact" onclick="event.stopPropagation();showQrModalById(${p.id})" title="Ver QR Code" aria-label="Ver QR Code de ${escapeText(p.nome)}">📱</button>`;
-    // Se o paciente já tem busca ativa ativa, o bloco detalhado com botão de edição é renderizado na coluna de Histórico.
-    // Deixamos o botão de ação apenas para quem não ativou ainda, evitando poluição visual.
-    const radarBtn = !p.busca_ativa ? renderBotaoBuscaAtivaCard(p, setor) : '';
     const alumiaBloco = renderBlocoBuscaAtivaEquipe(p, setor);
 
     const motivo1 = (p.motivo_primeira_escuta || p.queixa || '').trim();
@@ -3965,9 +4059,6 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       : '';
 
     const statusBadge = `<span class="queue-status ${p.status==='chamado'?'status-calling':'status-waiting'}">${p.status==='chamado'?'📢 Chamando':'Aguardando'}</span>`;
-    const ausenteBadge = (p.ausente_temporario && p.status === 'aguardando')
-      ? `<span style="display:inline-block;padding:2px 7px;border-radius:999px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:10px;font-weight:900;" title="Não respondeu à chamada anterior — clique em Rechamar quando retornar">⏸️ Ausente 1ª chamada</span>`
-      : '';
     const tubosBloco = (!document.body.classList.contains('modo-tv') && typeof renderBadgesTubosColeta === 'function')
       ? renderBadgesTubosColeta(p, setor)
       : '';
@@ -3982,26 +4073,28 @@ function renderQueueItems(containerId, setor, filterProfissional) {
       ? `<button type="button" class="btn-inline-mgr btn-inline-mgr--prio${ehPrioAtivo ? ' ativo' : ''}" onclick="event.stopPropagation();abrirModalPrioridadePorId(${p.id})" title="Alterar ou acrescentar prioridade na fila (Gerente/Admin)" aria-label="Alterar prioridade de ${escapeText(p.nome)}">${ehPrioAtivo ? '⭐ Prio' : '+ ⭐'}</button>`
       : '';
 
-    const actionButtons = isManagerOrAdmin() ? `
+    const ausenteBtn = `<button type="button" class="btn-marcar-ausente" title="${p.status === 'chamado' ? 'Não respondeu à chamada — fixar em Ausentes até voltar' : 'Paciente precisou sair — fixar em Ausentes até voltar'}" onclick="event.stopPropagation();marcarAusenteTemporarioFila(${p.id},'${safeNome}')">⏸️ Ausente</button>`;
+    const rechamarBtn = p.status === 'chamado'
+      ? `<button class="btn-call-next" style="padding:5px 10px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente no Painel e Voz" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button>`
+      : '';
+    const encaminharBtn = isManagerOrAdmin()
+      ? `<button type="button" class="btn-transfer-sector" title="Encaminhar para outro setor" onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">↗️ Encaminhar</button>`
+      : `<button type="button" class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>`;
+    const moreBtn = `<button type="button" class="btn-context-menu" title="Mais ações (QR, Radar, Posição)" aria-label="Mais ações para ${escapeText(p.nome)}" onclick="event.stopPropagation();openContextMenu(event,${p.id},'${safeNome}','${setor}')">⋮</button>`;
+
+    const reorderGroup = `
       <span class="fila-reorder-pill">
         <button type="button" class="btn-reorder-arrow" title="Subir uma posição" aria-label="Subir ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
         <button type="button" class="btn-reorder-arrow" title="Descer uma posição" aria-label="Descer ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
         <button type="button" class="btn-reorder-pos btn-icon-compact" title="Ir para posição específica" aria-label="Mover ${escapeText(p.nome)} para posição específica" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')">🔢</button>
       </span>
-      <button type="button" class="btn-transfer-sector" title="Encaminhar para outro setor" onclick="event.stopPropagation();openTransferModal(${p.id},'${safeNome}','${setor}')">↗️ Encaminhar</button>
-      <button type="button" class="btn-context-menu" title="Mais ações gerenciais" aria-label="Mais ações para ${escapeText(p.nome)}" onclick="event.stopPropagation();openContextMenu(event,${p.id},'${safeNome}','${setor}')">⋮</button>
+    `;
+    const dangerGroup = isManagerOrAdmin() ? `
       <span class="fila-danger-group">
         <button type="button" class="btn-danger btn-icon-compact" onclick="event.stopPropagation();removePatient(${p.id},'${safeNome}')" title="Marcar como Desistência" aria-label="Marcar desistência para ${escapeText(p.nome)}">🚶</button>
         ${isAdmin ? `<button type="button" class="btn-danger btn-icon-compact" style="background:rgba(0,0,0,0.06);color:var(--gray-600);" onclick="event.stopPropagation();deletePatientPermanently(${p.id},'${safeNome}')" title="Excluir Permanentemente" aria-label="Excluir permanentemente ${escapeText(p.nome)}">🔥</button>` : ''}
       </span>
-    ` : `
-      <span class="fila-reorder-pill">
-        <button type="button" class="btn-reorder-arrow" title="Subir uma posição na fila" aria-label="Subir ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','up')">↑</button>
-        <button type="button" class="btn-reorder-arrow" title="Descer uma posição na fila" aria-label="Descer ${escapeText(p.nome)} uma posição" onclick="event.stopPropagation();movePatientArrow(${p.id},'${setor}','down')">↓</button>
-        <button type="button" class="btn-reorder-pos btn-icon-compact" onclick="event.stopPropagation();openPositionModal(${p.id},'${safeNome}','${setor}')" title="Mudar posição na fila" aria-label="Mudar posição de ${escapeText(p.nome)} na fila">🔢</button>
-      </span>
-      <button type="button" class="btn-transfer-sector" onclick="event.stopPropagation();abrirModalEncaminharPublico(${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${setor}')" title="Encaminhar para outro setor">↗️ Encaminhar</button>
-    `;
+    ` : '';
 
     const nivelCls = Number(p.nivel_prioridade) === 1
       ? 'row-prio-nivel1'
@@ -4050,26 +4143,31 @@ function renderQueueItems(containerId, setor, filterProfissional) {
           ${tipoLabel}
           ${presencaHtml}
           ${statusBadge}
-          ${ausenteBadge}
         </div>
         ${originBadge}
       </td>
       <td style="text-align:right;">
         <div class="fila-actions-cell">
-          ${p.status === 'chamado' ? `<button class="btn-call-next" style="padding:5px 10px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente no Painel e Voz" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button><button type="button" style="padding:5px 9px;font-size:11.5px;border-radius:8px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:800;cursor:pointer;" title="Paciente não compareceu agora — liberar o próximo sem cancelar" onclick="event.stopPropagation();marcarAusenteTemporarioFila(${p.id},'${safeNome}')">⏸️ Ausente</button>` : ''}
-          ${(p.ausente_temporario && p.status === 'aguardando') ? `<button class="btn-call-next" style="padding:5px 9px;font-size:11.5px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:800;cursor:pointer;" title="Rechamar paciente que voltou" onclick="event.stopPropagation();rechamarPacienteNaFila(${p.id},'${safeNome}','${setor}','${escapeText(p.medico || '').replace(/'/g, "\\'")}')">🔊 Rechamar</button>` : ''}
-          ${tubosBtn}
-          ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, setor) : ''}
-          ${typeof renderBotoesFormulariosLinha === 'function' ? renderBotoesFormulariosLinha(p, setor) : ''}
-          ${radarBtn}
-          ${ actionButtons }
-          ${qrBtn}
+          <div class="fila-actions-primary">
+            ${rechamarBtn}
+            ${ausenteBtn}
+            ${encaminharBtn}
+            ${tubosBtn}
+            ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, setor) : ''}
+            ${typeof renderBotoesFormulariosLinha === 'function' ? renderBotoesFormulariosLinha(p, setor) : ''}
+            ${moreBtn}
+          </div>
+          <div class="fila-actions-secondary">
+            ${reorderGroup}
+            ${dangerGroup}
+          </div>
         </div>
       </td>
     </tr>`;
   }).join('');
 
-  const html = `<div class="fila-table-wrap">
+  const bodyTable = rowsHtml || `<tr><td colspan="5" style="text-align:center;padding:18px;color:#64748b;font-weight:700;">Nenhum paciente ativo na fila no momento — confira os ausentes fixados acima.</td></tr>`;
+  const html = `${ausentesBoxHtml}<div class="fila-table-wrap">
     <table class="fila-clean-table">
       <thead>
         <tr>
@@ -4081,7 +4179,7 @@ function renderQueueItems(containerId, setor, filterProfissional) {
         </tr>
       </thead>
       <tbody class="sortable-tbody">
-        ${rowsHtml}
+        ${bodyTable}
       </tbody>
     </table>
   </div>`;
@@ -4113,8 +4211,12 @@ function updateMiniQueues() {
     const items = (queues[s] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
     if (!items.length) { setQueueHtmlPreservingScroll(el, '<div class="empty-state" style="padding:18px;"><div class="es-icon">✅</div><p>Fila vazia</p></div>'); return; }
 
+    const ausentesFixados = items.filter(p => p.ausente_temporario && p.status === 'aguardando');
+    const ativosMini = items.filter(p => !(p.ausente_temporario && p.status === 'aguardando'));
+    const ausentesBoxMiniHtml = renderBlocoAusentesFixados(ausentesFixados, s, { compacto: true });
+
     let waitCounter = 0;
-    const rowsHtml = items.map((p) => {
+    const rowsHtml = ativosMini.map((p) => {
       const posLabel = p.status === 'chamado' ? '📢' : `#${++waitCounter}`;
       const isNextUp = p.status === 'aguardando' && waitCounter === 1;
       const nextUpBadge = isNextUp ? '<span class="badge-proximo-fila">👉 Próximo</span>' : '';
@@ -4247,19 +4349,25 @@ function updateMiniQueues() {
         </td>
         <td style="text-align:right;">
           <div class="fila-actions-cell">
-            ${presencaBtn}
-            ${tubosBtnMini}
-            ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, s) : ''}
-            ${radarBtn}
-            ${transferBtn}
-            ${qrBtn}
-            ${removeBtn}
+            <div class="fila-actions-primary">
+              ${presencaBtn}
+              ${(p.status === 'aguardando' || p.status === 'chamado') ? `<button type="button" class="btn-marcar-ausente" onclick="event.stopPropagation();marcarAusenteTemporarioFila(${p.id},'${safeNome}')" title="Paciente precisou sair — fixar em Ausentes até voltar">⏸️ Ausente</button>` : ''}
+              ${tubosBtnMini}
+              ${typeof renderBotaoPreviaReceitaLinha === 'function' ? renderBotaoPreviaReceitaLinha(p, s) : ''}
+              ${radarBtn}
+              ${qrBtn}
+            </div>
+            <div class="fila-actions-secondary">
+              ${transferBtn}
+              ${removeBtn}
+            </div>
           </div>
         </td>
       </tr>`;
     }).join('');
 
-    const html = `<div class="fila-table-wrap">
+    const bodyMiniRows = rowsHtml || `<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b;font-weight:700;">Nenhum paciente ativo — confira os ausentes fixados acima.</td></tr>`;
+    const html = `${ausentesBoxMiniHtml}<div class="fila-table-wrap">
       <table class="fila-clean-table">
         <thead>
           <tr>
@@ -4271,6 +4379,7 @@ function updateMiniQueues() {
           </tr>
         </thead>
         <tbody>
+          ${bodyMiniRows.replace(/^\s*|\s*$/g, '')}
           ${rowsHtml}
         </tbody>
       </table>
@@ -4559,14 +4668,71 @@ function isPacienteIntercorrenciaClinica(p) {
   return false;
 }
 
+function calcularTempoMedioAtendimento(setor, profFiltro) {
+  const registros = (callHistory || []).filter(rec => {
+    if (!rec || rec.setor !== setor) return false;
+    if (isRegistroRechamadaOuEncaminhamento(rec)) return false;
+    if (profFiltro) {
+      const matchProf = rec.profissional === profFiltro || (rec.medico && rec.medico.includes(profFiltro));
+      if (!matchProf) return false;
+    }
+    return true;
+  });
+
+  const duracoesMin = [];
+  const pendentesPorProf = new Map();
+
+  for (const rec of registros) {
+    let seg = rec.duracao_atendimento_seg !== null && rec.duracao_atendimento_seg !== undefined
+      ? Number(rec.duracao_atendimento_seg)
+      : NaN;
+    if (!Number.isFinite(seg) && rec.finalizado_em && rec.created_at) {
+      seg = (new Date(rec.finalizado_em).getTime() - new Date(rec.created_at).getTime()) / 1000;
+    }
+    if (Number.isFinite(seg)) {
+      if (seg >= 60 && seg <= 7200) {
+        duracoesMin.push(seg / 60);
+      }
+      continue;
+    }
+    const chaveProf = String(rec.profissional || rec.medico || setor).trim();
+    if (!pendentesPorProf.has(chaveProf)) pendentesPorProf.set(chaveProf, []);
+    if (rec.created_at) pendentesPorProf.get(chaveProf).push(new Date(rec.created_at).getTime());
+  }
+
+  // Fallback para chamadas concluídas antes da gravação explícita de finalizado_em (intervalo entre chamadas do mesmo profissional)
+  if (duracoesMin.length === 0) {
+    pendentesPorProf.forEach(timestamps => {
+      const ordenados = timestamps.filter(Number.isFinite).sort((a, b) => a - b);
+      for (let i = 0; i < ordenados.length - 1; i++) {
+        const diffSec = (ordenados[i + 1] - ordenados[i]) / 1000;
+        if (diffSec >= 60 && diffSec <= 7200) {
+          duracoesMin.push(diffSec / 60);
+        }
+      }
+    });
+  }
+
+  if (duracoesMin.length === 0) {
+    return { mediaMin: null, minMin: null, maxMin: null, qtd: 0, formatado: '—' };
+  }
+  const soma = duracoesMin.reduce((acc, v) => acc + v, 0);
+  const mediaMin = Math.round(soma / duracoesMin.length);
+  const minMin = Math.round(Math.min(...duracoesMin));
+  const maxMin = Math.round(Math.max(...duracoesMin));
+  return { mediaMin, minMin, maxMin, qtd: duracoesMin.length, formatado: `${mediaMin} min` };
+}
+
 function calcularResumoProfissionalDia(setor, profFiltro) {
   const filaRaw = (queues[setor] || []).filter(p => p.status !== 'atendido' && p.status !== 'desistencia');
   const filaFiltrada = profFiltro
     ? filaRaw.filter(p => p.profissional === profFiltro || (!p.profissional && setor === 'Odontologia') || (p.medico && p.medico.includes(profFiltro)))
     : filaRaw;
-  const aguardando = filaFiltrada.filter(p => p.status === 'aguardando');
+  const aguardando = filaFiltrada.filter(p => p.status === 'aguardando' && !p.ausente_temporario);
+  const ausentes = filaFiltrada.filter(p => p.status === 'aguardando' && Boolean(p.ausente_temporario));
   const chamando = filaFiltrada.filter(p => p.status === 'chamado');
   const atendidos = obterAtendimentosUnicosSetor(setor, profFiltro);
+  const tempoMedio = calcularTempoMedioAtendimento(setor, profFiltro);
 
   const uniqueDay = new Map();
   atendidos.forEach(a => {
@@ -4599,13 +4765,15 @@ function calcularResumoProfissionalDia(setor, profFiltro) {
 
   return {
     faltam: aguardando.length,
+    ausentes: ausentes.length,
     chamando: chamando.length,
     atendidos: atendidos.length,
     agendados,
     intercorrencias,
     intercAcolhimento,
     intercFila,
-    totalDia: uniqueDay.size
+    totalDia: uniqueDay.size,
+    tempoMedio
   };
 }
 
@@ -4705,7 +4873,10 @@ function renderResumoProfissionais() {
     const headAlertPillHtml = headAlertNivel
       ? `<span class="prof-head-alert-pill prof-head-alert-pill--${headAlertNivel}">${escapeText(headAlertTexto)}</span>`
       : '';
-    const quickStatsHtml = `<span class="prof-summary-quick-stats">⏳ ${resumo.faltam} fila · 📅 ${resumo.agendados}/${limiteAgend} · ✅ ${resumo.atendidos}</span>`;
+    const tm = resumo.tempoMedio || { mediaMin: null, minMin: null, maxMin: null, qtd: 0, formatado: '—' };
+    const tmQuick = tm.qtd > 0 ? ` · ⏱️ ~${tm.mediaMin}m` : '';
+    const ausQuick = resumo.ausentes > 0 ? ` · ⏸️ ${resumo.ausentes} aus.` : '';
+    const quickStatsHtml = `<span class="prof-summary-quick-stats">⏳ ${resumo.faltam} fila${ausQuick} · 📅 ${resumo.agendados}/${limiteAgend} · ✅ ${resumo.atendidos}${tmQuick}</span>`;
 
     const resumoHtml = `
       <div class="prof-summary-card${headAlertNivel ? ' has-alert has-alert-' + headAlertNivel : ''}">
@@ -4726,12 +4897,17 @@ function renderResumoProfissionais() {
           <div class="prof-kpi-box" style="background:#f8fafc;">
             <div class="prof-kpi-label">⏳ Faltam na Fila</div>
             <div class="prof-kpi-val" style="color:#1d4ed8;">${resumo.faltam}</div>
-            <div class="prof-kpi-sub">${resumo.chamando > 0 ? `+${resumo.chamando} chamando agora` : 'Nenhum no consultório'}</div>
+            <div class="prof-kpi-sub">${resumo.chamando > 0 ? `+${resumo.chamando} chamando agora` : 'Nenhum no consultório'}${resumo.ausentes > 0 ? ` · ⏸️ ${resumo.ausentes} aus.` : ''}</div>
           </div>
           <div class="prof-kpi-box" style="background:#f0fdf4;border-color:#bbf7d0;">
             <div class="prof-kpi-label">✅ Atendidos Hoje</div>
             <div class="prof-kpi-val" style="color:#15803d;">${resumo.atendidos}</div>
             <div class="prof-kpi-sub">Pacientes únicos (sem rechamada)</div>
+          </div>
+          <div class="prof-kpi-box" style="background:#ecfeff;border-color:#a5f3fc;">
+            <div class="prof-kpi-label">⏱️ Tempo Médio</div>
+            <div class="prof-kpi-val" style="color:#0e7490;">${tm.formatado}</div>
+            <div class="prof-kpi-sub">${tm.qtd > 0 ? `${tm.qtd} atend. · mín ${tm.minMin}m / máx ${tm.maxMin}m` : 'Calculado ao chamar o próximo'}</div>
           </div>
           <div class="prof-kpi-box" style="background:#eff6ff;border-color:#bfdbfe;">
             <div class="prof-kpi-label">📅 Agendados</div>
@@ -12428,20 +12604,36 @@ async function confirmarModalTubosColeta() {
   }
 }
 
-// --- 4) AUSENTE TEMPORÁRIO NA CHAMADA ---
+// --- 4) AUSENTE FIXADO ATÉ O PACIENTE RETORNAR ---
 async function marcarAusenteTemporarioFila(id, nome) {
   try {
     const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/ausente-temporario`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ motivo: 'Não respondeu à chamada no consultório' })
+      body: JSON.stringify({ motivo: 'Paciente ausente temporariamente — aguardando retorno' })
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.error || 'Erro ao marcar ausente temporário!');
-    showToast(`⏸️ ${nome} aguardando retorno na fila — chame o próximo paciente.`);
+    if (!r.ok) throw new Error(d.error || 'Erro ao marcar paciente como ausente!');
+    showToast(`⏸️ ${nome} fixado em Ausentes até retornar.`);
     await Promise.all([loadQueues(), loadCurrentCalling()]);
   } catch (err) {
-    showToast(err.message || 'Erro ao marcar ausência temporária!', true);
+    showToast(err.message || 'Erro ao marcar ausência!', true);
+  }
+}
+
+async function retornarAusenteParaFila(id, nome) {
+  try {
+    const r = await fetch(`${API_URL}/patients/${encodeURIComponent(id)}/retornar-ausente`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo: 'Paciente retornou para a sala de espera' })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Erro ao retornar paciente para a fila!');
+    showToast(`↩️ ${nome} voltou para o topo da fila!`);
+    await Promise.all([loadQueues(), loadCurrentCalling()]);
+  } catch (err) {
+    showToast(err.message || 'Erro ao retornar paciente!', true);
   }
 }
 

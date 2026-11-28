@@ -2251,10 +2251,154 @@
     }
     .fila-actions-cell {
       display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 6px;
+    }
+    .fila-actions-primary,
+    .fila-actions-secondary {
+      display: flex;
       align-items: center;
       justify-content: flex-end;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .btn-marcar-ausente {
+      padding: 5px 10px;
+      font-size: 11.5px;
+      border-radius: 8px;
+      background: #fffbeb;
+      color: #92400e;
+      border: 1.5px solid #f59e0b;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    }
+    .btn-marcar-ausente:hover {
+      background: #f59e0b;
+      color: #ffffff;
+      border-color: #d97706;
+      transform: translateY(-1px);
+    }
+    .fila-ausentes-box {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1.5px solid #f59e0b;
+      border-left: 5px solid #d97706;
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(217, 119, 6, 0.12);
+    }
+    .fila-ausentes-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .fila-ausentes-title {
+      font-family: 'Nunito', sans-serif;
+      font-size: 13.5px;
+      font-weight: 900;
+      color: #92400e;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+    .fila-ausentes-count {
+      background: #d97706;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .fila-ausentes-hint {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #78350f;
+    }
+    .fila-ausentes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .fila-ausente-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 9px 12px;
+      border-radius: 11px;
+      background: #ffffff;
+      border: 1px solid #fde68a;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+    }
+    .fila-ausente-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 180px;
+      flex: 1;
+    }
+    .fila-ausente-nome {
+      font-family: 'Nunito', sans-serif;
+      font-size: 13.5px;
+      font-weight: 900;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
       gap: 6px;
       flex-wrap: wrap;
+    }
+    .fila-ausente-meta {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .fila-ausente-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .btn-ausente-chamar {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-ausente-voltar {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-ausente-chamar:hover,
+    .btn-ausente-voltar:hover {
+      filter: brightness(0.95);
+      transform: translateY(-1px);
     }
     .btn-icon-compact {
       width: 32px !important;
@@ -2565,7 +2709,7 @@
     }
     .prof-kpi-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 10px;
       padding: 14px;
     }
@@ -2626,6 +2770,9 @@
     .prof-mini-pill.at-limit { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
     #recepcao-interc-alerta { display: none; margin-top: 8px; padding: 9px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; line-height: 1.4; }
     body.admin-active #recepcao-interc-alerta.show { display: flex; align-items: flex-start; gap: 8px; background: #fef2f2; border: 1.5px solid #ef4444; color: #991b1b; }
+    @media (max-width: 1220px) {
+      .prof-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
     @media (max-width: 960px) {
       .prof-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
@@ -6621,6 +6768,10 @@
 <!-- Floating Context Menu -->
 <div class="ctx-menu" id="ctx-menu" role="menu">
   <div class="ctx-menu-header" id="ctx-menu-patient-label">Paciente</div>
+  <button class="ctx-menu-item" id="ctx-item-ausente" onclick="ctxToggleAusente()">⏸️ Marcar Ausente</button>
+  <button class="ctx-menu-item" id="ctx-item-qr" onclick="ctxVerQrCode()">📱 Ver QR Code</button>
+  <button class="ctx-menu-item" id="ctx-item-radar" onclick="ctxAbrirRadar()">📡 Ver no Radar</button>
+  <div class="ctx-menu-divider"></div>
   <button class="ctx-menu-item" id="ctx-item-rename" onclick="ctxRenamePatient()">✏️ Editar Nome...</button>
   <button class="ctx-menu-item" id="ctx-item-priority" onclick="ctxEditPriority()">⭐ Alterar Prioridade...</button>
   <div class="ctx-menu-divider" id="ctx-divider-mgr"></div>
@@ -6629,8 +6780,8 @@
   <button class="ctx-menu-item" onclick="ctxOpenPositionModal()">🔢 Ir para Posição...</button>
   <div class="ctx-menu-divider"></div>
   <button class="ctx-menu-item" onclick="ctxTransfer()">↗️ Encaminhar para Setor...</button>
-  <div class="ctx-menu-divider"></div>
-  <button class="ctx-menu-item danger" onclick="ctxRemove()">&#x2715; Marcar Desistência</button>
+  <div class="ctx-menu-divider" id="ctx-divider-remove"></div>
+  <button class="ctx-menu-item danger" id="ctx-item-remove" onclick="ctxRemove()">&#x2715; Marcar Desistência</button>
   <div class="ctx-menu-divider"></div>
   <button class="ctx-menu-item" style="color:var(--gray-600);" onclick="closeContextMenu()">❌ Fechar Menu</button>
 </div>
