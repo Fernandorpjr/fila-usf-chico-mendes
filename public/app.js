@@ -6877,12 +6877,33 @@ async function loadAgendamentos() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const list = await r.json();
     _agendamentosAtuais = Array.isArray(list) ? list : [];
-    renderAgendamentos(_agendamentosAtuais);
-    loadColetasStats();
+    filtrarAgendamentosLocal();
     loadRelatorioMensagens();
     loadHistoricoAgendamentos();
     loadLembretesD1(); // Carregar painel de lembretes D-1
   } catch { showToast('Erro ao carregar agendamentos', true); }
+}
+
+function filtrarAgendamentosLocal() {
+  const buscaRaw = (document.getElementById('agend-filter-busca')?.value || '').trim().toLowerCase();
+  if (!buscaRaw) {
+    renderAgendamentos(_agendamentosAtuais);
+    return;
+  }
+  const buscaDigits = buscaRaw.replace(/\D/g, '');
+  const filtrados = _agendamentosAtuais.filter(a => {
+    const nome = String(a.nome || '').toLowerCase();
+    const prof = String(a.profissional || '').toLowerCase();
+    const tipo = String(a.tipo_atendimento || '').toLowerCase();
+    const tel = String(a.telefone || '').toLowerCase();
+    const telDigits = tel.replace(/\D/g, '');
+    return nome.includes(buscaRaw)
+      || prof.includes(buscaRaw)
+      || tipo.includes(buscaRaw)
+      || tel.includes(buscaRaw)
+      || (buscaDigits.length >= 2 && telDigits.includes(buscaDigits));
+  });
+  renderAgendamentos(filtrados);
 }
 
 // ====== LEMBRETES D-1 (Painel de lembretes para a próxima consulta útil: amanhã, ou segunda-feira na sexta) ======
@@ -6929,7 +6950,8 @@ async function loadLembretesD1() {
     const ativos = (Array.isArray(list) ? list : []).filter(a => a.status !== 'cancelado');
     renderLembretesD1(ativos, amanha);
     
-    // Atualizar badge
+    // Atualizar badge e estado recolhível conforme pendências D-1
+    const collapseEl = document.getElementById('lembretes-d1-collapse');
     if (badge) {
       if (ativos.length > 0) {
         badge.textContent = ativos.length;
@@ -6937,6 +6959,9 @@ async function loadLembretesD1() {
       } else {
         badge.style.display = 'none';
       }
+    }
+    if (collapseEl) {
+      collapseEl.open = ativos.length > 0;
     }
   } catch (e) {
     console.error('Erro ao carregar lembretes D-1:', e);
@@ -6984,6 +7009,7 @@ function renderLembretesD1(list, dataAmanha) {
 
     // Imagem do tipo (para preview rápido)
     const imgSrc = getImagemTipoConsulta(a.tipo_atendimento, a.profissional);
+    const foneExib = (typeof formatarTelefoneExibicao === 'function' ? formatarTelefoneExibicao(a.telefone) : a.telefone) || a.telefone || '-';
 
     return `<div class="agend-d1-card" style="border-left-color:${corTipo.color};">
       <!-- Thumbnail da imagem -->
@@ -6993,20 +7019,25 @@ function renderLembretesD1(list, dataAmanha) {
       <!-- Info do paciente -->
       <div style="flex:1;min-width:190px;">
         <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:14.5px;color:var(--blue-dark);margin-bottom:3px;">${escapeText(a.nome)}</div>
-        <div style="font-size:12px;color:var(--gray-600);font-weight:700;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+        <div style="font-size:12px;color:var(--gray-600);font-weight:700;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+          <span>📞 ${escapeText(foneExib)}</span>
           <span>⏰ ${escapeText(a.horario || '-')}</span>
           <span>👨‍⚕️ ${escapeText(profCompleto)}</span>
           <span style="background:${corTipo.bg};color:${corTipo.color};padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:800;">${escapeText(tipoLabel)}</span>
           ${statusHtml}
         </div>
       </div>
-      <!-- Ações -->
+      <!-- Ações organizadas em dois grupos -->
       <div class="agend-actions">
-        <button type="button" class="agend-action-btn agend-action-btn--wa" onclick="openWaPreview(${a.id}, 'lembrete_d1')" title="Enviar Lembrete D-1 via WhatsApp">📲 Lembrete</button>
-        <button type="button" class="agend-action-btn agend-action-btn--cancelar" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta">❌ Cancelar</button>
-        <button type="button" class="agend-action-btn agend-action-btn--reagendar" onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta">🔄 Reagendar</button>
-        <button type="button" class="agend-action-btn agend-action-btn--icon" onclick="_waCurrentImageSrc=getImagemTipoConsulta('${(a.tipo_atendimento||'').replace(/'/g, "\\'")}','${(a.profissional||'').replace(/'/g, "\\'")}');copyWaImageToClipboard()" title="Copiar imagem de confirmação" aria-label="Copiar imagem de confirmação">🖼️</button>
-        <button type="button" class="agend-action-btn agend-action-btn--icon agend-action-btn--delete" onclick="excluirLembreteD1(${a.id}, '${(a.nome||'').replace(/'/g, "\\'")}')" title="Excluir lembrete" aria-label="Excluir lembrete">🗑️</button>
+        <div class="agend-actions-primary">
+          <button type="button" class="agend-action-btn agend-action-btn--wa" onclick="openWaPreview(${a.id}, 'lembrete_d1')" title="Enviar Lembrete D-1 via WhatsApp">📲 Lembrete</button>
+          <button type="button" class="agend-action-btn agend-action-btn--reagendar" onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta">🔄 Reagendar</button>
+          <button type="button" class="agend-action-btn agend-action-btn--cancelar" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta">❌ Cancelar</button>
+        </div>
+        <div class="agend-actions-utils">
+          <button type="button" class="agend-action-btn agend-action-btn--img agend-action-btn--icon" onclick="_waCurrentImageSrc=getImagemTipoConsulta('${(a.tipo_atendimento||'').replace(/'/g, "\\'")}','${(a.profissional||'').replace(/'/g, "\\'")}');copyWaImageToClipboard()" title="Copiar imagem de confirmação" aria-label="Copiar imagem de confirmação">🖼️</button>
+          <button type="button" class="agend-action-btn agend-action-btn--delete agend-action-btn--icon" onclick="excluirLembreteD1(${a.id}, '${(a.nome||'').replace(/'/g, "\\'")}')" title="Excluir lembrete" aria-label="Excluir lembrete">🗑️</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -7032,9 +7063,28 @@ async function excluirLembreteD1(id, nomePaciente) {
 }
 
 function renderAgendamentos(list) {
+  const safeList = Array.isArray(list) ? list : [];
+  const kpiTotal = document.getElementById('agend-kpi-total');
+  const kpiPend = document.getElementById('agend-kpi-pendentes');
+  const kpiConf = document.getElementById('agend-kpi-confirmados');
+  const kpiAlt = document.getElementById('agend-kpi-alterados');
+  if (kpiTotal) kpiTotal.textContent = String(safeList.length);
+  if (kpiPend) kpiPend.textContent = String(safeList.filter(x => x.status === 'pendente').length);
+  if (kpiConf) kpiConf.textContent = String(safeList.filter(x => ['confirmado', 'lembrete_enviado', 'realizado'].includes(x.status)).length);
+  if (kpiAlt) kpiAlt.textContent = String(safeList.filter(x => ['reagendado', 'cancelado', 'faltou'].includes(x.status)).length);
+
   const tbody = document.getElementById('agend-tbody'); if (!tbody) return;
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr>'; return; }
-  tbody.innerHTML = list.map(a => {
+  if (!safeList.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-600);">Nenhum agendamento</td></tr>'; return; }
+
+  const tipoBadgeCores = {
+    'Pré-Natal': 'background:#fce7f3;color:#be185d;',
+    'Puericultura': 'background:#f3e8ff;color:#7e22ce;',
+    'Odontologia': 'background:#ccfbf1;color:#0f766e;',
+    'Coleta de Sangue': 'background:#fee2e2;color:#b91c1c;',
+    'Clínico Geral': 'background:#dbeafe;color:#1d4ed8;'
+  };
+
+  tbody.innerHTML = safeList.map(a => {
     const dataIsoDate = (a.data_agendamento || '').split('T')[0];
     const dataFmt = dataIsoDate ? new Date(dataIsoDate + 'T12:00:00').toLocaleDateString('pt-BR') : '';
     const statusCls = String(a.status || '').replace(/\s+/g,'_');
@@ -7048,38 +7098,44 @@ function renderAgendamentos(list) {
       cancelado: '❌ Cancelado'
     };
     const statusLabel = statusLabels[statusCls] || a.status;
+    const foneExib = (typeof formatarTelefoneExibicao === 'function' ? formatarTelefoneExibicao(a.telefone) : a.telefone) || a.telefone || '-';
+    const tipoLabel = a.tipo_atendimento || 'Consulta';
+    const tipoStyle = tipoBadgeCores[tipoLabel] || 'background:#e2e8f0;color:#1e293b;';
 
-    let extraBtns = '';
-    if (['pendente', 'lembrete_enviado', 'confirmado', 'reagendado'].includes(a.status)) {
-      const nomeSafeAg = String(a.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-      extraBtns += `<button type="button" class="agend-action-btn agend-action-btn--fila" onclick="enviarAgendamentoParaFila(${a.id},'${nomeSafeAg}',this)" title="Paciente chegou — enviar direto para a fila do setor">🏥 Enviar p/ Fila</button>`;
-    }
+    let coletaBtns = '';
     if (a.tipo_atendimento === 'Coleta de Sangue' && ['pendente', 'lembrete_enviado', 'confirmado'].includes(a.status)) {
-      extraBtns += `
+      coletaBtns = `
         <button type="button" class="agend-action-btn agend-action-btn--compareceu" onclick="updateAgendStatus(${a.id},'realizado')" title="Compareceu (Realizado)">✅ Compareceu</button>
         <button type="button" class="agend-action-btn agend-action-btn--faltou" onclick="updateAgendStatus(${a.id},'faltou')" title="Faltou">❌ Faltou</button>
       `;
     }
 
+    const nomeEditSafe = String(a.nome || '').replace(/'/g, "\\'").trim();
+    const telEditSafe = String(a.telefone || '').replace(/'/g, "\\'").trim();
+
     return `<tr>
       <td>
         <div style="font-weight:900;color:#0f172a;">${escapeText(a.nome)}</div>
-        <div style="font-size:11.5px;color:#475569;font-weight:700;">${escapeText(a.telefone || '-')}</div>
-        <span style="font-size:10.5px;background:#e2e8f0;color:#1e293b;padding:2px 8px;border-radius:999px;font-weight:800;display:inline-block;margin-top:4px;">${escapeText(a.tipo_atendimento || 'Consulta')}</span>
+        <div style="font-size:11.5px;color:#475569;font-weight:700;">📞 ${escapeText(foneExib)}</div>
+        <span style="font-size:10.5px;${tipoStyle}padding:2px 8px;border-radius:999px;font-weight:800;display:inline-block;margin-top:4px;">${escapeText(tipoLabel)}</span>
       </td>
       <td style="font-weight:800;color:#1e293b;white-space:nowrap;">${escapeText(dataFmt)}</td>
       <td style="font-weight:800;color:#1d4ed8;white-space:nowrap;">${escapeText(a.horario || '-')}</td>
       <td style="font-weight:700;color:#334155;">${escapeText(a.profissional || '—')}</td>
       <td><span class="agend-status ${statusCls}">${escapeText(statusLabel)}</span></td>
       <td><div class="agend-actions">
-        ${extraBtns}
-        <button type="button" class="agend-action-btn agend-action-btn--wa" onclick="openWaPreview(${a.id})" title="Enviar WhatsApp">📲 WhatsApp</button>
-        <button type="button" class="agend-action-btn agend-action-btn--reagendar" onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta">🔄 Reagendar</button>
-        <button type="button" class="agend-action-btn agend-action-btn--cancelar" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta">❌ Cancelar</button>
-        <button type="button" class="agend-action-btn agend-action-btn--lembrete agend-action-btn--icon" onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar Lembrete Enviado" aria-label="Marcar lembrete enviado">📨</button>
-        <button type="button" class="agend-action-btn agend-action-btn--confirm agend-action-btn--icon" onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmar Presença" aria-label="Confirmar agendamento">✅</button>
-        <button type="button" class="agend-action-btn agend-action-btn--icon" onclick="abrirEdicaoAgendamento(${a.id}, '${String(a.nome || '').replace(/'/g,"\\'").trim()}', '${String(a.telefone || '').replace(/'/g,"\\'").trim()}')" title="Editar Nome/Telefone" aria-label="Editar agendamento">✏️</button>
-        <button type="button" class="agend-action-btn agend-action-btn--icon agend-action-btn--delete" onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" aria-label="Apagar agendamento">🗑️</button>
+        <div class="agend-actions-primary">
+          <button type="button" class="agend-action-btn agend-action-btn--wa" onclick="openWaPreview(${a.id})" title="Enviar WhatsApp">📲 WhatsApp</button>
+          <button type="button" class="agend-action-btn agend-action-btn--reagendar" onclick="abrirModalEditarEnvio(${a.id}, 'reagendado')" title="Reagendar Consulta">🔄 Reagendar</button>
+          <button type="button" class="agend-action-btn agend-action-btn--cancelar" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta">❌ Cancelar</button>
+          ${coletaBtns}
+        </div>
+        <div class="agend-actions-utils">
+          <button type="button" class="agend-action-btn agend-action-btn--lembrete agend-action-btn--icon" onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar Lembrete Enviado" aria-label="Marcar lembrete enviado">📨</button>
+          <button type="button" class="agend-action-btn agend-action-btn--confirm agend-action-btn--icon" onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmar Presença" aria-label="Confirmar agendamento">✅</button>
+          <button type="button" class="agend-action-btn agend-action-btn--edit agend-action-btn--icon" onclick="abrirEdicaoAgendamento(${a.id}, '${nomeEditSafe}', '${telEditSafe}')" title="Editar Nome/Telefone" aria-label="Editar agendamento">✏️</button>
+          <button type="button" class="agend-action-btn agend-action-btn--delete agend-action-btn--icon" onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" aria-label="Apagar agendamento">🗑️</button>
+        </div>
       </div></td></tr>`;
   }).join('');
 }

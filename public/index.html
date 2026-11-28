@@ -31,28 +31,31 @@
 
   .agend-d1-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; border-left: 5px solid var(--blue); box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05); margin-bottom: 10px; flex-wrap: wrap; transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease; }
   .agend-d1-card:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1); border-color: #bfdbfe; }
-  .agend-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .agend-action-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #1e293b; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
-  .agend-action-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12); background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+  .agend-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .agend-actions-primary, .agend-actions-utils { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+  .agend-action-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 5px 11px; border-radius: 9px; border: 1px solid transparent; background: #334155; color: #ffffff; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 5px rgba(15, 23, 42, 0.14); transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
+  .agend-action-btn:hover { transform: translateY(-1px); filter: brightness(0.95); box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2); }
   .agend-action-btn--icon { width: 32px; min-width: 32px; padding: 5px; font-size: 13.5px; }
-  .agend-action-btn--fila { background: linear-gradient(135deg, #0f766e, #0d9488); border-color: #0f766e; color: #ffffff; box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25); }
-  .agend-action-btn--fila:hover { background: linear-gradient(135deg, #115e59, #0f766e); color: #ffffff; border-color: #115e59; }
-  .agend-action-btn--wa { background: linear-gradient(135deg, #16a34a, #15803d); border-color: #15803d; color: #ffffff; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25); }
+  .agend-action-btn--wa { background: linear-gradient(135deg, #16a34a, #15803d); border-color: #15803d; color: #ffffff; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.28); }
   .agend-action-btn--wa:hover { background: linear-gradient(135deg, #15803d, #166534); color: #ffffff; border-color: #166534; }
-  .agend-action-btn--reagendar { background: #fff7ed; border-color: #fdba74; color: #c2410c; }
-  .agend-action-btn--reagendar:hover { background: #ea580c; border-color: #ea580c; color: #ffffff; }
-  .agend-action-btn--cancelar { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
-  .agend-action-btn--cancelar:hover { background: #dc2626; border-color: #dc2626; color: #ffffff; }
-  .agend-action-btn--confirm { background: #f0fdf4; border-color: #86efac; color: #166534; }
-  .agend-action-btn--confirm:hover { background: #16a34a; border-color: #16a34a; color: #ffffff; }
-  .agend-action-btn--lembrete { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
-  .agend-action-btn--lembrete:hover { background: #2563eb; border-color: #2563eb; color: #ffffff; }
-  .agend-action-btn--compareceu { background: #dcfce7; border-color: #4ade80; color: #15803d; }
-  .agend-action-btn--compareceu:hover { background: #16a34a; border-color: #16a34a; color: #ffffff; }
-  .agend-action-btn--faltou { background: #fee2e2; border-color: #f87171; color: #b91c1c; }
-  .agend-action-btn--faltou:hover { background: #dc2626; border-color: #dc2626; color: #ffffff; }
-  .agend-action-btn--delete { background: #fff5f5; border-color: #fecaca; color: #dc2626; }
-  .agend-action-btn--delete:hover { background: #dc2626; border-color: #dc2626; color: #ffffff; }
+  .agend-action-btn--reagendar { background: linear-gradient(135deg, #f59e0b, #d97706); border-color: #d97706; color: #ffffff; box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25); }
+  .agend-action-btn--reagendar:hover { background: linear-gradient(135deg, #d97706, #b45309); border-color: #b45309; color: #ffffff; }
+  .agend-action-btn--cancelar { background: linear-gradient(135deg, #ef4444, #dc2626); border-color: #dc2626; color: #ffffff; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25); }
+  .agend-action-btn--cancelar:hover { background: linear-gradient(135deg, #dc2626, #b91c1c); border-color: #b91c1c; color: #ffffff; }
+  .agend-action-btn--confirm { background: #059669; border-color: #047857; color: #ffffff; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25); }
+  .agend-action-btn--confirm:hover { background: #047857; border-color: #065f46; color: #ffffff; }
+  .agend-action-btn--lembrete { background: #2563eb; border-color: #1d4ed8; color: #ffffff; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25); }
+  .agend-action-btn--lembrete:hover { background: #1d4ed8; border-color: #1e40af; color: #ffffff; }
+  .agend-action-btn--edit { background: #6366f1; border-color: #4f46e5; color: #ffffff; box-shadow: 0 2px 5px rgba(99, 102, 241, 0.25); }
+  .agend-action-btn--edit:hover { background: #4f46e5; border-color: #4338ca; color: #ffffff; }
+  .agend-action-btn--img { background: #0891b2; border-color: #0e7490; color: #ffffff; box-shadow: 0 2px 5px rgba(8, 145, 178, 0.25); }
+  .agend-action-btn--img:hover { background: #0e7490; border-color: #155e75; color: #ffffff; }
+  .agend-action-btn--compareceu { background: linear-gradient(135deg, #10b981, #059669); border-color: #059669; color: #ffffff; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25); }
+  .agend-action-btn--compareceu:hover { background: linear-gradient(135deg, #059669, #047857); border-color: #047857; color: #ffffff; }
+  .agend-action-btn--faltou { background: linear-gradient(135deg, #e11d48, #be123c); border-color: #be123c; color: #ffffff; box-shadow: 0 2px 6px rgba(190, 18, 60, 0.25); }
+  .agend-action-btn--faltou:hover { background: linear-gradient(135deg, #be123c, #9f1239); border-color: #9f1239; color: #ffffff; }
+  .agend-action-btn--delete { background: #b91c1c; border-color: #991b1b; color: #ffffff; box-shadow: 0 2px 5px rgba(185, 28, 28, 0.25); }
+  .agend-action-btn--delete:hover { background: #991b1b; border-color: #7f1d1d; color: #ffffff; }
 
   .hist-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 18px; }
   .hist-kpi-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06); }
@@ -703,21 +706,46 @@
   #chat-image-modal.show { display: flex; }
   #chat-image-modal img { max-width: 92vw; max-height: 80vh; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); background: #fff; }
 
-   .agend-grid{display:grid;grid-template-columns:400px 1fr;gap:24px;align-items:start;}
+   .agend-grid{display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start;}
+   .agend-form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+   .agend-form-row-2 .form-group { margin-bottom: 0; }
+   .agend-kpi-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+   .agend-kpi-pill { border-radius: 12px; padding: 10px 12px; border: 1px solid #e2e8f0; background: #f8fafc; display: flex; flex-direction: column; gap: 2px; border-left: 4px solid #3b82f6; }
+   .agend-kpi-pill--total { background: #eff6ff; border-color: #bfdbfe; border-left-color: #1d4ed8; color: #1e3a8a; }
+   .agend-kpi-pill--pendentes { background: #fffbeb; border-color: #fde68a; border-left-color: #d97706; color: #92400e; }
+   .agend-kpi-pill--confirmados { background: #f0fdf4; border-color: #bbf7d0; border-left-color: #16a34a; color: #166534; }
+   .agend-kpi-pill--alterados { background: #fef2f2; border-color: #fecaca; border-left-color: #dc2626; color: #991b1b; }
+   .agend-kpi-val { font-family: 'Nunito', sans-serif; font-size: 20px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
+   .agend-kpi-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.35px; opacity: 0.85; }
+   .agend-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; background: #f8fafc; padding: 12px 14px; border-radius: 12px; border: 1px solid #e2e8f0; }
+   .agend-filter-bar .form-group { margin-bottom: 0; min-width: 145px; }
+   .agend-filter-bar .agend-filter-search { flex: 1; min-width: 180px; }
+   .agend-filter-bar label { display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.35px; margin-bottom: 4px; }
+   .agend-filter-bar input, .agend-filter-bar select { width: 100%; min-height: 36px; padding: 6px 10px; border-radius: 9px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-family: 'Nunito Sans', sans-serif; font-size: 13px; font-weight: 700; }
+   .agend-filter-bar input:focus, .agend-filter-bar select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(26, 79, 196, 0.12); }
+   .agend-d1-collapse, .agend-secondary-collapse { overflow: hidden; }
+   .agend-collapse-summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; user-select: none; }
+   .agend-collapse-summary::-webkit-details-marker { display: none; }
+   .agend-collapse-summary:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; border-radius: 10px; }
+   .agend-collapse-title-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+   .agend-collapse-arrow { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 13px; font-weight: 900; transition: transform 0.2s ease, background-color 0.15s ease; flex-shrink: 0; }
+   details[open] > .agend-collapse-summary .agend-collapse-arrow { transform: rotate(180deg); background: #dbeafe; }
+   .agend-collapse-body { margin-top: 14px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
    .agend-table{width:100%;border-collapse:collapse;}
-   .agend-table th{background:var(--blue);color:white;padding:10px 14px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;text-align:left;}
+   .agend-table th{background:linear-gradient(135deg,#0f3491,#1a4fc4);color:white;padding:11px 14px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;text-align:left;}
    .agend-table th:first-child{border-radius:10px 0 0 0;}.agend-table th:last-child{border-radius:0 10px 0 0;}
-   .agend-table td{padding:10px 14px;font-size:13px;font-weight:600;border-bottom:1px solid var(--gray-200);color:var(--gray-700);}
-   .agend-table tr:hover td{background:rgba(26,79,196,0.04);}
-   .agend-status{font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;}
-   .agend-status.pendente{background:rgba(249,200,35,0.15);color:#b8860b;}
-   .agend-status.lembrete_enviado{background:rgba(26,79,196,0.12);color:var(--blue);}
-   .agend-status.confirmado{background:rgba(74,171,60,0.12);color:var(--green-dark);}
-   .agend-status.cancelado{background:rgba(229,57,53,0.12);color:var(--red);}
+   .agend-table td{padding:11px 14px;font-size:13px;font-weight:600;border-bottom:1px solid var(--gray-200);color:var(--gray-700);vertical-align:middle;}
+   .agend-table tbody tr:nth-child(even) td{background:#f8fafc;}
+   .agend-table tbody tr:hover td{background:#eff6ff;}
+   .agend-status{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+   .agend-status.pendente{background:rgba(249,200,35,0.18);color:#92400e;border:1px solid rgba(245,158,11,0.35);}
+   .agend-status.lembrete_enviado{background:rgba(26,79,196,0.12);color:var(--blue);border:1px solid rgba(37,99,235,0.28);}
+   .agend-status.confirmado{background:rgba(74,171,60,0.14);color:var(--green-dark);border:1px solid rgba(22,163,74,0.3);}
+   .agend-status.cancelado{background:rgba(229,57,53,0.12);color:var(--red);border:1px solid rgba(220,38,38,0.28);}
    .agend-status.realizado{background:rgba(74,171,60,0.2);color:var(--green-dark);border:1px solid rgba(74,171,60,0.4);}
    .agend-status.faltou{background:rgba(229,57,53,0.2);color:var(--red);border:1px solid rgba(229,57,53,0.4);}
-   .agend-status.reagendado{background:rgba(230,126,34,0.15);color:#d35400;border:1px solid rgba(230,126,34,0.35);}
-    .agend-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+   .agend-status.reagendado{background:rgba(230,126,34,0.15);color:#b45309;border:1px solid rgba(230,126,34,0.35);}
+    .agend-actions{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
     /* Botões legados (sem .agend-action-btn). Os botões novos NÃO podem ser sobrescritos aqui (causa dos botões brancos). */
     .agend-actions button:not(.agend-action-btn){padding:4px 8px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;background:transparent;}
     .agend-actions button:not(.agend-action-btn):hover{background:var(--gray-100);}
@@ -732,12 +760,19 @@
     .wa-aviso-telefone { display: none; background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; font-size: 12.5px; font-weight: 800; text-align: left; }
     .wa-fallback-link { display: none; margin-top: 10px; text-align: center; padding: 11px 14px; border-radius: 12px; background: #eff6ff; border: 1.5px solid #93c5fd; color: #1d4ed8; font-weight: 800; font-size: 14px; text-decoration: none; }
     .wa-btn-send:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+    @media (max-width: 1080px) { .agend-grid { grid-template-columns: 1fr; } }
     @media (max-width: 768px) {
-      .agend-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; width: 100%; }
-      .agend-actions .agend-action-btn { min-height: 40px; font-size: 12.5px; }
-      .agend-actions .agend-action-btn--icon { width: 100%; min-width: 0; }
+      .agend-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .agend-actions { width: 100%; align-items: stretch; }
+      .agend-actions-primary { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 6px; width: 100%; }
+      .agend-actions-utils { display: flex; gap: 6px; width: 100%; }
+      .agend-actions .agend-action-btn { min-height: 38px; font-size: 12.5px; }
+      .agend-actions .agend-action-btn--icon { flex: 1; min-width: 38px; width: auto; min-height: 38px; }
       .agend-d1-card { padding: 12px; }
       .wa-modal { padding: 20px; width: 94%; }
+    }
+    @media (max-width: 480px) {
+      .agend-form-row-2 { grid-template-columns: 1fr; }
     }
    .btn-editar-envio{background:#e67e22!important;color:white!important;border:none;border-radius:6px;padding:4px 9px!important;font-size:11px!important;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;box-shadow:0 2px 6px rgba(230,126,34,0.3);}
    .btn-editar-envio:hover{background:#d35400!important;transform:scale(1.03);}
@@ -5276,74 +5311,79 @@
 
     <!-- SUB-ABA 1: Agendamentos & Lembretes (Principal) -->
     <div id="subtab-content-principal">
-      <div class="card-white" style="margin-bottom:20px; padding:20px;" id="coleta-dashboard-container">
-        <div class="card-title" style="margin-bottom:12px;"><span>🩸</span> Dashboard de Coleta de Sangue</div>
-        <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;" id="coleta-dashboard-content">
-          <!-- Dashboard renderizado via JS -->
-        </div>
-      </div>
-
       <!-- ====== PAINEL DE LEMBRETES D-1 ====== -->
-      <div class="card-white" style="margin-bottom:20px; padding:20px;" id="lembretes-d1-container">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <div><span>🔔</span> Lembretes do Dia (D-1)</div>
-          <span id="lembretes-d1-count" style="background:var(--red);color:white;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;min-width:24px;text-align:center;display:none;">0</span>
-        </div>
-        <div style="font-size:12px;color:var(--gray-600);margin-bottom:14px;">
-          Consultas agendadas para <b id="lembretes-d1-quando">amanhã</b> — clique para enviar o lembrete via WhatsApp. A imagem correta do tipo de consulta é anexada automaticamente.
-        </div>
-        <div id="lembretes-d1-list">
-          <div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Carregando lembretes...</div>
-        </div>
+      <div class="card-white" style="margin-bottom:20px; padding:18px 20px;" id="lembretes-d1-container">
+        <details class="agend-d1-collapse" id="lembretes-d1-collapse" open>
+          <summary class="agend-collapse-summary">
+            <div class="agend-collapse-title-wrap">
+              <div class="card-title" style="margin-bottom:0;"><span>🔔</span> Lembretes do Dia (D-1)</div>
+              <span id="lembretes-d1-count" style="background:var(--red);color:white;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;min-width:24px;text-align:center;display:none;">0</span>
+              <span style="font-size:12px;color:var(--gray-600);font-weight:700;">Próximo dia útil: <b id="lembretes-d1-quando">amanhã</b></span>
+            </div>
+            <span class="agend-collapse-arrow" aria-hidden="true">▾</span>
+          </summary>
+          <div class="agend-collapse-body">
+            <div style="font-size:12px;color:var(--gray-600);margin-bottom:12px;">
+              Clique em <b>📲 Lembrete</b> para abrir o WhatsApp com a mensagem pronta e imagem do tipo de consulta.
+            </div>
+            <div id="lembretes-d1-list">
+              <div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Carregando lembretes...</div>
+            </div>
+          </div>
+        </details>
       </div>
       <!-- ====== FIM PAINEL DE LEMBRETES D-1 ====== -->
 
       <div class="agend-grid">
-        <div class="card-white">
-          <div class="card-title"><span>📝</span> Novo Agendamento</div>
+        <div class="card-white" style="padding:20px;">
+          <div class="card-title" style="margin-bottom:14px;"><span>📝</span> Novo Agendamento</div>
           <div class="form-group" style="margin-bottom:12px;"><label>Nome do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-nome" placeholder="Nome completo" oninput="validarCampoAgend('agend-nome')"></div>
-          <div class="form-group" style="margin-bottom:12px;"><label>Telefone do Paciente <span style="color:var(--red);">*</span></label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 11 99999-9999" oninput="validarCampoAgend('agend-telefone')"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div class="form-group" style="margin-bottom:12px;"><label>Telefone (WhatsApp) <span style="color:var(--red);">*</span></label><input type="text" id="agend-telefone" value="+55 " placeholder="+55 81 99999-9999" oninput="validarCampoAgend('agend-telefone')"></div>
+          <div class="agend-form-row-2">
             <div class="form-group"><label>Data <span style="color:var(--red);">*</span></label><input type="date" id="agend-data" style="width:100%;" onchange="handleAgendTipoChange();validarDataAgend()" min=""></div>
             <div class="form-group"><label>Horário <span style="color:var(--red);">*</span></label><input type="text" id="agend-horario" value="08:00" placeholder="08:00" oninput="mascaraHorario(this)"></div>
           </div>
-          <div class="form-group" style="margin-bottom:12px;"><label>Profissional</label>
-            <select id="agend-profissional" title="Profissional">
-              <option value="">— Opcional —</option>
-              <option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
-              <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Renata Célia</option><option>Dra. Juliana Cavalcante</option>
-            </select>
+          <div class="agend-form-row-2">
+            <div class="form-group"><label>Profissional</label>
+              <select id="agend-profissional" title="Profissional">
+                <option value="">— Opcional —</option>
+                <option>Dr. Israel Christian</option><option>Dr. Joene Halan</option><option>Dra. Mirela Mota</option>
+                <option>Mariana Vaz</option><option>Jorge Marcio</option><option>Lucelia de Abreu</option><option>Renata Célia</option><option>Dra. Juliana Cavalcante</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Equipe</label>
+              <select id="agend-equipe" title="Equipe">
+                <option value="">Sem equipe (Padrão)</option>
+                <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
+                <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
+                <option value="Eq 3 Aurora">Equipe 3 Aurora</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group" style="margin-bottom:12px;"><label>Equipe</label>
-            <select id="agend-equipe" title="Equipe">
-              <option value="">Sem equipe (Padrão)</option>
-              <option value="Eq 1 Chico Mendes">Equipe 1 Chico Mendes</option>
-              <option value="Eq 2 Ximboré">Equipe 2 Ximboré</option>
-              <option value="Eq 3 Aurora">Equipe 3 Aurora</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin-bottom:12px;"><label>Tipo de Atendimento</label>
-            <select id="agend-tipo" title="Tipo atendimento" onchange="handleAgendTipoChange()"><option value="">— Opcional —</option><option>Consulta</option><option>Clínico Geral</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Puericultura</option><option>Odontologia</option><option>Hiperdia</option><option>Coleta de Sangue</option></select>
-          </div>
-          <div class="form-group" style="margin-bottom:12px;"><label>Template de Mensagem</label>
-            <select id="agend-template" title="Template" onchange="toggleChecklistExames()">
-              <option value="lembrete">📋 Lembrete de Consulta</option>
-              <option value="confirmacao">✅ Confirmação de Agendamento</option>
-              <option value="reagendamento">🔄 Reagendamento</option>
-              <option value="cancelamento">❌ Cancelamento</option>
-              <option value="preparo_exames">🔬 Preparo para Exames</option>
-            </select>
+          <div class="agend-form-row-2">
+            <div class="form-group"><label>Tipo de Atendimento</label>
+              <select id="agend-tipo" title="Tipo atendimento" onchange="handleAgendTipoChange()"><option value="">— Opcional —</option><option>Consulta</option><option>Clínico Geral</option><option>Retorno</option><option>Exame</option><option>Pré-Natal</option><option>Puericultura</option><option>Odontologia</option><option>Hiperdia</option><option>Coleta de Sangue</option></select>
+            </div>
+            <div class="form-group"><label>Template WhatsApp</label>
+              <select id="agend-template" title="Template" onchange="toggleChecklistExames()">
+                <option value="lembrete">📋 Lembrete de Consulta</option>
+                <option value="confirmacao">✅ Confirmação de Agendamento</option>
+                <option value="reagendamento">🔄 Reagendamento</option>
+                <option value="cancelamento">❌ Cancelamento</option>
+                <option value="preparo_exames">🔬 Preparo para Exames</option>
+              </select>
+            </div>
           </div>
           <div class="form-group" style="margin-bottom:12px;display:none;" id="checklist-exames-grupo">
             <label>Exames (selecione):</label>
             <div id="checklist-exames" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
           </div>
           <div class="form-group" style="margin-bottom:16px;"><label>Observações</label><input type="text" id="agend-obs" placeholder="Opcional"></div>
-          <button class="btn btn-green" onclick="criarAgendamento()">📅 Agendar</button>
+          <button class="btn btn-green" style="width:100%;justify-content:center;" onclick="criarAgendamento()">📅 Agendar</button>
         </div>
         <div class="card-white" style="padding:20px;">
-          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-            <div><span>📋</span> Agendamentos</div>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+            <div><span>📋</span> Agendamentos & Disparos WhatsApp</div>
             <button type="button" id="btn-topo-desfazer-lote" onclick="desfazerUltimoLoteAgendamento()" style="display:none;background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;">
               ↩️ Desfazer Última Alteração em Lote
             </button>
@@ -5361,9 +5401,28 @@
               </button>
             </div>
           </div>
-          <div class="filter-row" style="margin-bottom:16px;background:#f8fafc;padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;">
+          <div class="agend-kpi-strip" id="agend-kpi-strip">
+            <div class="agend-kpi-pill agend-kpi-pill--total">
+              <div class="agend-kpi-val" id="agend-kpi-total">0</div>
+              <div class="agend-kpi-lbl">Total Listado</div>
+            </div>
+            <div class="agend-kpi-pill agend-kpi-pill--pendentes">
+              <div class="agend-kpi-val" id="agend-kpi-pendentes">0</div>
+              <div class="agend-kpi-lbl">⏳ Pendentes</div>
+            </div>
+            <div class="agend-kpi-pill agend-kpi-pill--confirmados">
+              <div class="agend-kpi-val" id="agend-kpi-confirmados">0</div>
+              <div class="agend-kpi-lbl">✅ Confirmados</div>
+            </div>
+            <div class="agend-kpi-pill agend-kpi-pill--alterados">
+              <div class="agend-kpi-val" id="agend-kpi-alterados">0</div>
+              <div class="agend-kpi-lbl">🔄 Reag./Canc.</div>
+            </div>
+          </div>
+          <div class="agend-filter-bar">
             <div class="form-group"><label for="agend-filter-data">Data</label><input type="date" id="agend-filter-data"></div>
             <div class="form-group"><label for="agend-filter-status">Status</label><select id="agend-filter-status" title="Status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="lembrete_enviado">Lembrete Enviado</option><option value="confirmado">Confirmado</option><option value="reagendado">Reagendado</option><option value="realizado">Realizado</option><option value="faltou">Faltou</option><option value="cancelado">Cancelado</option></select></div>
+            <div class="form-group agend-filter-search"><label for="agend-filter-busca">Busca rápida</label><input type="search" id="agend-filter-busca" placeholder="Nome, telefone ou profissional..." oninput="filtrarAgendamentosLocal()"></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
               <button type="button" class="hist-btn-action hist-btn-action--pdf" onclick="loadAgendamentos()">🔍 Filtrar</button>
               <button type="button" class="hist-btn-action hist-btn-action--csv" onclick="exportarListaAgendamentosPDF()" title="Gerar PDF da lista de agendamentos filtrada">📄 Gerar PDF</button>
@@ -5375,47 +5434,63 @@
         </div>
       </div>
 
-      <!-- Relatório de Mensagens Enviadas -->
-      <div class="card-white" style="margin-top:20px; padding:20px;">
-        <div class="card-title"><span>📊</span> Relatório de Mensagens Enviadas</div>
-        <div class="filter-row" style="margin-bottom:16px;background:#f8fafc;padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;">
-          <div class="form-group"><label for="rel-msg-data">Data</label><input type="date" id="rel-msg-data" onchange="loadRelatorioMensagens()"></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <button type="button" class="hist-btn-action hist-btn-action--pdf" onclick="loadRelatorioMensagens()">🔍 Consultar</button>
-            <button type="button" class="hist-btn-action hist-btn-action--csv" onclick="exportarRelatorioMensagensPDF()" title="Gerar PDF do relatório de mensagens">📄 Gerar PDF</button>
+      <!-- Relatório de Mensagens Enviadas (Recolhível) -->
+      <details class="card-white agend-secondary-collapse" style="margin-top:20px; padding:18px 20px;">
+        <summary class="agend-collapse-summary">
+          <div class="agend-collapse-title-wrap">
+            <div class="card-title" style="margin-bottom:0;"><span>📊</span> Relatório de Mensagens Enviadas</div>
+            <span style="font-size:12px;color:var(--gray-600);font-weight:700;">Consulta diária e exportação em PDF</span>
           </div>
-        </div>
-        <div id="rel-msg-content">
-          <div style="text-align:center;padding:24px;color:var(--gray-600);">Selecione uma data e clique em Consultar</div>
-        </div>
-      </div>
-
-      <!-- Responsáveis de Setores de Apoio -->
-      <div class="card-white" style="margin-top:20px; padding:20px;">
-        <div class="card-title"><span>📋</span> Responsáveis de Setores de Apoio</div>
-        <div style="font-size:12px;color:var(--gray-600);margin-bottom:16px;">Uso interno — contatos de referência por setor (não aparece nas mensagens ao paciente).</div>
-        <div id="resp-setor-list" style="margin-bottom:16px;">
-          <!-- Renderizado via JS -->
-        </div>
-        <div style="border-top:1px solid var(--gray-200);padding-top:16px;">
-          <div style="font-weight:700;font-size:13px;margin-bottom:12px;">➕ Adicionar Responsável</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
-            <div class="form-group"><label>Nome <span style="color:var(--red);">*</span></label><input type="text" id="resp-setor-nome" placeholder="Nome"></div>
-            <div class="form-group"><label>Setor <span style="color:var(--red);">*</span></label>
-              <select id="resp-setor-setor">
-                <option value="">— Selecione —</option>
-                <option value="Regulação">Regulação</option>
-                <option value="Farmácia">Farmácia</option>
-                <option value="Acolhimento">Acolhimento</option>
-                <option value="Enfermagem">Enfermagem</option>
-                <option value="Odontologia">Odontologia</option>
-              </select>
+          <span class="agend-collapse-arrow" aria-hidden="true">▾</span>
+        </summary>
+        <div class="agend-collapse-body">
+          <div class="agend-filter-bar" style="margin-bottom:14px;">
+            <div class="form-group"><label for="rel-msg-data">Data</label><input type="date" id="rel-msg-data" onchange="loadRelatorioMensagens()"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button type="button" class="hist-btn-action hist-btn-action--pdf" onclick="loadRelatorioMensagens()">🔍 Consultar</button>
+              <button type="button" class="hist-btn-action hist-btn-action--csv" onclick="exportarRelatorioMensagensPDF()" title="Gerar PDF do relatório de mensagens">📄 Gerar PDF</button>
             </div>
-            <div class="form-group"><label>Cargo</label><input type="text" id="resp-setor-cargo" placeholder="Ex: Responsável pela Regulação"></div>
           </div>
-          <button class="btn btn-green btn-sm" onclick="criarResponsavelSetor()">✅ Cadastrar</button>
+          <div id="rel-msg-content">
+            <div style="text-align:center;padding:24px;color:var(--gray-600);">Selecione uma data e clique em Consultar</div>
+          </div>
         </div>
-      </div>
+      </details>
+
+      <!-- Responsáveis de Setores de Apoio (Recolhível) -->
+      <details class="card-white agend-secondary-collapse" style="margin-top:16px; padding:18px 20px;">
+        <summary class="agend-collapse-summary">
+          <div class="agend-collapse-title-wrap">
+            <div class="card-title" style="margin-bottom:0;"><span>📋</span> Responsáveis de Setores de Apoio</div>
+            <span style="font-size:12px;color:var(--gray-600);font-weight:700;">Uso interno — contatos de referência</span>
+          </div>
+          <span class="agend-collapse-arrow" aria-hidden="true">▾</span>
+        </summary>
+        <div class="agend-collapse-body">
+          <div style="font-size:12px;color:var(--gray-600);margin-bottom:16px;">Uso interno — contatos de referência por setor (não aparece nas mensagens ao paciente).</div>
+          <div id="resp-setor-list" style="margin-bottom:16px;">
+            <!-- Renderizado via JS -->
+          </div>
+          <div style="border-top:1px solid var(--gray-200);padding-top:16px;">
+            <div style="font-weight:700;font-size:13px;margin-bottom:12px;">➕ Adicionar Responsável</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px;">
+              <div class="form-group"><label>Nome <span style="color:var(--red);">*</span></label><input type="text" id="resp-setor-nome" placeholder="Nome"></div>
+              <div class="form-group"><label>Setor <span style="color:var(--red);">*</span></label>
+                <select id="resp-setor-setor">
+                  <option value="">— Selecione —</option>
+                  <option value="Regulação">Regulação</option>
+                  <option value="Farmácia">Farmácia</option>
+                  <option value="Acolhimento">Acolhimento</option>
+                  <option value="Enfermagem">Enfermagem</option>
+                  <option value="Odontologia">Odontologia</option>
+                </select>
+              </div>
+              <div class="form-group"><label>Cargo</label><input type="text" id="resp-setor-cargo" placeholder="Ex: Responsável pela Regulação"></div>
+            </div>
+            <button class="btn btn-green btn-sm" onclick="criarResponsavelSetor()">✅ Cadastrar</button>
+          </div>
+        </div>
+      </details>
     </div>
 
     <!-- SUB-ABA 2: Histórico de Cancelamentos e Reagendamentos -->

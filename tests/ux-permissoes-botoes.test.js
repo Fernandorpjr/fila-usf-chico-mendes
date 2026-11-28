@@ -484,8 +484,9 @@ test('Resumo do Dia público, Metas Editáveis (Admin), Agendados/Histórico Pro
   assert.equal(appSrc.includes('function obterMetaProfissionalDia('), true);
   assert.equal(appSrc.includes('function salvarConfigMetasDia('), true);
 
-  // 3. Aba Agendados & Histórico com botões profissionais e KPI cards
-  assert.equal(indexHtml.includes('.agend-action-btn--fila'), true);
+  // 3. Aba Agendados & Histórico com botões profissionais organizados por cor e KPI cards
+  assert.equal(indexHtml.includes('.agend-actions-primary'), true);
+  assert.equal(indexHtml.includes('.agend-action-btn--reagendar'), true);
   assert.equal(indexHtml.includes('.hist-kpi-card'), true);
   assert.equal(indexHtml.includes('.hist-btn-action--pdf'), true);
   assert.equal(appSrc.includes('agend-action-btn--wa'), true);

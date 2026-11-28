@@ -105,3 +105,39 @@ test('WhatsApp abertura síncrona sem bloqueio de pop-up e rota GET /api/agendam
   assert.equal(serverSrc.includes("!/^\\d+$/.test(rawId)"), true);
   assert.equal(serverSrc.includes('LIMIT 2000'), true);
 });
+
+test('Agendamentos UX Pro: remove Coleta de Sangue e Enviar p/ Fila, reorganiza botões coloridos e painéis recolhíveis', () => {
+  // Dashboard de Coleta de Sangue removido da aba Agendamentos
+  assert.equal(indexHtml.includes('id="coleta-dashboard-container"'), false);
+  assert.equal(indexHtml.includes('Dashboard de Coleta de Sangue'), false);
+
+  // Botão Enviar p/ Fila removido da tabela de agendamentos
+  const renderAgendSlice = extractSlice(appSrc, 'function renderAgendamentos(list)', 'async function updateAgendStatus(');
+  assert.equal(renderAgendSlice.includes('Enviar p/ Fila'), false);
+  assert.equal(renderAgendSlice.includes('agend-action-btn--fila'), false);
+
+  // loadAgendamentos não chama mais loadColetasStats
+  const loadAgendSlice = extractSlice(appSrc, 'async function loadAgendamentos()', 'function filtrarAgendamentosLocal()');
+  assert.equal(loadAgendSlice.includes('loadColetasStats'), false);
+
+  // Organização semântica dos botões + cores vivas + KPI strip + busca rápida + seções recolhíveis
+  assert.equal(indexHtml.includes('.agend-actions-primary'), true);
+  assert.equal(indexHtml.includes('.agend-actions-utils'), true);
+  assert.equal(indexHtml.includes('.agend-action-btn--edit'), true);
+  assert.equal(indexHtml.includes('.agend-action-btn--img'), true);
+  assert.equal(indexHtml.includes('id="agend-kpi-strip"'), true);
+  assert.equal(indexHtml.includes('id="agend-filter-busca"'), true);
+  assert.equal(indexHtml.includes('.agend-d1-collapse'), true);
+  assert.equal(indexHtml.includes('.agend-secondary-collapse'), true);
+
+  assert.equal(renderAgendSlice.includes('agend-actions-primary'), true);
+  assert.equal(renderAgendSlice.includes('agend-actions-utils'), true);
+  assert.equal(renderAgendSlice.includes('agend-action-btn--edit'), true);
+  assert.equal(renderAgendSlice.includes('openWaPreview('), true);
+
+  const renderD1Slice = extractSlice(appSrc, 'function renderLembretesD1(', 'async function excluirLembreteD1(');
+  assert.equal(renderD1Slice.includes('agend-actions-primary'), true);
+  assert.equal(renderD1Slice.includes('agend-actions-utils'), true);
+  assert.equal(renderD1Slice.includes('agend-action-btn--img'), true);
+  assert.equal(renderD1Slice.includes('openWaPreview('), true);
+});
