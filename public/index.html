@@ -717,9 +717,28 @@
    .agend-status.realizado{background:rgba(74,171,60,0.2);color:var(--green-dark);border:1px solid rgba(74,171,60,0.4);}
    .agend-status.faltou{background:rgba(229,57,53,0.2);color:var(--red);border:1px solid rgba(229,57,53,0.4);}
    .agend-status.reagendado{background:rgba(230,126,34,0.15);color:#d35400;border:1px solid rgba(230,126,34,0.35);}
-   .agend-actions{display:flex;gap:4px;align-items:center;}
-   .agend-actions button{padding:4px 8px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;background:transparent;}
-   .agend-actions button:hover{background:var(--gray-100);}
+    .agend-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+    /* Botões legados (sem .agend-action-btn). Os botões novos NÃO podem ser sobrescritos aqui (causa dos botões brancos). */
+    .agend-actions button:not(.agend-action-btn){padding:4px 8px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;background:transparent;}
+    .agend-actions button:not(.agend-action-btn):hover{background:var(--gray-100);}
+    .wa-modal .btn-ghost { background: #f1f5f9; color: #334155; border: 1.5px solid #cbd5e1; }
+    .wa-modal .btn-ghost:hover { background: #e2e8f0; color: #0f172a; }
+    .agend-action-btn { -webkit-appearance: none; appearance: none; min-height: 34px; }
+    .agend-action-btn:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+    .agend-action-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+    .agend-action-btn--wa { background: linear-gradient(135deg, #16a34a, #15803d) !important; color: #ffffff !important; border-color: #15803d !important; }
+    .wa-dest-info { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; font-weight: 800; color: #166534; text-align: left; }
+    .wa-dest-info .wa-dest-fone { font-weight: 700; color: #15803d; }
+    .wa-aviso-telefone { display: none; background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; font-size: 12.5px; font-weight: 800; text-align: left; }
+    .wa-fallback-link { display: none; margin-top: 10px; text-align: center; padding: 11px 14px; border-radius: 12px; background: #eff6ff; border: 1.5px solid #93c5fd; color: #1d4ed8; font-weight: 800; font-size: 14px; text-decoration: none; }
+    .wa-btn-send:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+    @media (max-width: 768px) {
+      .agend-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; width: 100%; }
+      .agend-actions .agend-action-btn { min-height: 40px; font-size: 12.5px; }
+      .agend-actions .agend-action-btn--icon { width: 100%; min-width: 0; }
+      .agend-d1-card { padding: 12px; }
+      .wa-modal { padding: 20px; width: 94%; }
+    }
    .btn-editar-envio{background:#e67e22!important;color:white!important;border:none;border-radius:6px;padding:4px 9px!important;font-size:11px!important;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;transition: background-color .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s, opacity .15s;box-shadow:0 2px 6px rgba(230,126,34,0.3);}
    .btn-editar-envio:hover{background:#d35400!important;transform:scale(1.03);}
    .wa-modal-overlay{position:fixed;inset:0;background:rgba(5,18,60,0.85);z-index:2000;display:none;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
@@ -5271,7 +5290,7 @@
           <span id="lembretes-d1-count" style="background:var(--red);color:white;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;min-width:24px;text-align:center;display:none;">0</span>
         </div>
         <div style="font-size:12px;color:var(--gray-600);margin-bottom:14px;">
-          Consultas agendadas para <b>amanhã</b> — clique para enviar o lembrete via WhatsApp. A imagem correta do tipo de consulta é anexada automaticamente.
+          Consultas agendadas para <b id="lembretes-d1-quando">amanhã</b> — clique para enviar o lembrete via WhatsApp. A imagem correta do tipo de consulta é anexada automaticamente.
         </div>
         <div id="lembretes-d1-list">
           <div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">Carregando lembretes...</div>
@@ -5735,7 +5754,15 @@
   <!-- WhatsApp Preview Modal -->
   <div class="wa-modal-overlay" id="wa-modal" role="dialog" aria-modal="true">
     <div class="wa-modal">
-      <h3>📱 Preview da Mensagem WhatsApp</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;">
+        <h3 style="margin-bottom:0;">📱 Preview da Mensagem WhatsApp</h3>
+        <button type="button" class="wa-modal-close" onclick="closeWaModal()" title="Fechar" aria-label="Fechar preview do WhatsApp">✕</button>
+      </div>
+      <div class="wa-dest-info" id="wa-dest-info">
+        <span id="wa-dest-nome">—</span>
+        <span class="wa-dest-fone" id="wa-dest-fone">—</span>
+      </div>
+      <div class="wa-aviso-telefone" id="wa-aviso-telefone">⚠️ Telefone inválido ou incompleto. Feche esta janela e corrija pelo botão ✏️ (use DDD + número, ex.: 81 99999-9999).</div>
       <div class="wa-preview" id="wa-preview-text"></div>
       <!-- Preview da imagem de confirmação por tipo de consulta -->
       <div id="wa-img-preview-container" style="margin-bottom:16px;border-radius:12px;overflow:hidden;border:2px solid var(--gray-200);background:var(--gray-100);display:none;">
@@ -5748,6 +5775,7 @@
         <button class="btn btn-outline" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;" onclick="copyWaImageToClipboard()">🖼️ Copiar Imagem</button>
       </div>
       <button class="wa-btn-send" id="wa-btn-send" onclick="abrirWhatsAppEEnviar()">📲 Abrir WhatsApp e Enviar</button>
+      <a class="wa-fallback-link" id="wa-fallback-link" href="#" target="_blank" rel="noopener noreferrer">🔗 O navegador bloqueou a nova aba — clique aqui para abrir o WhatsApp</a>
       <button onclick="closeWaModal()" style="margin-top:12px;width:100%;padding:10px;border:2px solid var(--gray-200);border-radius:10px;background:transparent;font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;cursor:pointer;color:var(--gray-600);">Cancelar</button>
     </div>
   </div>

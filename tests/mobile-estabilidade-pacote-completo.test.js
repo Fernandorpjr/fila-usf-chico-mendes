@@ -65,7 +65,7 @@ test('Backend Pacote Completo: sliding session, ETag inteiro, chat sob demanda, 
   assert.equal(chatGetSlice.includes('responderJsonComEtag(req, res, result.rows)'), true);
 
   // Rotas admin aceitam isAdminAuthorized (cookie admin) e GET /api/agendamentos tem LIMIT
-  assert.equal(serverSrc.includes("LIMIT 500"), true);
+  assert.equal(serverSrc.includes("LIMIT 2000"), true);
   const idxClear = serverSrc.indexOf("app.post('/api/chat/canais/:canal/clear'");
   assert.equal(serverSrc.slice(idxClear, idxClear + 350).includes('isAdminAuthorized(req)'), true);
   const idxDelPost = serverSrc.indexOf("app.post('/api/agendamentos/:id/delete'");

@@ -6677,7 +6677,7 @@ const WA_TEMPLATES = {
   // === MELHORIA 7: Template de cancelamento de consulta ===
   cancelamento: `Olá, [NOME]! 🏥\n\nInformamos que sua consulta na *USF Chico Mendes* agendada para o dia *[DATA]* às *[HORARIO]* foi *cancelada*.\n\nEm breve entraremos em contato para confirmar o *reagendamento para uma nova data*.\n\nPedimos desculpas pelo transtorno e agradecemos a compreensão. 💙\n\n— *USF Chico Mendes*`,
   // === LEMBRETE D-1: Template de lembrete para o dia anterior à consulta ===
-  lembrete_d1: `Olá, [NOME]! 🏥\n\nLembrando que sua consulta na *USF Chico Mendes* está marcada para *amanhã*:\n\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n[ORIENTACAO_TIPO]\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nContamos com a sua presença! 💙\n\n— *USF Chico Mendes*`
+  lembrete_d1: `Olá, [NOME]! 🏥\n\nLembrando que sua consulta na *USF Chico Mendes* está marcada para *[QUANDO_DIA]*:\n\n📅 Data: [DATA]\n⏰ Horário: [HORARIO]\n👨‍⚕️ Profissional: [PROFISSIONAL]\n📍 Local: Unidade de Saúde da Família Chico Mendes\n\n📋 Orientações importantes:\n* Leve documentos pessoais e cartão do SUS\n[ORIENTACAO_TIPO]\n\n💬 Em caso de dúvidas, fale com seu agente de saúde.\nContamos com a sua presença! 💙\n\n— *USF Chico Mendes*`
 };
 
 // === MELHORIA 7: Constante de texto para reutilização ===
@@ -6730,6 +6730,7 @@ function buildWaMessage(agend) {
     .replace(/\[PROFISSIONAL\]/g, profCompleto).replace(/\[TIPO\]/g, agend.tipo_atendimento||'Consulta')
     .replace(/\[OBS\]/g, obsTexto).replace(/\[EXAMES\]/g, exames||'Consulte a unidade')
     .replace(/\[MAPS_LINK\]/g, MAPS_LINK_USF)
+    .replace(/\[QUANDO_DIA\]/g, descreverQuandoDia(dataIsoDate))
     .replace(/\[ORIENTACAO_TIPO\]/g, orientacao);
 }
 
@@ -6806,7 +6807,8 @@ async function loadColetasStats() {
 
 async function criarAgendamento() {
   const nome = document.getElementById('agend-nome').value.trim();
-  const telefone = document.getElementById('agend-telefone').value.trim().replace(/\D/g,'');
+  const telefoneRaw = document.getElementById('agend-telefone').value.trim();
+  const telefone = normalizarTelefoneWhatsApp(telefoneRaw);
   const data_agendamento = document.getElementById('agend-data').value;
   const horario = document.getElementById('agend-horario').value.trim();
   const profissional = document.getElementById('agend-profissional').value;
@@ -6820,7 +6822,7 @@ async function criarAgendamento() {
     if (checked.length) checklist_exames = JSON.stringify(checked);
   }
   if (!nome) { showToast('⚠️ Preencha o nome do paciente!', true); return; }
-  if (!telefone || telefone.length < 10) { showToast('⚠️ Telefone inválido! Use o formato +55 XX 99999-9999', true); return; }
+  if (!telefone) { showToast('⚠️ Telefone inválido! Informe DDD + número (ex.: 81 99999-9999 ou +55 81 99999-9999).', true); return; }
   if (!data_agendamento) { showToast('⚠️ Selecione a data do agendamento!', true); return; }
   if (!horario || !/^\d{2}:\d{2}$/.test(horario)) { showToast('⚠️ Horário inválido! Use o formato HH:MM (ex: 08:30)', true); return; }
   
@@ -6872,6 +6874,7 @@ async function loadAgendamentos() {
   const params = new URLSearchParams(); if (data) params.set('data',data); if (status) params.set('status',status);
   try {
     const r = await fetch(`${API_URL}/agendamentos?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const list = await r.json();
     _agendamentosAtuais = Array.isArray(list) ? list : [];
     renderAgendamentos(_agendamentosAtuais);
@@ -6882,16 +6885,29 @@ async function loadAgendamentos() {
   } catch { showToast('Erro ao carregar agendamentos', true); }
 }
 
-// ====== LEMBRETES D-1 (Painel de lembretes para consultas de amanhã) ======
+// ====== LEMBRETES D-1 (Painel de lembretes para a próxima consulta útil: amanhã, ou segunda-feira na sexta) ======
 
-// Calcula a data de amanhã no fuso de São Paulo
-function getAmanhaSP() {
-  const now = new Date();
-  // Usar Intl para obter a data no fuso de SP
-  const spDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-  const [y, m, d] = spDateStr.split('-').map(Number);
-  const amanha = new Date(y, m - 1, d + 1);
-  return amanha.toISOString().split('T')[0]; // YYYY-MM-DD
+// Retorna YYYY-MM-DD do próximo dia útil (seg–sex) no fuso de Recife, sem depender do fuso do aparelho
+function getProximoDiaUtilRecife() {
+  const [y, m, d] = getDataHojeRecife().split('-').map(Number);
+  let dt = new Date(Date.UTC(y, m - 1, d + 1));
+  while (dt.getUTCDay() === 0 || dt.getUTCDay() === 6) {
+    dt = new Date(dt.getTime() + 86400000);
+  }
+  return dt.toISOString().split('T')[0];
+}
+function getAmanhaSP() { return getProximoDiaUtilRecife(); }
+
+// "amanhã", "hoje" ou o dia da semana ("segunda-feira") para a data informada
+function descreverQuandoDia(dataIso) {
+  if (!dataIso) return 'em breve';
+  const hoje = getDataHojeRecife();
+  if (dataIso === hoje) return 'hoje';
+  const [y, m, d] = hoje.split('-').map(Number);
+  const amanha = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().split('T')[0];
+  if (dataIso === amanha) return 'amanhã';
+  const dias = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+  return dias[new Date(dataIso + 'T12:00:00Z').getUTCDay()];
 }
 
 async function loadLembretesD1() {
@@ -6900,11 +6916,17 @@ async function loadLembretesD1() {
   if (!container) return;
   
   try {
-    const amanha = getAmanhaSP();
+    const amanha = getProximoDiaUtilRecife();
+    const quandoEl = document.getElementById('lembretes-d1-quando');
+    if (quandoEl) {
+      const dd = amanha.split('-').reverse().slice(0, 2).join('/');
+      quandoEl.textContent = `${descreverQuandoDia(amanha)} (${dd})`;
+    }
     const r = await fetch(`${API_URL}/agendamentos?data=${amanha}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const list = await r.json();
     // Filtra apenas agendamentos ativos (não cancelados)
-    const ativos = list.filter(a => a.status !== 'cancelado');
+    const ativos = (Array.isArray(list) ? list : []).filter(a => a.status !== 'cancelado');
     renderLembretesD1(ativos, amanha);
     
     // Atualizar badge
@@ -6927,7 +6949,7 @@ function renderLembretesD1(list, dataAmanha) {
   if (!container) return;
 
   if (!list.length) {
-    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">✅ Nenhuma consulta agendada para amanhã.</div>';
+    container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--gray-500);font-size:13px;">✅ Nenhuma consulta agendada para ${escapeText(descreverQuandoDia(dataAmanha))}.</div>`;
     return;
   }
 
@@ -7056,7 +7078,7 @@ function renderAgendamentos(list) {
         <button type="button" class="agend-action-btn agend-action-btn--cancelar" onclick="abrirModalEditarEnvio(${a.id}, 'cancelado')" title="Cancelar Consulta">❌ Cancelar</button>
         <button type="button" class="agend-action-btn agend-action-btn--lembrete agend-action-btn--icon" onclick="updateAgendStatus(${a.id},'lembrete_enviado')" title="Marcar Lembrete Enviado" aria-label="Marcar lembrete enviado">📨</button>
         <button type="button" class="agend-action-btn agend-action-btn--confirm agend-action-btn--icon" onclick="updateAgendStatus(${a.id},'confirmado')" title="Confirmar Presença" aria-label="Confirmar agendamento">✅</button>
-        <button type="button" class="agend-action-btn agend-action-btn--icon" onclick="abrirEdicaoAgendamento(${a.id}, '${a.nome.replace(/'/g,"\\'").trim()}', '${a.telefone.replace(/'/g,"\\'").trim()}')" title="Editar Nome/Telefone" aria-label="Editar agendamento">✏️</button>
+        <button type="button" class="agend-action-btn agend-action-btn--icon" onclick="abrirEdicaoAgendamento(${a.id}, '${String(a.nome || '').replace(/'/g,"\\'").trim()}', '${String(a.telefone || '').replace(/'/g,"\\'").trim()}')" title="Editar Nome/Telefone" aria-label="Editar agendamento">✏️</button>
         <button type="button" class="agend-action-btn agend-action-btn--icon agend-action-btn--delete" onclick="deleteAgendamento(${a.id})" title="Apagar Registro do Banco" aria-label="Apagar agendamento">🗑️</button>
       </div></td></tr>`;
   }).join('');
@@ -7064,15 +7086,14 @@ function renderAgendamentos(list) {
 
 async function updateAgendStatus(id, status) {
   try {
-    await fetch(`${API_URL}/agendamentos/${id}/status`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
+    const rSt = await fetch(`${API_URL}/agendamentos/${id}/status`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
+    if (!rSt.ok) { showToast('Não foi possível atualizar o status do agendamento!', true); return; }
     showToast('Status atualizado!'); 
     loadAgendamentos();
 
     if (status === 'lembrete_enviado') {
       try {
-        const r2 = await fetch(`${API_URL}/agendamentos`);
-        const list = await r2.json();
-        const agend = list.find(a => a.id === id);
+        const agend = await buscarAgendamentoPorId(id);
         if (agend) {
           await registrarMensagemEnviada(agend);
           loadRelatorioMensagens();
@@ -7083,19 +7104,10 @@ async function updateAgendStatus(id, status) {
     // === MELHORIA 7: Abrir preview de cancelamento via WhatsApp automaticamente ===
     if (status === 'cancelado') {
       try {
-        const r2 = await fetch(`${API_URL}/agendamentos`);
-        const list = await r2.json();
-        const agend = list.find(a => a.id === id);
+        const agend = await buscarAgendamentoPorId(id);
         if (agend && agend.telefone) {
-          const cancelMsg = buildWaMessage({ ...agend, template: 'cancelamento' });
-          document.getElementById('wa-preview-text').textContent = cancelMsg;
-          const phone = agend.telefone.replace(/\D/g, '');
-          // === MELHORIA 6: Usar web.whatsapp.com/send ===
-          _waCurrentUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(cancelMsg)}`;
-          _waModalAgendAtual = { ...agend, template: 'cancelamento' };
-          // Atualizar preview de imagem por tipo de consulta
-          updateWaImagePreview(agend.tipo_atendimento, agend.profissional);
-          document.getElementById('wa-modal').classList.add('show');
+          const agendCanc = { ...agend, template: 'cancelamento' };
+          prepararModalWhatsApp(agendCanc, buildWaMessage(agendCanc));
         }
       } catch(e) { /* silencioso se falhar */ }
     }
@@ -7118,32 +7130,127 @@ async function deleteAgendamento(id) {
 let _waModalAgendAtual = null;
 let _waCurrentUrl = '';
 
+// ====== WHATSAPP: helpers de telefone, URL e abertura robusta (sem bloqueio de pop-up) ======
+function normalizarTelefoneWhatsApp(raw) {
+  let d = String(raw || '').replace(/\D/g, '').replace(/^0+/, '');
+  if (!d) return '';
+  if (d.length === 10 || d.length === 11) d = '55' + d; // DDD + número sem DDI
+  return /^55\d{10,11}$/.test(d) ? d : '';
+}
+
+function formatarTelefoneExibicao(raw) {
+  const d = normalizarTelefoneWhatsApp(raw);
+  if (!d) return String(raw || '').trim() || 'sem telefone';
+  const ddd = d.slice(2, 4);
+  const num = d.slice(4);
+  const fmt = num.length === 9 ? `${num.slice(0, 5)}-${num.slice(5)}` : `${num.slice(0, 4)}-${num.slice(4)}`;
+  return `+55 (${ddd}) ${fmt}`;
+}
+
+function isDispositivoMovelWhatsApp() {
+  try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''); } catch (_) { return false; }
+}
+
+function montarUrlWhatsApp(phone, msg) {
+  const txt = encodeURIComponent(msg || '');
+  return isDispositivoMovelWhatsApp()
+    ? `https://wa.me/${phone}?text=${txt}`
+    : `https://web.whatsapp.com/send?phone=${phone}&text=${txt}`;
+}
+
+// Deve ser chamado de forma SÍNCRONA dentro do clique (antes de qualquer await) para o navegador não bloquear o pop-up
+function abrirJanelaWhatsAppPendente() {
+  try {
+    const w = window.open('', '_blank');
+    if (w) {
+      try {
+        w.document.title = 'Abrindo WhatsApp…';
+        w.document.body.innerHTML = '<p style="font-family:Arial,sans-serif;padding:28px;font-size:18px;">📲 Abrindo WhatsApp…</p>';
+      } catch (_) {}
+    }
+    return w || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function fecharJanelaWhatsAppPendente(win) {
+  try { if (win && !win.closed) win.close(); } catch (_) {}
+}
+
+function concluirAberturaWhatsApp(win, url, fallbackEl) {
+  if (win && !win.closed) {
+    try { win.opener = null; } catch (_) {}
+    win.location.href = url;
+    return true;
+  }
+  let w2 = null;
+  try { w2 = window.open(url, '_blank'); } catch (_) {}
+  if (w2) return true;
+  if (fallbackEl) {
+    fallbackEl.href = url;
+    fallbackEl.style.display = 'block';
+  }
+  showToast('⚠️ O navegador bloqueou a nova aba. Use o link azul para abrir o WhatsApp (ou permita pop-ups deste site).', true);
+  return false;
+}
+
+async function buscarAgendamentoPorId(id) {
+  const idNum = Number(id);
+  const cache = (_agendamentosAtuais || []).find(a => Number(a.id) === idNum) || null;
+  try {
+    const r = await fetch(`${API_URL}/agendamentos/${idNum}`);
+    if (r.ok) return await r.json();
+    if (r.status === 404) return null;
+  } catch (_) {}
+  return cache;
+}
+
+function prepararModalWhatsApp(agend, msg) {
+  const phone = normalizarTelefoneWhatsApp(agend.telefone);
+  document.getElementById('wa-preview-text').textContent = msg;
+  _waCurrentUrl = phone ? montarUrlWhatsApp(phone, msg) : '';
+  _waModalAgendAtual = agend;
+  const nomeEl = document.getElementById('wa-dest-nome');
+  const foneEl = document.getElementById('wa-dest-fone');
+  if (nomeEl) nomeEl.textContent = `👤 ${agend.nome || 'Paciente'}`;
+  if (foneEl) foneEl.textContent = `📞 ${formatarTelefoneExibicao(agend.telefone)}`;
+  const aviso = document.getElementById('wa-aviso-telefone');
+  if (aviso) aviso.style.display = phone ? 'none' : 'block';
+  const btn = document.getElementById('wa-btn-send');
+  if (btn) btn.disabled = !phone;
+  const fb = document.getElementById('wa-fallback-link');
+  if (fb) { fb.style.display = 'none'; fb.removeAttribute('href'); fb.onclick = null; }
+  updateWaImagePreview(agend.tipo_atendimento, agend.profissional);
+  document.getElementById('wa-modal').classList.add('show');
+}
+
 async function openWaPreview(id, overrideTemplate) {
   try {
-    const r = await fetch(`${API_URL}/agendamentos`);
-    const list = await r.json();
-    const agend = list.find(a => a.id === id);
-    if (!agend) return;
+    const agend = await buscarAgendamentoPorId(id);
+    if (!agend) { showToast('Agendamento não encontrado!', true); return; }
     // Permite override do template (ex: lembrete_d1)
     const agendComTemplate = overrideTemplate ? { ...agend, template: overrideTemplate } : agend;
-    _waModalAgendAtual = agendComTemplate;
-    const msg = buildWaMessage(agendComTemplate);
-    document.getElementById('wa-preview-text').textContent = msg;
-    const phone = agend.telefone.replace(/\D/g,'');
-    _waCurrentUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
-    // Atualizar preview de imagem por tipo de consulta
-    updateWaImagePreview(agend.tipo_atendimento, agend.profissional);
-    document.getElementById('wa-modal').classList.add('show');
-  } catch { showToast('Erro!', true); }
+    prepararModalWhatsApp(agendComTemplate, buildWaMessage(agendComTemplate));
+  } catch { showToast('Erro ao abrir a mensagem do WhatsApp!', true); }
 }
 
 async function abrirWhatsAppEEnviar() {
-  if (!_waCurrentUrl) return;
-  if (_waModalAgendAtual) {
-    await registrarMensagemEnviada(_waModalAgendAtual);
+  if (!_waCurrentUrl) {
+    showToast('⚠️ Telefone inválido. Corrija pelo botão ✏️ (DDD + número) antes de enviar.', true);
+    return;
+  }
+  // Abre IMEDIATAMENTE (síncrono no clique) para não ser bloqueado como pop-up
+  const fb = document.getElementById('wa-fallback-link');
+  const ok = concluirAberturaWhatsApp(null, _waCurrentUrl, fb);
+  const agendRegistro = _waModalAgendAtual;
+  if (!ok && fb) {
+    fb.onclick = () => { if (agendRegistro) registrarMensagemEnviada(agendRegistro).then(() => loadRelatorioMensagens()); };
+  }
+  if (ok && agendRegistro) {
+    await registrarMensagemEnviada(agendRegistro);
     loadRelatorioMensagens();
   }
-  window.open(_waCurrentUrl, '_blank');
 }
 
 // Registra o envio de mensagem no backend
@@ -7182,8 +7289,10 @@ function closeAgendEditModal() {
 async function salvarEdicaoAgendamento() {
   const id = document.getElementById('edit-agend-id').value;
   const nome = document.getElementById('edit-agend-nome').value.trim();
-  const telefone = document.getElementById('edit-agend-telefone').value.trim();
-  if (!nome || !telefone) { showToast('Preencha nome e telefone!', true); return; }
+  const telefoneRaw = document.getElementById('edit-agend-telefone').value.trim();
+  if (!nome || !telefoneRaw) { showToast('Preencha nome e telefone!', true); return; }
+  const telefone = normalizarTelefoneWhatsApp(telefoneRaw);
+  if (!telefone) { showToast('⚠️ Telefone inválido! Informe DDD + número (ex.: 81 99999-9999).', true); return; }
   
   try {
     const r = await fetch(`${API_URL}/agendamentos/${id}/edit`, { 
@@ -7255,9 +7364,7 @@ function gerarMensagemEditarEnvio(agend, novoStatus, motivo, novaData, novoHorar
 
 async function abrirModalEditarEnvio(id, acaoPadrao = 'cancelado') {
   try {
-    const r = await fetch(`${API_URL}/agendamentos`);
-    const list = await r.json();
-    const agend = list.find(a => a.id === id);
+    const agend = await buscarAgendamentoPorId(id);
     if (!agend) {
       showToast('Agendamento não encontrado!', true);
       return;
@@ -7320,12 +7427,26 @@ async function abrirModalEditarEnvio(id, acaoPadrao = 'cancelado') {
     document.getElementById('ee-novo-horario').value = agend.horario || '08:00';
     document.getElementById('ee-aplicar-lote').checked = false;
 
-    // Contagem de consultas da categoria e data para o lote
-    const mesmoTipoEDia = list.filter(x => 
-      (x.tipo_atendimento || 'Consulta') === tipo && 
-      (x.data_agendamento || '').split('T')[0] === dataIso && 
+    // Contagem de consultas da categoria e data para o lote (consulta apenas o dia alvo)
+    let mesmoTipoEDia = (_agendamentosAtuais || []).filter(x =>
+      (x.tipo_atendimento || 'Consulta') === tipo &&
+      (x.data_agendamento || '').split('T')[0] === dataIso &&
       x.status !== 'cancelado'
     );
+    if (dataIso) {
+      try {
+        const rDia = await fetch(`${API_URL}/agendamentos?data=${encodeURIComponent(dataIso)}`);
+        if (rDia.ok) {
+          const listDia = await rDia.json();
+          if (Array.isArray(listDia)) {
+            mesmoTipoEDia = listDia.filter(x =>
+              (x.tipo_atendimento || 'Consulta') === tipo &&
+              x.status !== 'cancelado'
+            );
+          }
+        }
+      } catch (_) {}
+    }
     const loteInfoEl = document.getElementById('ee-lote-info');
     if (loteInfoEl) {
       loteInfoEl.textContent = `Aplicará para todas as ${mesmoTipoEDia.length} consulta(s) de "${tipo}" em ${dataFmt}.`;
@@ -7541,7 +7662,9 @@ async function salvarEditarEnvio() {
       showToast('Erro de conexão ao editar em lote!', true);
     }
   } else {
-    // Individual
+    // Individual — abre a janela de WhatsApp de forma SÍNCRONA antes dos awaits para o navegador não bloquear pop-up
+    const phone = normalizarTelefoneWhatsApp(agend.telefone);
+    const waWin = phone ? abrirJanelaWhatsAppPendente() : null;
     try {
       const r = await fetch(`${API_URL}/agendamentos/${id}/editar-envio`, {
         method: 'PUT',
@@ -7556,6 +7679,7 @@ async function salvarEditarEnvio() {
       });
 
       if (!r.ok) {
+        fecharJanelaWhatsAppPendente(waWin);
         const err = await r.json().catch(() => ({}));
         showToast(`Erro ao editar: ${err.error || r.status}`, true);
         return;
@@ -7580,21 +7704,23 @@ async function salvarEditarEnvio() {
       if (typeof loadHistoricoAgendamentos === 'function') loadHistoricoAgendamentos();
       if (typeof carregarHistorico === 'function') carregarHistorico();
 
-      // Gerar mensagem e abrir WhatsApp
+      // Gerar mensagem e concluir abertura do WhatsApp
       const msg = gerarMensagemEditarEnvio(agend, novoStatus, motivo, novaData, novoHorario);
-      const phone = (agend.telefone || '').replace(/\D/g, '');
-      const waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
-
-      await registrarMensagemEnviada({
-        id: agend.id,
-        profissional: agend.profissional,
-        paciente: agend.nome,
-        template: novoStatus
-      });
-      loadRelatorioMensagens();
-
-      window.open(waUrl, '_blank');
+      if (phone) {
+        const waUrl = montarUrlWhatsApp(phone, msg);
+        concluirAberturaWhatsApp(waWin, waUrl);
+        registrarMensagemEnviada({
+          id: agend.id,
+          profissional: agend.profissional,
+          paciente: agend.nome,
+          template: novoStatus
+        }).then(() => loadRelatorioMensagens()).catch(() => {});
+      } else {
+        fecharJanelaWhatsAppPendente(waWin);
+        showToast('⚠️ Consulta salva, mas o telefone do paciente é inválido para WhatsApp. Corrija pelo botão ✏️.', true);
+      }
     } catch (e) {
+      fecharJanelaWhatsAppPendente(waWin);
       console.error('Erro ao salvar edição:', e);
       showToast('Erro de conexão ao salvar!', true);
     }
@@ -7779,7 +7905,7 @@ async function copiarImagemItemLote(index) {
 function iniciarFilaDisparoLote(agendamentos, novoStatus, motivo, novaData, novoHorario) {
   _filaDisparoLote = agendamentos.map(a => {
     const msg = gerarMensagemEditarEnvio(a, novoStatus, motivo, novaData, novoHorario);
-    const phone = (a.telefone || '').replace(/\D/g, '');
+    const phone = normalizarTelefoneWhatsApp(a.telefone);
     const tipoAtend = a.tipo_atendimento || 'Consulta';
     const imgSrc = typeof getImagemTipoConsulta === 'function'
       ? getImagemTipoConsulta(tipoAtend, a.profissional)
@@ -7860,26 +7986,33 @@ async function dispararItemFila(index) {
   const item = _filaDisparoLote[index];
   if (!item) return;
 
-  atualizarImagemBoxLote(item.imgSrc, item.tipo_atendimento);
-  await copiarImagemParaClipboard(item.imgSrc, true);
+  const phone = normalizarTelefoneWhatsApp(item.phone || item.telefone);
+  if (!phone) {
+    showToast(`⚠️ Telefone inválido para ${item.nome || 'paciente'}. Corrija o contato na tabela.`, true);
+    return;
+  }
 
-  const url = `https://web.whatsapp.com/send?phone=${item.phone}&text=${encodeURIComponent(item.msg)}`;
-  window.open(url, '_blank');
+  // Abre a aba SÍNCRONA antes do await do clipboard para evitar bloqueio de pop-up
+  const waWin = abrirJanelaWhatsAppPendente();
+  atualizarImagemBoxLote(item.imgSrc, item.tipo_atendimento);
+  await copiarImagemParaClipboard(item.imgSrc, true).catch(() => {});
+
+  const url = montarUrlWhatsApp(phone, item.msg);
+  concluirAberturaWhatsApp(waWin, url);
 
   if (!item.enviado) {
     item.enviado = true;
     _filaDisparoEnviados++;
   }
 
-  await registrarMensagemEnviada({
+  registrarMensagemEnviada({
     id: item.id,
     profissional: item.profissional,
     paciente: item.nome,
     template: 'lote_' + (item.novoStatus || 'edicao')
-  });
+  }).then(() => loadRelatorioMensagens()).catch(() => {});
 
   renderFilaDisparoLote();
-  loadRelatorioMensagens();
 }
 
 function fecharFilaDisparoLote() {
@@ -9792,10 +9925,14 @@ function renderCtrlAgendamentos() {
 function enviarWhatsAppCtrlAgendamento(nome, equipe, motivo) {
   const fone = prompt(`📲 Enviar confirmação no WhatsApp para "${nome}"\n\nDigite o número de telefone do paciente (com DDD):`, '55');
   if (!fone) return;
-  const numLimpo = fone.replace(/\D/g, '');
+  const numLimpo = normalizarTelefoneWhatsApp(fone);
+  if (!numLimpo) {
+    showToast('⚠️ Telefone inválido! Informe DDD + número (ex.: 81 99999-9999).', true);
+    return;
+  }
   const dataHoje = new Date().toLocaleDateString('pt-BR');
   const msg = `Olá, *${nome}*! 🏥\n\nConfirmamos seu agendamento/encaminhamento na *USF Chico Mendes*:\n📅 Data do registro: *${dataHoje}*\n🏥 Equipe/Setor: *${equipe || 'USF Chico Mendes'}*\n📌 Motivo: *${motivo || 'Consulta'}*\n\nPor favor, compareça com documento com foto e Cartão do SUS.\n— *USF Chico Mendes* 💙`;
-  window.open(`https://web.whatsapp.com/send?phone=${numLimpo}&text=${encodeURIComponent(msg)}`, '_blank');
+  concluirAberturaWhatsApp(null, montarUrlWhatsApp(numLimpo, msg));
 }
 
 function abrirEditarCtrlAgendamento(id) {

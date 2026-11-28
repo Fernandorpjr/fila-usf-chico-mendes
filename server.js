@@ -5357,11 +5357,27 @@ app.get('/api/agendamentos', async (req, res) => {
       idx++;
     }
 
-    query += ' ORDER BY data_agendamento ASC, horario ASC LIMIT 500';
+    query += ' ORDER BY data_agendamento ASC, horario ASC LIMIT 2000';
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     responderErroInterno(res, 'GET /api/agendamentos', error);
+  }
+});
+
+// GET – buscar agendamento específico por ID numérico (sem sombrear subrotas como /historico ou /coletas/stats)
+app.get('/api/agendamentos/:id', async (req, res, next) => {
+  const rawId = String(req.params.id || '');
+  if (!/^\d+$/.test(rawId)) return next();
+  try {
+    const id = parseInt(rawId, 10);
+    const result = await pool.query('SELECT * FROM agendamentos WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Agendamento não encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    responderErroInterno(res, 'GET /api/agendamentos/:id', error);
   }
 });
 
